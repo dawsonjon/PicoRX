@@ -1,0 +1,31 @@
+.program hello
+	set pins, 0
+	set pins, 1      ; Drive pin low
+	set pins, 3      ; Drive pin high
+	set pins, 2      ; Drive pin low
+
+% c-sdk {
+static inline void hello_program_init(PIO pio, uint sm, uint offset) {
+    pio_sm_config c = hello_program_get_default_config(offset);
+
+    // Map the state machine's OUT pin group to one pin, namely the `pin`
+    // parameter to this function.
+    sm_config_set_set_pins(&c, 0, 2);
+
+    // Set this pin's GPIO function (connect PIO to the pad)
+    pio_gpio_init(pio, 0);
+    pio_gpio_init(pio, 1);
+
+    // Set the pin direction to output at the PIO
+    pio_sm_set_consecutive_pindirs(pio, sm, 0, 2, true);
+
+    float tuned_frequency = 1.215e6;
+    float div = 125e6 / (4*(tuned_frequency - 10e3));
+    sm_config_set_clkdiv(&c, div);
+
+    // Load our configuration, and jump to the start of the program
+    pio_sm_init(pio, sm, offset, &c);
+    // Set the state machine running
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
