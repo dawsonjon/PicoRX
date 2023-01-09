@@ -2,7 +2,7 @@
 #include <math.h>
 #include <cstdio>
 
-RXDSP :: RXDSP(double offset_frequency)
+rx_dsp :: rx_dsp(double offset_frequency)
 {
 
   //initialise state
@@ -20,19 +20,21 @@ RXDSP :: RXDSP(double offset_frequency)
   }
 
   //clear cic filter
-  for(uint16_t stage=0; stage>stages; stage++)
-  {
-    integratori[stage]=0; combi[stage]=0; delayi[stage]=0;
-    integratorq[stage]=0; combq[stage]=0; delayq[stage]=0;
-  }
-  integratori[stages]=0; combi[stages]=0;
-  integratorq[stages]=0, combq[stages]=0;
+  integratori1=0; integratorq1=0;
+  integratori2=0; integratorq2=0;
+  integratori3=0; integratorq3=0;
+  integratori4=0; integratorq4=0;
+  delayi0=0; delayq0=0;
+  delayi1=0; delayq1=0;
+  delayi2=0; delayq2=0;
+  delayi3=0; delayq3=0;
 
 }
 
-void RXDSP :: process_block(uint16_t samples[], int16_t i_samples[], int16_t q_samples[])
+uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t i_samples[], int16_t q_samples[])
 {
 
+  uint16_t odx = 0;
   for(uint16_t idx=0; idx<block_size; idx++)
   {
 
@@ -43,8 +45,7 @@ void RXDSP :: process_block(uint16_t samples[], int16_t i_samples[], int16_t q_s
       dc = raw_sample+(dc - (dc >> 10)); //low pass IIR filter
       const int16_t sample = raw_sample - (dc >> 10);
       
-      //Convert alternating I/Q samples to complex samples
-      //using 0 for the missing components
+      //Apply frequency shift (move tuned frequency to DC)         
       const int32_t i = (idx&1)?0:sample;//even samples contain i data
       const int32_t q = (idx&1)?sample:0;//odd samples contain q data
 
@@ -56,43 +57,73 @@ void RXDSP :: process_block(uint16_t samples[], int16_t i_samples[], int16_t q_s
       const int16_t i_shifted = ((i * rotation_i) - (q * rotation_q)) >> 15;
       const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
 
-      //decimate by 4
+      //Decimate
 
+      //             fs          Alias Free
+      //raw data    500kHz
+      //CIC (16)    31.25kHz     +/-7kHz
+      //filt1       15.625kHz    +/-4.5(with aliases outside)
+      //filt2       15.625kHz    +/-4.5(free from aliases)
+
+
+      //CIC decimation filter
       //implement integrator stages
-      integratori[0] = i_shifted;
-      integratorq[0] = q_shifted;
-      for(uint8_t stage=0; stage<stages; stage++)
-      {
-        integratori[stage+1] = integratori[stage+1]+integratori[stage];
-        integratorq[stage+1] = integratorq[stage+1]+integratorq[stage];
-      }
-      combi[0] = integratori[stages];
-      combq[0] = integratorq[stages];
+      integratori1 += i_shifted;
+      integratorq1 += q_shifted;
+      integratori2 += integratori1;
+      integratorq2 += integratorq1;
+      integratori3 += integratori2;
+      integratorq3 += integratorq2;
+      integratori4 += integratori3;
+      integratorq4 += integratorq3;
 
-
-      static const uint8_t growth = stages*2;
+      //fprintf(stderr, "num_output samples: %i %i %i\n", idx, odx, decimate);
 
       decimate++;
-      if(decimate == 4)
+      if(decimate == decimation_rate)
       {
         decimate = 0;
 
         //implement comb stages
-        for(uint8_t stage=0; stage<stages; stage++)
-        { 
-          combi[stage+1] = combi[stage]-delayi[stage];
-          delayi[stage] = combi[stage];
-          combq[stage+1] = combq[stage]-delayq[stage];
-          delayq[stage] = combq[stage];
+        const int32_t combi1 = integratori4-delayi0;
+        const int32_t combq1 = integratorq4-delayq0;
+        const int32_t combi2 = combi1-delayi1;
+        const int32_t combq2 = combq1-delayq1;
+        const int32_t combi3 = combi2-delayi2;
+        const int32_t combq3 = combq2-delayq2;
+        const int32_t combi4 = combi3-delayi3;
+        const int32_t combq4 = combq3-delayq3;
+        delayi0 = integratori4;
+        delayq0 = integratorq4;
+        delayi1 = combi1;
+        delayq1 = combq1;
+        delayi2 = combi2;
+        delayq2 = combq2;
+        delayi3 = combi3;
+        delayq3 = combq3;
+
+        int16_t decimated_i = combi4>>(growth-2);
+        int16_t decimated_q = combq4>>(growth-2);
+        
+        //first half band decimating filter
+        bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
+        //second half band decimating filter
+        if(new_sample) new_sample = half_band_filter2_inst.filter(decimated_i, decimated_q);
+        if(new_sample)
+        {
+
+          const int16_t max = decimated_i > decimated_q?decimated_i:decimated_q;
+          const int16_t min = decimated_i < decimated_q?decimated_i:decimated_q;
+          decimated_i = ((max * 61) / 64) + ((min * 13) / 32);
+
+          i_samples[odx] = decimated_i;
+          //q_samples[odx] = decimated_q;
+          odx++;
         }
-
-
-        i_samples[idx>>2] = combi[stages]>>(growth-2);
-        q_samples[idx>>2] = combq[stages]>>(growth-2);
       }
 
-      fprintf(stderr, "%u %i %i %i %i\n", decimate, i_shifted, integratori[stages], delayi[0], combi[stages]>>(growth-2));
 
     } 
+    return odx;
 
 }

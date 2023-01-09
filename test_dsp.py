@@ -17,7 +17,7 @@ data_raw = np.array(data_raw)*20+2048
 data_raw = " ".join([hex(int(i))[2:] for i in data_raw])
 print(data_raw)
 
-run(["g++", "rx_dsp.cpp", "test_dsp.cpp", "-o", "test_dsp"])
+run(["g++", "rx_dsp.cpp", "test_dsp.cpp", "half_band_filter.cpp", "half_band_filter2.cpp", "-o", "test_dsp"])
 output = run("./test_dsp", input=bytes(data_raw, "utf8"), capture_output=True)
 error = output.stderr.decode("utf8").strip()
 for line in error.splitlines():
@@ -36,8 +36,10 @@ samples_raw = np.array(samples_raw)
 spectrum_raw = 20*np.log10(abs(np.fft.fftshift(np.fft.fft(samples_raw))))
 #
 #
+decimation_ratio = len(spectrum)/len(spectrum_raw)
 plt.psd(samples_raw, Fs=500e3)
-plt.psd(samples, Fs=125e3)
+plt.psd(samples, Fs=500e3*decimation_ratio)
 plt.show()
+plt.plot(samples.real)
 plt.plot(samples.imag)
 plt.show()

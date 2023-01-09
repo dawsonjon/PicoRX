@@ -5,7 +5,7 @@
 	set pins, 2      ; Drive pin low
 
 % c-sdk {
-static inline void hello_program_init(PIO pio, uint sm, uint offset) {
+static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_frequency) {
     pio_sm_config c = hello_program_get_default_config(offset);
 
     // Map the state machine's OUT pin group to one pin, namely the `pin`
@@ -19,13 +19,17 @@ static inline void hello_program_init(PIO pio, uint sm, uint offset) {
     // Set the pin direction to output at the PIO
     pio_sm_set_consecutive_pindirs(pio, sm, 0, 2, true);
 
-    float tuned_frequency = 1.215e6;
-    float div = 125e6 / (4*(tuned_frequency - 10e3));
+
+    //calculate nearest divider
+    float div = round(256 * 125e6 / (4*(tuned_frequency - 10e3)))/256;
     sm_config_set_clkdiv(&c, div);
 
     // Load our configuration, and jump to the start of the program
     pio_sm_init(pio, sm, offset, &c);
     // Set the state machine running
     pio_sm_set_enabled(pio, sm, true);
+
+    //return actual frequency
+    return 125e6 / (4*div);
 }
 %}

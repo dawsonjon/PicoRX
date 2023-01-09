@@ -69,9 +69,9 @@ int main()
   }
 
   rx_dsp.process_block(samples, i, q);
-  rx_dsp.process_block(samples, i, q);
+  const uint16_t num_output_samples = rx_dsp.process_block(samples, i, q);
 
-  for(uint16_t idx=0; idx<RXDSP::block_size/4; idx++)
+  for(uint16_t idx=0; idx<num_output_samples; idx++)
   {
       if(q[idx] < 0){
         printf("%0i%0ij, ", i[idx], q[idx]);

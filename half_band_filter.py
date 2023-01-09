@@ -38,14 +38,10 @@ def plot_kernel(freq, taps, kernel_bits, fs):
 
 if __name__ == "__main__":
     decimation = 8
-    plot_kernel(0.2, 127, 16, 500/decimation)
-
-    f = 500e3
-    for i in range(4, 30):
-      print(i, f/i, f*0.5/i, f*0.5*0.5/i, f*0.5*0.5*0.45/i ) 
+    plot_kernel(0.5, 27, 16, 500/decimation)
 
     taps = 27
-    kernel = make_kernel(taps, 16)
+    kernel = make_kernel(0.5, taps, 16)
     buffer_mask = (2**ceil(log2(taps)))-1
 
     kernel = [int(i) for i in kernel]

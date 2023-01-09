@@ -33,5 +33,5 @@ def plot_kernel(length, order):
 
 
 if __name__ == "__main__":
-    plot_kernel(2, 4)
+    plot_kernel(16, 4)
 
