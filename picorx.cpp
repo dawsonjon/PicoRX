@@ -16,6 +16,13 @@
 #include "nco.pio.h"
 #include "rx_dsp.h"
 
+static const uint16_t block_size = 4096;
+int16_t ping_audio[block_size];
+int16_t pong_audio[block_size];
+uint16_t ping_num_audio_samples;
+uint16_t pong_num_audio_samples;
+bool ping = true;
+
 int main() {
 
     // Choose which PIO instance to use (there are two instances)
@@ -35,7 +42,7 @@ int main() {
     double actual_frequency = nco_program_init(pio, sm, offset, tuned_frequency);
     stdio_init_all();
     
-    //ADC Conficuration
+    //ADC Configuration
     adc_init();
     adc_gpio_init(26);//I channel (0) - configure pin for ADC use
     adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
@@ -52,63 +59,43 @@ int main() {
     channel_config_set_dreq(&cfg, DREQ_ADC);// Pace transfers based on availability of ADC samples
 
     //Arrays to hold blocks of data
-    static const uint16_t block_size = 1000;
-    uint16_t samples[block_size];
-    int16_t i_samples[block_size];
-    int16_t q_samples[block_size];
+    uint16_t ping_samples[block_size];
+    uint16_t pong_samples[block_size];
 
     //receiver
     rx_dsp rxdsp(tuned_frequency-actual_frequency);
 
+    //bool ping=true;
+    adc_select_input(0);
+    adc_run(true);
+    dma_channel_configure(dma_chan, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
+
     while (true) 
     {
 
-        
-        //DMA 500 samples
-        printf("tuned frequency %f actual frequency %f signal offset %f \n", tuned_frequency, actual_frequency, tuned_frequency-actual_frequency);
-        clock_t start_time = time_us_64();
-        adc_select_input(0);
-        adc_run(true);
-        dma_channel_configure(dma_chan, &cfg,
-            samples,        // dst
-            &adc_hw->fifo,  // src
-            block_size,            // transfer count
-            true            // start immediately
-        );
         dma_channel_wait_for_finish_blocking(dma_chan);
         adc_run(false);
         adc_fifo_drain();
-        clock_t stop_time = time_us_64();
-        printf("time to read samples %f\n", (double)(stop_time - start_time));
-
-        //output samples
-        //printf("raw samples\n");
-        //stop_time = time_us_64();
-        //for(uint16_t idx=0; idx<block_size; idx++)
-        //{
-            //printf("%04x ", samples[idx]);
-            //if((idx+1)%20 == 0) printf("\n");
-        //}
-        //stop_time = time_us_64();
-        //printf("time to dump raw samples %f\n", (double)(stop_time - start_time));
-
-        //Convert Samples to Audio
-        start_time = time_us_64();
-        const uint16_t num_audio_samples = rxdsp.process_block(samples, i_samples, q_samples);
-        stop_time = time_us_64();
-        printf("time to frequency shift samples %f\n", (double)(stop_time - start_time));
-
-        //output samples
-        printf("procesed sampels:\n");
-        stop_time = time_us_64();
-        for(uint16_t idx=0; idx<num_audio_samples; idx++)
+        if (ping)
         {
-            printf("%04i ", i_samples[idx]);
-            //printf("%04i ", q_samples[idx]);
-            if((idx+1)%20 == 0) printf("\n");
+          //ping buffer is full, start filling pong, and process ping
+          adc_select_input(0);
+          adc_run(true);
+          dma_channel_configure(dma_chan, &cfg, pong_samples, &adc_hw->fifo, block_size, true);
+          ping_num_audio_samples = rxdsp.process_block(ping_samples, ping_audio);
+          fwrite(ping_audio, 2, ping_num_audio_samples, stdout);
+          ping=false;
         }
-        stop_time = time_us_64();
-        printf("time to plot samples %f\n", (double)(stop_time - start_time));
+        else
+        {
+          //pong buffer is full, start filling ping, and process pong
+          adc_select_input(0);
+          adc_run(true);
+          dma_channel_configure(dma_chan, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
+          pong_num_audio_samples = rxdsp.process_block(pong_samples, pong_audio);
+          fwrite(pong_audio, 2, pong_num_audio_samples, stdout);
+          ping=true;
+        }
 
 
 

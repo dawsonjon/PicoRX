@@ -29,9 +29,48 @@ rx_dsp :: rx_dsp(double offset_frequency)
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
+  //Configure AGC
+  // input fs=500000.000000 Hz
+  // decimation=20 x 2
+  // fs=12500.000000 Hz
+  // Setting Decay Time(s) Factor Attack Time(s) Factor  Hang  Timer
+  // ======= ============= ====== ============== ======  ====  =====
+  // fast        0.047       9        0.001         2    0.1s   1250
+  // medium      0.189       10       0.001         2    0.25s  3125
+  // slow        0.377       11       0.001         2    1s     12500
+  // long        1.509       13       0.001         2    2s     25000
+
+
+  switch(agc_setting)
+  {
+      case 0: //fast
+        attack_factor=2;
+        decay_factor=9;
+        hang_time=1250;
+        break;
+
+      case 1: //medium
+        attack_factor=2;
+        decay_factor=10;
+        hang_time=3125;
+        break;
+
+      case 2: //slow
+        attack_factor=2;
+        decay_factor=11;
+        hang_time=12500;
+        break;
+
+      default: //long
+        attack_factor=2;
+        decay_factor=13;
+        hang_time=25000;
+        break;
+  }
+
 }
 
-uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t i_samples[], int16_t q_samples[])
+uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
 
   uint16_t odx = 0;
@@ -58,13 +97,11 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t i_samples[], int16_
       const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
 
       //Decimate
-
       //             fs          Alias Free
       //raw data    500kHz
-      //CIC (16)    31.25kHz     +/-7kHz
-      //filt1       15.625kHz    +/-4.5(with aliases outside)
-      //filt2       15.625kHz    +/-4.5(free from aliases)
-
+      //CIC (20)    12.5kHz      +/-6.25kHz
+      //filt1       15.625kHz    +/-3.125kHz(with aliases outside)
+      //filt2       15.625kHz    +/-3.125kHz(free from aliases)
 
       //CIC decimation filter
       //implement integrator stages
@@ -76,8 +113,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t i_samples[], int16_
       integratorq3 += integratorq2;
       integratori4 += integratori3;
       integratorq4 += integratorq3;
-
-      //fprintf(stderr, "num_output samples: %i %i %i\n", idx, odx, decimate);
 
       decimate++;
       if(decimate == decimation_rate)
@@ -112,18 +147,70 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t i_samples[], int16_
         if(new_sample)
         {
 
-          const int16_t max = decimated_i > decimated_q?decimated_i:decimated_q;
-          const int16_t min = decimated_i < decimated_q?decimated_i:decimated_q;
-          decimated_i = ((max * 61) / 64) + ((min * 13) / 32);
 
-          i_samples[odx] = decimated_i;
-          //q_samples[odx] = decimated_q;
+          //Demodulate
+          const int32_t max = decimated_i > decimated_q?decimated_i:decimated_q;
+          const int32_t min = decimated_i < decimated_q?decimated_i:decimated_q;
+          int32_t audio = ((max * 61) / 64) + ((min * 13) / 32);
+
+          audio_dc = audio+(audio_dc - (audio_dc >> 10)); //low pass IIR filter
+          audio -= (audio_dc >> 10);
+
+          audio_samples[odx] = audio;
           odx++;
+
+          //Audio AGC
+          if(false)
+          {
+
+            //Use a leaky max hold to estimate audio power
+            static const uint8_t extra_bits = 16;
+            const int32_t audio_extended = decimated_i << extra_bits;
+
+            if(audio_extended > max_hold)
+            {
+              //attack
+              max_hold += (audio_extended - max_hold) >> attack_factor;
+              hang_timer = hang_time;
+            }
+            else if(hang_timer)
+            {
+              //hang
+              hang_timer--;
+            }
+            else if(max_hold > 0)
+            {
+              //decay
+              max_hold -= max_hold>>decay_factor; 
+            }
+
+            //calculate gain 
+            const int16_t magnitude = max_hold >> extra_bits;
+            const int16_t setpoint = 1<<14; //about half full scale
+            const int16_t limit = 1<<15; //hard limit
+
+            //apply gain
+            if(magnitude > 0)
+            {
+              const int16_t gain = setpoint/magnitude;
+              audio *= gain;
+            }
+
+            //soft clip (compress)
+            if (audio > setpoint)  audio =  setpoint + ((audio-setpoint)>>1);
+            if (audio < -setpoint) audio = -setpoint - ((audio+setpoint)>>1);
+
+            //hard clamp
+            if (audio > limit)  audio = limit;
+            if (audio < -limit) audio = -limit;
+
+            
+          }
+
+
         }
       }
-
-
     } 
     return odx;
-
 }
+

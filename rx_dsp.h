@@ -1,3 +1,6 @@
+#ifndef RX_DSP_H
+#define RX_DSP_H
+
 #include <stdint.h>
 #include "half_band_filter.h"
 #include "half_band_filter2.h"
@@ -7,9 +10,9 @@ class rx_dsp
 {
   public:
   rx_dsp(double offset_frequency);
-  uint16_t process_block(uint16_t samples[], int16_t i_samples[], int16_t q_samples[]);
-  static const uint16_t block_size = 1000;
-  static const uint16_t decimation_rate = 20;
+  uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
+  static const uint16_t block_size = 4096;
+  static const uint16_t decimation_rate = 40;
   static const uint16_t growth = ceil(log2(decimation_rate)) * 4;
 
   private:
@@ -38,4 +41,18 @@ class rx_dsp
   half_band_filter half_band_filter_inst;
   half_band_filter2 half_band_filter2_inst;
 
+  //removes dc component of AM signal
+  int32_t audio_dc;
+
+  //used in AGC
+  uint8_t attack_factor;
+  uint8_t decay_factor;
+  uint16_t hang_time;
+  uint16_t hang_timer;
+  const uint8_t agc_setting = 0;
+  const bool agc_enabled = true;
+  int32_t max_hold;
+
 };
+
+#endif
