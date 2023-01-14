@@ -10,6 +10,7 @@
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/adc.h"
+#include "hardware/pwm.h"
 #include "hardware/dma.h"
 
 // Our assembled program:
@@ -19,8 +20,6 @@
 static const uint16_t block_size = 4096;
 int16_t ping_audio[block_size];
 int16_t pong_audio[block_size];
-uint16_t ping_num_audio_samples;
-uint16_t pong_num_audio_samples;
 bool ping = true;
 
 int main() {
@@ -51,8 +50,8 @@ int main() {
     adc_fifo_setup(true, true, 1, false, false);
     
     // Configure DMA for ADC transfers
-    uint dma_chan = dma_claim_unused_channel(true);
-    dma_channel_config cfg = dma_channel_get_default_config(dma_chan);
+    uint adc_dma_channel = dma_claim_unused_channel(true);
+    dma_channel_config cfg = dma_channel_get_default_config(adc_dma_channel);
     channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
     channel_config_set_read_increment(&cfg, false);
     channel_config_set_write_increment(&cfg, true);
@@ -65,25 +64,54 @@ int main() {
     //receiver
     rx_dsp rxdsp(tuned_frequency-actual_frequency);
 
+    //audio output
+    const uint AUDIO_PIN = 16;
+    gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
+    int audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
+    pwm_config config = pwm_get_default_config();
+    pwm_config_set_clkdiv(&config, 1.f); //125MHz
+    pwm_config_set_wrap(&config, 5000); 
+    pwm_init(audio_pwm_slice_num, &config, true);
+
+    //configure DMA for audio transfers
+    int pwm_dma_chan = dma_claim_unused_channel(true);
+    dma_channel_config audio_cfg = dma_channel_get_default_config(pwm_dma_chan);
+    channel_config_set_transfer_data_size(&audio_cfg, DMA_SIZE_16);
+    channel_config_set_read_increment(&audio_cfg, true);
+    channel_config_set_write_increment(&audio_cfg, false);
+    channel_config_set_dreq(&audio_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+
     //bool ping=true;
     adc_select_input(0);
     adc_run(true);
-    dma_channel_configure(dma_chan, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
+    dma_channel_configure(adc_dma_channel, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
+
+    const uint PING_PIN = 14;
+    const uint BUSY_PIN = 15;
+    gpio_init(PING_PIN);
+    gpio_init(BUSY_PIN);
+    gpio_set_dir(PING_PIN, GPIO_OUT);
+    gpio_set_dir(BUSY_PIN, GPIO_OUT);
+    uint16_t num_audio_samples;
 
     while (true) 
     {
 
-        dma_channel_wait_for_finish_blocking(dma_chan);
+        dma_channel_wait_for_finish_blocking(adc_dma_channel);
         adc_run(false);
         adc_fifo_drain();
+        gpio_put(PING_PIN, ping);
         if (ping)
         {
           //ping buffer is full, start filling pong, and process ping
           adc_select_input(0);
           adc_run(true);
-          dma_channel_configure(dma_chan, &cfg, pong_samples, &adc_hw->fifo, block_size, true);
-          ping_num_audio_samples = rxdsp.process_block(ping_samples, ping_audio);
-          fwrite(ping_audio, 2, ping_num_audio_samples, stdout);
+          dma_channel_configure(adc_dma_channel, &cfg, pong_samples, &adc_hw->fifo, block_size, true);
+          gpio_put(BUSY_PIN, 1);
+          num_audio_samples = rxdsp.process_block(ping_samples, ping_audio);
+          gpio_put(BUSY_PIN, 0);
+          dma_channel_wait_for_finish_blocking(pwm_dma_chan);
+          dma_channel_configure(pwm_dma_chan, &audio_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, num_audio_samples, true);
           ping=false;
         }
         else
@@ -91,9 +119,12 @@ int main() {
           //pong buffer is full, start filling ping, and process pong
           adc_select_input(0);
           adc_run(true);
-          dma_channel_configure(dma_chan, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
-          pong_num_audio_samples = rxdsp.process_block(pong_samples, pong_audio);
-          fwrite(pong_audio, 2, pong_num_audio_samples, stdout);
+          dma_channel_configure(adc_dma_channel, &cfg, ping_samples, &adc_hw->fifo, block_size, true);
+          gpio_put(BUSY_PIN, 1);
+          num_audio_samples = rxdsp.process_block(pong_samples, pong_audio);
+          gpio_put(BUSY_PIN, 0);
+          dma_channel_wait_for_finish_blocking(pwm_dma_chan);
+          dma_channel_configure(pwm_dma_chan, &audio_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, num_audio_samples, true);
           ping=true;
         }
 

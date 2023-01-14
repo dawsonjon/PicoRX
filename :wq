@@ -153,13 +153,14 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
           const int32_t min = decimated_i < decimated_q?decimated_i:decimated_q;
           int32_t audio = ((max * 61) / 64) + ((min * 13) / 32);
 
-          //remove DC
-          //audio_dc = audio+(audio_dc - (audio_dc >> 6)); //low pass IIR filter
-          //audio -= (audio_dc >> 6);
-
-          audio_dc += (audio-audio_dc)/2;
-          audio = audio-audio_dc;
-
+          //DC cancel using first order high pass IIR
+          const int32_t a0 = 32361; 
+          const int32_t a1 = -32361; 
+          const int32_t b1 = 31955; 
+          const int32_t temp_audio = audio;
+          audio = ((audio*a0) >> 15) + ((xnm1*a1) >> 15) + ((ynm1*b1) >> 15);
+          xnm1 = temp_audio;
+          ynm1 = audio;
 
 
           //Audio AGC
@@ -168,7 +169,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //Use a leaky max hold to estimate audio power
             static const uint8_t extra_bits = 16;
-            const int32_t audio_extended = audio << extra_bits;
+            const int32_t audio_extended = decimated_i << extra_bits;
 
             if(audio_extended > max_hold)
             {
@@ -187,19 +188,17 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
               max_hold -= max_hold>>decay_factor; 
             }
 
-
             //calculate gain 
             const int16_t magnitude = max_hold >> extra_bits;
-            const int16_t setpoint = 1250; //about half full scale
-            const int16_t limit = 2500; //hard limit (PWM goes from 0 to 5000)
+            const int16_t setpoint = 1<<14; //about half full scale
+            const int16_t limit = 1<<15; //hard limit
 
             //apply gain
             if(magnitude > 0)
             {
               const int16_t gain = setpoint/magnitude;
-              //printf("%i %i %i %i", audio, magnitude, setpoint, gain);
               audio *= gain;
-              //printf(" %i", audio);
+              printf("%u, %u, %i\n", magnitude, gain, audio);
             }
 
 
@@ -211,9 +210,14 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
             if (audio > limit)  audio = limit;
             if (audio < -limit) audio = -limit;
 
+            //scale audio for 12-bit PWM output i.e. -2048 to 2048
+            audio <<= 4;
             //convert to unsigned
-            audio += limit;
-            //printf(" %i\n", audio);
+            audio += 2048;
+            //hard clamp to 0 to 5000
+            if (audio > 5000)  audio = 5000;
+            if (audio < 0) audio = 0;
+
 
             audio_samples[odx] = audio;
             odx++;

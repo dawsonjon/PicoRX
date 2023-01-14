@@ -12,7 +12,7 @@ class rx_dsp
   rx_dsp(double offset_frequency);
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
   static const uint16_t block_size = 4096;
-  static const uint16_t decimation_rate = 40;
+  static const uint16_t decimation_rate = 20;
   static const uint16_t growth = ceil(log2(decimation_rate)) * 4;
 
   private:
@@ -42,7 +42,7 @@ class rx_dsp
   half_band_filter2 half_band_filter2_inst;
 
   //removes dc component of AM signal
-  int32_t audio_dc;
+  int32_t audio_dc=0;
 
   //used in AGC
   uint8_t attack_factor;
