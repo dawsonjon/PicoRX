@@ -11,7 +11,7 @@ class rx_dsp
   public:
   rx_dsp(double offset_frequency);
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
-  static const uint16_t block_size = 4096;
+  static const uint16_t block_size = 2048;
   static const uint16_t decimation_rate = 20;
   static const uint16_t growth = ceil(log2(decimation_rate)) * 4;
 
@@ -44,12 +44,15 @@ class rx_dsp
   //removes dc component of AM signal
   int32_t audio_dc=0;
 
+  //test tone
+  int16_t signal = 0;
+
   //used in AGC
   uint8_t attack_factor;
   uint8_t decay_factor;
   uint16_t hang_time;
   uint16_t hang_timer;
-  const uint8_t agc_setting = 0;
+  const uint8_t agc_setting = 3;
   const bool agc_enabled = true;
   int32_t max_hold;
 

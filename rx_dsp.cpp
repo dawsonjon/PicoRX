@@ -139,6 +139,13 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
         int16_t decimated_i = combi4>>(growth-2);
         int16_t decimated_q = combq4>>(growth-2);
+
+        //signal+=42;
+        //decimated_i = sin_table[signal & 0x3ff]/300;
+        //decimated_q = sin_table[signal & 0x3ff]/300;
+        //decimated_i = 10;
+        //decimated_q = 10;
+        //printf("%i %i\n", signal, audio);
         
         //first half band decimating filter
         bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
@@ -149,18 +156,16 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
 
           //Demodulate
-          const int32_t max = decimated_i > decimated_q?decimated_i:decimated_q;
-          const int32_t min = decimated_i < decimated_q?decimated_i:decimated_q;
-          int32_t audio = ((max * 61) / 64) + ((min * 13) / 32);
+          const int32_t absi = decimated_i > 0?decimated_i:-decimated_i;
+          const int32_t absq = decimated_q > 0?decimated_q:-decimated_q;
+          int32_t audio = absi > absq ? absi + absq / 4 : absq + absi / 4;
 
           //remove DC
-          //audio_dc = audio+(audio_dc - (audio_dc >> 6)); //low pass IIR filter
-          //audio -= (audio_dc >> 6);
+          audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
+          audio -= (audio_dc >> 5);
 
-          audio_dc += (audio-audio_dc)/2;
-          audio = audio-audio_dc;
-
-
+          //audio_dc += (audio-audio_dc)/2;
+          //audio = audio-audio_dc;
 
           //Audio AGC
           if(true)
@@ -190,18 +195,15 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //calculate gain 
             const int16_t magnitude = max_hold >> extra_bits;
-            const int16_t setpoint = 1250; //about half full scale
-            const int16_t limit = 2500; //hard limit (PWM goes from 0 to 5000)
+            const int16_t limit = 250; //hard limit (PWM goes from 0 to 500)
+            const int16_t setpoint = limit/2; //about half full scale
 
             //apply gain
             if(magnitude > 0)
             {
               const int16_t gain = setpoint/magnitude;
-              //printf("%i %i %i %i", audio, magnitude, setpoint, gain);
               audio *= gain;
-              //printf(" %i", audio);
             }
-
 
             //soft clip (compress)
             if (audio > setpoint)  audio =  setpoint + ((audio-setpoint)>>1);
@@ -213,12 +215,14 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //convert to unsigned
             audio += limit;
-            //printf(" %i\n", audio);
 
-            audio_samples[odx] = audio;
-            odx++;
-            audio_samples[odx] = audio;
-            odx++;
+
+
+            for(uint8_t sample=0; sample < 20; sample++)
+            {
+              audio_samples[odx] = audio;
+              odx++;
+            }
 
             
           }
