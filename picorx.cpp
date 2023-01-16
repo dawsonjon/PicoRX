@@ -17,8 +17,27 @@
 #include "nco.pio.h"
 #include "rx_dsp.h"
 
-int16_t ping_audio[rx_dsp::block_size];
-int16_t pong_audio[rx_dsp::block_size];
+uint adc_dma_ping;
+uint adc_dma_pong;
+dma_channel_config ping_cfg;
+dma_channel_config pong_cfg;
+uint16_t ping_samples[rx_dsp::block_size];
+uint16_t pong_samples[rx_dsp::block_size];
+
+void dma_handler() {
+
+    if(dma_hw->ints0 & (1u << adc_dma_ping))
+    {
+      dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+      dma_hw->ints0 = 1u << adc_dma_ping;
+    }
+    else
+    {
+      dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+      dma_hw->ints0 = 1u << adc_dma_pong;
+    }
+}
+
 
 int main() {
     const uint PSU_PIN = 23;
@@ -50,12 +69,13 @@ int main() {
     adc_set_clkdiv(0); //flat out
     adc_set_round_robin(3); //sample I/Q alternately
     adc_fifo_setup(true, true, 1, false, false);
+
     
     // Configure DMA for ADC transfers
-    uint adc_dma_ping = dma_claim_unused_channel(true);
-    uint adc_dma_pong = dma_claim_unused_channel(true);
-    dma_channel_config ping_cfg = dma_channel_get_default_config(adc_dma_ping);
-    dma_channel_config pong_cfg = dma_channel_get_default_config(adc_dma_pong);
+    adc_dma_ping = dma_claim_unused_channel(true);
+    adc_dma_pong = dma_claim_unused_channel(true);
+    ping_cfg = dma_channel_get_default_config(adc_dma_ping);
+    pong_cfg = dma_channel_get_default_config(adc_dma_pong);
 
     channel_config_set_transfer_data_size(&ping_cfg, DMA_SIZE_16);
     channel_config_set_read_increment(&ping_cfg, false);
@@ -69,9 +89,13 @@ int main() {
     channel_config_set_dreq(&pong_cfg, DREQ_ADC);// Pace transfers based on availability of ADC samples
     channel_config_set_chain_to(&pong_cfg, adc_dma_ping);
 
-    //Arrays to hold blocks of data
-    uint16_t ping_samples[rx_dsp::block_size];
-    uint16_t pong_samples[rx_dsp::block_size];
+    dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+    dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+
+    dma_set_irq0_channel_mask_enabled((1u<<adc_dma_ping) | (1u<<adc_dma_pong), true);
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
+    irq_set_enabled(DMA_IRQ_0, true);
+
 
     //receiver
     rx_dsp rxdsp(tuned_frequency-actual_frequency);
@@ -84,6 +108,8 @@ int main() {
     pwm_config_set_clkdiv(&config, 1.f); //125MHz
     pwm_config_set_wrap(&config, 500); 
     pwm_init(audio_pwm_slice_num, &config, true);
+    int16_t ping_audio[rx_dsp::block_size];
+    int16_t pong_audio[rx_dsp::block_size];
 
     //configure DMA for audio transfers
     int pwm_dma_chan = dma_claim_unused_channel(true);
@@ -93,38 +119,25 @@ int main() {
     channel_config_set_write_increment(&audio_cfg, false);
     channel_config_set_dreq(&audio_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 
-    bool ping=true;
-    adc_select_input(0);
-    adc_run(true);
-    dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, true);
-    dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
-
     const uint PING_PIN = 14;
-    const uint BUSY_PIN = 15;
+    const uint PONG_PIN = 15;
     gpio_init(PING_PIN);
-    gpio_init(BUSY_PIN);
+    gpio_init(PONG_PIN);
     gpio_set_dir(PING_PIN, GPIO_OUT);
-    gpio_set_dir(BUSY_PIN, GPIO_OUT);
+    gpio_set_dir(PONG_PIN, GPIO_OUT);
     uint16_t num_audio_samples;
 
-    while (true) 
+    adc_select_input(0);
+    adc_run(true);
+    bool ping=true;
+    dma_start_channel_mask(1u << adc_dma_ping);
+    while(true)
     {
         gpio_put(PING_PIN, dma_channel_is_busy(adc_dma_ping));
-        gpio_put(BUSY_PIN, dma_channel_is_busy(adc_dma_pong));
-
+        gpio_put(PONG_PIN, dma_channel_is_busy(adc_dma_pong));
         if (ping)
         {
-          //ping buffer is full, start filling pong, and process ping
           dma_channel_wait_for_finish_blocking(adc_dma_ping);
-          if(dma_channel_is_busy(adc_dma_pong)) dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, false);
-          else{
-             puts("error\n");
-             adc_run(false);
-             adc_fifo_drain();
-             adc_select_input(0);
-             adc_run(true);
-             dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, true);
-          }
           num_audio_samples = rxdsp.process_block(ping_samples, ping_audio);
           dma_channel_wait_for_finish_blocking(pwm_dma_chan);
           dma_channel_configure(pwm_dma_chan, &audio_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, num_audio_samples, true);
@@ -132,24 +145,12 @@ int main() {
         }
         else
         {
-          //pong buffer is full, start filling ping, and process pong
           dma_channel_wait_for_finish_blocking(adc_dma_pong);
-          if(dma_channel_is_busy(adc_dma_ping)) dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
-          else{
-            puts("error\n");
-            adc_run(false);
-            adc_fifo_drain();
-            adc_select_input(0);
-            adc_run(true);
-            dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, true);
-          }
-          num_audio_samples = rxdsp.process_block(pong_samples, pong_audio);
+          num_audio_samples = rxdsp.process_block(ping_samples, pong_audio);
           dma_channel_wait_for_finish_blocking(pwm_dma_chan);
           dma_channel_configure(pwm_dma_chan, &audio_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, num_audio_samples, true);
           ping=true;
         }
-
-
-
     }
+
 }

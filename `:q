@@ -77,6 +77,8 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
   for(uint16_t idx=0; idx<block_size; idx++)
   {
 
+      printf("%i\n", samples[idx]);
+
       //convert to signed representation
       const int16_t raw_sample = samples[idx] - 2048;
 
@@ -164,6 +166,9 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
           audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
           audio -= (audio_dc >> 5);
 
+          //audio_dc += (audio-audio_dc)/2;
+          //audio = audio-audio_dc;
+
           //Audio AGC
           if(true)
           {
@@ -199,7 +204,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
             if(magnitude > 0)
             {
               const int16_t gain = setpoint/magnitude;
-              //printf("%i %i %i\n", audio, magnitude, gain);
               audio *= gain;
             }
 
@@ -229,7 +233,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         }
       }
     } 
-    printf("%u\n", odx);
     return odx;
 }
 
