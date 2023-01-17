@@ -140,13 +140,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         int16_t decimated_i = combi4>>(growth-2);
         int16_t decimated_q = combq4>>(growth-2);
 
-        //signal+=42;
-        //decimated_i = sin_table[signal & 0x3ff]/300;
-        //decimated_q = sin_table[signal & 0x3ff]/300;
-        //decimated_i = 10;
-        //decimated_q = 10;
-        //printf("%i %i\n", signal, audio);
-        
         //first half band decimating filter
         bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
         //second half band decimating filter
@@ -159,6 +152,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
           const int32_t absi = decimated_i > 0?decimated_i:-decimated_i;
           const int32_t absq = decimated_q > 0?decimated_q:-decimated_q;
           int32_t audio = absi > absq ? absi + absq / 4 : absq + absi / 4;
+ 
 
           //remove DC
           audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
@@ -211,10 +205,11 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
             if (audio > limit)  audio = limit;
             if (audio < -limit) audio = -limit;
 
+            //signal+=1;
+            //audio = sin_table[signal>>10 & 0x3ff]/135;
+
             //convert to unsigned
             audio += limit;
-
-
 
             for(uint8_t sample=0; sample < 20; sample++)
             {
@@ -229,7 +224,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         }
       }
     } 
-    printf("%u\n", odx);
     return odx;
 }
 
