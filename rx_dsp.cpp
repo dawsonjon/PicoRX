@@ -2,73 +2,6 @@
 #include <math.h>
 #include <cstdio>
 
-rx_dsp :: rx_dsp(double offset_frequency)
-{
-
-  //initialise state
-  dc = 0;
-  phase = 0;
-  frequency = ((double)(1ull<<32)*offset_frequency)/500.0e3;
-  decimate=0;
-
-  //pre-generate sin/cos lookup tables
-  float scaling_factor = (1 << 15) - 1;
-  for(uint16_t idx=0; idx<1024; idx++)
-  {
-    sin_table[idx] = sin(2.0*M_PI*idx/1024.0) * scaling_factor;
-    cos_table[idx] = cos(2.0*M_PI*idx/1024.0) * scaling_factor;
-  }
-
-  //clear cic filter
-  integratori1=0; integratorq1=0;
-  integratori2=0; integratorq2=0;
-  integratori3=0; integratorq3=0;
-  integratori4=0; integratorq4=0;
-  delayi0=0; delayq0=0;
-  delayi1=0; delayq1=0;
-  delayi2=0; delayq2=0;
-  delayi3=0; delayq3=0;
-
-  //Configure AGC
-  // input fs=500000.000000 Hz
-  // decimation=20 x 2
-  // fs=12500.000000 Hz
-  // Setting Decay Time(s) Factor Attack Time(s) Factor  Hang  Timer
-  // ======= ============= ====== ============== ======  ====  =====
-  // fast        0.047       9        0.001         2    0.1s   1250
-  // medium      0.189       10       0.001         2    0.25s  3125
-  // slow        0.377       11       0.001         2    1s     12500
-  // long        1.509       13       0.001         2    2s     25000
-
-
-  switch(agc_setting)
-  {
-      case 0: //fast
-        attack_factor=2;
-        decay_factor=9;
-        hang_time=1250;
-        break;
-
-      case 1: //medium
-        attack_factor=2;
-        decay_factor=10;
-        hang_time=3125;
-        break;
-
-      case 2: //slow
-        attack_factor=2;
-        decay_factor=11;
-        hang_time=12500;
-        break;
-
-      default: //long
-        attack_factor=2;
-        decay_factor=13;
-        hang_time=25000;
-        break;
-  }
-
-}
 
 uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
@@ -152,7 +85,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
           const int32_t absi = decimated_i > 0?decimated_i:-decimated_i;
           const int32_t absq = decimated_q > 0?decimated_q:-decimated_q;
           int32_t audio = absi > absq ? absi + absq / 4 : absq + absi / 4;
- 
 
           //remove DC
           audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
@@ -193,7 +125,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
             if(magnitude > 0)
             {
               const int16_t gain = setpoint/magnitude;
-              //printf("%i %i %i\n", audio, magnitude, gain);
               audio *= gain;
             }
 
@@ -204,9 +135,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
             //hard clamp
             if (audio > limit)  audio = limit;
             if (audio < -limit) audio = -limit;
-
-            //signal+=1;
-            //audio = sin_table[signal>>10 & 0x3ff]/135;
 
             //convert to unsigned
             audio += limit;
@@ -227,3 +155,75 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
     return odx;
 }
 
+rx_dsp :: rx_dsp()
+{
+
+  //initialise state
+  dc = 0;
+  phase = 0;
+  decimate=0;
+  frequency=0;
+
+  //pre-generate sin/cos lookup tables
+  float scaling_factor = (1 << 15) - 1;
+  for(uint16_t idx=0; idx<1024; idx++)
+  {
+    sin_table[idx] = sin(2.0*M_PI*idx/1024.0) * scaling_factor;
+    cos_table[idx] = cos(2.0*M_PI*idx/1024.0) * scaling_factor;
+  }
+
+  //clear cic filter
+  integratori1=0; integratorq1=0;
+  integratori2=0; integratorq2=0;
+  integratori3=0; integratorq3=0;
+  integratori4=0; integratorq4=0;
+  delayi0=0; delayq0=0;
+  delayi1=0; delayq1=0;
+  delayi2=0; delayq2=0;
+  delayi3=0; delayq3=0;
+
+  //Configure AGC
+  // input fs=500000.000000 Hz
+  // decimation=20 x 2
+  // fs=12500.000000 Hz
+  // Setting Decay Time(s) Factor Attack Time(s) Factor  Hang  Timer
+  // ======= ============= ====== ============== ======  ====  =====
+  // fast        0.047       9        0.001         2    0.1s   1250
+  // medium      0.189       10       0.001         2    0.25s  3125
+  // slow        0.377       11       0.001         2    1s     12500
+  // long        1.509       13       0.001         2    2s     25000
+
+
+  switch(agc_setting)
+  {
+      case 0: //fast
+        attack_factor=2;
+        decay_factor=9;
+        hang_time=1250;
+        break;
+
+      case 1: //medium
+        attack_factor=2;
+        decay_factor=10;
+        hang_time=3125;
+        break;
+
+      case 2: //slow
+        attack_factor=2;
+        decay_factor=11;
+        hang_time=12500;
+        break;
+
+      default: //long
+        attack_factor=2;
+        decay_factor=13;
+        hang_time=25000;
+        break;
+  }
+
+}
+
+void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
+{
+  frequency = ((double)(1ull<<32)*offset_frequency)/500.0e3;
+}

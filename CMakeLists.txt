@@ -9,6 +9,7 @@ pico_sdk_init()
 
 add_executable(picorx
     picorx.cpp
+    rx.cpp
     rx_dsp.cpp
     half_band_filter.cpp
     half_band_filter2.cpp

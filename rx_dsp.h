@@ -9,8 +9,11 @@
 class rx_dsp
 {
   public:
-  rx_dsp(double offset_frequency);
+
+  rx_dsp();
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
+  void set_frequency_offset_Hz(double offset_frequency);
+
   static const uint16_t block_size = 4000;
   static const uint16_t decimation_rate = 20;
   static const uint16_t growth = ceil(log2(decimation_rate)) * 4;
