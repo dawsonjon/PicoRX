@@ -5,8 +5,8 @@ int rx::adc_dma_ping;
 int rx::adc_dma_pong;
 dma_channel_config rx::ping_cfg;
 dma_channel_config rx::pong_cfg;
-uint16_t rx::ping_samples[rx_dsp::block_size];
-uint16_t rx::pong_samples[rx_dsp::block_size];
+uint16_t rx::ping_samples[adc_block_size];
+uint16_t rx::pong_samples[adc_block_size];
 
 //buffers and dma for PWM audio output
 int rx::audio_pwm_slice_num;
@@ -14,8 +14,8 @@ int rx::pwm_dma_ping;
 int rx::pwm_dma_pong;
 dma_channel_config rx::audio_ping_cfg;
 dma_channel_config rx::audio_pong_cfg;
-int16_t rx::ping_audio[rx_dsp::block_size];
-int16_t rx::pong_audio[rx_dsp::block_size];
+int16_t rx::ping_audio[pwm_block_size];
+int16_t rx::pong_audio[pwm_block_size];
 bool rx::audio_running;
 
 void rx::dma_handler() {
@@ -31,9 +31,9 @@ void rx::dma_handler() {
     if(dma_hw->ints0 & (1u << adc_dma_ping))
     {
       gpio_put(14, 1);
-      dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+      dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
       if(audio_running){
-        dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, rx_dsp::block_size/2, true);
+        dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, pwm_block_size, true);
       }
       dma_hw->ints0 = 1u << adc_dma_ping;
     }
@@ -41,8 +41,8 @@ void rx::dma_handler() {
     if(dma_hw->ints0 & (1u << adc_dma_pong))
     {
       gpio_put(14, 0);
-      dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
-      dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, rx_dsp::block_size/2, true);
+      dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
+      dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, pwm_block_size, true);
       if(!audio_running){
         audio_running = true;
       }
@@ -100,8 +100,8 @@ rx::rx()
     channel_config_set_dreq(&pong_cfg, DREQ_ADC);// Pace transfers based on availability of ADC samples
     channel_config_set_chain_to(&pong_cfg, adc_dma_ping);
 
-    dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, rx_dsp::block_size, false);
-    dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, rx_dsp::block_size, false);
+    dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
+    dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
 
 
     //audio output

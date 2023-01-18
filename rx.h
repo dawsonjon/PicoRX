@@ -11,6 +11,7 @@
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
 
+#include "rx_definitions.h"
 #include "rx_dsp.h"
 
 class rx
@@ -35,8 +36,8 @@ class rx
   static int adc_dma_pong;
   static dma_channel_config ping_cfg;
   static dma_channel_config pong_cfg;
-  static uint16_t ping_samples[rx_dsp::block_size];
-  static uint16_t pong_samples[rx_dsp::block_size];
+  static uint16_t ping_samples[adc_block_size];
+  static uint16_t pong_samples[adc_block_size];
 
   //buffers and dma for PWM audio output
   static int audio_pwm_slice_num;
@@ -44,8 +45,8 @@ class rx
   static int pwm_dma_pong;
   static dma_channel_config audio_ping_cfg;
   static dma_channel_config audio_pong_cfg;
-  static int16_t ping_audio[rx_dsp::block_size];
-  static int16_t pong_audio[rx_dsp::block_size];
+  static int16_t ping_audio[pwm_block_size];
+  static int16_t pong_audio[pwm_block_size];
   static bool audio_running;
   static void dma_handler();
 

@@ -2,9 +2,9 @@
 #define RX_DSP_H
 
 #include <stdint.h>
+#include "rx_definitions.h"
 #include "half_band_filter.h"
 #include "half_band_filter2.h"
-#include <math.h>
 
 class rx_dsp
 {
@@ -13,10 +13,8 @@ class rx_dsp
   rx_dsp();
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
   void set_frequency_offset_Hz(double offset_frequency);
+  void set_agc_speed(uint8_t agc_setting);
 
-  static const uint16_t block_size = 4000;
-  static const uint16_t decimation_rate = 20;
-  static const uint16_t growth = ceil(log2(decimation_rate)) * 4;
 
   private:
 
@@ -55,7 +53,6 @@ class rx_dsp
   uint8_t decay_factor;
   uint16_t hang_time;
   uint16_t hang_timer;
-  const uint8_t agc_setting = 3;
   const bool agc_enabled = true;
   int32_t max_hold;
 

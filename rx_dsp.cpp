@@ -7,7 +7,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
 
   uint16_t odx = 0;
-  for(uint16_t idx=0; idx<block_size; idx++)
+  for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
 
       //convert to signed representation
@@ -115,10 +115,9 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
               max_hold -= max_hold>>decay_factor; 
             }
 
-
             //calculate gain 
             const int16_t magnitude = max_hold >> extra_bits;
-            const int16_t limit = 250; //hard limit (PWM goes from 0 to 500)
+            const int16_t limit = 32767; //hard limit
             const int16_t setpoint = limit/2; //about half full scale
 
             //apply gain
@@ -138,6 +137,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //convert to unsigned
             audio += limit;
+            audio /= 132; //scale to PWM ceil(32768/250)
 
             for(uint8_t sample=0; sample < 20; sample++)
             {
@@ -182,6 +182,13 @@ rx_dsp :: rx_dsp()
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
+  set_agc_speed(3);
+
+
+}
+
+void rx_dsp :: set_agc_speed(uint8_t agc_setting)
+{
   //Configure AGC
   // input fs=500000.000000 Hz
   // decimation=20 x 2
@@ -220,7 +227,6 @@ rx_dsp :: rx_dsp()
         hang_time=25000;
         break;
   }
-
 }
 
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)

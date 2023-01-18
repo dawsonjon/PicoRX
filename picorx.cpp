@@ -8,6 +8,5 @@ int main() {
     
     rx receiver;
     receiver.set_frequency_Hz(1215e3);
-    receiver.set_frequency_Hz(198e3);
     receiver.run();
 }
