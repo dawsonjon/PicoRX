@@ -110,7 +110,7 @@ rx::rx()
     audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
     pwm_config config = pwm_get_default_config();
     pwm_config_set_clkdiv(&config, 1.f); //125MHz
-    pwm_config_set_wrap(&config, 500); 
+    pwm_config_set_wrap(&config, pwm_max); 
     pwm_init(audio_pwm_slice_num, &config, true);
 
     //configure DMA for audio transfers

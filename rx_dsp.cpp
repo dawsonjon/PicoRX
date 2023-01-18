@@ -11,7 +11,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
   {
 
       //convert to signed representation
-      const int16_t raw_sample = samples[idx] - 2048;
+      const int16_t raw_sample = samples[idx] - (1<<(adc_bits-1));
 
       //remove DC
       dc = raw_sample+(dc - (dc >> 10)); //low pass IIR filter
@@ -117,7 +117,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //calculate gain 
             const int16_t magnitude = max_hold >> extra_bits;
-            const int16_t limit = 32767; //hard limit
+            const int16_t limit = INT16_MAX; //hard limit
             const int16_t setpoint = limit/2; //about half full scale
 
             //apply gain
@@ -137,9 +137,9 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //convert to unsigned
             audio += limit;
-            audio /= 132; //scale to PWM ceil(32768/250)
+            audio /= pwm_scale; //scale to PWM ceil(32768/250)
 
-            for(uint8_t sample=0; sample < 20; sample++)
+            for(uint8_t sample=0; sample < interpolation_rate; sample++)
             {
               audio_samples[odx] = audio;
               odx++;
@@ -231,5 +231,5 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
-  frequency = ((double)(1ull<<32)*offset_frequency)/500.0e3;
+  frequency = ((double)(1ull<<32)*offset_frequency)/adc_sample_rate;
 }
