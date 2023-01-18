@@ -14,6 +14,12 @@
 #include "rx_definitions.h"
 #include "rx_dsp.h"
 
+struct rx_settings
+{
+  double tuned_frequency_Hz;
+  uint8_t agc_speed;
+};
+
 class rx
 {
   private:
@@ -51,9 +57,10 @@ class rx
   static void dma_handler();
 
   public:
-  rx();
-  void set_frequency_Hz(double);
+  rx(rx_settings & settings_to_apply);
+  void apply_settings();
   void run();
+  rx_settings &settings_to_apply;
 };
 
 #endif

@@ -1,5 +1,7 @@
 #include "rx.h"
 
+#include "pico/multicore.h"
+
 //buffers and dma for ADC
 int rx::adc_dma_ping;
 int rx::adc_dma_pong;
@@ -51,22 +53,25 @@ void rx::dma_handler() {
 
 }
 
-void rx::set_frequency_Hz(double frequency_Hz)
+void rx::apply_settings()
 {
-    //double tuned_frequency = 1.2150130e6;
-    tuned_frequency_Hz = frequency_Hz;
+    //apply frequency
+    tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
     nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
     offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
     rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+
+    //apply AGC speed
+    rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+    
 }
 
-rx::rx() 
+rx::rx(rx_settings & settings_to_apply) : settings_to_apply(settings_to_apply)
 {
     //Configure PIO to act as quadrature oscilator
     pio = pio0;
     offset = pio_add_program(pio, &hello_program);
     sm = pio_claim_unused_sm(pio, true);
-    set_frequency_Hz(1.2150130e6);
 
     //configure SMPS into power save mode
     const uint PSU_PIN = 23;
@@ -103,7 +108,6 @@ rx::rx()
     dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
     dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
 
-
     //audio output
     const uint AUDIO_PIN = 16;
     gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
@@ -132,11 +136,15 @@ rx::rx()
     dma_set_irq0_channel_mask_enabled((1u<<adc_dma_ping) | (1u<<adc_dma_pong), true);
     irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
+
 }
 
 void rx::run()
 {
     
+    multicore_fifo_drain();
+    apply_settings();
+
     //supress audio output until first block has completed
     audio_running = false;
 
@@ -150,6 +158,14 @@ void rx::run()
         rx_dsp_inst.process_block(ping_samples, ping_audio);
         dma_channel_wait_for_finish_blocking(adc_dma_pong);
         rx_dsp_inst.process_block(pong_samples, pong_audio);
+
+        if(multicore_fifo_rvalid())
+        { 	
+          multicore_fifo_pop_blocking();
+          apply_settings();
+          multicore_fifo_push_blocking(123);
+        }
+
     }
 
 }
