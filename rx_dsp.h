@@ -14,6 +14,7 @@ class rx_dsp
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
   void set_frequency_offset_Hz(double offset_frequency);
   void set_agc_speed(uint8_t agc_setting);
+  int32_t get_signal_amplitude();
 
 
   private:
@@ -41,6 +42,8 @@ class rx_dsp
   //used in half band filter
   half_band_filter half_band_filter_inst;
   half_band_filter2 half_band_filter2_inst;
+
+  int32_t signal_amplitude;
 
   //removes dc component of AM signal
   int32_t audio_dc=0;

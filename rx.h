@@ -20,6 +20,12 @@ struct rx_settings
   uint8_t agc_speed;
 };
 
+struct rx_status
+{
+  int32_t signal_amplitude;
+  clock_t idle_time;
+};
+
 class rx
 {
   private:
@@ -55,12 +61,16 @@ class rx
   static int16_t pong_audio[pwm_block_size];
   static bool audio_running;
   static void dma_handler();
+  
+  //store idle time for performance monitoring
+  clock_t idle_time;
 
   public:
-  rx(rx_settings & settings_to_apply);
+  rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
   rx_settings &settings_to_apply;
+  rx_status &status;
 };
 
 #endif

@@ -12,7 +12,7 @@ static const uint16_t adc_block_size = 4000u;
 static const uint16_t pwm_block_size = (adc_block_size * interpolation_rate) / total_decimation_rate;
 static const uint16_t growth = ceil(log2(decimation_rate)) * 4u;
 static const uint32_t audio_sample_rate = (adc_sample_rate * interpolation_rate) / total_decimation_rate;
-static const uint32_t pwm_max = system_clock_rate/audio_sample_rate;
+static const uint32_t pwm_max = (system_clock_rate/audio_sample_rate)-1;
 static const uint32_t pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
 
 

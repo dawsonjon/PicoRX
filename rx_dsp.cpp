@@ -7,6 +7,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
 
   uint16_t odx = 0;
+  int32_t magnitude_sum = 0;
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
 
@@ -81,10 +82,11 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         {
 
 
-          //Demodulate
+          //Measure magnitude
           const int32_t absi = decimated_i > 0?decimated_i:-decimated_i;
           const int32_t absq = decimated_q > 0?decimated_q:-decimated_q;
           int32_t audio = absi > absq ? absi + absq / 4 : absq + absi / 4;
+          magnitude_sum += audio;
 
           //remove DC
           audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
@@ -137,7 +139,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             //convert to unsigned
             audio += limit;
-            audio /= pwm_scale; //scale to PWM ceil(32768/250)
+            audio /= pwm_scale; 
 
             for(uint8_t sample=0; sample < interpolation_rate; sample++)
             {
@@ -152,6 +154,10 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         }
       }
     } 
+
+    //average over the number of samples
+    signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
+
     return odx;
 }
 
@@ -232,4 +238,9 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
   frequency = ((double)(1ull<<32)*offset_frequency)/adc_sample_rate;
+}
+
+int32_t rx_dsp :: get_signal_amplitude()
+{
+  return signal_amplitude;
 }

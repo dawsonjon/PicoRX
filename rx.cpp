@@ -63,10 +63,14 @@ void rx::apply_settings()
 
     //apply AGC speed
     rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+
+    //update status
+    status.signal_amplitude = rx_dsp_inst.get_signal_amplitude();
+    status.idle_time = idle_time;
     
 }
 
-rx::rx(rx_settings & settings_to_apply) : settings_to_apply(settings_to_apply)
+rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
 {
     //Configure PIO to act as quadrature oscilator
     pio = pio0;
@@ -154,7 +158,10 @@ void rx::run()
     dma_start_channel_mask(1u << adc_dma_ping);
     while(true)
     {
+        clock_t start_time;
+        start_time = time_us_64();
         dma_channel_wait_for_finish_blocking(adc_dma_ping);
+        idle_time = time_us_64()-start_time;
         rx_dsp_inst.process_block(ping_samples, ping_audio);
         dma_channel_wait_for_finish_blocking(adc_dma_pong);
         rx_dsp_inst.process_block(pong_samples, pong_audio);
