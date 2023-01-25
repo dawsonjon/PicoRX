@@ -14,10 +14,12 @@ class rx_dsp
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
   void set_frequency_offset_Hz(double offset_frequency);
   void set_agc_speed(uint8_t agc_setting);
+  void set_mode(uint8_t mode);
   int32_t get_signal_amplitude();
 
 
   private:
+  int16_t demodulate(int16_t i, int16_t q);
 
   //used in dc canceler
   int32_t dc;
@@ -45,8 +47,13 @@ class rx_dsp
 
   int32_t signal_amplitude;
 
-  //removes dc component of AM signal
+  //used in demodulator
+  half_band_filter2 ssb_filter;
+  int32_t mode=0;
   int32_t audio_dc=0;
+  uint8_t ssb_phase=0;
+  int16_t audio_phase=0;
+  int16_t last_audio_phase=0;
 
   //test tone
   int16_t signal = 0;

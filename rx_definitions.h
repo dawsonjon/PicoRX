@@ -14,6 +14,10 @@ static const uint16_t growth = ceil(log2(decimation_rate)) * 4u;
 static const uint32_t audio_sample_rate = (adc_sample_rate * interpolation_rate) / total_decimation_rate;
 static const uint32_t pwm_max = (system_clock_rate/audio_sample_rate)-1;
 static const uint32_t pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
+static const uint8_t  AM = 0u;
+static const uint8_t  LSB = 1u;
+static const uint8_t  USB = 2u;
+static const uint8_t  FM = 3u;
 
 
 #endif

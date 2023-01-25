@@ -17,9 +17,9 @@ void core1_main()
     receiver.run();
 }
 
-void apply_settings_get_status()
+void apply_settings_get_status(bool settings_changed)
 {
-    multicore_fifo_push_blocking(0);
+    multicore_fifo_push_blocking(settings_changed);
     multicore_fifo_pop_blocking();
 }
 
@@ -65,7 +65,7 @@ float calculate_signal_strength()
 
 void update_display()
 {
-    char buff [11];
+    char buff [16];
     ssd1306_clear(&disp);
 
     //frequency
@@ -75,12 +75,33 @@ void update_display()
     kHz = remainder/1000u;
     remainder = remainder%1000u; 
     Hz = remainder;
-    snprintf(buff, 11, "%02u.%03u.%03u", MHz, kHz, Hz);
-    ssd1306_draw_string(&disp, 0, 0, 1, buff);
+    snprintf(buff, 16, "%2u.%03u", MHz, kHz);
+    ssd1306_draw_string(&disp, 0, 0, 2, buff);
+    snprintf(buff, 16, ".%03u", Hz);
+    ssd1306_draw_string(&disp, 72, 0, 1, buff);
 
     //signal strength
     const float power = calculate_signal_strength();
-    snprintf(buff, 11, "%2.0fdBm\n", power);
+
+    //CPU 
+    const float block_time = (float)adc_block_size/(float)adc_sample_rate;
+    const float busy_time = block_time - ((float)status.idle_time*1e-6f);
+
+    //mode
+    const char am[]  = "AM";
+    const char fm[]  = "FM";
+    const char lsb[] = "LSB";
+    const char usb[] = "USB";
+    char *modestr;
+    switch(settings_to_apply.mode)
+    {
+      case AM: modestr = (char*)am; break;
+      case LSB: modestr = (char*)lsb; break;
+      case USB: modestr = (char*)usb; break;
+      case FM: modestr = (char*)fm; break;
+    } 
+    ssd1306_draw_string(&disp, 102, 0, 1, modestr);
+    snprintf(buff, 16, "%2.0fdBm %2.0f%%", power, (100.0f*busy_time)/block_time);
     ssd1306_draw_string(&disp, 0, 16, 1, buff);
 
     //update display
@@ -94,23 +115,25 @@ int main() {
     setup_display();
     setup_encoder();
 
-    settings_to_apply.tuned_frequency_Hz = 1050e3;
+    settings_to_apply.tuned_frequency_Hz = 1053e3;
     settings_to_apply.agc_speed = 3;
+    settings_to_apply.mode = AM;
+    settings_to_apply.step_Hz = 1000;
 
     while(1)
     {
+      bool settings_changed = false;
 
       update_display();
-
       int encoder_change = get_encoder_change();
       if(encoder_change != 0)
       {
-        settings_to_apply.tuned_frequency_Hz += encoder_change * 100;
+        settings_changed = true;
+        settings_to_apply.tuned_frequency_Hz += encoder_change * settings_to_apply.step_Hz;
         printf("frequency: %08.0fHz\n", settings_to_apply.tuned_frequency_Hz);
-        apply_settings_get_status();
       }
-
-      char selection = getchar_timeout_us(100);
+      
+      char selection = getchar_timeout_us(0);
       float block_time, busy_time, power;
 
       switch(selection)
@@ -121,7 +144,7 @@ int main() {
           scanf("%i", &frequency);
           printf("frequency: %iHz\n", frequency);
           settings_to_apply.tuned_frequency_Hz = frequency;
-          apply_settings_get_status();
+          settings_changed = true;
           break;
 
         case 'a':
@@ -130,11 +153,26 @@ int main() {
           scanf("%i", &speed);
           printf("speed: %i\n", speed);
           settings_to_apply.agc_speed = speed;
-          apply_settings_get_status();
+          settings_changed = true;
           break;
 
+        case 'm':
+          int mode; 
+          puts("enter mode>\n");
+          scanf("%i", &mode);
+          printf("mode: %i\n", mode);
+          settings_to_apply.mode = mode;
+          settings_changed = true;
+          break;
+
+        case 't':
+          int step; 
+          puts("enter step>\n");
+          scanf("%i", &step);
+          printf("step: %i\n", step);
+          settings_to_apply.step_Hz = step;
+          break;
         case 's':
-          apply_settings_get_status();
           power = 20.0*log10((float)status.signal_amplitude / (4.0f * 2048.0f));//compared to adc_full_scale
           printf("signal strength: %2.0fdBFS\n", power);
           break;
@@ -144,15 +182,17 @@ int main() {
           break;
 
         case 'c':
-          apply_settings_get_status();
           block_time = (float)adc_block_size/(float)adc_sample_rate;
           busy_time = block_time - ((float)status.idle_time*1e-6f);
           printf("cpu usage: %2.0f%%\n", (100.0f * busy_time)/block_time);
           break;
 
         default:
-          continue;
+          break;
       }
+
+      sleep_us(100000);
+      apply_settings_get_status(settings_changed);
 
     }
 

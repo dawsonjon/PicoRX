@@ -17,7 +17,9 @@
 struct rx_settings
 {
   double tuned_frequency_Hz;
+  int step_Hz;
   uint8_t agc_speed;
+  uint8_t mode;
 };
 
 struct rx_status
@@ -43,6 +45,10 @@ class rx
   uint offset;
   uint sm;
 
+  //capture buffer DMA
+  static int capture_dma;
+  static dma_channel_config capture_cfg;
+
   //buffers and dma for adc
   static int adc_dma_ping;
   static int adc_dma_pong;
@@ -67,7 +73,7 @@ class rx
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);
-  void apply_settings();
+  void apply_settings(bool settings_changed);
   void run();
   rx_settings &settings_to_apply;
   rx_status &status;

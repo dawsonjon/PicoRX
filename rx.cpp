@@ -1,6 +1,8 @@
+#include "pico/multicore.h"
+#include <string.h>
+
 #include "rx.h"
 
-#include "pico/multicore.h"
 
 //buffers and dma for ADC
 int rx::adc_dma_ping;
@@ -19,6 +21,10 @@ dma_channel_config rx::audio_pong_cfg;
 int16_t rx::ping_audio[pwm_block_size];
 int16_t rx::pong_audio[pwm_block_size];
 bool rx::audio_running;
+
+//dma for capture
+int rx::capture_dma;
+dma_channel_config rx::capture_cfg;
 
 void rx::dma_handler() {
 
@@ -53,16 +59,22 @@ void rx::dma_handler() {
 
 }
 
-void rx::apply_settings()
+void rx::apply_settings(bool settings_changed)
 {
-    //apply frequency
-    tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-    nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
-    offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
-    rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+    if(settings_changed)
+    {
+      //apply frequency
+      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+      nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
+      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
-    //apply AGC speed
-    rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+      //apply AGC speed
+      rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+
+      //apply mode
+      rx_dsp_inst.set_mode(settings_to_apply.mode);
+    }
 
     //update status
     status.signal_amplitude = rx_dsp_inst.get_signal_amplitude();
@@ -137,6 +149,13 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     channel_config_set_write_increment(&audio_pong_cfg, false);
     channel_config_set_dreq(&audio_pong_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 
+    //configure DMA for audio transfers
+    capture_dma = dma_claim_unused_channel(true);
+    capture_cfg = dma_channel_get_default_config(pwm_dma_ping);
+    channel_config_set_transfer_data_size(&capture_cfg, DMA_SIZE_16);
+    channel_config_set_read_increment(&capture_cfg, true);
+    channel_config_set_write_increment(&capture_cfg, true);
+
     dma_set_irq0_channel_mask_enabled((1u<<adc_dma_ping) | (1u<<adc_dma_pong), true);
     irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
@@ -147,7 +166,7 @@ void rx::run()
 {
     
     multicore_fifo_drain();
-    apply_settings();
+    apply_settings(true);
 
     //supress audio output until first block has completed
     audio_running = false;
@@ -168,9 +187,9 @@ void rx::run()
 
         if(multicore_fifo_rvalid())
         { 	
-          multicore_fifo_pop_blocking();
-          apply_settings();
-          multicore_fifo_push_blocking(123);
+          bool settings_changed = multicore_fifo_pop_blocking();
+          apply_settings(settings_changed);
+          multicore_fifo_push_blocking(0);
         }
 
     }

@@ -1,7 +1,8 @@
 #include "rx_dsp.h"
+#include "rx_definitions.h"
+#include "utils.h"
 #include <math.h>
 #include <cstdio>
-
 
 uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
@@ -70,7 +71,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         delayq2 = combq2;
         delayi3 = combi3;
         delayq3 = combq3;
-
         int16_t decimated_i = combi4>>(growth-2);
         int16_t decimated_q = combq4>>(growth-2);
 
@@ -81,16 +81,12 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         if(new_sample)
         {
 
+          //Measure amplitude (for signal strength indicator)
+          int32_t amplitude = rectangular_2_magnitude(decimated_i, decimated_q);
+          magnitude_sum += amplitude;
 
-          //Measure magnitude
-          const int32_t absi = decimated_i > 0?decimated_i:-decimated_i;
-          const int32_t absq = decimated_q > 0?decimated_q:-decimated_q;
-          int32_t audio = absi > absq ? absi + absq / 4 : absq + absi / 4;
-          magnitude_sum += audio;
-
-          //remove DC
-          audio_dc = audio+(audio_dc - (audio_dc >> 5)); //low pass IIR filter
-          audio -= (audio_dc >> 5);
+          //demodulate to give audio sample
+          int32_t audio = demodulate(decimated_i, decimated_q);
 
           //Audio AGC
           if(true)
@@ -149,8 +145,6 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
             
           }
-
-
         }
       }
     } 
@@ -159,6 +153,91 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
     signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
 
     return odx;
+}
+
+int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
+{
+    if(mode == AM)
+    {
+        int16_t amplitude = rectangular_2_magnitude(i, q);
+        //measure DC using first order IIR low-pass filter
+        audio_dc = amplitude+(audio_dc - (audio_dc >> 5));
+        //subtract DC component
+        return amplitude - (audio_dc >> 5);
+    }
+    else if(mode == FM)
+    {
+        int16_t audio_phase = rectangular_2_phase(i, q);
+        int16_t frequency = audio_phase - last_audio_phase;
+        last_audio_phase - audio_phase;
+        return frequency;
+    }
+    else //if(mode == LSB || mode == USB)
+    {
+        //shift frequency by +FS/4
+        //      __|__
+        //  ___/  |  \___
+        //        |
+        //  <-----+----->
+
+        //        | ____
+        //  ______|/    \
+        //        |
+        //  <-----+----->
+
+        //filter -Fs/4 to +Fs/4
+
+        //        | __  
+        //  ______|/  \__
+        //        |
+        //  <-----+----->
+
+
+        if(mode == USB)
+        {
+          ssb_phase = (ssb_phase + 1) & 3u;
+        }
+        else
+        {
+          ssb_phase = (ssb_phase - 1) & 3u;
+        }
+
+        int16_t ii, qq;
+        switch(ssb_phase)
+        {
+          case 0: ii= i; qq= q; break;
+          case 1: ii= q; qq=-i; break;
+          case 2: ii=-i; qq=-q; break;
+          default: ii=-q; qq= i; break;
+        }
+
+        ssb_filter.filter(ii,  qq);
+
+        //shift frequency by -FS/4 and discard q to form a real (not complex) sample
+        //        | __  
+        //  ______|/  \__
+        //        |
+        //  <-----+----->
+
+        //     __ |     
+        //  __/  \|______
+        //        |
+        //  <-----+----->
+
+        //     __ | __   
+        //  __/  \|/  \__
+        //        |
+        //  <-----+----->
+
+
+        switch(ssb_phase)
+        {
+          case 0:  return -qq;
+          case 1:  return -ii;
+          case 2:  return  qq;
+          default: return  ii;
+        }
+    }
 }
 
 rx_dsp :: rx_dsp()
@@ -238,6 +317,11 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
   frequency = ((double)(1ull<<32)*offset_frequency)/adc_sample_rate;
+}
+
+void rx_dsp :: set_mode(uint8_t val)
+{
+  mode = val;
 }
 
 int32_t rx_dsp :: get_signal_amplitude()
