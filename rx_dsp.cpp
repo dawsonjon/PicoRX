@@ -11,26 +11,66 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
   int32_t magnitude_sum = 0;
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
-
       //convert to signed representation
       const int16_t raw_sample = samples[idx] - (1<<(adc_bits-1));
 
-      //remove DC
-      dc = raw_sample+(dc - (dc >> 10)); //low pass IIR filter
-      const int16_t sample = raw_sample - (dc >> 10);
-      
-      //Apply frequency shift (move tuned frequency to DC)         
-      const int32_t i = (idx&1)?0:sample;//even samples contain i data
-      const int32_t q = (idx&1)?sample:0;//odd samples contain q data
+      //work out which samples are i and q
+      int16_t i = (idx&1)?0:raw_sample;//even samples contain i data
+      int16_t q = (idx&1)?raw_sample:0;//odd samples contain q data
 
       //Apply frequency shift (move tuned frequency to DC)         
-      const int16_t rotation_i =  cos_table[phase>>22]; //32 - 22 = 10MSBs
-      const int16_t rotation_q = -sin_table[phase>>22];
+      frequency_shift(i, q);
 
-      phase += frequency;
-      const int16_t i_shifted = ((i * rotation_i) - (q * rotation_q)) >> 15;
-      const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
+      //decimate by factor of 40
+      if(decimate(i, q))
+      {
 
+        //Measure amplitude (for signal strength indicator)
+        int32_t amplitude = rectangular_2_magnitude(i, q);
+        magnitude_sum += amplitude;
+
+        //Demodulate to give audio sample
+        int32_t audio = demodulate(i, q);
+
+        //Automatic gain control scales signal to use full 16 bit range
+        //e.g. -32767 to 32767
+        audio = automatic_gain_control(audio);
+
+        //convert to unsigned value in range 0 to 500 to output to PWM
+        audio += INT16_MAX;
+        audio /= pwm_scale; 
+
+        for(uint8_t sample=0; sample < interpolation_rate; sample++)
+        {
+          audio_samples[odx] = audio;
+          odx++;
+        }
+          
+      }
+    } 
+
+    //average over the number of samples
+    signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
+
+    return odx;
+}
+
+void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
+{
+    //Apply frequency shift (move tuned frequency to DC)         
+    const int16_t rotation_i =  cos_table[phase>>22]; //32 - 22 = 10MSBs
+    const int16_t rotation_q = -sin_table[phase>>22];
+
+    phase += frequency;
+    const int16_t i_shifted = ((i * rotation_i) - (q * rotation_q)) >> 15;
+    const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
+
+    i = i_shifted;
+    q = q_shifted;
+}
+
+bool rx_dsp :: decimate(int16_t &i, int16_t &q)
+{
       //Decimate
       //             fs          Alias Free
       //raw data    500kHz
@@ -40,8 +80,8 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
       //CIC decimation filter
       //implement integrator stages
-      integratori1 += i_shifted;
-      integratorq1 += q_shifted;
+      integratori1 += i;
+      integratorq1 += q;
       integratori2 += integratori1;
       integratorq2 += integratorq1;
       integratori3 += integratori2;
@@ -49,10 +89,10 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
       integratori4 += integratori3;
       integratorq4 += integratorq3;
 
-      decimate++;
-      if(decimate == decimation_rate)
+      decimate_count++;
+      if(decimate_count == decimation_rate)
       {
-        decimate = 0;
+        decimate_count = 0;
 
         //implement comb stages
         const int32_t combi1 = integratori4-delayi0;
@@ -76,83 +116,18 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
         //first half band decimating filter
         bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
-        //second half band decimating filter
-        if(new_sample) new_sample = half_band_filter2_inst.filter(decimated_i, decimated_q);
+
+        //second half band filter (not decimating)
         if(new_sample)
         {
-
-          //Measure amplitude (for signal strength indicator)
-          int32_t amplitude = rectangular_2_magnitude(decimated_i, decimated_q);
-          magnitude_sum += amplitude;
-
-          //demodulate to give audio sample
-          int32_t audio = demodulate(decimated_i, decimated_q);
-
-          //Audio AGC
-          if(true)
-          {
-
-            //Use a leaky max hold to estimate audio power
-            static const uint8_t extra_bits = 16;
-            const int32_t audio_extended = audio << extra_bits;
-
-            if(audio_extended > max_hold)
-            {
-              //attack
-              max_hold += (audio_extended - max_hold) >> attack_factor;
-              hang_timer = hang_time;
-            }
-            else if(hang_timer)
-            {
-              //hang
-              hang_timer--;
-            }
-            else if(max_hold > 0)
-            {
-              //decay
-              max_hold -= max_hold>>decay_factor; 
-            }
-
-            //calculate gain 
-            const int16_t magnitude = max_hold >> extra_bits;
-            const int16_t limit = INT16_MAX; //hard limit
-            const int16_t setpoint = limit/2; //about half full scale
-
-            //apply gain
-            if(magnitude > 0)
-            {
-              const int16_t gain = setpoint/magnitude;
-              audio *= gain;
-            }
-
-            //soft clip (compress)
-            if (audio > setpoint)  audio =  setpoint + ((audio-setpoint)>>1);
-            if (audio < -setpoint) audio = -setpoint - ((audio+setpoint)>>1);
-
-            //hard clamp
-            if (audio > limit)  audio = limit;
-            if (audio < -limit) audio = -limit;
-
-            //convert to unsigned
-            audio += limit;
-            audio /= pwm_scale; 
-
-            for(uint8_t sample=0; sample < interpolation_rate; sample++)
-            {
-              audio_samples[odx] = audio;
-              odx++;
-            }
-
-            
-          }
+           half_band_filter2_inst.filter(decimated_i, decimated_q);
+           i = decimated_i;
+           q = decimated_q;
+           return true;
         }
       }
-    } 
 
-    //average over the number of samples
-    signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
-
-    return odx;
+      return false;
 }
 
 int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
@@ -169,7 +144,7 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
     {
         int16_t audio_phase = rectangular_2_phase(i, q);
         int16_t frequency = audio_phase - last_audio_phase;
-        last_audio_phase - audio_phase;
+        last_audio_phase = audio_phase;
         return frequency;
     }
     else //if(mode == LSB || mode == USB)
@@ -240,13 +215,77 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
     }
 }
 
+int16_t rx_dsp::automatic_gain_control(int16_t audio)
+{
+    //Use a leaky max hold to estimate audio power
+    //             _
+    //            | |
+    //            | |
+    //    audio __| |_____________________
+    //            | |
+    //            |_|
+    //
+    //                _____________
+    //               /             \_
+    //    max_hold  /                \_
+    //           _ /                   \_
+    //              ^                ^
+    //            attack             |
+    //                <---hang--->   |
+    //                             decay
+
+    // Attack is fast so that AGC reacts fast to increases in power
+    // Hang time and decay are relatively slow to prevent rapid gain changes
+
+    static const uint8_t extra_bits = 16;
+    const int32_t audio_extended = (int32_t)audio << extra_bits;
+    if(audio_extended > max_hold)
+    {
+      //attack
+      max_hold += (audio_extended - max_hold) >> attack_factor;
+      hang_timer = hang_time;
+    }
+    else if(hang_timer)
+    {
+      //hang
+      hang_timer--;
+    }
+    else if(max_hold > 0)
+    {
+      //decay
+      max_hold -= max_hold>>decay_factor; 
+    }
+
+    //calculate gain needed to amplify to full scale
+    const int16_t magnitude = max_hold >> extra_bits;
+    const int16_t limit = INT16_MAX; //hard limit
+    const int16_t setpoint = limit/2; //about half full scale
+
+    //apply gain
+    if(magnitude > 0)
+    {
+      const int16_t gain = setpoint/magnitude;
+      audio *= gain;
+    }
+
+    //soft clip (compress)
+    if (audio > setpoint)  audio =  setpoint + ((audio-setpoint)>>1);
+    if (audio < -setpoint) audio = -setpoint - ((audio+setpoint)>>1);
+
+    //hard clamp
+    if (audio > limit)  audio = limit;
+    if (audio < -limit) audio = -limit;
+
+    return audio;
+}
+
 rx_dsp :: rx_dsp()
 {
 
   //initialise state
   dc = 0;
   phase = 0;
-  decimate=0;
+  decimate_count=0;
   frequency=0;
 
   //pre-generate sin/cos lookup tables

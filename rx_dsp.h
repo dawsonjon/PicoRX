@@ -19,7 +19,11 @@ class rx_dsp
 
 
   private:
+  
+  void frequency_shift(int16_t &i, int16_t &q);
+  bool decimate(int16_t &i, int16_t &q);
   int16_t demodulate(int16_t i, int16_t q);
+  int16_t automatic_gain_control(int16_t audio);
 
   //used in dc canceler
   int32_t dc;
@@ -31,7 +35,7 @@ class rx_dsp
   int16_t cos_table[1024];
 
   //used in CIC filter
-  uint8_t decimate;
+  uint8_t decimate_count;
   int32_t integratori1, integratorq1;
   int32_t integratori2, integratorq2;
   int32_t integratori3, integratorq3;
