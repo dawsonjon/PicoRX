@@ -37,8 +37,6 @@ class rx
   double nco_frequency_Hz;
   double offset_frequency_Hz;
 
-  //receiver dsp
-  rx_dsp rx_dsp_inst;
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;
@@ -75,8 +73,10 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings(bool settings_changed);
   void run();
+  void get_spectrum(int16_t spectrum[], int16_t &offset);
   rx_settings &settings_to_apply;
   rx_status &status;
+  rx_dsp rx_dsp_inst;
 };
 
 #endif

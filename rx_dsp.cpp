@@ -15,8 +15,15 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
       const int16_t raw_sample = samples[idx] - (1<<(adc_bits-1));
 
       //work out which samples are i and q
-      int16_t i = (idx&1)?0:raw_sample;//even samples contain i data
-      int16_t q = (idx&1)?raw_sample:0;//odd samples contain q data
+      int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
+      int16_t q = (idx&1)*raw_sample;//odd samples contain q data
+
+      //capture data for spectrum
+      if(idx < 256)
+      {
+        capture_i[idx] = i>>4;//only use 8 msbs
+        capture_q[idx] = q>>4;//only use 8 msbs
+      }
 
       //Apply frequency shift (move tuned frequency to DC)         
       frequency_shift(i, q);
@@ -111,8 +118,8 @@ bool rx_dsp :: decimate(int16_t &i, int16_t &q)
         delayq2 = combq2;
         delayi3 = combi3;
         delayq3 = combq3;
-        int16_t decimated_i = combi4>>(growth-2);
-        int16_t decimated_q = combq4>>(growth-2);
+        int16_t decimated_i = combi4>>(growth-3);
+        int16_t decimated_q = combq4>>(growth-3);
 
         //first half band decimating filter
         bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
@@ -147,7 +154,7 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         last_audio_phase = audio_phase;
         return frequency;
     }
-    else //if(mode == LSB || mode == USB)
+    else if(mode == LSB || mode == USB)
     {
         //shift frequency by +FS/4
         //      __|__
@@ -177,15 +184,10 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
           ssb_phase = (ssb_phase - 1) & 3u;
         }
 
-        int16_t ii, qq;
-        switch(ssb_phase)
-        {
-          case 0: ii= i; qq= q; break;
-          case 1: ii= q; qq=-i; break;
-          case 2: ii=-i; qq=-q; break;
-          default: ii=-q; qq= i; break;
-        }
-
+        const int16_t sample_i[4] = {i, q, -i, -q};
+        const int16_t sample_q[4] = {q, -i, -q, i};
+        int16_t ii = sample_i[ssb_phase];
+        int16_t qq = sample_q[ssb_phase];
         ssb_filter.filter(ii,  qq);
 
         //shift frequency by -FS/4 and discard q to form a real (not complex) sample
@@ -204,18 +206,77 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         //        |
         //  <-----+----->
 
+        const int16_t audio[4] = {-qq, -ii, qq, ii};
+        return audio[ssb_phase];
 
-        switch(ssb_phase)
-        {
-          case 0:  return -qq;
-          case 1:  return -ii;
-          case 2:  return  qq;
-          default: return  ii;
-        }
+    }
+    else //if(mode==cw)
+    {
+      int16_t ii = i;
+      int16_t qq = q;
+      if(cw_decimate(ii, qq)){
+        cw_magnitude = rectangular_2_magnitude(ii, qq);
+      }
+      cw_sidetone_phase += cw_sidetone_frequency_Hz * 1024 * total_decimation_rate / adc_sample_rate;
+      return ((int32_t)cw_magnitude * sin_table[cw_sidetone_phase & 0x3ff])>>15;
     }
 }
 
-int16_t rx_dsp::automatic_gain_control(int16_t audio)
+bool rx_dsp :: cw_decimate(int16_t &i, int16_t &q)
+{
+      //CIC decimation filter
+      //implement integrator stages
+      cw_integratori1 += i;
+      cw_integratorq1 += q;
+      cw_integratori2 += cw_integratori1;
+      cw_integratorq2 += cw_integratorq1;
+      cw_integratori3 += cw_integratori2;
+      cw_integratorq3 += cw_integratorq2;
+      cw_integratori4 += cw_integratori3;
+      cw_integratorq4 += cw_integratorq3;
+
+      cw_decimate_count++;
+      if(cw_decimate_count == cw_decimation_rate)
+      {
+        cw_decimate_count = 0;
+
+        //implement comb stages
+        const int32_t combi1 = integratori4-delayi0;
+        const int32_t combq1 = integratorq4-delayq0;
+        const int32_t combi2 = combi1-delayi1;
+        const int32_t combq2 = combq1-delayq1;
+        const int32_t combi3 = combi2-delayi2;
+        const int32_t combq3 = combq2-delayq2;
+        const int32_t combi4 = combi3-delayi3;
+        const int32_t combq4 = combq3-delayq3;
+        cw_delayi0 = integratori4;
+        cw_delayq0 = integratorq4;
+        cw_delayi1 = combi1;
+        cw_delayq1 = combq1;
+        cw_delayi2 = combi2;
+        cw_delayq2 = combq2;
+        cw_delayi3 = combi3;
+        cw_delayq3 = combq3;
+        int16_t decimated_i = combi4>>growth;
+        int16_t decimated_q = combq4>>growth;
+
+        //first half band decimating filter
+        bool new_sample = cw_half_band_filter_inst.filter(decimated_i, decimated_q);
+
+        //second half band filter (not decimating)
+        if(new_sample)
+        {
+           cw_half_band_filter2_inst.filter(decimated_i, decimated_q);
+           i = decimated_i;
+           q = decimated_q;
+           return true;
+        }
+      }
+
+      return false;
+}
+
+int16_t rx_dsp::automatic_gain_control(int16_t audio_in)
 {
     //Use a leaky max hold to estimate audio power
     //             _
@@ -238,11 +299,12 @@ int16_t rx_dsp::automatic_gain_control(int16_t audio)
     // Hang time and decay are relatively slow to prevent rapid gain changes
 
     static const uint8_t extra_bits = 16;
-    const int32_t audio_extended = (int32_t)audio << extra_bits;
-    if(audio_extended > max_hold)
+    int32_t audio = audio_in;
+    const int32_t audio_scaled = audio << extra_bits;
+    if(audio_scaled > max_hold)
     {
       //attack
-      max_hold += (audio_extended - max_hold) >> attack_factor;
+      max_hold += (audio_scaled - max_hold) >> attack_factor;
       hang_timer = hang_time;
     }
     else if(hang_timer)
@@ -287,14 +349,7 @@ rx_dsp :: rx_dsp()
   phase = 0;
   decimate_count=0;
   frequency=0;
-
-  //pre-generate sin/cos lookup tables
-  float scaling_factor = (1 << 15) - 1;
-  for(uint16_t idx=0; idx<1024; idx++)
-  {
-    sin_table[idx] = sin(2.0*M_PI*idx/1024.0) * scaling_factor;
-    cos_table[idx] = cos(2.0*M_PI*idx/1024.0) * scaling_factor;
-  }
+  initialise_luts();
 
   //clear cic filter
   integratori1=0; integratorq1=0;
@@ -306,8 +361,17 @@ rx_dsp :: rx_dsp()
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
-  set_agc_speed(3);
+  //clear cw filter
+  cw_integratori1=0; cw_integratorq1=0;
+  cw_integratori2=0; cw_integratorq2=0;
+  cw_integratori3=0; cw_integratorq3=0;
+  cw_integratori4=0; cw_integratorq4=0;
+  cw_delayi0=0; cw_delayq0=0;
+  cw_delayi1=0; cw_delayq1=0;
+  cw_delayi2=0; cw_delayq2=0;
+  cw_delayi3=0; cw_delayq3=0;
 
+  set_agc_speed(3);
 
 }
 
@@ -355,6 +419,7 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
+  offset_frequency_Hz = offset_frequency;
   frequency = ((double)(1ull<<32)*offset_frequency)/adc_sample_rate;
 }
 
@@ -366,4 +431,14 @@ void rx_dsp :: set_mode(uint8_t val)
 int32_t rx_dsp :: get_signal_amplitude()
 {
   return signal_amplitude;
+}
+
+void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
+{
+    //convert capture to frequency domain
+    uint16_t f=0;
+    fft(256, 8, capture_i, capture_q, sin_table, cos_table);
+    for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    offset = 64 + ((offset_frequency_Hz*256)/adc_sample_rate);
 }

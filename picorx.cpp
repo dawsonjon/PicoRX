@@ -10,10 +10,10 @@
 
 rx_settings settings_to_apply;
 rx_status status;
+rx receiver(settings_to_apply, status);
 
 void core1_main()
 {
-    rx receiver(settings_to_apply, status);
     receiver.run();
 }
 
@@ -31,7 +31,7 @@ void setup_display() {
     gpio_pull_up(18);
     gpio_pull_up(19);
     disp.external_vcc=false;
-    ssd1306_init(&disp, 128, 32, 0x3C, i2c1);
+    ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
 
 int new_position;
@@ -59,7 +59,7 @@ float calculate_signal_strength()
 {
     const float full_scale_rms_mW = (0.5f * 0.707f * 1000.0f * 3.3f * 3.3f) / 50.0f;
     const float full_scale_dBm = 10.0f * log10(full_scale_rms_mW);
-    const float signal_strength_dBFS = 20.0*log10((float)status.signal_amplitude / (4.0f * 2048.0f));//compared to adc_full_scale
+    const float signal_strength_dBFS = 20.0*log10((float)status.signal_amplitude / (8.0f * 2048.0f));//compared to adc_full_scale
     return full_scale_dBm - 60.0f + signal_strength_dBFS;
 }
 
@@ -92,6 +92,7 @@ void update_display()
     const char fm[]  = "FM";
     const char lsb[] = "LSB";
     const char usb[] = "USB";
+    const char cw[] = "CW";
     char *modestr;
     switch(settings_to_apply.mode)
     {
@@ -99,14 +100,27 @@ void update_display()
       case LSB: modestr = (char*)lsb; break;
       case USB: modestr = (char*)usb; break;
       case FM: modestr = (char*)fm; break;
+      case CW: modestr = (char*)cw; break;
     } 
     ssd1306_draw_string(&disp, 102, 0, 1, modestr);
     snprintf(buff, 16, "%2.0fdBm %2.0f%%", power, (100.0f*busy_time)/block_time);
     ssd1306_draw_string(&disp, 0, 16, 1, buff);
 
+    //Display spectrum capture
+    int16_t spectrum[128];
+    int16_t offset;
+    receiver.get_spectrum(spectrum, offset);
+    ssd1306_draw_string(&disp, offset, 63-8, 1, "^");
+    for(int x=0; x<128; x++)
+    {
+        int16_t y = (90-20.0*log10(spectrum[x]))/3;
+        ssd1306_draw_pixel(&disp, x, y+32);
+    }
+
     //update display
     ssd1306_show(&disp);
 }
+
 
 int main() {
     stdio_init_all();

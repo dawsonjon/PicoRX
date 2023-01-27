@@ -16,6 +16,7 @@ class rx_dsp
   void set_agc_speed(uint8_t agc_setting);
   void set_mode(uint8_t mode);
   int32_t get_signal_amplitude();
+  void get_spectrum(int16_t spectrum[], int16_t &offset);
 
 
   private:
@@ -24,15 +25,19 @@ class rx_dsp
   bool decimate(int16_t &i, int16_t &q);
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
+  bool cw_decimate(int16_t &i, int16_t &q);
+
+  //capture samples for spectral analysis
+  int16_t capture_i[256];
+  int16_t capture_q[256];
 
   //used in dc canceler
   int32_t dc;
 
   //used in frequency shifter
+  uint32_t offset_frequency_Hz;
   uint32_t phase;
   uint32_t frequency;
-  int16_t sin_table[1024];
-  int16_t cos_table[1024];
 
   //used in CIC filter
   uint8_t decimate_count;
@@ -48,6 +53,26 @@ class rx_dsp
   //used in half band filter
   half_band_filter half_band_filter_inst;
   half_band_filter2 half_band_filter2_inst;
+
+  //used in CW CIC filter
+  uint8_t cw_decimate_count;
+  int32_t cw_integratori1, cw_integratorq1;
+  int32_t cw_integratori2, cw_integratorq2;
+  int32_t cw_integratori3, cw_integratorq3;
+  int32_t cw_integratori4, cw_integratorq4;
+  int32_t cw_delayi0, cw_delayq0;
+  int32_t cw_delayi1, cw_delayq1;
+  int32_t cw_delayi2, cw_delayq2;
+  int32_t cw_delayi3, cw_delayq3;
+
+  //used in CW half band filter
+  half_band_filter cw_half_band_filter_inst;
+  half_band_filter2 cw_half_band_filter2_inst;
+
+  //used to generate cw sidetone
+  int16_t cw_magnitude;
+  int16_t cw_sidetone_phase;
+  int16_t cw_sidetone_frequency_Hz=1000;
 
   int32_t signal_amplitude;
 

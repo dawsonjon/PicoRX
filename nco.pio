@@ -21,7 +21,7 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
 
 
     //calculate nearest divider
-    float div = round(256 * 125e6 / (4*(tuned_frequency - 15e3)))/256;
+    float div = round(256.0f * 125.0e6f / (4.0f*(tuned_frequency - 15.0e3f)))/256.0f;
     sm_config_set_clkdiv(&c, div);
 
     // Load our configuration, and jump to the start of the program
@@ -30,6 +30,6 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     pio_sm_set_enabled(pio, sm, true);
 
     //return actual frequency
-    return 125e6 / (4*div);
+    return 125.0e6f / (4.0f*div);
 }
 %}

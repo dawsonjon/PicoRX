@@ -82,6 +82,11 @@ void rx::apply_settings(bool settings_changed)
     
 }
 
+void rx::get_spectrum(int16_t spectrum[], int16_t &offset)
+{
+  rx_dsp_inst.get_spectrum(spectrum, offset);
+}
+
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
 {
     //Configure PIO to act as quadrature oscilator
