@@ -52,30 +52,30 @@ void initialise_luts()
     sin_table[idx] = sin(2.0*M_PI*idx/1024.0) * scaling_factor;
     cos_table[idx] = cos(2.0*M_PI*idx/1024.0) * scaling_factor;
   }
+
 }
 
 //bit reverse
-unsigned bit_reverse(unsigned forward, uint16_t m){
-    unsigned reversed=0;
-    unsigned i;
-    for(i=0; i<m; i++){
-        reversed <<= 1;
-        reversed |= forward & 1;
-        forward >>= 1;
-    }
-    return reversed;
+static unsigned char lookup[16] = {
+0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
+
+uint8_t bit_reverse(uint8_t n) 
+{
+   // Reverse the top and bottom nibble then swap them.
+   return (lookup[n&0b1111] << 4) | lookup[n>>4];
 }
 
 //calculate fft
-void fft(uint16_t n, uint16_t m, int16_t reals[], int16_t imaginaries[], int16_t sin_lookup[], int16_t cos_lookup[]){
+void fft(int16_t reals[], int16_t imaginaries[]){
 
     int16_t stage, subdft_size, span, i, ip, j;
     int16_t temp_real, temp_imaginary, imaginary_twiddle, real_twiddle;
 
 
     //bit reverse data
-    for(i=0; i<n; i++){
-        ip = bit_reverse(i, m);
+    for(i=0; i<256; i++){
+        ip = bit_reverse(i);
         if(i < ip){
             temp_real = reals[i];
             temp_imaginary = imaginaries[i];
@@ -87,19 +87,19 @@ void fft(uint16_t n, uint16_t m, int16_t reals[], int16_t imaginaries[], int16_t
     }
 
     //butterfly multiplies
-    for(stage=0; stage<m; stage++){
+    for(stage=0; stage<8; stage++){
         subdft_size = 2 << stage;
         span = subdft_size >> 1;
 
         for(j=0; j<span; j++){
-            for(i=j; i<n; i+=subdft_size){
+            for(i=j; i<256; i+=subdft_size){
                 ip=i+span;
 
-                real_twiddle=cos_lookup[j*512u>>stage];
-                imaginary_twiddle=-sin_lookup[j*512u>>stage];
+                real_twiddle=cos_table[j*512u>>stage];
+                imaginary_twiddle=-sin_table[j*512u>>stage];
 
-                temp_real      = (((int32_t)reals[ip]*(int32_t)real_twiddle)      - ((int32_t)imaginaries[ip]*(int32_t)imaginary_twiddle)) >> 15;
-                temp_imaginary = (((int32_t)reals[ip]*(int32_t)imaginary_twiddle) + ((int32_t)imaginaries[ip]*(int32_t)real_twiddle)) >> 15;
+                temp_real      = (((int32_t)reals[ip]*(int32_t)real_twiddle)      - ((int32_t)imaginaries[ip]*(int32_t)imaginary_twiddle)) >> 15u;
+                temp_imaginary = (((int32_t)reals[ip]*(int32_t)imaginary_twiddle) + ((int32_t)imaginaries[ip]*(int32_t)real_twiddle)) >> 15u;
 
                 reals[ip]       = reals[i]-temp_real;
                 imaginaries[ip] = imaginaries[i]-temp_imaginary;

@@ -133,6 +133,7 @@ int main() {
     settings_to_apply.agc_speed = 3;
     settings_to_apply.mode = AM;
     settings_to_apply.step_Hz = 1000;
+    apply_settings_get_status(true);
 
     while(1)
     {

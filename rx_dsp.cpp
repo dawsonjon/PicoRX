@@ -3,6 +3,7 @@
 #include "utils.h"
 #include <math.h>
 #include <cstdio>
+#include "pico/stdlib.h"
 
 uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 {
@@ -437,7 +438,8 @@ void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
 {
     //convert capture to frequency domain
     uint16_t f=0;
-    fft(256, 8, capture_i, capture_q, sin_table, cos_table);
+    clock_t start_time;
+    fft(capture_i, capture_q);
     for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
     for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
     offset = 64 + ((offset_frequency_Hz*256)/adc_sample_rate);
