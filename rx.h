@@ -20,12 +20,13 @@ struct rx_settings
   int step_Hz;
   uint8_t agc_speed;
   uint8_t mode;
+  uint16_t cw_sidetone_Hz;
 };
 
 struct rx_status
 {
   int32_t signal_amplitude;
-  clock_t idle_time;
+  clock_t busy_time;
 };
 
 class rx
@@ -66,8 +67,8 @@ class rx
   static bool audio_running;
   static void dma_handler();
   
-  //store idle time for performance monitoring
-  clock_t idle_time;
+  //store busy time for performance monitoring
+  clock_t busy_time;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

@@ -429,6 +429,11 @@ void rx_dsp :: set_mode(uint8_t val)
   mode = val;
 }
 
+void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
+{
+  cw_sidetone_frequency_Hz = val;
+}
+
 int32_t rx_dsp :: get_signal_amplitude()
 {
   return signal_amplitude;

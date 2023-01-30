@@ -15,6 +15,7 @@ class rx_dsp
   void set_frequency_offset_Hz(double offset_frequency);
   void set_agc_speed(uint8_t agc_setting);
   void set_mode(uint8_t mode);
+  void set_cw_sidetone_Hz(uint16_t val);
   int32_t get_signal_amplitude();
   void get_spectrum(int16_t spectrum[], int16_t &offset);
 

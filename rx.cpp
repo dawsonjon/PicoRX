@@ -69,6 +69,9 @@ void rx::apply_settings(bool settings_changed)
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
+      //apply CW sidetone
+      rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
+
       //apply AGC speed
       rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
 
@@ -78,7 +81,7 @@ void rx::apply_settings(bool settings_changed)
 
     //update status
     status.signal_amplitude = rx_dsp_inst.get_signal_amplitude();
-    status.idle_time = idle_time;
+    status.busy_time = busy_time;
     
 }
 
@@ -183,10 +186,10 @@ void rx::run()
     while(true)
     {
         clock_t start_time;
-        start_time = time_us_64();
         dma_channel_wait_for_finish_blocking(adc_dma_ping);
-        idle_time = time_us_64()-start_time;
+        start_time = time_us_64();
         rx_dsp_inst.process_block(ping_samples, ping_audio);
+        busy_time = time_us_64()-start_time;
         dma_channel_wait_for_finish_blocking(adc_dma_pong);
         rx_dsp_inst.process_block(pong_samples, pong_audio);
 
