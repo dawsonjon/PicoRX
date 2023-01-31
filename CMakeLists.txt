@@ -16,6 +16,7 @@ add_executable(picorx
     rx_dsp.cpp
     half_band_filter.cpp
     half_band_filter2.cpp
+    ui.cpp
 )
 
 pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
