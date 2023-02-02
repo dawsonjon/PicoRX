@@ -77,6 +77,12 @@ void rx::apply_settings(bool settings_changed)
 
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode);
+
+      //apply volume
+      rx_dsp_inst.set_volume(settings_to_apply.volume);
+
+      //apply squelch
+      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
     }
 
     //update status

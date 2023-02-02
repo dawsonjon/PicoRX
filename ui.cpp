@@ -120,15 +120,13 @@ void ui::display_show()
 ////////////////////////////////////////////////////////////////////////////////
 float ui::calculate_signal_strength(rx_status &status)
 {
-    const float full_scale_rms_mW = (0.5f * 0.707f * 1000.0f * 3.3f * 3.3f) / 50.0f;
-    const float full_scale_dBm = 10.0f * log10(full_scale_rms_mW);
-    const float signal_strength_dBFS = 20.0*log10((float)status.signal_amplitude / (8.0f * 2048.0f));//compared to adc_full_scale
-    return full_scale_dBm - 60.0f + signal_strength_dBFS;
+    const float signal_strength_dBFS = 20.0*log10f((float)status.signal_amplitude / full_scale_signal_strength);
+    return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
 void ui::update_display(rx_status & status, rx & receiver)
 {
-  char buff [16];
+  char buff [21];
   ssd1306_clear(&disp);
 
   //frequency
@@ -138,13 +136,13 @@ void ui::update_display(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  snprintf(buff, 16, "%2u.%03u", MHz, kHz);
+  snprintf(buff, 21, "%2u.%03u", MHz, kHz);
   ssd1306_draw_string(&disp, 0, 0, 2, buff);
-  snprintf(buff, 16, ".%03u", Hz);
+  snprintf(buff, 21, ".%03u", Hz);
   ssd1306_draw_string(&disp, 72, 0, 1, buff);
 
   //signal strength
-  const float power = calculate_signal_strength(status);
+  const float power_dBm = calculate_signal_strength(status);
 
   //CPU 
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
@@ -153,12 +151,26 @@ void ui::update_display(rx_status & status, rx & receiver)
   //mode
   const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
   ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
+
   //step
-  const char steps[][8]  = {"   10Hz", "   50Hz", "  100Hz", "   1kHz", "   5kHz", "  10kHz", "12.5kHz", "  25kHz", "  50kHz", " 100kHz"};
-  ssd1306_draw_string(&disp, 72, 8, 1, steps[settings[idx_step]]);
+  const char steps[][8]  = {
+    "   10Hz", "   50Hz", "  100Hz", "   1kHz",
+    "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
+    "  50kHz", " 100kHz"};
+  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]]);
+
   //signal strength/cpu
-  snprintf(buff, 16, "%2.0fdBm %2.0f%%", power, (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 0, 16, 1, buff);
+  const char smeter[][12]  = {
+    "S0         ", "S1|        ", "S2-|       ", "S3--|      ", 
+    "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
+    "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
+    "S9+30dB---|"};
+  uint8_t power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
+  ssd1306_draw_string(&disp, 0, 24, 1, buff);
+  snprintf(buff, 21, "%2.0f%%", (100.0f*busy_time)/block_time);
+  ssd1306_draw_string(&disp, 102, 16, 1, buff);
 
   //Display spectrum capture
   int16_t spectrum[128];
@@ -168,6 +180,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   for(uint16_t x=0; x<128; x++)
   {
       int16_t y = (90-20.0*log10(spectrum[x]))/3;
+      if(y < 0) y=0;
+      if(y > 31) y=31;
       ssd1306_draw_pixel(&disp, x, y+32);
   }
 
@@ -370,18 +384,63 @@ bool ui::frequency_entry(){
 bool ui::do_ui(bool rx_settings_changed)
 {
 
+
     //update frequency if encoder changes
     uint32_t encoder_change = get_encoder_change();
+    switch(button_state)
+    {
+      case idle:
+        if(check_button(PIN_MENU))
+        {
+          button_state = down;
+          timeout = 100;
+        }
+        break;
+      case down:
+        if(encoder_change != 0 || (timeout-- == 0))
+        {
+          button_state = fast_mode;
+        }
+        else if(!check_button(PIN_MENU))
+        {
+          button_state = menu;
+        }
+        break;
+      case fast_mode:
+        if(!check_button(PIN_MENU))
+        {
+          button_state = idle;
+        }
+        break;
+      case menu:
+        button_state = idle;
+        break;
+    }
+
     if(encoder_change != 0)
     {
       rx_settings_changed = true;
-      settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+      if(button_state == fast_mode && check_button(PIN_BACK))
+      {
+        //very fast if both buttons pressed
+        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+      }
+      else if(button_state == fast_mode)
+      {
+        //fast if menu button held
+        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
+      }
+      else if(check_button(PIN_BACK))
+      {
+        //slow if cancel button held
+        settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+      }
+      else settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
     }
 
     //if button is pressed enter menu
-    else if(check_button(PIN_MENU))
+    else if(button_state == menu)
     {
-      get_button(PIN_MENU);
 
       //top level menu
       uint32_t setting = 0;
@@ -434,6 +493,8 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
       settings_to_apply.agc_speed = settings[idx_agc_speed];
       settings_to_apply.mode = settings[idx_mode];
+      settings_to_apply.volume = settings[idx_volume];
+      settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
     }
@@ -456,4 +517,8 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : sett
   settings[idx_mode] = AM;
   settings[idx_step] = 3;
   settings[idx_cw_sidetone] = 1000;
+  settings[idx_volume] = 5;
+  settings[idx_squelch] = 0;
+
+  button_state = idle;
 }

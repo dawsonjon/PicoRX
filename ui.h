@@ -42,6 +42,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_100MS sleep_us(100000);
 #define WAIT_500MS sleep_us(500000);;
 
+enum e_button_state {idle, down, fast_mode, menu};
+
 class ui
 {
 
@@ -63,6 +65,8 @@ class ui
   void setup_buttons();
   bool get_button(uint8_t button);
   bool check_button(unsigned button);
+  e_button_state button_state;
+  uint8_t timeout;
 
   // Display
   void setup_display();

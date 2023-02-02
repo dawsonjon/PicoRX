@@ -10,10 +10,15 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
   uint16_t odx = 0;
   int32_t magnitude_sum = 0;
+  int32_t sample_accumulator = 0;
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
       //convert to signed representation
-      const int16_t raw_sample = samples[idx] - (1<<(adc_bits-1));
+      const int16_t raw_sample = samples[idx];// - (1<<(adc_bits-1));
+      sample_accumulator += raw_sample;
+
+      //remove dc
+      const int16_t sample = raw_sample - dc;
 
       //work out which samples are i and q
       int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
@@ -44,6 +49,15 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
         //e.g. -32767 to 32767
         audio = automatic_gain_control(audio);
 
+        //digital volume control
+        audio = ((int32_t)audio * gain_numerator) >> 8;
+
+        //squenlch
+        if(signal_amplitude < squelch_threshold)
+        {
+          audio = 0;
+        }
+
         //convert to unsigned value in range 0 to 500 to output to PWM
         audio += INT16_MAX;
         audio /= pwm_scale; 
@@ -59,6 +73,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
+    dc = sample_accumulator/(adc_block_size);
 
     return odx;
 }
@@ -119,8 +134,8 @@ bool rx_dsp :: decimate(int16_t &i, int16_t &q)
         delayq2 = combq2;
         delayi3 = combi3;
         delayq3 = combq3;
-        int16_t decimated_i = combi4>>(growth-3);
-        int16_t decimated_q = combq4>>(growth-3);
+        int16_t decimated_i = combi4>>(bit_growth-extra_bits);
+        int16_t decimated_q = combq4>>(bit_growth-extra_bits);
 
         //first half band decimating filter
         bool new_sample = half_band_filter_inst.filter(decimated_i, decimated_q);
@@ -219,7 +234,7 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         cw_magnitude = rectangular_2_magnitude(ii, qq);
       }
       cw_sidetone_phase += cw_sidetone_frequency_Hz * 1024 * total_decimation_rate / adc_sample_rate;
-      return ((int32_t)cw_magnitude * sin_table[cw_sidetone_phase & 0x3ff])>>15;
+      return ((int32_t)cw_magnitude * sin_table[cw_sidetone_phase & 0x3ff])>>16;
     }
 }
 
@@ -258,8 +273,8 @@ bool rx_dsp :: cw_decimate(int16_t &i, int16_t &q)
         cw_delayq2 = combq2;
         cw_delayi3 = combi3;
         cw_delayq3 = combq3;
-        int16_t decimated_i = combi4>>growth;
-        int16_t decimated_q = combq4>>growth;
+        int16_t decimated_i = combi4>>bit_growth;
+        int16_t decimated_q = combq4>>bit_growth;
 
         //first half band decimating filter
         bool new_sample = cw_half_band_filter_inst.filter(decimated_i, decimated_q);
@@ -432,6 +447,46 @@ void rx_dsp :: set_mode(uint8_t val)
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
 {
   cw_sidetone_frequency_Hz = val;
+}
+
+//volume settings 0 to 9
+void rx_dsp :: set_volume(uint8_t val)
+{
+  const int16_t gain[] = {
+    0,   // 0 = 0/256 -infdB
+    16,  // 1 = 16/256 -24dB
+    23,  // 2 = 23/256 -21dB
+    32,  // 3 = 32/256 -18dB
+    45,  // 4 = 45/256 -15dB
+    64,  // 5 = 64/256 -12dB
+    90,  // 6 = 90/256  -9dB
+    128, // 7 = 128/256 -6dB
+    180, // 8 = 180/256 -3dB
+    256  // 9 = 256/256  0dB
+  };
+  gain_numerator = gain[val];
+}
+
+//set_squelch
+void rx_dsp :: set_squelch(uint8_t val)
+{
+  //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
+  const int16_t thresholds[] = {
+    s9_threshold>>9, //s0
+    s9_threshold>>8, //s1
+    s9_threshold>>7, //s2
+    s9_threshold>>6, //s3
+    s9_threshold>>5, //s4
+    s9_threshold>>4, //s5
+    s9_threshold>>3, //s6
+    s9_threshold>>2, //s7
+    s9_threshold>>1, //s8
+    s9_threshold,    //s9
+    s9_threshold*3,  //s9+10dB
+    s9_threshold*10, //s9+20dB
+    s9_threshold*31, //s9+30dB
+  };
+  squelch_threshold = thresholds[val];
 }
 
 int32_t rx_dsp :: get_signal_amplitude()

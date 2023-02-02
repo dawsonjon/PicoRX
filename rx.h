@@ -20,6 +20,8 @@ struct rx_settings
   int step_Hz;
   uint8_t agc_speed;
   uint8_t mode;
+  uint8_t volume;
+  uint8_t squelch;
   uint16_t cw_sidetone_Hz;
 };
 

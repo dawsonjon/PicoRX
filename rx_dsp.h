@@ -16,6 +16,8 @@ class rx_dsp
   void set_agc_speed(uint8_t agc_setting);
   void set_mode(uint8_t mode);
   void set_cw_sidetone_Hz(uint16_t val);
+  void set_volume(uint8_t val);
+  void set_squelch(uint8_t val);
   int32_t get_signal_amplitude();
   void get_spectrum(int16_t spectrum[], int16_t &offset);
 
@@ -33,7 +35,7 @@ class rx_dsp
   int16_t capture_q[256];
 
   //used in dc canceler
-  int32_t dc;
+  int16_t dc;
 
   //used in frequency shifter
   uint32_t offset_frequency_Hz;
@@ -85,8 +87,11 @@ class rx_dsp
   int16_t audio_phase=0;
   int16_t last_audio_phase=0;
 
-  //test tone
-  int16_t signal = 0;
+  //volume control
+  int16_t gain_numerator=0;
+
+  //squelch
+  int16_t squelch_threshold=0;
 
   //used in AGC
   uint8_t attack_factor;
