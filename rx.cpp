@@ -65,7 +65,7 @@ void rx::apply_settings(bool settings_changed)
     {
       //apply frequency
       tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz + 6000);
+      nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz-12000);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 

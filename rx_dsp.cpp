@@ -11,6 +11,10 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
   uint16_t odx = 0;
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
+
+  //if the capture buffer isn't in use, fill it
+  bool capture_data = sem_try_acquire(&spectrum_semaphore);
+
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
       //convert to signed representation
@@ -25,7 +29,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
       int16_t q = (idx&1)*raw_sample;//odd samples contain q data
 
       //capture data for spectrum
-      if(idx < 256)
+      if(capture_data && idx < 256)
       {
         capture_i[idx] = i>>4;//only use 8 msbs
         capture_q[idx] = q>>4;//only use 8 msbs
@@ -70,6 +74,13 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
           
       }
     } 
+
+    //if the capture buffer isn't in use, fill it
+    if(capture_data)
+    {
+        sem_release(&spectrum_semaphore);
+        capture_data = false;
+    }
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
@@ -367,6 +378,9 @@ rx_dsp :: rx_dsp()
   frequency=0;
   initialise_luts();
 
+  //initialise semaphore for spectrum
+  sem_init(&spectrum_semaphore, 1, 1);
+
   //clear cic filter
   integratori1=0; integratorq1=0;
   integratori2=0; integratorq2=0;
@@ -496,6 +510,8 @@ int32_t rx_dsp :: get_signal_amplitude()
 
 void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
 {
+    sem_acquire_blocking(&spectrum_semaphore);
+
     //convert capture to frequency domain
     uint16_t f=0;
     clock_t start_time;
@@ -504,4 +520,6 @@ void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
     for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
     printf("offset: %i %i\n", offset_frequency_Hz, (offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
     offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
+
+    sem_release(&spectrum_semaphore);
 }

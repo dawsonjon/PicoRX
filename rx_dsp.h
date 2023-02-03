@@ -5,6 +5,7 @@
 #include "rx_definitions.h"
 #include "half_band_filter.h"
 #include "half_band_filter2.h"
+#include "pico/sem.h"
 
 class rx_dsp
 {
@@ -33,6 +34,7 @@ class rx_dsp
   //capture samples for spectral analysis
   int16_t capture_i[256];
   int16_t capture_q[256];
+  semaphore_t spectrum_semaphore;
 
   //used in dc canceler
   int16_t dc;
