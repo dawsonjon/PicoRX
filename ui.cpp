@@ -176,13 +176,26 @@ void ui::update_display(rx_status & status, rx & receiver)
   int16_t spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
-  ssd1306_draw_string(&disp, offset, 63-8, 1, "^");
+  ssd1306_draw_string(&disp, offset, 32, 1, "v");
+
+  //auto scale
+  int16_t min=100;
+  int16_t max=0;
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = (90-20.0*log10(spectrum[x]))/3;
+      int16_t level = log10f(spectrum[x]);
+      if(level > max) max = level;
+      if(level < min) min = level;
+  }
+  float scale = 32.0f/(max-min);
+
+  //plot
+  for(uint16_t x=0; x<128; x++)
+  {
+      int16_t y = scale*(log10f(spectrum[x])-min);
       if(y < 0) y=0;
       if(y > 31) y=31;
-      ssd1306_draw_pixel(&disp, x, y+32);
+      ssd1306_draw_line(&disp, x, 63-y, x, 63);
   }
 
   ssd1306_show(&disp);
@@ -379,7 +392,7 @@ bool ui::frequency_entry(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// This is the main UI loop. Should get called about 100 times/second
+// This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
 bool ui::do_ui(bool rx_settings_changed)
 {
