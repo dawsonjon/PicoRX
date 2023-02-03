@@ -502,5 +502,6 @@ void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
     fft(capture_i, capture_q);
     for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
     for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
-    offset = 64 + ((offset_frequency_Hz*256)/adc_sample_rate);
+    printf("offset: %i %i\n", offset_frequency_Hz, (offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
+    offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
 }

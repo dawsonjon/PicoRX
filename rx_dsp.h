@@ -38,9 +38,9 @@ class rx_dsp
   int16_t dc;
 
   //used in frequency shifter
-  uint32_t offset_frequency_Hz;
+  int32_t offset_frequency_Hz;
   uint32_t phase;
-  uint32_t frequency;
+  int32_t frequency;
 
   //used in CIC filter
   uint8_t decimate_count;
