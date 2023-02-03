@@ -57,6 +57,8 @@ class rx
   static dma_channel_config pong_cfg;
   static uint16_t ping_samples[adc_block_size];
   static uint16_t pong_samples[adc_block_size];
+  static uint16_t num_ping_samples;
+  static uint16_t num_pong_samples;
 
   //buffers and dma for PWM audio output
   static int audio_pwm_slice_num;

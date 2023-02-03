@@ -21,6 +21,8 @@ dma_channel_config rx::audio_pong_cfg;
 int16_t rx::ping_audio[pwm_block_size];
 int16_t rx::pong_audio[pwm_block_size];
 bool rx::audio_running;
+uint16_t rx::num_ping_samples;
+uint16_t rx::num_pong_samples;
 
 //dma for capture
 int rx::capture_dma;
@@ -41,7 +43,7 @@ void rx::dma_handler() {
       gpio_put(14, 1);
       dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
       if(audio_running){
-        dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, pwm_block_size, true);
+        dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, num_pong_samples, true);
       }
       dma_hw->ints0 = 1u << adc_dma_ping;
     }
@@ -50,7 +52,7 @@ void rx::dma_handler() {
     {
       gpio_put(14, 0);
       dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
-      dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, pwm_block_size, true);
+      dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, num_ping_samples, true);
       if(!audio_running){
         audio_running = true;
       }
@@ -194,10 +196,10 @@ void rx::run()
         clock_t start_time;
         dma_channel_wait_for_finish_blocking(adc_dma_ping);
         start_time = time_us_64();
-        rx_dsp_inst.process_block(ping_samples, ping_audio);
+        num_ping_samples = rx_dsp_inst.process_block(ping_samples, ping_audio);
         busy_time = time_us_64()-start_time;
         dma_channel_wait_for_finish_blocking(adc_dma_pong);
-        rx_dsp_inst.process_block(pong_samples, pong_audio);
+        num_pong_samples = rx_dsp_inst.process_block(pong_samples, pong_audio);
 
         if(multicore_fifo_rvalid())
         { 	
