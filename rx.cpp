@@ -18,8 +18,8 @@ int rx::pwm_dma_ping;
 int rx::pwm_dma_pong;
 dma_channel_config rx::audio_ping_cfg;
 dma_channel_config rx::audio_pong_cfg;
-int16_t rx::ping_audio[pwm_block_size];
-int16_t rx::pong_audio[pwm_block_size];
+int16_t rx::ping_audio[adc_block_size];
+int16_t rx::pong_audio[adc_block_size];
 bool rx::audio_running;
 uint16_t rx::num_ping_samples;
 uint16_t rx::num_pong_samples;
@@ -88,7 +88,7 @@ void rx::apply_settings(bool settings_changed)
     }
 
     //update status
-    status.signal_amplitude = rx_dsp_inst.get_signal_amplitude();
+    status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
     status.busy_time = busy_time;
     
 }

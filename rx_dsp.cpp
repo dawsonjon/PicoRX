@@ -83,13 +83,13 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
     }
 
     //average over the number of samples
-    signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
+    signal_amplitude = (magnitude_sum * decimation_rate * 2)/adc_block_size;
     dc = sample_accumulator/(adc_block_size);
 
     return odx;
 }
 
-void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
+void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 {
     //Apply frequency shift (move tuned frequency to DC)         
     const int16_t rotation_i =  cos_table[phase>>22]; //32 - 22 = 10MSBs
@@ -103,15 +103,8 @@ void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
     q = q_shifted;
 }
 
-bool rx_dsp :: decimate(int16_t &i, int16_t &q)
+bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 {
-      //Decimate
-      //             fs          Alias Free
-      //raw data    500kHz
-      //CIC (20)    12.5kHz      +/-6.25kHz
-      //filt1       15.625kHz    +/-3.125kHz(with aliases outside)
-      //filt2       15.625kHz    +/-3.125kHz(free from aliases)
-
       //CIC decimation filter
       //implement integrator stages
       integratori1 += i;
@@ -174,12 +167,12 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         //subtract DC component
         return amplitude - (audio_dc >> 5);
     }
-    else if(mode == FM)
+    else if(mode == FM | mode == WFM)
     {
         int16_t audio_phase = rectangular_2_phase(i, q);
         int16_t frequency = audio_phase - last_audio_phase;
         last_audio_phase = audio_phase;
-        return frequency;
+        return frequency>>1;
     }
     else if(mode == LSB || mode == USB)
     {
@@ -242,10 +235,13 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
       int16_t ii = i;
       int16_t qq = q;
       if(cw_decimate(ii, qq)){
-        cw_magnitude = rectangular_2_magnitude(ii, qq);
+        cw_i = ii;
+        cw_q = qq;
       }
-      cw_sidetone_phase += cw_sidetone_frequency_Hz * 1024 * total_decimation_rate / adc_sample_rate;
-      return ((int32_t)cw_magnitude * sin_table[cw_sidetone_phase & 0x3ff])>>16;
+      cw_sidetone_phase += cw_sidetone_frequency_Hz * 1024 * decimation_rate * 2 / adc_sample_rate;
+      const int16_t rotation_i =  cos_table[cw_sidetone_phase & 0x3ff];
+      const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x3ff];
+      return ((cw_i * rotation_i) - (cw_q * rotation_q)) >> 15;
     }
 }
 
@@ -268,24 +264,24 @@ bool rx_dsp :: cw_decimate(int16_t &i, int16_t &q)
         cw_decimate_count = 0;
 
         //implement comb stages
-        const int32_t combi1 = integratori4-delayi0;
-        const int32_t combq1 = integratorq4-delayq0;
-        const int32_t combi2 = combi1-delayi1;
-        const int32_t combq2 = combq1-delayq1;
-        const int32_t combi3 = combi2-delayi2;
-        const int32_t combq3 = combq2-delayq2;
-        const int32_t combi4 = combi3-delayi3;
-        const int32_t combq4 = combq3-delayq3;
-        cw_delayi0 = integratori4;
-        cw_delayq0 = integratorq4;
-        cw_delayi1 = combi1;
-        cw_delayq1 = combq1;
-        cw_delayi2 = combi2;
-        cw_delayq2 = combq2;
-        cw_delayi3 = combi3;
-        cw_delayq3 = combq3;
-        int16_t decimated_i = combi4>>bit_growth;
-        int16_t decimated_q = combq4>>bit_growth;
+        const int32_t cw_combi1 = cw_integratori4-cw_delayi0;
+        const int32_t cw_combq1 = cw_integratorq4-cw_delayq0;
+        const int32_t cw_combi2 = cw_combi1-cw_delayi1;
+        const int32_t cw_combq2 = cw_combq1-cw_delayq1;
+        const int32_t cw_combi3 = cw_combi2-cw_delayi2;
+        const int32_t cw_combq3 = cw_combq2-cw_delayq2;
+        const int32_t cw_combi4 = cw_combi3-cw_delayi3;
+        const int32_t cw_combq4 = cw_combq3-cw_delayq3;
+        cw_delayi0 = cw_integratori4;
+        cw_delayq0 = cw_integratorq4;
+        cw_delayi1 = cw_combi1;
+        cw_delayq1 = cw_combq1;
+        cw_delayi2 = cw_combi2;
+        cw_delayq2 = cw_combq2;
+        cw_delayi3 = cw_combi3;
+        cw_delayq3 = cw_combq3;
+        int16_t decimated_i = cw_combi4>>cw_bit_growth;
+        int16_t decimated_q = cw_combq4>>cw_bit_growth;
 
         //first half band decimating filter
         bool new_sample = cw_half_band_filter_inst.filter(decimated_i, decimated_q);
@@ -353,7 +349,8 @@ int16_t rx_dsp::automatic_gain_control(int16_t audio_in)
     //apply gain
     if(magnitude > 0)
     {
-      const int16_t gain = setpoint/magnitude;
+      int16_t gain = setpoint/magnitude;
+      if(gain < 1) gain = 1;
       audio *= gain;
     }
 
@@ -382,6 +379,7 @@ rx_dsp :: rx_dsp()
   sem_init(&spectrum_semaphore, 1, 1);
 
   //clear cic filter
+  set_decimation_rate(20u);
   integratori1=0; integratorq1=0;
   integratori2=0; integratorq2=0;
   integratori3=0; integratorq3=0;
@@ -456,6 +454,26 @@ void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 void rx_dsp :: set_mode(uint8_t val)
 {
   mode = val;
+  if(mode == LSB || mode == USB)
+  {
+    //250e3/(25*2*2) == 2.5kHz
+    set_decimation_rate(25u);
+  }
+  if(mode == WFM)
+  {
+    //250e3/1 == 250kHz
+    set_decimation_rate(1u);
+  }
+  if(mode == FM)
+  {
+    //250e3/(14*2) == 9kHz
+    set_decimation_rate(14u);
+  }
+  else
+  {
+    //250e3/(20*2) == 6kHz
+    set_decimation_rate(20u);
+  }
 }
 
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
@@ -503,23 +521,31 @@ void rx_dsp :: set_squelch(uint8_t val)
   squelch_threshold = thresholds[val];
 }
 
-int32_t rx_dsp :: get_signal_amplitude()
+int16_t rx_dsp :: get_signal_strength_dBm()
 {
-  return signal_amplitude;
+  const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude / full_scale_signal_strength);
+  return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
+}
+
+void rx_dsp :: set_decimation_rate(uint8_t i) 
+{
+  decimation_rate = i;
+  interpolation_rate = i;
+  bit_growth = ceilf(log2f(decimation_rate))*4;
+  const float growth_adjustment = decimation_rate/powf(2, ceil(log2f(decimation_rate))); //growth in decimating filters
+  full_scale_signal_strength = 0.707f*adc_max*(1<<extra_bits)*growth_adjustment; //signal strength after decimator expected for a full scale sin wave
+  s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);
 }
 
 void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
 {
-    sem_acquire_blocking(&spectrum_semaphore);
-
-    //convert capture to frequency domain
-    uint16_t f=0;
-    clock_t start_time;
-    fft(capture_i, capture_q);
-    for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
-    for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
-    printf("offset: %i %i\n", offset_frequency_Hz, (offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
-    offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
-
-    sem_release(&spectrum_semaphore);
+  //convert capture to frequency domain
+  sem_acquire_blocking(&spectrum_semaphore);
+  uint16_t f=0;
+  clock_t start_time;
+  fft(capture_i, capture_q);
+  for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+  for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+  offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
+  sem_release(&spectrum_semaphore);
 }

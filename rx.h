@@ -27,7 +27,7 @@ struct rx_settings
 
 struct rx_status
 {
-  int32_t signal_amplitude;
+  int32_t signal_strength_dBm;
   clock_t busy_time;
 };
 
@@ -66,8 +66,8 @@ class rx
   static int pwm_dma_pong;
   static dma_channel_config audio_ping_cfg;
   static dma_channel_config audio_pong_cfg;
-  static int16_t ping_audio[pwm_block_size];
-  static int16_t pong_audio[pwm_block_size];
+  static int16_t ping_audio[adc_block_size];
+  static int16_t pong_audio[adc_block_size];
   static bool audio_running;
   static void dma_handler();
   

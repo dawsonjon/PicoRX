@@ -19,7 +19,7 @@ class rx_dsp
   void set_cw_sidetone_Hz(uint16_t val);
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
-  int32_t get_signal_amplitude();
+  int16_t get_signal_strength_dBm();
   void get_spectrum(int16_t spectrum[], int16_t &offset);
 
 
@@ -30,6 +30,7 @@ class rx_dsp
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   bool cw_decimate(int16_t &i, int16_t &q);
+  void set_decimation_rate(uint8_t i);
 
   //capture samples for spectral analysis
   int16_t capture_i[256];
@@ -45,6 +46,9 @@ class rx_dsp
   int32_t frequency;
 
   //used in CIC filter
+  uint16_t decimation_rate; //cic only decimation
+  uint16_t interpolation_rate;
+  uint16_t bit_growth;
   uint8_t decimate_count;
   int32_t integratori1, integratorq1;
   int32_t integratori2, integratorq2;
@@ -75,7 +79,7 @@ class rx_dsp
   half_band_filter2 cw_half_band_filter2_inst;
 
   //used to generate cw sidetone
-  int16_t cw_magnitude;
+  int16_t cw_i, cw_q;
   int16_t cw_sidetone_phase;
   int16_t cw_sidetone_frequency_Hz=1000;
 
@@ -94,6 +98,7 @@ class rx_dsp
 
   //squelch
   int16_t squelch_threshold=0;
+  int16_t s9_threshold;
 
   //used in AGC
   uint8_t attack_factor;
@@ -102,6 +107,9 @@ class rx_dsp
   uint16_t hang_timer;
   const bool agc_enabled = true;
   int32_t max_hold;
+
+  //used to calculate signal strength 
+  float full_scale_signal_strength;
 
 };
 

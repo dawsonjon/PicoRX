@@ -118,12 +118,6 @@ void ui::display_show()
 ////////////////////////////////////////////////////////////////////////////////
 // Generic Menu Options
 ////////////////////////////////////////////////////////////////////////////////
-float ui::calculate_signal_strength(rx_status &status)
-{
-    const float signal_strength_dBFS = 20.0*log10f((float)status.signal_amplitude / full_scale_signal_strength);
-    return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
-}
-
 void ui::update_display(rx_status & status, rx & receiver)
 {
   char buff [21];
@@ -142,14 +136,14 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 72, 0, 1, buff);
 
   //signal strength
-  const float power_dBm = calculate_signal_strength(status);
+  const float power_dBm = status.signal_strength_dBm;
 
   //CPU 
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
 
   //mode
-  const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
+  const char modes[][4]  = {" AM", "LSB", "USB", " FM", "WFM", " CW"};
   ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
 
   //step
@@ -470,7 +464,7 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 2 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW", 4, &settings[idx_mode]);
+          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#WFM#CW", 5, &settings[idx_mode]);
           break;
 
         case 3 :
