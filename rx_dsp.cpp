@@ -5,7 +5,7 @@
 #include <cstdio>
 #include "pico/stdlib.h"
 
-uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
+uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
 
   uint16_t odx = 0;
@@ -90,6 +90,7 @@ uint16_t rx_dsp :: process_block(uint16_t samples[], int16_t audio_samples[])
 }
 
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
+//void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
 {
     //Apply frequency shift (move tuned frequency to DC)         
     const int16_t rotation_i =  cos_table[phase>>22]; //32 - 22 = 10MSBs
@@ -104,6 +105,7 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 }
 
 bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
+//bool rx_dsp :: decimate(int16_t &i, int16_t &q)
 {
       //CIC decimation filter
       //implement integrator stages
