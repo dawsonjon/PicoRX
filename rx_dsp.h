@@ -42,6 +42,7 @@ class rx_dsp
 
   //used in frequency shifter
   int32_t offset_frequency_Hz;
+  int32_t dither;
   uint32_t phase;
   int32_t frequency;
 

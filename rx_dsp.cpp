@@ -28,15 +28,15 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
       int16_t q = (idx&1)*raw_sample;//odd samples contain q data
 
+      //Apply frequency shift (move tuned frequency to DC)         
+      frequency_shift(i, q);
+
       //capture data for spectrum
       if(capture_data && idx < 256)
       {
         capture_i[idx] = i>>4;//only use 8 msbs
         capture_q[idx] = q>>4;//only use 8 msbs
       }
-
-      //Apply frequency shift (move tuned frequency to DC)         
-      frequency_shift(i, q);
 
       //decimate by factor of 40
       if(decimate(i, q))
@@ -92,11 +92,18 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 //void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
 {
+    static const int16_t k = (1<<(15-1));
+
     //Apply frequency shift (move tuned frequency to DC)         
-    const int16_t rotation_i =  cos_table[phase>>22]; //32 - 22 = 10MSBs
-    const int16_t rotation_q = -sin_table[phase>>22];
+    //dither = 1664525u*dither + 1013904223u;
+    //const uint16_t dithered_phase = (phase + (dither >> 29) >> 22);
+    const uint16_t dithered_phase = (phase >> 22);
+    const int16_t rotation_i =  cos_table[dithered_phase]; //32 - 22 = 10MSBs
+    const int16_t rotation_q = -sin_table[dithered_phase];
 
     phase += frequency;
+    //const int16_t i_shifted = (((i * rotation_i) - (q * rotation_q))+k) >> 15;
+    //const int16_t q_shifted = (((q * rotation_i) + (i * rotation_q))+k) >> 15;
     const int16_t i_shifted = ((i * rotation_i) - (q * rotation_q)) >> 15;
     const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
 
