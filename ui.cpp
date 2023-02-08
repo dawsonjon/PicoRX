@@ -1,5 +1,7 @@
 #include <string.h>
+#include "pico/multicore.h"
 #include "ui.h"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
@@ -283,6 +285,91 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
   }
 }
 
+//Apply settings
+void ui::apply_settings()
+{
+  settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
+  settings_to_apply.agc_speed = settings[idx_agc_speed];
+  settings_to_apply.mode = settings[idx_mode];
+  settings_to_apply.volume = settings[idx_volume];
+  settings_to_apply.squelch = settings[idx_squelch];
+  settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
+  settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+  multicore_fifo_push_blocking(true);
+  multicore_fifo_pop_blocking();
+}
+
+//select a number in a range
+bool ui::recall()
+{
+
+  //encoder loops through memories
+  uint32_t min = 0;
+  uint32_t max = sizeof(radio_memory)/4;
+  int32_t select=min;
+
+  //remember where we were incase we need to cancel
+  uint32_t stored_settings[settings_to_store];
+  for(uint8_t i=0; i<settings_to_store; i++){
+    stored_settings[i] = settings[i];
+  }
+
+  bool draw_once = true;
+  while(1){
+    if(encoder_control(&select, min, max)!=0 || draw_once)
+    {
+      //load name from memory
+      char name[17];
+      name[0] = radio_memory[select][6] >> 24;
+      name[1] = radio_memory[select][6] >> 16;
+      name[2] = radio_memory[select][6] >> 8;
+      name[3] = radio_memory[select][6];
+      name[4] = radio_memory[select][7] >> 24;
+      name[5] = radio_memory[select][7] >> 16;
+      name[6] = radio_memory[select][7] >> 8;
+      name[7] = radio_memory[select][7];
+      name[8] = radio_memory[select][8] >> 24;
+      name[9] = radio_memory[select][8] >> 16;
+      name[10] = radio_memory[select][8] >> 8;
+      name[11] = radio_memory[select][8];
+      name[12] = radio_memory[select][9] >> 24;
+      name[13] = radio_memory[select][9] >> 16;
+      name[14] = radio_memory[select][9] >> 8;
+      name[15] = radio_memory[select][9];
+      name[16] = 0;
+
+      //(temporarily) apply lodaed settings to RX
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = radio_memory[select][i];
+      }
+      apply_settings();
+      
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print(name);
+      display_show();
+    }
+
+    //select menu item
+    if(get_button(PIN_MENU)){
+      return 1;
+    }
+
+    //cancel
+    if(get_button(PIN_BACK)){
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
+      }
+      apply_settings();
+      return 0;
+    }
+
+    WAIT_100MS
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,6 +530,13 @@ bool ui::do_ui(bool rx_settings_changed)
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
       }
       else settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+
+      if (settings[idx_frequency] > settings[idx_max_frequency])
+          settings[idx_frequency] = settings[idx_min_frequency];
+
+      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+      
     }
 
     //if button is pressed enter menu
@@ -451,7 +545,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#USB Programming Mode#", 7, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#USB Programming Mode#", 9, &setting)) return 1;
 
       switch(setting)
       {
@@ -459,32 +553,42 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = frequency_entry();
           break;
 
-        case 1 : 
-          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+        case 1:
+          rx_settings_changed = recall();
           break;
 
         case 2 : 
+          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+          break;
+
+        case 3 : 
           rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#WFM#CW", 5, &settings[idx_mode]);
           break;
 
-        case 3 :
+        case 4 :
           rx_settings_changed = enumerate_entry("AGC Speed", "fast#normal#slow#very slow#", 3, &settings[idx_agc_speed]);
           break;
 
-        case 4 :
+        case 5 :
           rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 13, &settings[idx_squelch]);
           break;
 
-        case 5 : 
+        case 6 : 
           rx_settings_changed = enumerate_entry("Frequency Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 6 : 
+        case 7 : 
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 7 : 
+        case 8 : 
+          uint32_t regmode;
+          enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
+          gpio_put(23, regmode);
+          break;
+
+        case 9 : 
           uint32_t programming_mode = 0;
           enumerate_entry("USB Programming Mode", "No#Yes#", 1, &programming_mode);
           if(programming_mode)
@@ -505,8 +609,11 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
     }
+    multicore_fifo_push_blocking(rx_settings_changed);
+    multicore_fifo_pop_blocking();
 
     update_display(status, receiver);
+
 
     return rx_settings_changed;
 
@@ -526,6 +633,8 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : sett
   settings[idx_cw_sidetone] = 1000;
   settings[idx_volume] = 5;
   settings[idx_squelch] = 0;
+  settings[idx_max_frequency] = 30000000;
+  settings[idx_min_frequency] = 0;
 
   button_state = idle;
 }

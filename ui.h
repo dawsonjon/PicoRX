@@ -9,6 +9,7 @@
 #include "ssd1306.h"
 #include "font.h"
 #include "rx.h"
+#include "memory.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -18,24 +19,17 @@ const uint8_t PIN_DISPLAY_SDA = 18;
 const uint8_t PIN_DISPLAY_SCL = 19;
 
 // settings that get stored in eeprom
+#define settings_to_store 6
 #define idx_frequency 0
 #define idx_mode 1
 #define idx_agc_speed 2
 #define idx_step 3
-#define idx_squelch 4
-#define idx_volume 5
-#define idx_max_frequency 6
-#define idx_min_frequency 7
+#define idx_max_frequency 4
+#define idx_min_frequency 5
+#define idx_squelch 6
+#define idx_volume 7
 #define idx_cw_sidetone 8
 #define idx_cw_speed 9
-#define idx_pps_count 10
-
-// settings that are transient
-#define idx_band 11
-#define idx_test_signal 12
-#define idx_USB_audio 13
-#define idx_tx 14
-#define idx_mute 15
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -91,6 +85,8 @@ class ui
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();
+  bool recall();
+  void apply_settings();
 
   rx_settings &settings_to_apply;
   rx_status &status;

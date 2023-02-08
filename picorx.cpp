@@ -13,22 +13,15 @@ void core1_main()
     receiver.run();
 }
 
-void apply_settings_get_status(bool settings_changed)
-{
-    multicore_fifo_push_blocking(settings_changed);
-    multicore_fifo_pop_blocking();
-}
 
 int main() {
   stdio_init_all();
   multicore_launch_core1(core1_main);    
 
-
   bool settings_changed = true;
   while(1)
   {
-    settings_changed = user_interface.do_ui(settings_changed);
-    apply_settings_get_status(settings_changed);
+    user_interface.do_ui(settings_changed);
     settings_changed = false;
     sleep_us(100000);
   }
