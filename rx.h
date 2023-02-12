@@ -6,6 +6,7 @@
 #include "nco.pio.h"
 
 #include "pico/stdlib.h"
+#include "pico/sem.h"
 #include "hardware/pio.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
@@ -23,12 +24,15 @@ struct rx_settings
   uint8_t volume;
   uint8_t squelch;
   uint16_t cw_sidetone_Hz;
+  bool suspend;
 };
 
 struct rx_status
 {
   int32_t signal_strength_dBm;
   clock_t busy_time;
+  uint16_t temp;
+  uint16_t battery;
 };
 
 class rx
@@ -39,6 +43,11 @@ class rx
   double tuned_frequency_Hz;
   double nco_frequency_Hz;
   double offset_frequency_Hz;
+  semaphore_t settings_semaphore;
+  bool settings_changed;
+  bool suspend;
+  uint16_t temp;
+  uint16_t battery;
 
 
   // Choose which PIO instance to use (there are two instances)
@@ -76,12 +85,15 @@ class rx
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);
-  void apply_settings(bool settings_changed);
+  void apply_settings();
   void run();
   void get_spectrum(int16_t spectrum[], int16_t &offset);
   rx_settings &settings_to_apply;
   rx_status &status;
   rx_dsp rx_dsp_inst;
+  void read_batt_temp();
+  void access(bool settings_changed);
+  void release();
 };
 
 #endif

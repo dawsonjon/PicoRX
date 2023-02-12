@@ -1,4 +1,5 @@
 #include "pico/stdlib.h"
+#include <stdio.h>
 #include "pico/multicore.h"
 #include "rx.h"
 #include "ui.h"
@@ -10,9 +11,9 @@ ui user_interface(settings_to_apply, status,  receiver);
 
 void core1_main()
 {
+    multicore_lockout_victim_init();
     receiver.run();
 }
-
 
 int main() {
   stdio_init_all();

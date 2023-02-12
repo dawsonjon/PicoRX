@@ -1,6 +1,7 @@
 #include <string.h>
 #include "pico/multicore.h"
 #include "ui.h"
+#include <hardware/flash.h>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -140,23 +141,30 @@ void ui::update_display(rx_status & status, rx & receiver)
   //signal strength
   const float power_dBm = status.signal_strength_dBm;
 
+  //Battery
+  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
+  
+  //CPU Temp
+  const float temp_voltage = 3.3f * (status.temp/65535.0f);
+  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
+
   //CPU 
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
 
   //mode
-  const char modes[][4]  = {" AM", "LSB", "USB", " FM", "WFM", " CW"};
+  static const char modes[][4]  = {" AM", "LSB", "USB", " FM", "WFM", " CW"};
   ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
 
   //step
-  const char steps[][8]  = {
+  static const char steps[][8]  = {
     "   10Hz", "   50Hz", "  100Hz", "   1kHz",
     "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
     "  50kHz", " 100kHz"};
   ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]]);
 
   //signal strength/cpu
-  const char smeter[][12]  = {
+  static const char smeter[][12]  = {
     "S0         ", "S1|        ", "S2-|       ", "S3--|      ", 
     "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
     "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
@@ -165,11 +173,11 @@ void ui::update_display(rx_status & status, rx & receiver)
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
   ssd1306_draw_string(&disp, 0, 24, 1, buff);
-  snprintf(buff, 21, "%2.0f%%", (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 102, 16, 1, buff);
+  snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
+  ssd1306_draw_string(&disp, 0, 16, 1, buff);
 
   //Display spectrum capture
-  int16_t spectrum[128];
+  static int16_t spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
   ssd1306_draw_string(&disp, offset, 32, 1, "v");
@@ -288,6 +296,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
 //Apply settings
 void ui::apply_settings()
 {
+  receiver.access(true);
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
   settings_to_apply.agc_speed = settings[idx_agc_speed];
   settings_to_apply.mode = settings[idx_mode];
@@ -295,17 +304,129 @@ void ui::apply_settings()
   settings_to_apply.squelch = settings[idx_squelch];
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-  multicore_fifo_push_blocking(true);
-  multicore_fifo_pop_blocking();
+  receiver.release();
 }
 
-//select a number in a range
+//save current settings to memory
+bool ui::store()
+{
+
+  //encoder loops through memories
+  uint32_t min = 0;
+  uint32_t max = num_chans-1;
+  int32_t select=min;
+  char name[17];
+
+  bool draw_once = true;
+  while(1){
+    if(encoder_control(&select, min, max)!=0 || draw_once)
+    {
+
+      if(radio_memory[select][9] != 0xffffffffu)
+      {
+        //load name from memory
+        name[0] = radio_memory[select][6] >> 24;
+        name[1] = radio_memory[select][6] >> 16;
+        name[2] = radio_memory[select][6] >> 8;
+        name[3] = radio_memory[select][6];
+        name[4] = radio_memory[select][7] >> 24;
+        name[5] = radio_memory[select][7] >> 16;
+        name[6] = radio_memory[select][7] >> 8;
+        name[7] = radio_memory[select][7];
+        name[8] = radio_memory[select][8] >> 24;
+        name[9] = radio_memory[select][8] >> 16;
+        name[10] = radio_memory[select][8] >> 8;
+        name[11] = radio_memory[select][8];
+        name[12] = radio_memory[select][9] >> 24;
+        name[13] = radio_memory[select][9] >> 16;
+        name[14] = radio_memory[select][9] >> 8;
+        name[15] = radio_memory[select][9];
+        name[16] = 0;
+
+        //print selected menu item
+        draw_once = false;
+        display_clear();
+        display_print("Store");
+        display_line2();
+        display_print_num("%03i ", select);
+        display_print(name);
+        display_show();
+      }
+      else
+      {
+        //print selected menu item
+        draw_once = false;
+        display_clear();
+        display_print("Store");
+        display_line2();
+        display_print_num("%03i ", select);
+        display_print("BLANK");
+        display_show();
+      }
+    }
+
+    //select menu item
+    if(get_button(PIN_MENU)){
+
+      //work out which flash sector the channel sits in.
+      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+      const uint32_t first_channel_in_sector = num_channels_per_sector * (select/num_channels_per_sector);
+      const uint32_t channel_offset_in_sector = select%num_channels_per_sector;
+
+      //copy sector to RAM
+      static uint32_t sector_copy[num_channels_per_sector][chan_size];
+      for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
+      {
+        for(uint16_t location=0; location<chan_size; location++)
+        {
+          if(channel+first_channel_in_sector < num_chans)
+          {
+            sector_copy[channel][location] = radio_memory[channel+first_channel_in_sector][location];
+          }
+        }
+      }
+      
+      //modify the selected channel
+      strcpy(name, "SAVED CHANNEL   ");
+      if(!string_entry(name)) return false;
+      printf("Saving\n");
+      for(uint8_t lw=0; lw<4; lw++)
+      {
+        sector_copy[channel_offset_in_sector][lw+6] = (name[lw*4+0] << 24 | name[lw*4+1] << 16 | name[lw*4+2] << 8 | name[lw*4+3]);
+      }
+      for(uint8_t i=0; i<settings_to_store; i++){
+        sector_copy[channel_offset_in_sector][i] = settings[i];
+      }
+
+      //write sector to flash
+      const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
+      const uint32_t flash_address = address - XIP_BASE; 
+      multicore_lockout_start_blocking();
+      const uint32_t ints = save_and_disable_interrupts();
+      //flash_range_erase(flash_address, FLASH_SECTOR_SIZE); //Causes software to hang, needs investigation
+      flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+      restore_interrupts (ints);
+      multicore_lockout_end_blocking();
+
+      return false;
+    }
+
+    //cancel
+    if(get_button(PIN_BACK)){
+      return false;
+    }
+
+    WAIT_100MS
+  }
+}
+
+//load a channel from memory
 bool ui::recall()
 {
 
   //encoder loops through memories
   uint32_t min = 0;
-  uint32_t max = sizeof(radio_memory)/4;
+  uint32_t max = num_chans-1;
   int32_t select=min;
 
   //remember where we were incase we need to cancel
@@ -318,37 +439,55 @@ bool ui::recall()
   while(1){
     if(encoder_control(&select, min, max)!=0 || draw_once)
     {
-      //load name from memory
-      char name[17];
-      name[0] = radio_memory[select][6] >> 24;
-      name[1] = radio_memory[select][6] >> 16;
-      name[2] = radio_memory[select][6] >> 8;
-      name[3] = radio_memory[select][6];
-      name[4] = radio_memory[select][7] >> 24;
-      name[5] = radio_memory[select][7] >> 16;
-      name[6] = radio_memory[select][7] >> 8;
-      name[7] = radio_memory[select][7];
-      name[8] = radio_memory[select][8] >> 24;
-      name[9] = radio_memory[select][8] >> 16;
-      name[10] = radio_memory[select][8] >> 8;
-      name[11] = radio_memory[select][8];
-      name[12] = radio_memory[select][9] >> 24;
-      name[13] = radio_memory[select][9] >> 16;
-      name[14] = radio_memory[select][9] >> 8;
-      name[15] = radio_memory[select][9];
-      name[16] = 0;
 
-      //(temporarily) apply lodaed settings to RX
-      for(uint8_t i=0; i<settings_to_store; i++){
-        settings[i] = radio_memory[select][i];
+      if(radio_memory[select][9] != 0xffffffff)
+      {
+        //load name from memory
+        char name[17];
+        name[0] = radio_memory[select][6] >> 24;
+        name[1] = radio_memory[select][6] >> 16;
+        name[2] = radio_memory[select][6] >> 8;
+        name[3] = radio_memory[select][6];
+        name[4] = radio_memory[select][7] >> 24;
+        name[5] = radio_memory[select][7] >> 16;
+        name[6] = radio_memory[select][7] >> 8;
+        name[7] = radio_memory[select][7];
+        name[8] = radio_memory[select][8] >> 24;
+        name[9] = radio_memory[select][8] >> 16;
+        name[10] = radio_memory[select][8] >> 8;
+        name[11] = radio_memory[select][8];
+        name[12] = radio_memory[select][9] >> 24;
+        name[13] = radio_memory[select][9] >> 16;
+        name[14] = radio_memory[select][9] >> 8;
+        name[15] = radio_memory[select][9];
+        name[16] = 0;
+
+        //(temporarily) apply lodaed settings to RX
+        for(uint8_t i=0; i<settings_to_store; i++){
+          settings[i] = radio_memory[select][i];
+        }
+        apply_settings();
+        
+        //print selected menu item
+        draw_once = false;
+        display_clear();
+        display_print("Recall");
+        display_line2();
+        display_print_num("%03i ", select);
+        display_print(name);
+        display_show();
       }
-      apply_settings();
-      
-      //print selected menu item
-      draw_once = false;
-      display_clear();
-      display_print(name);
-      display_show();
+      else
+      {
+        //print selected menu item
+        draw_once = false;
+        display_clear();
+        display_print("Recall");
+        display_line2();
+        display_print_num("%03i ", select);
+        display_print("BLANK");
+        display_show();
+      }
     }
 
     //select menu item
@@ -367,6 +506,92 @@ bool ui::recall()
     }
 
     WAIT_100MS
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// String Entry (digit by digit)
+////////////////////////////////////////////////////////////////////////////////
+bool ui::string_entry(char string[]){
+
+  int32_t position=0;
+  int32_t i, digit_val;
+  int32_t edit_mode = 0;
+  unsigned frequency;
+
+  bool draw_once = true;
+  while(1){
+
+    bool encoder_changed;
+    if(edit_mode){
+      //change the value of a digit 
+      int32_t val = string[position];
+      if     ('a' <= string[position] && string[position] <= 'z') val = string[position]-'a'+1;
+      else if('A' <= string[position] && string[position] <= 'Z') val = string[position]-'A'+1;
+      else if('0' <= string[position] && string[position] <= '9') val = string[position]-'0'+27;
+      else if(string[position] == ' ') val = 0;
+      encoder_changed = encoder_control(&val, 0, 36);
+      if     (1 <= val  && val <= 26) string[position] = 'A' + val - 1;
+      else if(27 <= val && val <= 36) string[position] = '0' + val - 27;
+      else string[position] = ' ';
+    } 
+    else 
+    {
+      //change between chars
+      encoder_changed = encoder_control(&position, 0, 17);
+    }
+
+    //if encoder changes, or screen hasn't been updated
+    if(encoder_changed || draw_once)
+    {
+      draw_once = false;
+      display_clear();
+
+      //write frequency to lcd
+      display_line1();
+      display_print(string);
+      display_print("YN");
+
+      //print cursor
+      display_line2();
+      for(i=0; i<18; i++)
+      {
+        if(i==position)
+        {
+          if(edit_mode)
+          {
+            display_write('X');
+          } 
+          else 
+          {
+            display_write('^');
+          }
+        } 
+        else 
+        {
+          display_write(' ');
+        }
+      }
+      display_show();
+    }
+
+    //select menu item
+    if(get_button(PIN_MENU))
+    {
+      draw_once = true;
+	    edit_mode = !edit_mode;
+	    if(position==16) //Yes
+      {
+		    return true;
+	    }
+	    if(position==17) return false; //No
+	  }
+
+    //cancel
+    if(get_button(PIN_BACK))
+    {
+      return false;
+    }
   }
 }
 
@@ -478,7 +703,6 @@ bool ui::frequency_entry(){
 bool ui::do_ui(bool rx_settings_changed)
 {
 
-
     //update frequency if encoder changes
     uint32_t encoder_change = get_encoder_change();
     switch(button_state)
@@ -545,7 +769,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#USB Programming Mode#", 9, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#USB Programming Mode#", 10, &setting)) return 1;
 
       switch(setting)
       {
@@ -557,38 +781,43 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = recall();
           break;
 
-        case 2 : 
-          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+        case 2:
+          store();
           break;
 
         case 3 : 
+          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+          break;
+
+        case 4 : 
           rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#WFM#CW", 5, &settings[idx_mode]);
           break;
 
-        case 4 :
+        case 5 :
           rx_settings_changed = enumerate_entry("AGC Speed", "fast#normal#slow#very slow#", 3, &settings[idx_agc_speed]);
           break;
 
-        case 5 :
+        case 6 :
           rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 13, &settings[idx_squelch]);
           break;
 
-        case 6 : 
+        case 7 : 
           rx_settings_changed = enumerate_entry("Frequency Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 7 : 
+        case 8 : 
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 8 : 
+        case 9 : 
           uint32_t regmode;
           enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
+          gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
 
-        case 9 : 
+        case 10 : 
           uint32_t programming_mode = 0;
           enumerate_entry("USB Programming Mode", "No#Yes#", 1, &programming_mode);
           if(programming_mode)
@@ -599,6 +828,7 @@ bool ui::do_ui(bool rx_settings_changed)
       }
     }
 
+    receiver.access(rx_settings_changed);
     if(rx_settings_changed)
     {
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
@@ -609,11 +839,8 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
     }
-    multicore_fifo_push_blocking(rx_settings_changed);
-    multicore_fifo_pop_blocking();
-
+    receiver.release();
     update_display(status, receiver);
-
 
     return rx_settings_changed;
 

@@ -61,36 +61,57 @@ void rx::dma_handler() {
 
 }
 
-void rx::apply_settings(bool settings_changed)
+void rx::access(bool s)
 {
-    if(settings_changed)
-    {
-      //apply frequency
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz-10000);
-      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
-      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+  sem_acquire_blocking(&settings_semaphore);
+  settings_changed = s;
+}
 
-      //apply CW sidetone
-      rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
+void rx::release()
+{
+  sem_release(&settings_semaphore);
+}
 
-      //apply AGC speed
-      rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
 
-      //apply mode
-      rx_dsp_inst.set_mode(settings_to_apply.mode);
+void rx::apply_settings()
+{
+   if(sem_try_acquire(&settings_semaphore))
+   {
 
-      //apply volume
-      rx_dsp_inst.set_volume(settings_to_apply.volume);
+      suspend = settings_to_apply.suspend;
 
-      //apply squelch
-      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
-    }
+      if(settings_changed)
+      {
+        //apply frequency
+        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+        nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz-10000);
+        offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+        rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
-    //update status
-    status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
-    status.busy_time = busy_time;
-    
+        //apply CW sidetone
+        rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
+
+        //apply AGC speed
+        rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+
+        //apply mode
+        rx_dsp_inst.set_mode(settings_to_apply.mode);
+
+        //apply volume
+        rx_dsp_inst.set_volume(settings_to_apply.volume);
+
+        //apply squelch
+        rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+      }
+
+      //update status
+      status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
+      status.busy_time = busy_time;
+      status.battery = battery;
+      status.temp = temp;
+      settings_changed = false;
+      sem_release(&settings_semaphore);
+   }
 }
 
 void rx::get_spectrum(int16_t spectrum[], int16_t &offset)
@@ -115,9 +136,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_init();
     adc_gpio_init(26);//I channel (0) - configure pin for ADC use
     adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
+    adc_gpio_init(29);//Battery - configure pin for ADC use
+    adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(0); //flat out
-    adc_set_round_robin(3); //sample I/Q alternately
-    adc_fifo_setup(true, true, 1, false, false);
     
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
@@ -139,6 +160,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
     dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
+
+    //settings semaphore
+    sem_init(&settings_semaphore, 1, 1);
 
     //audio output
     const uint AUDIO_PIN = 16;
@@ -178,36 +202,82 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
 }
 
+void rx::read_batt_temp()
+{
+  adc_select_input(3);
+  battery = 0;
+  for(uint8_t i=0; i<16; i++)
+  {
+    battery += adc_read();
+  }
+  adc_select_input(4);
+  temp = 0;
+  for(uint8_t i=0; i<16; i++)
+  {
+    temp += adc_read();
+  }
+}
+
 void rx::run()
 {
-    
-    multicore_fifo_drain();
-    apply_settings(true);
-
-    //supress audio output until first block has completed
-    audio_running = false;
-
-    adc_select_input(0);
-    adc_run(true);
-    bool ping=true;
-    dma_start_channel_mask(1u << adc_dma_ping);
     while(true)
     {
-        clock_t start_time;
-        dma_channel_wait_for_finish_blocking(adc_dma_ping);
-        start_time = time_us_64();
-        num_ping_samples = rx_dsp_inst.process_block(ping_samples, ping_audio);
-        busy_time = time_us_64()-start_time;
-        dma_channel_wait_for_finish_blocking(adc_dma_pong);
-        num_pong_samples = rx_dsp_inst.process_block(pong_samples, pong_audio);
+      //read other adc channels when streaming is not running
+      uint32_t timeout = 1000;
+      read_batt_temp();
 
-        if(multicore_fifo_rvalid())
-        { 	
-          bool settings_changed = multicore_fifo_pop_blocking();
-          apply_settings(settings_changed);
-          multicore_fifo_push_blocking(0);
-        }
+      //supress audio output until first block has completed
+      audio_running = false;
+      adc_set_round_robin(3); //sample I/Q alternately
+      adc_fifo_setup(true, true, 1, false, false);
+      adc_set_round_robin(3);
+      adc_select_input(0);
+      adc_fifo_drain();
+      adc_run(true);
+      bool ping=true;
+      dma_start_channel_mask(1u << adc_dma_ping);
+      settings_changed = true;
+      while(true)
+      {
+          //exchange data with UI (runing in core 0)
+          apply_settings();
 
+          //periodically (or when requested) suspend streaming
+          if(timeout-- == 0 || suspend)
+          {
+            dma_channel_abort(adc_dma_ping);
+            dma_channel_abort(adc_dma_pong);
+            dma_channel_abort(pwm_dma_ping);
+            dma_channel_abort(pwm_dma_pong);
+            dma_channel_wait_for_finish_blocking(adc_dma_ping);
+            dma_channel_wait_for_finish_blocking(adc_dma_pong);
+            dma_channel_wait_for_finish_blocking(pwm_dma_ping);
+            dma_channel_wait_for_finish_blocking(pwm_dma_pong);
+            adc_run(false);
+            adc_fifo_drain();
+            adc_set_round_robin(0);
+            adc_fifo_setup(false, false, 1, false, false);
+            break;
+          }
+
+          //process adc data as each block completes
+          clock_t start_time;
+          dma_channel_wait_for_finish_blocking(adc_dma_ping);
+          start_time = time_us_64();
+          num_ping_samples = rx_dsp_inst.process_block(ping_samples, ping_audio);
+          busy_time = time_us_64()-start_time;
+          dma_channel_wait_for_finish_blocking(adc_dma_pong);
+          num_pong_samples = rx_dsp_inst.process_block(pong_samples, pong_audio);
+      }
+
+      //suspended state
+      while(true)
+      {
+          apply_settings();
+          if(!suspend)
+          {
+            break;
+          }
+      }
     }
-
 }

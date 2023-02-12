@@ -85,7 +85,9 @@ class ui
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();
+  bool string_entry(char string[]);
   bool recall();
+  bool store();
   void apply_settings();
 
   rx_settings &settings_to_apply;
