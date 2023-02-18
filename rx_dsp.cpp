@@ -28,15 +28,15 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
       int16_t q = (idx&1)*raw_sample;//odd samples contain q data
 
-      //Apply frequency shift (move tuned frequency to DC)         
-      frequency_shift(i, q);
-
       //capture data for spectrum
       if(capture_data && idx < 256)
       {
         capture_i[idx] = i>>4;//only use 8 msbs
         capture_q[idx] = q>>4;//only use 8 msbs
       }
+
+      //Apply frequency shift (move tuned frequency to DC)         
+      frequency_shift(i, q);
 
       //decimate by factor of 40
       if(decimate(i, q))
