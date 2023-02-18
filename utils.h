@@ -1,8 +1,7 @@
 #ifndef _utils_
 #define _utils_
 
-int16_t sin_table[1024];
-int16_t cos_table[1024];
+int16_t sin_table[2048];
 
 //from: http://dspguru.com/dsp/tricks/magnitude-estimator/
 uint16_t rectangular_2_magnitude(int16_t i, int16_t q)
@@ -45,10 +44,9 @@ void initialise_luts()
 {
   //pre-generate sin/cos lookup tables
   float scaling_factor = (1 << 15) - 1;
-  for(uint16_t idx=0; idx<1024; idx++)
+  for(uint16_t idx=0; idx<2048; idx++)
   {
-    sin_table[idx] = sin(2.0*M_PI*idx/1024.0) * scaling_factor;
-    cos_table[idx] = cos(2.0*M_PI*idx/1024.0) * scaling_factor;
+    sin_table[idx] = sin(2.0*M_PI*idx/2048.0) * scaling_factor;
   }
 
 }
@@ -93,8 +91,8 @@ void fft(int16_t reals[], int16_t imaginaries[]){
             for(i=j; i<256; i+=subdft_size){
                 ip=i+span;
 
-                real_twiddle=cos_table[j*512u>>stage];
-                imaginary_twiddle=-sin_table[j*512u>>stage];
+                real_twiddle=sin_table[((j*1024u>>stage) + 512u) & 0x7ffu];
+                imaginary_twiddle=-sin_table[j*1024u>>stage];
 
                 temp_real      = (((int32_t)reals[ip]*(int32_t)real_twiddle)      - ((int32_t)imaginaries[ip]*(int32_t)imaginary_twiddle)) >> 15u;
                 temp_imaginary = (((int32_t)reals[ip]*(int32_t)imaginary_twiddle) + ((int32_t)imaginaries[ip]*(int32_t)real_twiddle)) >> 15u;

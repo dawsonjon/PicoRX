@@ -84,7 +84,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate * 2)/adc_block_size;
-    dc = sample_accumulator/(adc_block_size);
+    dc = sample_accumulator/adc_block_size;
 
     return odx;
 }
@@ -97,8 +97,8 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
     //Apply frequency shift (move tuned frequency to DC)         
     //dither = 1664525u*dither + 1013904223u;
     //const uint16_t dithered_phase = (phase + (dither >> 29) >> 22);
-    const uint16_t dithered_phase = (phase >> 22);
-    const int16_t rotation_i =  cos_table[dithered_phase]; //32 - 22 = 10MSBs
+    const uint16_t dithered_phase = (phase >> 21);
+    const int16_t rotation_i =  sin_table[(dithered_phase+521u) & 0x7ff]; //32 - 21 = 11MSBs
     const int16_t rotation_q = -sin_table[dithered_phase];
 
     phase += frequency;
@@ -247,9 +247,9 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         cw_i = ii;
         cw_q = qq;
       }
-      cw_sidetone_phase += cw_sidetone_frequency_Hz * 1024 * decimation_rate * 2 / adc_sample_rate;
-      const int16_t rotation_i =  cos_table[cw_sidetone_phase & 0x3ff];
-      const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x3ff];
+      cw_sidetone_phase += cw_sidetone_frequency_Hz * 2048 * decimation_rate * 2 / adc_sample_rate;
+      const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
+      const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((cw_i * rotation_i) - (cw_q * rotation_q)) >> 15;
     }
 }
