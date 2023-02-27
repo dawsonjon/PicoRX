@@ -13,7 +13,11 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   int32_t sample_accumulator = 0;
 
   //if the capture buffer isn't in use, fill it
-  bool capture_data = sem_try_acquire(&spectrum_semaphore);
+  if(!capture_data) 
+  {
+    capture_data = sem_try_acquire(&spectrum_semaphore);
+    cap = 0;
+  }
 
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
@@ -28,19 +32,26 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
       int16_t q = (idx&1)*raw_sample;//odd samples contain q data
 
-      //capture data for spectrum
-      if(capture_data && idx < 256)
-      {
-        capture_i[idx] = i>>4;//only use 8 msbs
-        capture_q[idx] = q>>4;//only use 8 msbs
-      }
-
       //Apply frequency shift (move tuned frequency to DC)         
       frequency_shift(i, q);
 
       //decimate by factor of 40
       if(decimate(i, q))
       {
+
+        //capture data for spectrum
+        if(capture_data)
+        {
+          capture_i[cap] = i;
+          capture_q[cap] = q;
+          cap++;
+          if(cap == 1024)
+          {
+            sem_release(&spectrum_semaphore);
+            capture_data = false;
+          }
+        }
+
 
         //Measure amplitude (for signal strength indicator)
         int32_t amplitude = rectangular_2_magnitude(i, q);
@@ -74,13 +85,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
           
       }
     } 
-
-    //if the capture buffer isn't in use, fill it
-    if(capture_data)
-    {
-        sem_release(&spectrum_semaphore);
-        capture_data = false;
-    }
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate * 2)/adc_block_size;
@@ -546,15 +550,45 @@ void rx_dsp :: set_decimation_rate(uint8_t i)
   s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);
 }
 
-void rx_dsp :: get_spectrum(int16_t spectrum[], int16_t &offset)
+void rx_dsp :: get_spectrum(float spectrum[], int16_t &offset)
 {
+  static float flt_capture_i[4][256];
+  static float flt_capture_q[4][256];
+
   //convert capture to frequency domain
   sem_acquire_blocking(&spectrum_semaphore);
-  uint16_t f=0;
-  clock_t start_time;
-  fft(capture_i, capture_q);
-  for(uint16_t i=192; i<256; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
-  for(uint16_t i=0; i<64; i++) spectrum[f++] = rectangular_2_magnitude(capture_i[i], capture_q[i]);
-  offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
+
+  //convert to float
+  uint16_t k = 0;
+  for(uint16_t i=0; i<256; i++)
+  {
+    for(uint16_t j=0; j<4; j++)
+    {
+      float window = 0.54f - 0.46f*cosf(2.0f*M_PI*i/256.0f);
+      flt_capture_i[j][i] = (float)capture_i[k]*window;
+      flt_capture_q[j][i] = (float)capture_q[k++]*window;
+    }
+  }
+
   sem_release(&spectrum_semaphore);
+
+  //FFT and magnitude
+  static float segments[4][256];
+  for(uint16_t j=0; j<4; j++)
+  {
+    fft(flt_capture_i[j], flt_capture_q[j]);
+    uint16_t f=0;
+    for(uint16_t i=192; i<256; i++) segments[j][f++] = flt_rectangular_2_magnitude(flt_capture_i[j][i], flt_capture_q[j][i]);
+    for(uint16_t i=0; i<64; i++) segments[j][f++] = flt_rectangular_2_magnitude(flt_capture_i[j][i], flt_capture_q[j][i]);
+  }
+
+  for(uint16_t i=0; i<256; i++)
+  {
+    float average = 0.0f;
+    for(uint16_t j=0; j<4; j++) average += segments[j][i];
+    spectrum[i] = average;
+  }
+
+
+  offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
 }

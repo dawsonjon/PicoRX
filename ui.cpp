@@ -177,19 +177,20 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 0, 16, 1, buff);
 
   //Display spectrum capture
-  static int16_t spectrum[128];
+  static float spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
   ssd1306_draw_string(&disp, offset, 32, 1, "v");
 
   //auto scale
-  int16_t min=100;
-  int16_t max=0;
+  float min=100;
+  float max=0;
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t level = log10f(spectrum[x]);
-      if(level > max) max = level;
-      if(level < min) min = level;
+      float level = log10f(spectrum[x]);
+      if(level > max) max = ceilf(level);
+      if(level < min) min = floorf(level);
+      printf("level: %i %f %f %f %f\n", (int)x, (double)level, (double)min, (double)max, (double)spectrum[x]);
   }
   float scale = 32.0f/(max-min);
 
@@ -197,6 +198,7 @@ void ui::update_display(rx_status & status, rx & receiver)
   for(uint16_t x=0; x<128; x++)
   {
       int16_t y = scale*(log10f(spectrum[x])-min);
+      printf("level: %f %f %i\n", (double)scale, (double)scale*(log10f(spectrum[x])-min), y);
       if(y < 0) y=0;
       if(y > 31) y=31;
       ssd1306_draw_line(&disp, x, 63-y, x, 63);

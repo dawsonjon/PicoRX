@@ -12,6 +12,14 @@ uint16_t rectangular_2_magnitude(int16_t i, int16_t q)
   return absi > absq ? absi + absq / 4 : absq + absi / 4;
 }
 
+float flt_rectangular_2_magnitude(float i, float q)
+{
+  //Measure magnitude
+  const float absi = fabs(i);
+  const float absq = fabs(q);
+  return absi > absq ? ((absi * 0.947543636291) + (absq * 0.392485425092)) : ((absq * 0.947543636291) + (absi * 0.392485425092));
+}
+
 //from: https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
 //converted to fixed point
 int16_t rectangular_2_phase(int16_t i, int16_t q)
@@ -63,10 +71,10 @@ uint8_t bit_reverse(uint8_t n)
 }
 
 //calculate fft
-void fft(int16_t reals[], int16_t imaginaries[]){
+void fft(float reals[], float imaginaries[]){
 
-    int16_t stage, subdft_size, span, i, ip, j;
-    int16_t temp_real, temp_imaginary, imaginary_twiddle, real_twiddle;
+    int16_t stage, subdft_size, span, j, i, ip;
+    float temp_real, temp_imaginary, imaginary_twiddle, real_twiddle;
 
 
     //bit reverse data
@@ -91,11 +99,11 @@ void fft(int16_t reals[], int16_t imaginaries[]){
             for(i=j; i<256; i+=subdft_size){
                 ip=i+span;
 
-                real_twiddle=sin_table[((j*1024u>>stage) + 512u) & 0x7ffu];
-                imaginary_twiddle=-sin_table[j*1024u>>stage];
+                real_twiddle=cosf((float)j*M_PI/span);
+                imaginary_twiddle=-sinf((float)j*M_PI/span);
 
-                temp_real      = (((int32_t)reals[ip]*(int32_t)real_twiddle)      - ((int32_t)imaginaries[ip]*(int32_t)imaginary_twiddle)) >> 15u;
-                temp_imaginary = (((int32_t)reals[ip]*(int32_t)imaginary_twiddle) + ((int32_t)imaginaries[ip]*(int32_t)real_twiddle)) >> 15u;
+                temp_real      = (reals[ip]*real_twiddle)      - (imaginaries[ip]*imaginary_twiddle);
+                temp_imaginary = (reals[ip]*imaginary_twiddle) + (imaginaries[ip]*real_twiddle);
 
                 reals[ip]       = reals[i]-temp_real;
                 imaginaries[ip] = imaginaries[i]-temp_imaginary;

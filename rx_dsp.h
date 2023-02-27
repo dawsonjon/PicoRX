@@ -20,7 +20,7 @@ class rx_dsp
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(int16_t spectrum[], int16_t &offset);
+  void get_spectrum(float spectrum[], int16_t &offset);
 
 
   private:
@@ -33,9 +33,12 @@ class rx_dsp
   void set_decimation_rate(uint8_t i);
 
   //capture samples for spectral analysis
-  int16_t capture_i[256];
-  int16_t capture_q[256];
+  int16_t capture_i[1024];
+  int16_t capture_q[1024];
   semaphore_t spectrum_semaphore;
+  bool capture_data = false;
+  uint16_t cap;
+  uint16_t segment=0;
 
   //used in dc canceler
   int16_t dc;

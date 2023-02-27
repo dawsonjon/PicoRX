@@ -114,7 +114,7 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(int16_t spectrum[], int16_t &offset)
+void rx::get_spectrum(float spectrum[], int16_t &offset)
 {
   rx_dsp_inst.get_spectrum(spectrum, offset);
 }
