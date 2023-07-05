@@ -19,6 +19,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     cap = 0;
   }
 
+  printf("frame\n");
+
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
       //convert to signed representation
@@ -108,8 +110,8 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
     phase += frequency;
     //const int16_t i_shifted = (((i * rotation_i) - (q * rotation_q))+k) >> 15;
     //const int16_t q_shifted = (((q * rotation_i) + (i * rotation_q))+k) >> 15;
-    const int16_t i_shifted = ((i * rotation_i) - (q * rotation_q)) >> 15;
-    const int16_t q_shifted = ((q * rotation_i) + (i * rotation_q)) >> 15;
+    const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
+    const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
 
     i = i_shifted;
     q = q_shifted;
@@ -182,10 +184,13 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
     }
     else if(mode == FM | mode == WFM)
     {
-        int16_t audio_phase = rectangular_2_phase(i, q);
-        int16_t frequency = audio_phase - last_audio_phase;
-        last_audio_phase = audio_phase;
-        return frequency>>1;
+        const int16_t i_freq = (((int32_t)i * last_i) - ((int32_t)q * last_q));
+        const int16_t q_freq = (((int32_t)q * last_i) + ((int32_t)i * last_q));
+        int16_t frequency = rectangular_2_phase(i_freq, q_freq);
+        printf("%i %i %i %i %i %i %i\n", i, q, last_i, last_q, i_freq, q_freq, frequency);
+        last_i = i;
+        last_q = -q;
+        return frequency;
     }
     else if(mode == LSB || mode == USB)
     {

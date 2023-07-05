@@ -1,0 +1,386 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid 0f8e8c24-22b7-454e-9a64-e209100ce17d)
+
+  (paper "A4")
+
+  (lib_symbols
+    (symbol "Mechanical:MountingHole_Pad" (pin_numbers hide) (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
+      (property "Reference" "H" (at 0 6.35 0)
+        (effects (font (size 1.27 1.27)))
+      )
+      (property "Value" "MountingHole_Pad" (at 0 4.445 0)
+        (effects (font (size 1.27 1.27)))
+      )
+      (property "Footprint" "" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "Datasheet" "~" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_keywords" "mounting hole" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_description" "Mounting Hole with connection" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_fp_filters" "MountingHole*Pad*" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (symbol "MountingHole_Pad_0_1"
+        (circle (center 0 1.27) (radius 1.27)
+          (stroke (width 1.27) (type default))
+          (fill (type none))
+        )
+      )
+      (symbol "MountingHole_Pad_1_1"
+        (pin input line (at 0 -2.54 90) (length 2.54)
+          (name "1" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))
+        )
+      )
+    )
+    (symbol "power:GND" (power) (pin_names (offset 0)) (in_bom yes) (on_board yes)
+      (property "Reference" "#PWR" (at 0 -6.35 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "Value" "GND" (at 0 -3.81 0)
+        (effects (font (size 1.27 1.27)))
+      )
+      (property "Footprint" "" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "Datasheet" "" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_keywords" "global power" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_description" "Power symbol creates a global label with name \"GND\" , ground" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (symbol "GND_0_1"
+        (polyline
+          (pts
+            (xy 0 0)
+            (xy 0 -1.27)
+            (xy 1.27 -1.27)
+            (xy 0 -2.54)
+            (xy -1.27 -1.27)
+            (xy 0 -1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0) hide
+          (name "GND" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))
+        )
+      )
+    )
+  )
+
+
+  (wire (pts (xy 109.22 54.61) (xy 109.22 57.15))
+    (stroke (width 0) (type default))
+    (uuid 7805820f-c586-42c6-a1ef-7a6920ff22d6)
+  )
+  (wire (pts (xy 132.08 54.61) (xy 132.08 57.15))
+    (stroke (width 0) (type default))
+    (uuid 7c26f0d8-349c-469d-81e5-610c60f6b2a5)
+  )
+  (wire (pts (xy 154.94 54.61) (xy 154.94 57.15))
+    (stroke (width 0) (type default))
+    (uuid cbcd2433-3a43-4079-8f80-cebc39844794)
+  )
+  (wire (pts (xy 177.8 54.61) (xy 177.8 57.15))
+    (stroke (width 0) (type default))
+    (uuid e3af3a0e-41f8-4b62-938f-8be0fff00127)
+  )
+
+  (symbol (lib_id "power:GND") (at 177.8 57.15 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 2e27d149-d97c-4c04-9010-89209a9fe611)
+    (property "Reference" "#PWR04" (at 177.8 63.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 177.927 61.5442 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 177.8 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 177.8 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid e592fae4-b4f3-4f73-b9cb-0f9a77ae12eb))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "#PWR04") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "#PWR071") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "#PWR051") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 109.22 57.15 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 2e4a2c0e-b033-4175-84e3-2a788995dd4f)
+    (property "Reference" "#PWR01" (at 109.22 63.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 109.347 61.5442 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 109.22 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 109.22 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 4737d12b-45d5-4676-8bc4-3cc5be222cce))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "#PWR01") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "#PWR066") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "#PWR048") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 154.94 57.15 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 6c8e580d-ed85-4ee0-9ae8-6bdb6c714bb5)
+    (property "Reference" "#PWR03" (at 154.94 63.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 155.067 61.5442 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 154.94 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 154.94 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 481720aa-b11f-4d53-a7c6-83d09357284c))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "#PWR03") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "#PWR069") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "#PWR050") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Mechanical:MountingHole_Pad") (at 154.94 52.07 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 7549f0c7-0e1c-43ae-b548-46b996f28edb)
+    (property "Reference" "H3" (at 157.48 50.8254 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "MountingHole_Pad" (at 157.48 53.1368 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "MountingHole:MountingHole_3.2mm_M3_Pad" (at 154.94 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 154.94 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 95324762-a450-46d9-bd9d-28231695136d))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "H3") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "H3") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "H3") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Mechanical:MountingHole_Pad") (at 109.22 52.07 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 91f5375a-c5f0-47c7-9a72-0056b0032ed7)
+    (property "Reference" "H1" (at 111.76 50.8254 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "MountingHole_Pad" (at 111.76 53.1368 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "MountingHole:MountingHole_3.2mm_M3_Pad" (at 109.22 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 109.22 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 50063b13-3243-4ddf-82a4-808fdb61a381))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "H1") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "H1") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "H1") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Mechanical:MountingHole_Pad") (at 177.8 52.07 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid b6491ec1-eab1-407d-916d-2bfe3e515148)
+    (property "Reference" "H4" (at 180.34 50.8254 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "MountingHole_Pad" (at 180.34 53.1368 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "MountingHole:MountingHole_3.2mm_M3_Pad" (at 177.8 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 177.8 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 61d22660-e23f-48d5-bbd1-9dbf9af0a2dd))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "H4") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "H4") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "H4") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 132.08 57.15 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid c0f9113e-6bd6-446d-9d10-38017c29bed0)
+    (property "Reference" "#PWR02" (at 132.08 63.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 132.207 61.5442 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 132.08 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 132.08 57.15 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid c790480b-37bc-420d-9b9d-c84aca275963))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "#PWR02") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "#PWR067") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "#PWR049") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Mechanical:MountingHole_Pad") (at 132.08 52.07 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid e62a2409-7a95-4a5d-a4f7-cedd356487ba)
+    (property "Reference" "H2" (at 134.62 50.8254 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "MountingHole_Pad" (at 134.62 53.1368 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "MountingHole:MountingHole_3.2mm_M3_Pad" (at 132.08 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 132.08 52.07 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid c1014ae1-2af7-412f-843a-168885832cd1))
+    (instances
+      (project "front_panel"
+        (path "/0f8e8c24-22b7-454e-9a64-e209100ce17d"
+          (reference "H2") (unit 1)
+        )
+      )
+      (project "RADIO"
+        (path "/852d5a42-8663-46cd-bbc7-538bfe8c017d/00000000-0000-0000-0000-00005e2cd207"
+          (reference "H2") (unit 1)
+        )
+      )
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f/ef5e145d-7cd2-41fd-85f8-55f3445b8dc3"
+          (reference "H2") (unit 1)
+        )
+      )
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
+)

@@ -85,7 +85,7 @@ static const uint32_t __in_flash() __attribute__((aligned(4096))) radio_memory[%
         outf.write(buffer)
 
 mem = Memory()
-mem.add("FM Broadcast    ", 17600000, 17600000, 21600000,  "WFM", "VERY SLOW", "100kHz")
+mem.add("FM Broadcast    ", 1000000,  1000000, 21600000,  "WFM", "VERY SLOW", "100kHz")
 mem.add("MW Broadcast    ", 1413000,  531000,   1602000,  "AM", "VERY SLOW", "1kHz")
 mem.add("LW Broadcast    ", 198000,   153000,   279000,   "AM", "VERY SLOW", "1kHz")
 mem.add("SW        120m  ", 2300000,  2300000,  2495000,  "AM", "VERY SLOW", "1kHz")

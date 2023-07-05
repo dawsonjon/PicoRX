@@ -94,8 +94,8 @@ class rx_dsp
   int32_t mode=0;
   int32_t audio_dc=0;
   uint8_t ssb_phase=0;
-  int16_t audio_phase=0;
-  int16_t last_audio_phase=0;
+  int16_t last_i=0;
+  int16_t last_q=0;
 
   //volume control
   int16_t gain_numerator=0;

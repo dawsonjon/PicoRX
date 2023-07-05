@@ -1,0 +1,65 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid b6f73a49-ac1f-4895-a0f9-8f6954ee587f)
+
+  (paper "A4")
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 74.93 22.86) (size 53.34 52.07) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 2ef3a865-c67c-430c-957b-3defd66f2291)
+    (property "Sheetname" "Quadrature Sampling Detector" (at 74.93 22.1484 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "qsd.kicad_sch" (at 74.93 75.5146 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f" (page "3"))
+      )
+    )
+  )
+
+  (sheet (at 22.86 22.86) (size 48.26 52.07) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid b8fbcf71-8210-4060-b465-236d1aa4e7b3)
+    (property "Sheetname" "Lowpass Filters" (at 22.86 22.1484 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "Bandpass.kicad_sch" (at 22.86 75.5146 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f" (page "2"))
+      )
+    )
+  )
+
+  (sheet (at 130.81 22.86) (size 54.61 53.34) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid ef5e145d-7cd2-41fd-85f8-55f3445b8dc3)
+    (property "Sheetname" "PI Pico" (at 130.81 22.1484 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "pi_pico.kicad_sch" (at 130.81 76.7846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f" (page "4"))
+      )
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
+)

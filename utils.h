@@ -1,6 +1,9 @@
 #ifndef _utils_
 #define _utils_
 
+#include <cstdint>
+#include <math.h>
+
 int16_t sin_table[2048];
 
 //from: http://dspguru.com/dsp/tricks/magnitude-estimator/

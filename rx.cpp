@@ -167,6 +167,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     //audio output
     const uint AUDIO_PIN = 16;
     gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
+    gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
     audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
     pwm_config config = pwm_get_default_config();
     pwm_config_set_clkdiv(&config, 1.f); //125MHz
