@@ -17,8 +17,7 @@ modes = {
   "LSB":1,
   "USB":2,
   "NFM":3,
-  "WFM":4,
-  "CW" :5
+  "CW" :4
 }
 agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3}
 steps = {
@@ -85,7 +84,6 @@ static const uint32_t __in_flash() __attribute__((aligned(4096))) radio_memory[%
         outf.write(buffer)
 
 mem = Memory()
-mem.add("FM Broadcast    ", 1000000,  1000000, 21600000,  "WFM", "VERY SLOW", "100kHz")
 mem.add("MW Broadcast    ", 1413000,  531000,   1602000,  "AM", "VERY SLOW", "1kHz")
 mem.add("LW Broadcast    ", 198000,   153000,   279000,   "AM", "VERY SLOW", "1kHz")
 mem.add("SW        120m  ", 2300000,  2300000,  2495000,  "AM", "VERY SLOW", "1kHz")

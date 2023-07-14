@@ -732,8 +732,8 @@
     (effects (font (size 2.5 2.5)) (justify left bottom))
     (uuid 80d8b371-b799-421f-85cb-691fd7c3486a)
   )
-  (text "R, C values determine LPF cutoff\n1/(2 * pi * 27e-9 * 100) ~= 59MHz\n1/(2 * pi * 27e-12 * 100000) ~= 59MHz"
-    (at 64.77 35.56 0)
+  (text "R, C values determine LPF cutoff\n1/(2 * pi * 27e-9 * 100) ~= 59MHz"
+    (at 64.77 30.48 0)
     (effects (font (size 2.5 2.5)) (justify left bottom))
     (uuid 9becc6d4-46d9-4580-aec6-0cab708cdb8b)
   )

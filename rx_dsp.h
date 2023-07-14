@@ -43,6 +43,10 @@ class rx_dsp
   //used in dc canceler
   int16_t dc;
 
+  int32_t bias;
+  int32_t bias_adjustment;
+  uint32_t bias_count;
+
   //used in frequency shifter
   int32_t offset_frequency_Hz;
   int32_t dither;
@@ -94,8 +98,7 @@ class rx_dsp
   int32_t mode=0;
   int32_t audio_dc=0;
   uint8_t ssb_phase=0;
-  int16_t last_i=0;
-  int16_t last_q=0;
+  int16_t last_phase=0;
 
   //volume control
   int16_t gain_numerator=0;

@@ -34,9 +34,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.762,
-          "height": 1.524,
-          "width": 1.524
+          "drill": 0.0,
+          "height": 1.45,
+          "width": 1.0
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -441,7 +441,7 @@
     "last_paths": {
       "gencad": "",
       "idf": "",
-      "netlist": "",
+      "netlist": "../../../",
       "specctra_dsn": "",
       "step": "",
       "vrml": ""
@@ -486,6 +486,10 @@
     [
       "b6f73a49-ac1f-4895-a0f9-8f6954ee587f",
       ""
+    ],
+    [
+      "922c32e5-68dc-43db-b1ed-78e4b25ea173",
+      "Preamplifier"
     ],
     [
       "b8fbcf71-8210-4060-b465-236d1aa4e7b3",

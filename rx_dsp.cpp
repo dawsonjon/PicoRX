@@ -19,8 +19,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     cap = 0;
   }
 
-  printf("frame\n");
-
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
       //convert to signed representation
@@ -37,27 +35,27 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //Apply frequency shift (move tuned frequency to DC)         
       frequency_shift(i, q);
 
+      //capture data for spectrum
+      if(capture_data)
+      {
+        capture_i[cap] = i;
+        capture_q[cap] = q;
+        cap++;
+        if(cap == 1024)
+        {
+          sem_release(&spectrum_semaphore);
+          capture_data = false;
+        }
+      }
+
       //decimate by factor of 40
       if(decimate(i, q))
       {
 
-        //capture data for spectrum
-        if(capture_data)
-        {
-          capture_i[cap] = i;
-          capture_q[cap] = q;
-          cap++;
-          if(cap == 1024)
-          {
-            sem_release(&spectrum_semaphore);
-            capture_data = false;
-          }
-        }
-
-
         //Measure amplitude (for signal strength indicator)
         int32_t amplitude = rectangular_2_magnitude(i, q);
         magnitude_sum += amplitude;
+
 
         //Demodulate to give audio sample
         int32_t audio = demodulate(i, q);
@@ -92,14 +90,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     signal_amplitude = (magnitude_sum * decimation_rate * 2)/adc_block_size;
     dc = sample_accumulator/adc_block_size;
 
+
     return odx;
 }
 
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 //void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
 {
-    static const int16_t k = (1<<(15-1));
-
     //Apply frequency shift (move tuned frequency to DC)         
     //dither = 1664525u*dither + 1013904223u;
     //const uint16_t dithered_phase = (phase + (dither >> 29) >> 22);
@@ -108,13 +105,18 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
     const int16_t rotation_q = -sin_table[dithered_phase];
 
     phase += frequency;
-    //const int16_t i_shifted = (((i * rotation_i) - (q * rotation_q))+k) >> 15;
-    //const int16_t q_shifted = (((q * rotation_i) + (i * rotation_q))+k) >> 15;
+    //truncating fractional bits introduces bias, but it is more efficient to remove it after decimation
     const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
     const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
 
     i = i_shifted;
     q = q_shifted;
+}
+
+int16_t rounded_shift_right(int32_t x, int32_t shift_amount)
+{
+  x += (1<<(shift_amount-1));
+  return x >> shift_amount;
 }
 
 bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
@@ -163,8 +165,10 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         if(new_sample)
         {
            half_band_filter2_inst.filter(decimated_i, decimated_q);
-           i = decimated_i;
-           q = decimated_q;
+
+           //compensate for bias introduced in frequency shift, CIC and half band filters
+           i = (((uint32_t)decimated_i << 15) + bias_adjustment) >> 15;
+           q = (((uint32_t)decimated_q << 15) + bias_adjustment) >> 15;
            return true;
         }
       }
@@ -182,14 +186,13 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         //subtract DC component
         return amplitude - (audio_dc >> 5);
     }
-    else if(mode == FM | mode == WFM)
+    else if(mode == FM)
     {
-        const int16_t i_freq = (((int32_t)i * last_i) - ((int32_t)q * last_q));
-        const int16_t q_freq = (((int32_t)q * last_i) + ((int32_t)i * last_q));
-        int16_t frequency = rectangular_2_phase(i_freq, q_freq);
-        printf("%i %i %i %i %i %i %i\n", i, q, last_i, last_q, i_freq, q_freq, frequency);
-        last_i = i;
-        last_q = -q;
+        int16_t phase = rectangular_2_phase(i, q);
+        int16_t frequency = phase - last_phase;
+        last_phase = phase;
+
+        //printf("%i %i %i %i\n", i, q, phase, frequency);
         return frequency;
     }
     else if(mode == LSB || mode == USB)
@@ -308,8 +311,24 @@ bool rx_dsp :: cw_decimate(int16_t &i, int16_t &q)
         if(new_sample)
         {
            cw_half_band_filter2_inst.filter(decimated_i, decimated_q);
-           i = decimated_i;
-           q = decimated_q;
+
+           //compensate for bias introduced in cw CIC and half band filters
+           i = (((uint32_t)decimated_i << 15) + cw_bias_adjustment) >> 15;
+           q = (((uint32_t)decimated_q << 15) + cw_bias_adjustment) >> 15;
+
+           //check bias is being removed properly
+           //if(bias_count == 1000)
+           //{
+             //printf("bias %u %i\n", bias_count, bias);
+             //bias = 0;
+             //bias_count = 0;
+           //}
+           //else
+           //{
+             //bias += i;
+             //bias_count++;
+           //}
+
            return true;
         }
       }
@@ -392,6 +411,9 @@ rx_dsp :: rx_dsp()
   decimate_count=0;
   frequency=0;
   initialise_luts();
+
+  bias_count = 0;
+  bias = 0;
 
   //initialise semaphore for spectrum
   sem_init(&spectrum_semaphore, 1, 1);
@@ -477,12 +499,7 @@ void rx_dsp :: set_mode(uint8_t val)
     //250e3/(25*2*2) == 2.5kHz
     set_decimation_rate(25u);
   }
-  if(mode == WFM)
-  {
-    //250e3/1 == 250kHz
-    set_decimation_rate(1u);
-  }
-  if(mode == FM)
+  else if(mode == FM)
   {
     //250e3/(14*2) == 9kHz
     set_decimation_rate(14u);
@@ -549,7 +566,11 @@ void rx_dsp :: set_decimation_rate(uint8_t i)
 {
   decimation_rate = i;
   interpolation_rate = i;
-  bit_growth = ceilf(log2f(decimation_rate))*4;
+  bit_growth = ceilf(4.0f*log2f(decimation_rate));
+  const float cic_gain = powf(2.0f, (4.0f * log2f(decimation_rate)) - (bit_growth - extra_bits));
+  const float freq_shift_bias = 0.5f;
+  const float bias = (cic_gain * freq_shift_bias) + 1.5f; //cic, and each half band filter contribute  bias of 0.5 lsbs
+  bias_adjustment = (bias + 0.5f) * (1<<15);
   const float growth_adjustment = decimation_rate/powf(2, ceil(log2f(decimation_rate))); //growth in decimating filters
   full_scale_signal_strength = 0.707f*adc_max*(1<<extra_bits)*growth_adjustment; //signal strength after decimator expected for a full scale sin wave
   s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);

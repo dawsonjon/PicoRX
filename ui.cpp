@@ -153,7 +153,7 @@ void ui::update_display(rx_status & status, rx & receiver)
   const float busy_time = ((float)status.busy_time*1e-6f);
 
   //mode
-  static const char modes[][4]  = {" AM", "LSB", "USB", " FM", "WFM", " CW"};
+  static const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
   ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
 
   //step
@@ -180,7 +180,7 @@ void ui::update_display(rx_status & status, rx & receiver)
   static float spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
-  ssd1306_draw_string(&disp, offset, 32, 1, "v");
+  ssd1306_draw_string(&disp, 64, 32, 1, "v");
 
   //auto scale
   float min=100;
@@ -790,7 +790,7 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#WFM#CW", 5, &settings[idx_mode]);
+          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW", 4, &settings[idx_mode]);
           break;
 
         case 5 :
