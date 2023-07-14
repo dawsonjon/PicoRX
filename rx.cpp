@@ -84,8 +84,10 @@ void rx::apply_settings()
       {
         //apply frequency
         tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-        nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz + 10000);
+        nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
         offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+
+        printf("%f %f\n", nco_frequency_Hz, offset_frequency_Hz);
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         //apply CW sidetone

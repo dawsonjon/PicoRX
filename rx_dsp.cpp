@@ -496,17 +496,17 @@ void rx_dsp :: set_mode(uint8_t val)
   mode = val;
   if(mode == LSB || mode == USB)
   {
-    //250e3/(25*2*2) == 2.5kHz
+    //500e3/(25*2*2*2) == 2.5kHz
     set_decimation_rate(25u);
   }
   else if(mode == FM)
   {
-    //250e3/(14*2) == 9kHz
+    //500e3/(14*2*2) == 9kHz
     set_decimation_rate(14u);
   }
   else
   {
-    //250e3/(20*2) == 6kHz
+    //500e3/(20*2*2) == 6kHz
     set_decimation_rate(20u);
   }
 }
