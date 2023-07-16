@@ -1143,7 +1143,7 @@
     (property "Value" "Antenna" (at 97.79 103.1632 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount" (at 101.6 101.6 0)
+    (property "Footprint" "Connector_Coaxial:SMA_Samtec_SMA-J-P-X-ST-EM1_EdgeMount" (at 101.6 101.6 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" " ~" (at 101.6 101.6 0)
