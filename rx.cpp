@@ -123,6 +123,10 @@ void rx::get_spectrum(float spectrum[], int16_t &offset)
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
 {
+
+    settings_to_apply.suspend = false;
+    suspend = false;
+
     //Configure PIO to act as quadrature oscilator
     pio = pio0;
     offset = pio_add_program(pio, &hello_program);

@@ -88,7 +88,7 @@ class ui
   bool string_entry(char string[]);
   bool recall();
   bool store();
-  void apply_settings();
+  void apply_settings(bool suspend);
 
   rx_settings &settings_to_apply;
   rx_status &status;

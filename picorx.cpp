@@ -15,7 +15,8 @@ void core1_main()
     receiver.run();
 }
 
-int main() {
+int main() 
+{
   stdio_init_all();
   multicore_launch_core1(core1_main);    
 

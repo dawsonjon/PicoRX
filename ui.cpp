@@ -171,6 +171,7 @@ void ui::update_display(rx_status & status, rx & receiver)
     "S9+30dB---|"};
   uint8_t power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
   snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
   ssd1306_draw_string(&disp, 0, 24, 1, buff);
   snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
@@ -294,7 +295,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
 }
 
 //Apply settings
-void ui::apply_settings()
+void ui::apply_settings(bool suspend)
 {
   receiver.access(true);
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
@@ -304,6 +305,7 @@ void ui::apply_settings()
   settings_to_apply.squelch = settings[idx_squelch];
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+  settings_to_apply.suspend = suspend;
   receiver.release();
 }
 
@@ -401,12 +403,25 @@ bool ui::store()
       //write sector to flash
       const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
       const uint32_t flash_address = address - XIP_BASE; 
-      multicore_lockout_start_blocking();
-      const uint32_t ints = save_and_disable_interrupts();
-      //flash_range_erase(flash_address, FLASH_SECTOR_SIZE); //Causes software to hang, needs investigation
+
+      //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      apply_settings(true);                                //suspend rx to disable all DMA transfers
+		  WAIT_100MS                                           //wait for suspension to take effect
+      multicore_lockout_start_blocking();                  //halt the second core
+      const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+      //safe to erase flash here
+      //--------------------------------------------------------------------------------------------
+      flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
       flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
-      restore_interrupts (ints);
-      multicore_lockout_end_blocking();
+      //--------------------------------------------------------------------------------------------
+
+      restore_interrupts (ints);                           //restore interrupts
+      multicore_lockout_end_blocking();                    //restart the second core
+      apply_settings(false);                               //resume rx operation
+      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      //!!! Normal operation resumed
 
       return false;
     }
@@ -466,7 +481,7 @@ bool ui::recall()
         for(uint8_t i=0; i<settings_to_store; i++){
           settings[i] = radio_memory[select][i];
         }
-        apply_settings();
+        apply_settings(false);
         
         //print selected menu item
         draw_once = false;
@@ -501,7 +516,7 @@ bool ui::recall()
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
       }
-      apply_settings();
+      apply_settings(false);
       return 0;
     }
 
