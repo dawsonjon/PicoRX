@@ -22,17 +22,33 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     float actual_frequency;
     float div;
     float adjusted_frequency = tuned_frequency;
-    while(1)
+
+    //calculate nearest divider
+    float idealdiv = 125.0e6f / (4.0f*(adjusted_frequency));
+    float higher = ceil(idealdiv * 256.0f)/256.0f;
+    float lower = floor(idealdiv * 256.0f)/256.0f;
+
+    //choose the divide ratio furthest from the required frequency
+    if((higher - idealdiv) > (idealdiv - lower)){
+      div = higher;
+    }
+    else
     {
-      //calculate nearest divider
-      div = round(256.0f * 125.0e6f / (4.0f*(adjusted_frequency)))/256.0f;
-      actual_frequency = 125.0e6f / (4.0f*div); 
+      div = lower;
+    }
 
-      float offset = actual_frequency - tuned_frequency;
+    //calculate the actual frequency 
+    actual_frequency = 125.0e6f / (4.0f*div); 
 
-      if(fabs(offset) >= 10.0e3f) break;
+    //find the offset from the tuned frequency
+    float freq_offset = actual_frequency - tuned_frequency;
 
-      if(offset > 0)
+    //if tuned frequency is not far enough from actual frequency, move it away
+    while(fabs(freq_offset) < 10.0e3)
+    {
+      //otherwise try for a larger offset, keep moving away from the
+      //tuned frequency in the same direction
+      if(freq_offset > 0)
       {
         adjusted_frequency += 1.0e3f;
       }
@@ -40,6 +56,16 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
       {
         adjusted_frequency -= 1.0e3f;
       }
+
+      float idealdiv = 125.0e6f / (4.0f*(adjusted_frequency));
+      float div = round(idealdiv * 256.0f)/256.0f;
+
+      //calculate the actual frequency 
+      actual_frequency = 125.0e6f / (4.0f*div); 
+
+      //find the offset from the tuned frequency
+      freq_offset = actual_frequency - tuned_frequency;
+
     }
 
     sm_config_set_clkdiv(&c, div);
