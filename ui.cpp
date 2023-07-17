@@ -309,6 +309,147 @@ void ui::apply_settings(bool suspend)
   receiver.release();
 }
 
+//remember settings across power cycles
+void ui::autosave()
+{
+  //The flash endurance may not be more than 100000 erase cycles.
+  //Cycle through 512 locations, only erasing the flash when they have all been used.
+  //This should give an endurance of 51,200,000 cycles.
+
+  //find the next unused channel, an unused channel will be 0xffffffff
+  uint16_t empty_channel = 0;
+  bool empty_channel_found = false;
+  for(uint16_t i=0; i<512; i++)
+  {
+    if(autosave_memory[i][0] == 0xffffffff)
+    {
+      empty_channel = i;
+      empty_channel_found = true;
+      break;
+    } 
+  }
+
+  //check whether data differs
+  if(empty_channel > 0)
+  {
+    bool difference_found = false;
+    for(uint8_t i=0; i<16; i++){
+      if(i != idx_frequency) //ignore frequency changes, they happen too often
+      {
+        if(autosave_memory[empty_channel - 1][i] != settings[i])
+        {
+          difference_found = true;
+          break;
+        }
+      }
+    }
+    //data hasn't changed, no need to save
+    if(!difference_found)
+    {
+      return;
+    }
+  }
+
+  //if there are no free channels, erase all the pages
+  if(!empty_channel_found)
+  {
+    const uint32_t address = (uint32_t)&(autosave_memory[0]);
+    const uint32_t flash_address = address - XIP_BASE; 
+    //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    apply_settings(true);                                //suspend rx to disable all DMA transfers
+    WAIT_100MS                                           //wait for suspension to take effect
+    multicore_lockout_start_blocking();                  //halt the second core
+    const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+    //safe to erase flash here
+    //--------------------------------------------------------------------------------------------
+    flash_range_erase(flash_address, sizeof(int)*16*512);
+    //--------------------------------------------------------------------------------------------
+
+    restore_interrupts (ints);                           //restore interrupts
+    multicore_lockout_end_blocking();                    //restart the second core
+    apply_settings(false);                               //resume rx operation
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //!!! Normal operation resumed
+  }
+
+  //work out which flash sector the channel sits in.
+  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+  const uint32_t first_channel_in_sector = num_channels_per_sector * (empty_channel/num_channels_per_sector);
+  const uint32_t channel_offset_in_sector = empty_channel%num_channels_per_sector;
+
+  //copy sector to RAM
+  static uint32_t sector_copy[num_channels_per_sector][chan_size];
+  for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
+  {
+    for(uint16_t location=0; location<chan_size; location++)
+    {
+      if(channel+first_channel_in_sector < num_chans)
+      {
+        sector_copy[channel][location] = autosave_memory[channel+first_channel_in_sector][location];
+      }
+    }
+  }
+    
+  //modify the selected channel
+  for(uint8_t i=0; i<16; i++)
+  {
+    sector_copy[channel_offset_in_sector][i] = settings[i];
+  }
+
+  //write sector to flash
+  const uint32_t address = (uint32_t)&(autosave_memory[first_channel_in_sector]);
+  const uint32_t flash_address = address - XIP_BASE; 
+
+  //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  apply_settings(true);                                //suspend rx to disable all DMA transfers
+  WAIT_100MS                                           //wait for suspension to take effect
+  multicore_lockout_start_blocking();                  //halt the second core
+  const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+  //safe to erase flash here
+  //--------------------------------------------------------------------------------------------
+  flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+  //--------------------------------------------------------------------------------------------
+
+  restore_interrupts (ints);                           //restore interrupts
+  multicore_lockout_end_blocking();                    //restart the second core
+  apply_settings(false);                               //resume rx operation
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  //!!! Normal operation resumed
+
+}
+
+//remember settings across power cycles
+void ui::autorestore()
+{
+
+  //find the next unused channel, an unused channel will be 0xffffffff
+  uint16_t empty_channel = 0;
+  bool empty_channel_found = false;
+  for(uint16_t i=0; i<512; i++)
+  {
+    if(autosave_memory[i][0] == 0xffffffff)
+    {
+      empty_channel = i;
+      empty_channel_found = true;
+      break;
+    } 
+  }
+
+  uint16_t last_channel_written;
+  if(empty_channel > 0) last_channel_written = empty_channel - 1;
+  if(!empty_channel_found) last_channel_written = 255;
+  for(uint8_t i=0; i<16; i++){
+    settings[i] = autosave_memory[last_channel_written][i];
+  }
+
+  apply_settings(false);
+
+}
+
 //save current settings to memory
 bool ui::store()
 {
@@ -843,6 +984,11 @@ bool ui::do_ui(bool rx_settings_changed)
       }
     }
 
+    if(rx_settings_changed)
+    {
+      autosave();
+    }
+
     receiver.access(rx_settings_changed);
     if(rx_settings_changed)
     {
@@ -866,17 +1012,6 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : sett
   setup_display();
   setup_encoder();
   setup_buttons();
-
-  //Apply default settings
-  settings[idx_frequency] = 198e3;
-  settings[idx_agc_speed] = 3;
-  settings[idx_mode] = AM;
-  settings[idx_step] = 3;
-  settings[idx_cw_sidetone] = 1000;
-  settings[idx_volume] = 5;
-  settings[idx_squelch] = 0;
-  settings[idx_max_frequency] = 30000000;
-  settings[idx_min_frequency] = 0;
 
   button_state = idle;
 }

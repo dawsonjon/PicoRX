@@ -57,8 +57,8 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
         adjusted_frequency -= 1.0e3f;
       }
 
-      float idealdiv = 125.0e6f / (4.0f*(adjusted_frequency));
-      float div = round(idealdiv * 256.0f)/256.0f;
+      idealdiv = 125.0e6f / (4.0f*(adjusted_frequency));
+      div = round(idealdiv * 256.0f)/256.0f;
 
       //calculate the actual frequency 
       actual_frequency = 125.0e6f / (4.0f*div); 

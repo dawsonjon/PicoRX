@@ -10,6 +10,7 @@
 #include "font.h"
 #include "rx.h"
 #include "memory.h"
+#include "autosave_memory.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -88,6 +89,7 @@ class ui
   bool string_entry(char string[]);
   bool recall();
   bool store();
+  void autosave();
   void apply_settings(bool suspend);
 
   rx_settings &settings_to_apply;
@@ -96,6 +98,7 @@ class ui
 
   public:
 
+  void autorestore();
   bool do_ui(bool rx_settings_changed);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
 
