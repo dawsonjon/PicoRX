@@ -20,6 +20,9 @@ int main()
   stdio_init_all();
   multicore_launch_core1(core1_main);    
 
+  //sleep_us(5000000);
+  user_interface.autorestore();
+
   bool settings_changed = true;
   while(1)
   {
