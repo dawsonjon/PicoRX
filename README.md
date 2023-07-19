@@ -30,4 +30,4 @@ Development
 
 ![concept](images/top.svg)
 
-Pi Pico Rx is currently at the experimental prototyping stage, but it works.... There is a PCB on the way.
+Pi Pico Rx is currently at the experimental prototyping stage, but it works.... There is a PCB on the way. Go to the [Wiki](https://github.com/dawsonjon/PicoRX/wiki) for more technical details!
