@@ -4,7 +4,7 @@ Pi Pico Rx - A crystal radio for the digital age?
 
 My first step into the world of electronics was with a crystal radio, just like this one. 
 
-[crystal radio](images/crystal_radio.jpg)
+![crystal radio](images/crystal_radio.jpg)
 
 Back then, I don't think it has ever occurred to me that I could make a radio myself, so I wasn't expecting it to work. But when I put the earphone in, I was amazed to hear very faint sounds coming through. I couldn't believe that building a radio could be so simple, and the best part was, it didn't need any batteries! That little experience sparked my interest in electronics.
 
