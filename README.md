@@ -1,7 +1,7 @@
 Pi Pico Rx
 ==========
 
-A Very Minimal SDR reciever using PI pico.
+A *very* minimal SDR reciever based on a Raspberry PI Pico.
 
 Based around a "Tayloe" Quadrature Sampling Detector, IQ data is captured using
 the internal ADC with a bandwidth of 250kHz. The RPI Pico uses the RP2040 PIO
