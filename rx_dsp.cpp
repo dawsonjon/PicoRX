@@ -101,7 +101,7 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
     //dither = 1664525u*dither + 1013904223u;
     //const uint16_t dithered_phase = (phase + (dither >> 29) >> 22);
     const uint16_t dithered_phase = (phase >> 21);
-    const int16_t rotation_i =  sin_table[(dithered_phase+521u) & 0x7ff]; //32 - 21 = 11MSBs
+    const int16_t rotation_i =  sin_table[(dithered_phase+512u) & 0x7ff]; //32 - 21 = 11MSBs
     const int16_t rotation_q = -sin_table[dithered_phase];
 
     phase += frequency;
