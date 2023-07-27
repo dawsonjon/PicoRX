@@ -5,10 +5,10 @@ import struct
 #define idx_mode 1
 #define idx_agc_speed 2
 #define idx_step 3
-#define idx_squelch 4
-#define idx_volume 5
-#define idx_max_frequency 6
-#define idx_min_frequency 7
+#define idx_max_frequency 4
+#define idx_min_frequency 5
+#define idx_squelch 6
+#define idx_volume 7
 #define idx_cw_sidetone 8
 #define idx_cw_speed 9
 
@@ -50,10 +50,10 @@ class Memory:
         modes[mode],                   #1
         agc_speeds[agc_speed],         #2
         steps[step],                   #3
-        squelch,                       #4
-        volume,                        #5
-        int(max_frequency)&0xffffffff, #6
-        int(min_frequency)&0xffffffff, #7
+        int(max_frequency)&0xffffffff, #4
+        int(min_frequency)&0xffffffff, #5
+        squelch,                       #6
+        volume,                        #7
         int(cw_sidetone),              #8
         0xffffffff,                    #9
         0xffffffff,                    #a
