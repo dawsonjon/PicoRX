@@ -87,7 +87,38 @@ void rx::apply_settings()
         nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
         offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
-        printf("%f %f\n", nco_frequency_Hz, offset_frequency_Hz);
+        if(tuned_frequency_Hz > 16.0e6)
+        {
+          gpio_put(2, 0);
+          gpio_put(3, 0);
+          gpio_put(4, 0);
+        }
+        else if(tuned_frequency_Hz > 8.0e6)
+        {
+          gpio_put(2, 1);
+          gpio_put(3, 0);
+          gpio_put(4, 0);
+        }
+        else if(tuned_frequency_Hz > 4.0e6)
+        {
+          gpio_put(2, 0);
+          gpio_put(3, 1);
+          gpio_put(4, 0);
+        }
+        else if(tuned_frequency_Hz > 2.0e6)
+        {
+          gpio_put(2, 1);
+          gpio_put(3, 1);
+          gpio_put(4, 0);
+        }
+        else
+        {
+          gpio_put(2, 0);
+          gpio_put(3, 0);
+          gpio_put(4, 1);
+        }
+
+
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         //apply CW sidetone
@@ -145,6 +176,14 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_gpio_init(29);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(0); //flat out
+
+    //band select
+    adc_gpio_init(2);//band 0
+    adc_gpio_init(3);//band 1
+    adc_gpio_init(4);//band 2
+    gpio_set_dir(2, GPIO_OUT);
+    gpio_set_dir(3, GPIO_OUT);
+    gpio_set_dir(4, GPIO_OUT);
     
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);

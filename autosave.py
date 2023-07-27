@@ -81,5 +81,5 @@ const uint32_t __in_flash() __attribute__((aligned(4096))) autosave_memory[%s][%
         outf.write(buffer)
 
 mem = Memory()
-mem.add(1413000,  531000,   1602000,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0)
+mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0)
 mem.generate_c_header()

@@ -18,7 +18,7 @@ void ui::setup_encoder()
 
 int32_t ui::get_encoder_change()
 {
-    new_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
+    new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
     int32_t delta = new_position - old_position;
     old_position = new_position;
     return delta;
