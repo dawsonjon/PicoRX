@@ -12,6 +12,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
 
+
   //if the capture buffer isn't in use, fill it
   if(!capture_data) 
   {
@@ -48,7 +49,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         }
       }
 
-      //decimate by factor of 40
       if(decimate(i, q))
       {
 
@@ -192,7 +192,6 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         int16_t frequency = phase - last_phase;
         last_phase = phase;
 
-        //printf("%i %i %i %i\n", i, q, phase, frequency);
         return frequency;
     }
     else if(mode == LSB || mode == USB)
@@ -559,7 +558,7 @@ void rx_dsp :: set_squelch(uint8_t val)
 int16_t rx_dsp :: get_signal_strength_dBm()
 {
   const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude / full_scale_signal_strength);
-  return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
+  return roundf(full_scale_dBm - amplifier_gain_dB - preamplifier_gain_dB - filter_gain_dB + signal_strength_dBFS);
 }
 
 void rx_dsp :: set_decimation_rate(uint8_t i) 

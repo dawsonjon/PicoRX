@@ -5,7 +5,7 @@
       "Application": "Pcbnew",
       "Version": "7.0.5-unknown-202306101748~6fbdf8f0e2~ubuntu22.04.1"
     },
-    "CreationDate": "2023-07-16T13:46:18+01:00"
+    "CreationDate": "2023-07-24T18:09:27+01:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -24,8 +24,8 @@
   "DesignRules": [
     {
       "Layers": "Outer",
-      "PadToPad": 0.2,
-      "PadToTrack": 0.2,
+      "PadToPad": 0.0,
+      "PadToTrack": 0.0,
       "TrackToTrack": 0.2,
       "MinLineWidth": 0.25,
       "TrackToRegion": 0.5,
@@ -33,46 +33,6 @@
     }
   ],
   "FilesAttributes": [
-    {
-      "Path": "pico_rx-F_Cu.gbr",
-      "FileFunction": "Copper,L1,Top",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-B_Cu.gbr",
-      "FileFunction": "Copper,L2,Bot",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-F_Paste.gbr",
-      "FileFunction": "SolderPaste,Top",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-B_Paste.gbr",
-      "FileFunction": "SolderPaste,Bot",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-F_Silkscreen.gbr",
-      "FileFunction": "Legend,Top",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-B_Silkscreen.gbr",
-      "FileFunction": "Legend,Bot",
-      "FilePolarity": "Positive"
-    },
-    {
-      "Path": "pico_rx-F_Mask.gbr",
-      "FileFunction": "SolderMask,Top",
-      "FilePolarity": "Negative"
-    },
-    {
-      "Path": "pico_rx-B_Mask.gbr",
-      "FileFunction": "SolderMask,Bot",
-      "FilePolarity": "Negative"
-    },
     {
       "Path": "pico_rx-Edge_Cuts.gbr",
       "FileFunction": "Profile",

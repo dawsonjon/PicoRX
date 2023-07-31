@@ -40,7 +40,6 @@ void rx::dma_handler() {
 
     if(dma_hw->ints0 & (1u << adc_dma_ping))
     {
-      gpio_put(14, 1);
       dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
       if(audio_running){
         dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, num_pong_samples, true);
@@ -50,7 +49,6 @@ void rx::dma_handler() {
 
     if(dma_hw->ints0 & (1u << adc_dma_pong))
     {
-      gpio_put(14, 0);
       dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
       dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, num_ping_samples, true);
       if(!audio_running){
@@ -269,7 +267,7 @@ void rx::run()
     while(true)
     {
       //read other adc channels when streaming is not running
-      uint32_t timeout = 1000;
+      uint32_t timeout = 100;
       read_batt_temp();
 
       //supress audio output until first block has completed
@@ -280,7 +278,6 @@ void rx::run()
       adc_select_input(0);
       adc_fifo_drain();
       adc_run(true);
-      bool ping=true;
       dma_start_channel_mask(1u << adc_dma_ping);
       settings_changed = true;
       while(true)

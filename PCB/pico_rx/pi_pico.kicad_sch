@@ -1585,7 +1585,7 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid a1dafea8-2fad-44fb-b147-ac37f0d60350)
   )
-  (text "R9, C34  determine LPF cutoff\n1/(2 * pi * 100 * 100e-9) ~= 16kHz"
+  (text "R9, C34  determine LPF cutoff\n1/(2 * pi * 100 * 470e-9) ~= 3kHz"
     (at 21.59 148.59 0)
     (effects (font (size 2.5 2.5)) (justify left bottom))
     (uuid c0ee6631-78ee-498e-b552-a00a682a78ca)
@@ -2438,7 +2438,7 @@
     (property "Reference" "C9" (at 62.611 174.117 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "100n" (at 62.611 176.403 0)
+    (property "Value" "470n" (at 62.611 176.403 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 60.6552 179.07 0)

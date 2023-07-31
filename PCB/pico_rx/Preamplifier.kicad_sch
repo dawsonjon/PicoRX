@@ -551,17 +551,17 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 24ba61ce-b8c2-46d3-b51a-212fdc5d655d)
   )
-  (text "R11, C5  determine LPF cutoff\n1/(2 * pi * 500 * 10e-12) ~= 30MHz"
+  (text "R11, C5  determine LPF cutoff\n1/(2 * pi * 220 * 22e-12) ~= 30MHz"
     (at 154.94 57.15 0)
     (effects (font (size 2.5 2.5)) (justify left bottom))
     (uuid 4ecd3f6e-4f7f-4780-bc1f-b44ab02df89c)
   )
-  (text "		WITH PREAMP         WITHOUT PREAMP\n\nR12     no fit              0 ohm link\nR1      50                  no fit\nR11     500                 0 ohm link\nC5      10p                 no fit               \nU6      fit                 no fit"
+  (text "		WITH PREAMP         WITHOUT PREAMP\n\nR12     no fit              0 ohm link\nR1      47                  no fit\nR11     220                 0 ohm link\nC5      22p                 no fit               \nU6      fit                 no fit"
     (at 12.7 52.07 0)
     (effects (font (face "FreeMono") (size 3 3) (thickness 0.254) bold) (justify left bottom))
     (uuid 914da35f-a8f0-4f0d-8ce8-22f1f27191ad)
   )
-  (text "R1, R11  determine gain\n500/50 = 10x gain\n20*log10(500/50) = 20dB gain"
+  (text "R1, R11  determine gain\n220/47 = 5x gain\n20*log10(220/47) = 13dB gain"
     (at 204.47 81.28 0)
     (effects (font (size 2.5 2.5)) (justify left bottom))
     (uuid 973075f8-90ab-4d9a-8d8b-77098488f904)
@@ -581,7 +581,7 @@
     (property "Reference" "C?" (at 163.83 63.4746 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "10p" (at 166.37 63.5 0)
+    (property "Value" "22p" (at 166.37 63.5 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 168.91 68.8848 0)
@@ -1030,7 +1030,7 @@
     (property "Reference" "R11" (at 163.957 78.232 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "500" (at 166.243 78.232 0)
+    (property "Value" "220" (at 166.243 78.232 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Footprint" "Resistor_SMD:R_0805_2012Metric" (at 165.1 81.788 90)
