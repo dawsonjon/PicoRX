@@ -123,6 +123,17 @@ void ui::display_show()
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display(rx_status & status, rx & receiver)
 {
+
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
+  const float temp_voltage = 3.3f * (status.temp/65535.0f);
+  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
+  const float block_time = (float)adc_block_size/(float)adc_sample_rate;
+  const float busy_time = ((float)status.busy_time*1e-6f);
+  receiver.release();
+
   char buff [21];
   ssd1306_clear(&disp);
 
@@ -137,20 +148,6 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 0, 0, 2, buff);
   snprintf(buff, 21, ".%03u", Hz);
   ssd1306_draw_string(&disp, 72, 0, 1, buff);
-
-  //signal strength
-  const float power_dBm = status.signal_strength_dBm;
-
-  //Battery
-  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
-  
-  //CPU Temp
-  const float temp_voltage = 3.3f * (status.temp/65535.0f);
-  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
-
-  //CPU 
-  const float block_time = (float)adc_block_size/(float)adc_sample_rate;
-  const float busy_time = ((float)status.busy_time*1e-6f);
 
   //mode
   static const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
@@ -989,9 +986,9 @@ bool ui::do_ui(bool rx_settings_changed)
       autosave();
     }
 
-    receiver.access(rx_settings_changed);
     if(rx_settings_changed)
     {
+      receiver.access(true);
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
       settings_to_apply.agc_speed = settings[idx_agc_speed];
       settings_to_apply.mode = settings[idx_mode];
@@ -999,8 +996,8 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+      receiver.release();
     }
-    receiver.release();
     update_display(status, receiver);
 
     return rx_settings_changed;

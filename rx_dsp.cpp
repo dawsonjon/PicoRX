@@ -12,7 +12,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
 
-
   //if the capture buffer isn't in use, fill it
   if(!capture_data) 
   {
@@ -26,12 +25,14 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       const int16_t raw_sample = samples[idx];// - (1<<(adc_bits-1));
       sample_accumulator += raw_sample;
 
+
       //remove dc
       const int16_t sample = raw_sample - dc;
 
       //work out which samples are i and q
       int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
       int16_t q = (idx&1)*raw_sample;//odd samples contain q data
+
 
       //Apply frequency shift (move tuned frequency to DC)         
       frequency_shift(i, q);
@@ -49,13 +50,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         }
       }
 
+
       if(decimate(i, q))
       {
 
         //Measure amplitude (for signal strength indicator)
         int32_t amplitude = rectangular_2_magnitude(i, q);
         magnitude_sum += amplitude;
-
 
         //Demodulate to give audio sample
         int32_t audio = demodulate(i, q);
@@ -90,7 +91,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     signal_amplitude = (magnitude_sum * decimation_rate * 2)/adc_block_size;
     dc = sample_accumulator/adc_block_size;
 
-
     return odx;
 }
 
@@ -122,6 +122,7 @@ int16_t rounded_shift_right(int32_t x, int32_t shift_amount)
 bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 //bool rx_dsp :: decimate(int16_t &i, int16_t &q)
 {
+
       //CIC decimation filter
       //implement integrator stages
       integratori1 += i;
@@ -134,7 +135,7 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       integratorq4 += integratorq3;
 
       decimate_count++;
-      if(decimate_count == decimation_rate)
+      if(decimate_count >= decimation_rate)
       {
         decimate_count = 0;
 
@@ -613,7 +614,6 @@ void rx_dsp :: get_spectrum(float spectrum[], int16_t &offset)
     for(uint16_t j=0; j<4; j++) average += segments[j][i];
     spectrum[i] = average;
   }
-
 
   offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
 }
