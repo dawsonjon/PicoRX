@@ -166,9 +166,10 @@ void ui::update_display(rx_status & status, rx & receiver)
     "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
     "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
     "S9+30dB---|"};
-  uint8_t power_s = floorf((power_dBm-S0)/6.0f);
+  int8_t power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
   snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
   ssd1306_draw_string(&disp, 0, 24, 1, buff);
   snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);

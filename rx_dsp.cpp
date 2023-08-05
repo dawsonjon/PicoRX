@@ -558,6 +558,10 @@ void rx_dsp :: set_squelch(uint8_t val)
 
 int16_t rx_dsp :: get_signal_strength_dBm()
 {
+  if(signal_amplitude == 0)
+  {
+    return -130;
+  }
   const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude / full_scale_signal_strength);
   return roundf(full_scale_dBm - amplifier_gain_dB - preamplifier_gain_dB - filter_gain_dB + signal_strength_dBFS);
 }
