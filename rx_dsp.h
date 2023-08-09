@@ -26,15 +26,16 @@ class rx_dsp
   private:
   
   void frequency_shift(int16_t &i, int16_t &q);
-  bool decimate(int16_t &i, int16_t &q);
+  bool decimate(int16_t &i, int16_t &q, int16_t &ii, int16_t &qq);
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   bool cw_decimate(int16_t &i, int16_t &q);
   void set_decimation_rate(uint8_t i);
 
   //capture samples for spectral analysis
-  int16_t capture_i[1024];
-  int16_t capture_q[1024];
+  int16_t capture_i[256];
+  int16_t capture_q[256];
+  float accumulator[256];
   semaphore_t spectrum_semaphore;
   bool capture_data = false;
   uint16_t cap;

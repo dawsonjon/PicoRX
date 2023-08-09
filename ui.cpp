@@ -182,15 +182,19 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 64, 32, 1, "v");
 
   //auto scale
-  float min=100;
-  float max=0;
-  for(uint16_t x=0; x<128; x++)
-  {
-      float level = log10f(spectrum[x]);
-      if(level > max) max = ceilf(level);
-      if(level < min) min = floorf(level);
-  }
+  //float min=100;
+  //float max=0;
+  //for(uint16_t x=0; x<128; x++)
+ // {
+ //     float level = log10f(spectrum[x]);
+ //     if(level > max) max = ceilf(level);
+ //     if(level < min) min = floorf(level);
+ // }
+
+  float min=2;
+  float max=6;
   float scale = 32.0f/(max-min);
+  printf("%f %f\n", min, max);
 
   //plot
   for(uint16_t x=0; x<128; x++)

@@ -37,22 +37,23 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //Apply frequency shift (move tuned frequency to DC)         
       frequency_shift(i, q);
 
-      //capture data for spectrum
-      if(capture_data)
+
+      int16_t ii, qq;
+      if(decimate(i, q, ii, qq))
       {
-        capture_i[cap] = i;
-        capture_q[cap] = q;
-        cap++;
-        if(cap == 1024)
+
+        //capture data for spectrum
+        if(capture_data)
         {
-          sem_release(&spectrum_semaphore);
-          capture_data = false;
+          capture_i[cap] = ii;
+          capture_q[cap] = qq;
+          cap++;
+          if(cap == 256)
+          {
+            sem_release(&spectrum_semaphore);
+            capture_data = false;
+          }
         }
-      }
-
-
-      if(decimate(i, q))
-      {
 
         //Measure amplitude (for signal strength indicator)
         int32_t amplitude = rectangular_2_magnitude(i, q);
@@ -119,7 +120,7 @@ int16_t rounded_shift_right(int32_t x, int32_t shift_amount)
   return x >> shift_amount;
 }
 
-bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
+bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q, int16_t &ii, int16_t &qq)
 //bool rx_dsp :: decimate(int16_t &i, int16_t &q)
 {
 
@@ -165,6 +166,8 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         //second half band filter (not decimating)
         if(new_sample)
         {
+           ii = decimated_i;
+           qq = decimated_q;
            half_band_filter2_inst.filter(decimated_i, decimated_q);
 
            //compensate for bias introduced in frequency shift, CIC and half band filters
@@ -441,6 +444,8 @@ rx_dsp :: rx_dsp()
 
   set_agc_speed(3);
 
+  for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
+
 }
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)
@@ -582,42 +587,42 @@ void rx_dsp :: set_decimation_rate(uint8_t i)
 
 void rx_dsp :: get_spectrum(float spectrum[], int16_t &offset)
 {
-  static float flt_capture_i[4][256];
-  static float flt_capture_q[4][256];
+  static float flt_capture_i[256];
+  static float flt_capture_q[256];
 
   //convert capture to frequency domain
   sem_acquire_blocking(&spectrum_semaphore);
 
-  //convert to float
+  const float average = 8.0f;
+  const float alpha = 1.0f/average;
+  const float beta = 1.0f - alpha;
+
+  //window
   uint16_t k = 0;
   for(uint16_t i=0; i<256; i++)
   {
-    for(uint16_t j=0; j<4; j++)
-    {
-      float window = 0.54f - 0.46f*cosf(2.0f*M_PI*i/256.0f);
-      flt_capture_i[j][i] = (float)capture_i[k]*window;
-      flt_capture_q[j][i] = (float)capture_q[k++]*window;
-    }
+    float window = 0.54f - 0.46f*cosf(2.0f*M_PI*i/256.0f);
+    flt_capture_i[i] = (float)capture_i[k]*window;
+    flt_capture_q[i] = (float)capture_q[k++]*window;
   }
-
-  sem_release(&spectrum_semaphore);
 
   //FFT and magnitude
-  static float segments[4][256];
-  for(uint16_t j=0; j<4; j++)
+  fft(flt_capture_i, flt_capture_q);
+  uint8_t f = 0;
+  for(uint16_t i=128; i<256; i++)
   {
-    fft(flt_capture_i[j], flt_capture_q[j]);
-    uint16_t f=0;
-    for(uint16_t i=192; i<256; i++) segments[j][f++] = flt_rectangular_2_magnitude(flt_capture_i[j][i], flt_capture_q[j][i]);
-    for(uint16_t i=0; i<64; i++) segments[j][f++] = flt_rectangular_2_magnitude(flt_capture_i[j][i], flt_capture_q[j][i]);
+    accumulator[f] = (beta * accumulator[f]) + (alpha * flt_rectangular_2_magnitude(flt_capture_i[i], flt_capture_q[i]));
+    f++;
+  }
+  for(uint16_t i=0; i<127; i++)
+  {
+    accumulator[f] = (beta * accumulator[f]) + (alpha * flt_rectangular_2_magnitude(flt_capture_i[i], flt_capture_q[i]));
+    f++;
   }
 
-  for(uint16_t i=0; i<256; i++)
-  {
-    float average = 0.0f;
-    for(uint16_t j=0; j<4; j++) average += segments[j][i];
-    spectrum[i] = average;
-  }
+  for(uint16_t i=0; i<128; i++) spectrum[i] = accumulator[i*2] + accumulator[(i*2)+1];
+
+  sem_release(&spectrum_semaphore);
 
   offset = 62 + ((offset_frequency_Hz*256)/(int32_t)adc_sample_rate);
 }
