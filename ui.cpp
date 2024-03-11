@@ -45,6 +45,9 @@ void ui::setup_buttons()
   gpio_init(PIN_BACK);
   gpio_set_dir(PIN_BACK, GPIO_IN);
   gpio_pull_up(PIN_BACK);
+  gpio_init(PIN_ENCODER_PUSH);
+  gpio_set_dir(PIN_ENCODER_PUSH, GPIO_IN);
+  gpio_pull_up(PIN_ENCODER_PUSH);
 }
 
 bool ui::get_button(uint8_t button){
@@ -648,7 +651,10 @@ bool ui::recall()
       }
     }
 
-    //select menu item
+    if(get_button(PIN_ENCODER_PUSH)){
+      return 1;
+    }
+
     if(get_button(PIN_MENU)){
       return 1;
     }
@@ -969,7 +975,6 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 9 : 
-          uint32_t regmode;
           enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
@@ -984,6 +989,10 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
       }
+    }
+    else if(get_button(PIN_ENCODER_PUSH))
+    {
+      rx_settings_changed = recall();
     }
 
     if(rx_settings_changed)
