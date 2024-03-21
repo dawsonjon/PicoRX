@@ -339,13 +339,10 @@ void ui::autosave()
   {
     bool difference_found = false;
     for(uint8_t i=0; i<16; i++){
-      if(i != idx_frequency) //ignore frequency changes, they happen too often
+      if(autosave_memory[empty_channel - 1][i] != settings[i])
       {
-        if(autosave_memory[empty_channel - 1][i] != settings[i])
-        {
-          difference_found = true;
-          break;
-        }
+        difference_found = true;
+        break;
       }
     }
     //data hasn't changed, no need to save
@@ -867,6 +864,8 @@ bool ui::frequency_entry(){
 bool ui::do_ui(bool rx_settings_changed)
 {
 
+    bool autosave_settings = false;
+
     //update frequency if encoder changes
     uint32_t encoder_change = get_encoder_change();
     switch(button_state)
@@ -902,6 +901,10 @@ bool ui::do_ui(bool rx_settings_changed)
     if(encoder_change != 0)
     {
       rx_settings_changed = true;
+
+      frequency_autosave_pending = false;
+      frequency_autosave_timer = 10u;
+
       if(button_state == fast_mode && check_button(PIN_BACK))
       {
         //very fast if both buttons pressed
@@ -925,6 +928,18 @@ bool ui::do_ui(bool rx_settings_changed)
       if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
           settings[idx_frequency] = settings[idx_max_frequency];
       
+    }
+
+    if(frequency_autosave_pending)
+    {
+      if(!frequency_autosave_timer)
+      {
+        frequency_autosave_pending = false;
+      }
+      else
+      {
+        frequency_autosave_timer--;
+      }
     }
 
     //if button is pressed enter menu
@@ -989,18 +1004,21 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
       }
+      autosave_settings = rx_settings_changed;
     }
     else if(get_button(PIN_ENCODER_PUSH))
     {
       rx_settings_changed = recall();
+      autosave_settings = rx_settings_changed;
     }
 
     if(rx_settings_changed)
     {
       autosave();
+      autosave_settings = rx_settings_changed;
     }
 
-    if(rx_settings_changed)
+    if(autosave_settings)
     {
       receiver.access(true);
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];

@@ -81,6 +81,8 @@ class ui
   // Status                  
   float calculate_signal_strength(rx_status &status);
   void update_display(rx_status & status, rx & receiver);
+  bool frequency_autosave_pending = false;
+  uint8_t frequency_autosave_timer = 10u;
 
   // Menu                    
   void print_option(const char options[], uint8_t option);
