@@ -176,9 +176,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_set_clkdiv(0); //flat out
 
     //band select
-    adc_gpio_init(2);//band 0
-    adc_gpio_init(3);//band 1
-    adc_gpio_init(4);//band 2
+    gpio_init(2);//band 0
+    gpio_init(3);//band 1
+    gpio_init(4);//band 2
     gpio_set_dir(2, GPIO_OUT);
     gpio_set_dir(3, GPIO_OUT);
     gpio_set_dir(4, GPIO_OUT);
