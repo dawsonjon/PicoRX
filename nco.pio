@@ -15,6 +15,10 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     // Set this pin's GPIO function (connect PIO to the pad)
     pio_gpio_init(pio, 0);
     pio_gpio_init(pio, 1);
+    gpio_set_drive_strength(0, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_drive_strength(1, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_slew_rate(0, GPIO_SLEW_RATE_SLOW);
+    gpio_set_slew_rate(1, GPIO_SLEW_RATE_SLOW);
 
     // Set the pin direction to output at the PIO
     pio_sm_set_consecutive_pindirs(pio, sm, 0, 2, true);
