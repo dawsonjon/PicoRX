@@ -182,7 +182,14 @@ void ui::update_display(rx_status & status, rx & receiver)
   static float spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
-  ssd1306_draw_string(&disp, 64, 32, 1, "v");
+  ssd1306_draw_line(&disp, 0, 34, 127, 34);
+
+  ssd1306_draw_line(&disp, 0,   32, 0,   36);
+  ssd1306_draw_line(&disp, 64,  32, 64,  36);
+  ssd1306_draw_line(&disp, 127, 32, 127, 36);
+
+  ssd1306_draw_line(&disp, 32, 33, 32, 35);
+  ssd1306_draw_line(&disp, 96, 33, 96, 35);
 
   //auto scale
   //float min=100;
