@@ -69,6 +69,7 @@ class ui
   void display_clear();
   void display_line1();
   void display_line2();
+  void display_linen(uint8_t line);
   void display_write(char x);
   void display_print(const char str[]);
   void display_print_num(const char format[], int16_t num);

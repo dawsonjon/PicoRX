@@ -96,6 +96,12 @@ void ui::display_line2()
   cursor_x = 0;
 }
 
+void ui::display_linen(uint8_t line)
+{
+  cursor_y = line-1;
+  cursor_x = 0;
+}
+
 void ui::display_write(char x)
 {
   ssd1306_draw_char(&disp, cursor_x*6, cursor_y*8, 1, x);
@@ -640,6 +646,47 @@ bool ui::recall()
         display_line2();
         display_print_num("%03i ", select);
         display_print(name);
+
+        //draw frequency
+        display_linen(4);
+        int32_t frequency = radio_memory[select][idx_frequency];
+        const int32_t MHz = frequency / 1000000;
+        frequency %= 1000000;
+        const int32_t kHz = frequency / 1000;
+        frequency %= 1000;
+        const int32_t Hz = frequency;
+        display_print_num("freq: %02i,", MHz);
+        display_print_num("%03i,", kHz);
+        display_print_num("%03i Hz ", Hz);
+
+        //draw mode
+        display_linen(5);
+        display_print("mode: ");
+        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
+        display_print(modes[radio_memory[select][idx_mode]]);
+
+        //draw band range 
+        display_linen(6);
+        int32_t min_frequency = radio_memory[select][idx_min_frequency];
+        const int32_t min_MHz = min_frequency / 1000000;
+        min_frequency %= 1000000;
+        const int32_t min_kHz = min_frequency / 1000;
+        min_frequency %= 1000;
+        const int32_t min_Hz = frequency;
+        display_print_num("from: %02i,", min_MHz);
+        display_print_num("%03i,", min_kHz);
+        display_print_num("%03i Hz ", min_Hz);
+        display_linen(7);
+        int32_t max_frequency = radio_memory[select][idx_max_frequency];
+        const int32_t max_MHz = max_frequency / 1000000;
+        max_frequency %= 1000000;
+        const int32_t max_kHz = max_frequency / 1000;
+        max_frequency %= 1000;
+        const int32_t max_Hz = frequency;
+        display_print_num("  to: %02i,", max_MHz);
+        display_print_num("%03i,", max_kHz);
+        display_print_num("%03i Hz ", max_Hz);
+
         display_show();
       }
       else
@@ -852,6 +899,13 @@ bool ui::frequency_entry(){
 	        settings[idx_frequency] += (digits[i] * digit_val);
 		      digit_val /= 10;
 		    }
+
+        //when manually changing to a frequency outside the current band, remove any band limits
+        if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
+        {
+          settings[idx_min_frequency] = 0;
+          settings[idx_max_frequency] = 30000000;
+        }
 		    return true;
 	    }
 	    if(digit==9) return 0; //No
