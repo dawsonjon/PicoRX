@@ -30,8 +30,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       const int16_t sample = raw_sample - dc;
 
       //work out which samples are i and q
-      int16_t i = (idx&1^1)*raw_sample;//even samples contain i data
-      int16_t q = (idx&1)*raw_sample;//odd samples contain q data
+      int16_t i = (idx&1^1^swap_iq)*raw_sample;//even samples contain i data
+      int16_t q = (idx&1^swap_iq)*raw_sample;//odd samples contain q data
 
 
       //Apply frequency shift (move tuned frequency to DC)         
@@ -96,7 +96,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 }
 
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
-//void rx_dsp :: frequency_shift(int16_t &i, int16_t &q)
 {
     //Apply frequency shift (move tuned frequency to DC)         
     //dither = 1664525u*dither + 1013904223u;
@@ -414,6 +413,7 @@ rx_dsp :: rx_dsp()
   decimate_count=0;
   frequency=0;
   initialise_luts();
+  swap_iq = 0;
 
   bias_count = 0;
   bias = 0;
@@ -514,6 +514,11 @@ void rx_dsp :: set_mode(uint8_t val)
     //500e3/(20*2*2) == 6kHz
     set_decimation_rate(20u);
   }
+}
+
+void rx_dsp :: set_swap_iq(uint8_t val)
+{
+  swap_iq = val;
 }
 
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)

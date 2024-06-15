@@ -133,6 +133,9 @@ void rx::apply_settings()
 
         //apply squelch
         rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+
+        //apply swap iq
+        rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
       }
 
       //update status

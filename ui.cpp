@@ -21,7 +21,12 @@ int32_t ui::get_encoder_change()
     new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
     int32_t delta = new_position - old_position;
     old_position = new_position;
-    return delta;
+    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+    {
+      return -delta;
+    } else {
+      return delta;
+    }
 }
 
 int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
@@ -247,6 +252,20 @@ void ui::print_option(const char options[], uint8_t option){
     }
 }
 
+uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
+{
+    uint32_t bit = (*value >> bit_position) & 1;
+    uint32_t return_value = enumerate_entry(title, options, 1, &bit);
+    if(bit)
+    {
+     *value |= (1 << bit_position);
+    } else {
+     *value &= ~(1 << bit_position);
+    }
+    return return_value;
+
+}
+
 //choose from an enumerate list of settings
 uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value)
 {
@@ -324,6 +343,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
+  settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   receiver.release();
 }
 
@@ -1009,7 +1029,9 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#USB Programming Mode#", 10, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Programming Mode#", 12, &setting)) return 1;
+
+      uint32_t bit_setting = 0;
 
       switch(setting)
       {
@@ -1057,6 +1079,14 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 10 : 
+          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          break;
+
+        case 11 : 
+          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          break;
+
+        case 12 : 
           uint32_t programming_mode = 0;
           enumerate_entry("USB Programming Mode", "No#Yes#", 1, &programming_mode);
           if(programming_mode)

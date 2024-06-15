@@ -55,7 +55,7 @@ class Memory:
         squelch,                       #6
         volume,                        #7
         int(cw_sidetone),              #8
-        0xffffffff,                    #9
+        0x00000000,                    #9
         0xffffffff,                    #a
         0xffffffff,                    #b
         0xffffffff,                    #c

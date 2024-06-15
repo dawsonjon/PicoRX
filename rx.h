@@ -25,6 +25,7 @@ struct rx_settings
   uint8_t squelch;
   uint16_t cw_sidetone_Hz;
   bool suspend;
+  bool swap_iq;
 };
 
 struct rx_status
