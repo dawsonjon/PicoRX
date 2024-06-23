@@ -502,6 +502,10 @@
     [
       "ef5e145d-7cd2-41fd-85f8-55f3445b8dc3",
       "PI Pico"
+    ],
+    [
+      "a70b7d23-852e-4250-a4cd-b49de3588bde",
+      "audio"
     ]
   ],
   "text_variables": {}

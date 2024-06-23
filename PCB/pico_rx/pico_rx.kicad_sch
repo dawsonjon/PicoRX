@@ -42,6 +42,23 @@
     )
   )
 
+  (sheet (at 85.725 29.21) (size 119.38 45.085) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid a70b7d23-852e-4250-a4cd-b49de3588bde)
+    (property "Sheetname" "audio" (at 85.725 28.4984 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "audio.kicad_sch" (at 85.725 74.8796 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "pico_rx"
+        (path "/b6f73a49-ac1f-4895-a0f9-8f6954ee587f" (page "6"))
+      )
+    )
+  )
+
   (sheet (at 76.2 83.82) (size 48.26 52.07) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))

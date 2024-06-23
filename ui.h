@@ -97,6 +97,7 @@ class ui
   bool string_entry(char string[]);
   bool recall();
   bool store();
+  bool upload();
   void autosave();
   void apply_settings(bool suspend);
 

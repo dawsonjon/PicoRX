@@ -202,20 +202,9 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35);
   ssd1306_draw_line(&disp, 96, 33, 96, 35);
 
-  //auto scale
-  //float min=100;
-  //float max=0;
-  //for(uint16_t x=0; x<128; x++)
- // {
- //     float level = log10f(spectrum[x]);
- //     if(level > max) max = ceilf(level);
- //     if(level < min) min = floorf(level);
- // }
-
   float min=2;
   float max=6;
   float scale = 32.0f/(max-min);
-  printf("%f %f\n", min, max);
 
   //plot
   for(uint16_t x=0; x<128; x++)
@@ -485,6 +474,79 @@ void ui::autorestore()
 
 }
 
+//Upload memories via USB interface
+bool ui::upload()
+{
+      display_clear();
+      display_print("Ready for data...");
+      display_show();
+
+      //work out which flash sector the channel sits in.
+      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+
+      //copy sector to RAM
+      bool done = false;
+      const uint32_t num_sectors = num_chans/num_channels_per_sector;
+      for(uint8_t sector = 0; sector < num_sectors; sector++)
+      {
+
+        const uint32_t first_channel_in_sector = num_channels_per_sector * sector;
+        static uint32_t sector_copy[num_channels_per_sector][chan_size];
+        for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
+        {
+          for(uint16_t location=0; location<chan_size; location++)
+          {
+            if(!done)
+            {
+              printf("sector %u channel %u location %u>\n", sector, channel, location);
+              char line [256];
+              uint32_t data;
+              fgets(line, 256, stdin);
+              if(line[0] == 'q' || line[0] == 'Q')
+              {
+                sector_copy[channel][location] = 0xffffffffu;
+                done = true;
+              }
+              if (sscanf(line, " %x", &data))
+              {
+                sector_copy[channel][location] = data;
+              }
+            }
+            else
+            {
+              sector_copy[channel][location] = 0xffffffffu;
+            }
+          }
+        }
+        
+        //write sector to flash
+        const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
+        const uint32_t flash_address = address - XIP_BASE; 
+
+        //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        apply_settings(true);                                //suspend rx to disable all DMA transfers
+        WAIT_100MS                                           //wait for suspension to take effect
+        multicore_lockout_start_blocking();                  //halt the second core
+        const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+        //safe to erase flash here
+        //--------------------------------------------------------------------------------------------
+        flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
+        flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+        //--------------------------------------------------------------------------------------------
+
+        restore_interrupts (ints);                           //restore interrupts
+        multicore_lockout_end_blocking();                    //restart the second core
+        apply_settings(false);                               //resume rx operation
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //!!! Normal operation resumed
+
+      }
+
+      return false;
+}
+
 //save current settings to memory
 bool ui::store()
 {
@@ -567,7 +629,6 @@ bool ui::store()
       //modify the selected channel
       strcpy(name, "SAVED CHANNEL   ");
       if(!string_entry(name)) return false;
-      printf("Saving\n");
       for(uint8_t lw=0; lw<4; lw++)
       {
         sector_copy[channel_offset_in_sector][lw+6] = (name[lw*4+0] << 24 | name[lw*4+1] << 16 | name[lw*4+2] << 8 | name[lw*4+3]);
@@ -1029,7 +1090,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Programming Mode#", 12, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Memory Upload#USB Firmware Upgrade", 13, &setting)) return 1;
 
       uint32_t bit_setting = 0;
 
@@ -1087,9 +1148,18 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 12 : 
-          uint32_t programming_mode = 0;
-          enumerate_entry("USB Programming Mode", "No#Yes#", 1, &programming_mode);
-          if(programming_mode)
+          setting = 0;
+          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
+          if(setting)
+          {
+            upload();
+          }
+          break;
+
+        case 13 : 
+          setting = 0;
+          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
+          if(setting)
           {
             reset_usb_boot(0,0);
           }

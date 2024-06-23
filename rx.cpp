@@ -1,4 +1,6 @@
 #include "pico/multicore.h"
+#include "pico/stdlib.h"
+#include "hardware/clocks.h"
 #include <string.h>
 
 #include "rx.h"
