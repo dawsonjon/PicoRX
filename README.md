@@ -34,4 +34,4 @@ Development
 
 ![concept](images/top.svg)
 
-Pi Pico Rx is currently at the experimental prototyping stage, but it does work. There is a PCB on the way. Go to the [Wiki](https://github.com/dawsonjon/PicoRX/wiki) for more technical details!
+Pi Pico Rx is currently at the experimental prototyping stage, but it does work. There is a PCB on the way. [Read the Docs](https://101-things.readthedocs.io/en/latest/radio_receiver.html) for more technical details!
