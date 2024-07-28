@@ -486,22 +486,6 @@
     [
       "b6f73a49-ac1f-4895-a0f9-8f6954ee587f",
       ""
-    ],
-    [
-      "922c32e5-68dc-43db-b1ed-78e4b25ea173",
-      "Preamplifier"
-    ],
-    [
-      "b8fbcf71-8210-4060-b465-236d1aa4e7b3",
-      "Lowpass Filters"
-    ],
-    [
-      "2ef3a865-c67c-430c-957b-3defd66f2291",
-      "Quadrature Sampling Detector"
-    ],
-    [
-      "ef5e145d-7cd2-41fd-85f8-55f3445b8dc3",
-      "PI Pico"
     ]
   ],
   "text_variables": {}

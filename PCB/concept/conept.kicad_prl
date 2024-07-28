@@ -19,7 +19,7 @@
       "footprints": true,
       "graphics": true,
       "keepouts": true,
-      "lockedItems": true,
+      "lockedItems": false,
       "otherItems": true,
       "pads": true,
       "text": true,
@@ -64,11 +64,11 @@
       39,
       40
     ],
-    "visible_layers": "8021000_7ffffffe",
+    "visible_layers": "fffffff_ffffffff",
     "zone_display_mode": 0
   },
   "meta": {
-    "filename": "pico_rx.kicad_prl",
+    "filename": "conept.kicad_prl",
     "version": 3
   },
   "project": {
