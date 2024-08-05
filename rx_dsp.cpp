@@ -45,8 +45,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         //capture data for spectrum
         if(capture_data)
         {
-          capture_i[cap] = ii;
-          capture_q[cap] = qq;
+          capture_i[cap] = i;
+          capture_q[cap] = q;
           cap++;
           if(cap == 256)
           {
@@ -120,7 +120,6 @@ int16_t rounded_shift_right(int32_t x, int32_t shift_amount)
 }
 
 bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q, int16_t &ii, int16_t &qq)
-//bool rx_dsp :: decimate(int16_t &i, int16_t &q)
 {
 
       //CIC decimation filter

@@ -117,8 +117,6 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     // Set the state machine running
     pio_sm_set_enabled(pio, sm, true);
 
-    printf("%f\n", best_frequency/4.0 - tuned_frequency);
-
     //return actual frequency
     return best_frequency/4.0f;
 }
