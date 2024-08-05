@@ -65,25 +65,42 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     {133000000, 1, 133, 6, 2},
     };
 
-    float adjusted_frequency = tuned_frequency + 7500;
+    float adjusted_frequency_up = tuned_frequency + 6000;
+    float adjusted_frequency_down = tuned_frequency - 6000;
     PLLSettings best_settings;
     float best_frequency = 1;
     float best_divider;
+    float best_error=1000000;
 
     best_frequency = 1;
-
+    
     for(uint8_t idx = 0; idx < sizeof(possible_frequencies)/sizeof(PLLSettings); idx++)
     {
+
       float system_clock_frequency = possible_frequencies[idx].frequency;
-      float ideal_divider = system_clock_frequency/(4.0f*adjusted_frequency);
+
+      float ideal_divider = system_clock_frequency/(4.0f*adjusted_frequency_up);
       float nearest_divider = round(256.0f*ideal_divider)/256.0f;
       float actual_frequency = system_clock_frequency/nearest_divider;
-
-      if(abs(actual_frequency - 4.0f*adjusted_frequency) < abs(best_frequency - 4.0f*adjusted_frequency))
+      float error = abs(actual_frequency - 4.0f*adjusted_frequency_up);
+      if(error < best_error)
       {
         best_frequency = actual_frequency;
         best_settings = possible_frequencies[idx];
         best_divider = nearest_divider;
+        best_error = error;
+      }
+
+      ideal_divider = system_clock_frequency/(4.0f*adjusted_frequency_down);
+      nearest_divider = round(256.0f*ideal_divider)/256.0f;
+      actual_frequency = system_clock_frequency/nearest_divider;
+      error = abs(actual_frequency - 4.0f*adjusted_frequency_down);
+      if(error < best_error)
+      {
+        best_frequency = actual_frequency;
+        best_settings = possible_frequencies[idx];
+        best_divider = nearest_divider;
+        best_error = error;
       }
     }
 
@@ -99,6 +116,8 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
 
     // Set the state machine running
     pio_sm_set_enabled(pio, sm, true);
+
+    printf("%f\n", best_frequency/4.0 - tuned_frequency);
 
     //return actual frequency
     return best_frequency/4.0f;

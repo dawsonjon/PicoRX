@@ -6,7 +6,7 @@ maximum_frequency = 133e6
 valid_system_clocks = {}
 
 #generate a table of all system frequencies in the valid range
-for refdiv in range(1, 2):
+for refdiv in reversed(range(1, 2)):
   reffreq = 12e6/refdiv
   for fbdiv in range(16, 320):
     vco_freq = reffreq*fbdiv
@@ -49,6 +49,9 @@ while frequency < 29e6:
   frequencies.append(frequency)
   errors.append(frequency-best_frequency/4)
   frequency += 0.001e6
+
+print(max(errors))
+print(min(errors))
 
 from matplotlib import pyplot as plt
 plt.plot(range(len(ratios)), ratios)
