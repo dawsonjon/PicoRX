@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <ctime>
 #include "nco.pio.h"
 
 #include "pico/stdlib.h"
@@ -25,6 +26,7 @@ struct rx_settings
   uint8_t squelch;
   uint16_t cw_sidetone_Hz;
   bool suspend;
+  bool swap_iq;
 };
 
 struct rx_status

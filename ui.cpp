@@ -21,7 +21,12 @@ int32_t ui::get_encoder_change()
     new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
     int32_t delta = new_position - old_position;
     old_position = new_position;
-    return delta;
+    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+    {
+      return -delta;
+    } else {
+      return delta;
+    }
 }
 
 int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
@@ -93,6 +98,12 @@ void ui::display_line1()
 void ui::display_line2()
 {
   cursor_y = 1;
+  cursor_x = 0;
+}
+
+void ui::display_linen(uint8_t line)
+{
+  cursor_y = line-1;
   cursor_x = 0;
 }
 
@@ -191,20 +202,9 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35);
   ssd1306_draw_line(&disp, 96, 33, 96, 35);
 
-  //auto scale
-  //float min=100;
-  //float max=0;
-  //for(uint16_t x=0; x<128; x++)
- // {
- //     float level = log10f(spectrum[x]);
- //     if(level > max) max = ceilf(level);
- //     if(level < min) min = floorf(level);
- // }
-
   float min=2;
   float max=6;
   float scale = 32.0f/(max-min);
-  printf("%f %f\n", min, max);
 
   //plot
   for(uint16_t x=0; x<128; x++)
@@ -239,6 +239,20 @@ void ui::print_option(const char options[], uint8_t option){
       display_write(x);
       idx++;
     }
+}
+
+uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
+{
+    uint32_t bit = (*value >> bit_position) & 1;
+    uint32_t return_value = enumerate_entry(title, options, 1, &bit);
+    if(bit)
+    {
+     *value |= (1 << bit_position);
+    } else {
+     *value &= ~(1 << bit_position);
+    }
+    return return_value;
+
 }
 
 //choose from an enumerate list of settings
@@ -318,6 +332,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
+  settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   receiver.release();
 }
 
@@ -459,6 +474,79 @@ void ui::autorestore()
 
 }
 
+//Upload memories via USB interface
+bool ui::upload()
+{
+      display_clear();
+      display_print("Ready for data...");
+      display_show();
+
+      //work out which flash sector the channel sits in.
+      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+
+      //copy sector to RAM
+      bool done = false;
+      const uint32_t num_sectors = num_chans/num_channels_per_sector;
+      for(uint8_t sector = 0; sector < num_sectors; sector++)
+      {
+
+        const uint32_t first_channel_in_sector = num_channels_per_sector * sector;
+        static uint32_t sector_copy[num_channels_per_sector][chan_size];
+        for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
+        {
+          for(uint16_t location=0; location<chan_size; location++)
+          {
+            if(!done)
+            {
+              printf("sector %u channel %u location %u>\n", sector, channel, location);
+              char line [256];
+              uint32_t data;
+              fgets(line, 256, stdin);
+              if(line[0] == 'q' || line[0] == 'Q')
+              {
+                sector_copy[channel][location] = 0xffffffffu;
+                done = true;
+              }
+              if (sscanf(line, " %x", &data))
+              {
+                sector_copy[channel][location] = data;
+              }
+            }
+            else
+            {
+              sector_copy[channel][location] = 0xffffffffu;
+            }
+          }
+        }
+        
+        //write sector to flash
+        const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
+        const uint32_t flash_address = address - XIP_BASE; 
+
+        //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        apply_settings(true);                                //suspend rx to disable all DMA transfers
+        WAIT_100MS                                           //wait for suspension to take effect
+        multicore_lockout_start_blocking();                  //halt the second core
+        const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+        //safe to erase flash here
+        //--------------------------------------------------------------------------------------------
+        flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
+        flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+        //--------------------------------------------------------------------------------------------
+
+        restore_interrupts (ints);                           //restore interrupts
+        multicore_lockout_end_blocking();                    //restart the second core
+        apply_settings(false);                               //resume rx operation
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //!!! Normal operation resumed
+
+      }
+
+      return false;
+}
+
 //save current settings to memory
 bool ui::store()
 {
@@ -541,7 +629,6 @@ bool ui::store()
       //modify the selected channel
       strcpy(name, "SAVED CHANNEL   ");
       if(!string_entry(name)) return false;
-      printf("Saving\n");
       for(uint8_t lw=0; lw<4; lw++)
       {
         sector_copy[channel_offset_in_sector][lw+6] = (name[lw*4+0] << 24 | name[lw*4+1] << 16 | name[lw*4+2] << 8 | name[lw*4+3]);
@@ -640,6 +727,47 @@ bool ui::recall()
         display_line2();
         display_print_num("%03i ", select);
         display_print(name);
+
+        //draw frequency
+        display_linen(4);
+        int32_t frequency = radio_memory[select][idx_frequency];
+        const int32_t MHz = frequency / 1000000;
+        frequency %= 1000000;
+        const int32_t kHz = frequency / 1000;
+        frequency %= 1000;
+        const int32_t Hz = frequency;
+        display_print_num("freq: %02i,", MHz);
+        display_print_num("%03i,", kHz);
+        display_print_num("%03i Hz ", Hz);
+
+        //draw mode
+        display_linen(5);
+        display_print("mode: ");
+        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
+        display_print(modes[radio_memory[select][idx_mode]]);
+
+        //draw band range 
+        display_linen(6);
+        int32_t min_frequency = radio_memory[select][idx_min_frequency];
+        const int32_t min_MHz = min_frequency / 1000000;
+        min_frequency %= 1000000;
+        const int32_t min_kHz = min_frequency / 1000;
+        min_frequency %= 1000;
+        const int32_t min_Hz = frequency;
+        display_print_num("from: %02i,", min_MHz);
+        display_print_num("%03i,", min_kHz);
+        display_print_num("%03i Hz ", min_Hz);
+        display_linen(7);
+        int32_t max_frequency = radio_memory[select][idx_max_frequency];
+        const int32_t max_MHz = max_frequency / 1000000;
+        max_frequency %= 1000000;
+        const int32_t max_kHz = max_frequency / 1000;
+        max_frequency %= 1000;
+        const int32_t max_Hz = frequency;
+        display_print_num("  to: %02i,", max_MHz);
+        display_print_num("%03i,", max_kHz);
+        display_print_num("%03i Hz ", max_Hz);
+
         display_show();
       }
       else
@@ -852,6 +980,13 @@ bool ui::frequency_entry(){
 	        settings[idx_frequency] += (digits[i] * digit_val);
 		      digit_val /= 10;
 		    }
+
+        //when manually changing to a frequency outside the current band, remove any band limits
+        if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
+        {
+          settings[idx_min_frequency] = 0;
+          settings[idx_max_frequency] = 30000000;
+        }
 		    return true;
 	    }
 	    if(digit==9) return 0; //No
@@ -955,7 +1090,9 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#USB Programming Mode#", 10, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Memory Upload#USB Firmware Upgrade", 13, &setting)) return 1;
+
+      uint32_t bit_setting = 0;
 
       switch(setting)
       {
@@ -1003,9 +1140,26 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 10 : 
-          uint32_t programming_mode = 0;
-          enumerate_entry("USB Programming Mode", "No#Yes#", 1, &programming_mode);
-          if(programming_mode)
+          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          break;
+
+        case 11 : 
+          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          break;
+
+        case 12 : 
+          setting = 0;
+          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
+          if(setting)
+          {
+            upload();
+          }
+          break;
+
+        case 13 : 
+          setting = 0;
+          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
+          if(setting)
           {
             reset_usb_boot(0,0);
           }

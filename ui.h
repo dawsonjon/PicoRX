@@ -31,7 +31,10 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_squelch 6
 #define idx_volume 7
 #define idx_cw_sidetone 8
-#define idx_cw_speed 9
+#define idx_hw_setup 9
+
+#define flag_reverse_encoder 0
+#define flag_swap_iq 1
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -69,6 +72,7 @@ class ui
   void display_clear();
   void display_line1();
   void display_line2();
+  void display_linen(uint8_t line);
   void display_write(char x);
   void display_print(const char str[]);
   void display_print_num(const char format[], int16_t num);
@@ -87,11 +91,13 @@ class ui
   // Menu                    
   void print_option(const char options[], uint8_t option);
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
+  uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();
   bool string_entry(char string[]);
   bool recall();
   bool store();
+  bool upload();
   void autosave();
   void apply_settings(bool suspend);
 

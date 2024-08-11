@@ -19,6 +19,7 @@ class rx_dsp
   void set_cw_sidetone_Hz(uint16_t val);
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
+  void set_swap_iq(uint8_t val);
   int16_t get_signal_strength_dBm();
   void get_spectrum(float spectrum[], int16_t &offset);
 
@@ -49,6 +50,7 @@ class rx_dsp
   uint32_t bias_count;
 
   //used in frequency shifter
+  uint8_t swap_iq;
   int32_t offset_frequency_Hz;
   int32_t dither;
   uint32_t phase;
