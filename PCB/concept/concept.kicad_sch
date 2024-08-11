@@ -2225,7 +2225,7 @@
     (effects (font (size 2 2)) (justify left bottom))
     (uuid 0c984556-408d-4af4-b1b8-44525426df21)
   )
-  (text "R9, R10, C17, C18  op-amp cutoff\n1/(2 * pi * 82e-12 * 100e3) ~= 12kHz"
+  (text "R9, R10, C17, C18  op-amp cutoff\n1/(2 * pi * 220e-12 * 56e3) ~= 12kHz"
     (at 70.485 111.125 0)
     (effects (font (size 2 2)) (justify left bottom))
     (uuid 3a6bb3e7-514e-4be6-984a-6f6cf7dab140)
@@ -3044,7 +3044,7 @@
     (property "Reference" "C?" (at 193.675 55.2196 90)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "27p" (at 193.675 57.531 90)
+    (property "Value" "220p" (at 193.675 57.531 90)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 197.485 60.6298 0)
@@ -4238,7 +4238,7 @@
     (property "Reference" "C?" (at 193.675 13.3096 90)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "27p" (at 193.675 15.621 90)
+    (property "Value" "220p" (at 193.675 15.621 90)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 197.485 18.7198 0)
