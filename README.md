@@ -71,3 +71,17 @@ Build Projects
   cmake -DPICO_BOARD=pico -DPICO_SDK_PATH=~/pico/pico-sdk ..
   make
 ```
+
+```
+  mkdir build
+  cd build
+  cmake -DPICO_SDK_PATH=~/pico/pico-sdk -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-arm-s ..
+  make
+```
+
+```
+  mkdir build
+  cd build
+  cmake -DPICO_SDK_PATH=~/pico/pico-sdk -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv ..
+  make
+```
