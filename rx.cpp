@@ -169,6 +169,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     //configure SMPS into power save mode
     const uint PSU_PIN = 23;
     gpio_init(PSU_PIN);
+    gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
     gpio_put(PSU_PIN, 1);
     
@@ -184,6 +185,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_init(2);//band 0
     gpio_init(3);//band 1
     gpio_init(4);//band 2
+    gpio_set_function(2, GPIO_FUNC_SIO);
+    gpio_set_function(3, GPIO_FUNC_SIO);
+    gpio_set_function(4, GPIO_FUNC_SIO);
     gpio_set_dir(2, GPIO_OUT);
     gpio_set_dir(3, GPIO_OUT);
     gpio_set_dir(4, GPIO_OUT);
