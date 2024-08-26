@@ -10,6 +10,8 @@
 
 void ui::setup_encoder()
 {
+    gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
+    gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
     uint offset = pio_add_program(pio, &quadrature_encoder_program);
     quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
     new_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
