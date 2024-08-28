@@ -132,6 +132,15 @@ void ssd1306_contrast(ssd1306_t *p, uint8_t val);
 void ssd1306_invert(ssd1306_t *p, uint8_t inv);
 
 /**
+	@brief set  display flip (180deg)
+
+	@param[in] p : instance of display
+	@param[in] flip : inv==0: disable flipping, inv!=0: flip
+
+*/
+void ssd1306_flip(ssd1306_t *p, uint8_t flip);
+
+/**
 	@brief display buffer, should be called on change
 
 	@param[in] p : instance of display
