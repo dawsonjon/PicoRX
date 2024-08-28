@@ -81,7 +81,7 @@ void ui::setup_display() {
   gpio_pull_up(PIN_DISPLAY_SDA);
   gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
 }
 
 void ui::display_clear()
@@ -335,6 +335,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
+  settings_to_apply.flip_oled = (settings[idx_hw_setup] >> flag_flip_oled) & 1;
   receiver.release();
 }
 
@@ -473,6 +474,7 @@ void ui::autorestore()
   }
 
   apply_settings(false);
+  ssd1306_flip(&disp, settings_to_apply.flip_oled );
 
 }
 
@@ -1092,7 +1094,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Memory Upload#USB Firmware Upgrade", 13, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 14, &setting)) return 1;
 
       uint32_t bit_setting = 0;
 
@@ -1149,7 +1151,12 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
-        case 12 : 
+        case 12: 
+          rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
+          break;
+
+        case 13 : 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1158,7 +1165,7 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
 
-        case 13 : 
+        case 14 : 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)
