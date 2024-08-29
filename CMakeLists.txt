@@ -14,8 +14,8 @@ if(PICO_BOARD STREQUAL "pico")
       picorx.cpp
       rx.cpp
       rx_dsp.cpp
-      half_band_filter.cpp
-      half_band_filter2.cpp
+      fft.cpp
+      fft_filter.cpp
       ui.cpp
   )
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -49,8 +49,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
         picorx.cpp
         rx.cpp
         rx_dsp.cpp
-        half_band_filter.cpp
-        half_band_filter2.cpp
+        fft.cpp
+        fft_filter.cpp
         ui.cpp
     )
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -81,8 +81,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
         picorx.cpp
         rx.cpp
         rx_dsp.cpp
-        half_band_filter.cpp
-        half_band_filter2.cpp
+        fft.cpp
+        fft_filter.cpp
         ui.cpp
     )
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)

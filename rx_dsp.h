@@ -3,9 +3,8 @@
 
 #include <stdint.h>
 #include "rx_definitions.h"
-#include "half_band_filter.h"
-#include "half_band_filter2.h"
 #include "pico/sem.h"
+#include "fft_filter.h"
 
 class rx_dsp
 {
@@ -27,11 +26,10 @@ class rx_dsp
   private:
   
   void frequency_shift(int16_t &i, int16_t &q);
-  bool decimate(int16_t &i, int16_t &q, int16_t &ii, int16_t &qq);
+  bool decimate(int16_t &i, int16_t &q);
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   bool cw_decimate(int16_t &i, int16_t &q);
-  void set_decimation_rate(uint8_t i);
 
   //capture samples for spectral analysis
   int16_t capture_i[256];
@@ -45,21 +43,7 @@ class rx_dsp
   //used in dc canceler
   int16_t dc;
 
-  int32_t bias;
-  int32_t bias_adjustment;
-  uint32_t bias_count;
-
-  //used in frequency shifter
-  uint8_t swap_iq;
-  int32_t offset_frequency_Hz;
-  int32_t dither;
-  uint32_t phase;
-  int32_t frequency;
-
-  //used in CIC filter
-  uint16_t decimation_rate; //cic only decimation
-  uint16_t interpolation_rate;
-  uint16_t bit_growth;
+  //used in cic decimator
   uint8_t decimate_count;
   int32_t integratori1, integratorq1;
   int32_t integratori2, integratorq2;
@@ -70,24 +54,19 @@ class rx_dsp
   int32_t delayi2, delayq2;
   int32_t delayi3, delayq3;
 
-  //used in half band filter
-  half_band_filter half_band_filter_inst;
-  half_band_filter2 half_band_filter2_inst;
+  //used in fft filter
+  fft_filter fft_filter_inst;
+  uint16_t start_frequency;
+  uint16_t stop_frequency;
+  bool lower_sideband;
+  bool upper_sideband;
 
-  //used in CW CIC filter
-  uint8_t cw_decimate_count;
-  int32_t cw_integratori1, cw_integratorq1;
-  int32_t cw_integratori2, cw_integratorq2;
-  int32_t cw_integratori3, cw_integratorq3;
-  int32_t cw_integratori4, cw_integratorq4;
-  int32_t cw_delayi0, cw_delayq0;
-  int32_t cw_delayi1, cw_delayq1;
-  int32_t cw_delayi2, cw_delayq2;
-  int32_t cw_delayi3, cw_delayq3;
-
-  //used in CW half band filter
-  half_band_filter cw_half_band_filter_inst;
-  half_band_filter2 cw_half_band_filter2_inst;
+  //used in frequency shifter
+  uint8_t swap_iq;
+  int32_t offset_frequency_Hz;
+  int32_t dither;
+  uint32_t phase;
+  int32_t frequency;
 
   //used to generate cw sidetone
   int16_t cw_i, cw_q;
@@ -97,7 +76,6 @@ class rx_dsp
   int32_t signal_amplitude;
 
   //used in demodulator
-  half_band_filter2 ssb_filter;
   int32_t mode=0;
   int32_t audio_dc=0;
   uint8_t ssb_phase=0;
@@ -108,7 +86,6 @@ class rx_dsp
 
   //squelch
   int16_t squelch_threshold=0;
-  int16_t s9_threshold;
 
   //used in AGC
   uint8_t attack_factor;
@@ -118,8 +95,6 @@ class rx_dsp
   const bool agc_enabled = true;
   int32_t max_hold;
 
-  //used to calculate signal strength 
-  float full_scale_signal_strength;
 
 };
 

@@ -2,14 +2,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 start_fs = 500e3
-decimate = 20
+decimate = 32
 
-fs = start_fs/(2*decimate)
+fs = start_fs/(decimate)
 threshold = 0.9
-factor_l = 13
-factor_s = 11
-factor_m = 10
-factor_f = 9
+factor_l = 14
+factor_s = 12
+factor_m = 11
+factor_f = 10
 attack_factor = 2
 
 t=0
@@ -33,7 +33,7 @@ while (audio*threshold) > magl:
   magl += (audio - magl) >> factor_l
   mags += (audio - mags) >> factor_s
   magm += (audio - magm) >> factor_m
-  magf += (audio - magf) >> 8
+  magf += (audio - magf) >> factor_f
   t += 1/fs
 
 decayts = ts

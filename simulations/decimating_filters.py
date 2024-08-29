@@ -109,8 +109,6 @@ def plot_kernel(freq, taps, kernel_bits, fs, decimate=False, label=""):
 if __name__ == "__main__":
     fs_kHz = 500
     decimation = 16
-    taps1=27
-    taps2=63
 
     plt.figure()
     plt.grid(True)
