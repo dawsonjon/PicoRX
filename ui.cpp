@@ -1170,6 +1170,10 @@ bool ui::do_ui(bool rx_settings_changed)
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)
           {
+            display_clear();
+            display_print("Ready for upload...");
+            display_show();
+
             reset_usb_boot(0,0);
           }
           break;
