@@ -26,37 +26,37 @@ bool half_band_filter2 :: filter(int16_t &i, int16_t &q)
     if(true)
     {
 
-        const uint8_t idx2  = pointer+2  & 0x3f;
-        const uint8_t idx4  = pointer+4  & 0x3f;
-        const uint8_t idx6  = pointer+6  & 0x3f;
-        const uint8_t idx8  = pointer+8  & 0x3f;
-        const uint8_t idx10 = pointer+10 & 0x3f;
-        const uint8_t idx12 = pointer+12 & 0x3f;
-        const uint8_t idx14 = pointer+14 & 0x3f;
-        const uint8_t idx16 = pointer+16 & 0x3f;
-        const uint8_t idx18 = pointer+18 & 0x3f;
-        const uint8_t idx20 = pointer+20 & 0x3f;
-        const uint8_t idx22 = pointer+22 & 0x3f;
-        const uint8_t idx24 = pointer+24 & 0x3f;
-        const uint8_t idx26 = pointer+26 & 0x3f;
-        const uint8_t idx28 = pointer+28 & 0x3f;
-        const uint8_t idx30 = pointer+30 & 0x3f;
-        const uint8_t idx31 = pointer+31 & 0x3f;
-        const uint8_t idx32 = pointer+32 & 0x3f;
-        const uint8_t idx34 = pointer+34 & 0x3f;
-        const uint8_t idx36 = pointer+36 & 0x3f;
-        const uint8_t idx38 = pointer+38 & 0x3f;
-        const uint8_t idx40 = pointer+40 & 0x3f;
-        const uint8_t idx42 = pointer+42 & 0x3f;
-        const uint8_t idx44 = pointer+44 & 0x3f;
-        const uint8_t idx46 = pointer+46 & 0x3f;
-        const uint8_t idx48 = pointer+48 & 0x3f;
-        const uint8_t idx50 = pointer+50 & 0x3f;
-        const uint8_t idx52 = pointer+52 & 0x3f;
-        const uint8_t idx54 = pointer+54 & 0x3f;
-        const uint8_t idx56 = pointer+56 & 0x3f;
-        const uint8_t idx58 = pointer+58 & 0x3f;
-        const uint8_t idx60 = pointer+60 & 0x3f;
+        const uint8_t idx2  = (pointer+2 ) & 0x3f;
+        const uint8_t idx4  = (pointer+4 ) & 0x3f;
+        const uint8_t idx6  = (pointer+6 ) & 0x3f;
+        const uint8_t idx8  = (pointer+8 ) & 0x3f;
+        const uint8_t idx10 = (pointer+10) & 0x3f;
+        const uint8_t idx12 = (pointer+12) & 0x3f;
+        const uint8_t idx14 = (pointer+14) & 0x3f;
+        const uint8_t idx16 = (pointer+16) & 0x3f;
+        const uint8_t idx18 = (pointer+18) & 0x3f;
+        const uint8_t idx20 = (pointer+20) & 0x3f;
+        const uint8_t idx22 = (pointer+22) & 0x3f;
+        const uint8_t idx24 = (pointer+24) & 0x3f;
+        const uint8_t idx26 = (pointer+26) & 0x3f;
+        const uint8_t idx28 = (pointer+28) & 0x3f;
+        const uint8_t idx30 = (pointer+30) & 0x3f;
+        const uint8_t idx31 = (pointer+31) & 0x3f;
+        const uint8_t idx32 = (pointer+32) & 0x3f;
+        const uint8_t idx34 = (pointer+34) & 0x3f;
+        const uint8_t idx36 = (pointer+36) & 0x3f;
+        const uint8_t idx38 = (pointer+38) & 0x3f;
+        const uint8_t idx40 = (pointer+40) & 0x3f;
+        const uint8_t idx42 = (pointer+42) & 0x3f;
+        const uint8_t idx44 = (pointer+44) & 0x3f;
+        const uint8_t idx46 = (pointer+46) & 0x3f;
+        const uint8_t idx48 = (pointer+48) & 0x3f;
+        const uint8_t idx50 = (pointer+50) & 0x3f;
+        const uint8_t idx52 = (pointer+52) & 0x3f;
+        const uint8_t idx54 = (pointer+54) & 0x3f;
+        const uint8_t idx56 = (pointer+56) & 0x3f;
+        const uint8_t idx58 = (pointer+58) & 0x3f;
+        const uint8_t idx60 = (pointer+60) & 0x3f;
         
         i = (
           //(bufi[pointer]  + bufi[idx62]) * 0) + 
@@ -75,7 +75,7 @@ bool half_band_filter2 :: filter(int16_t &i, int16_t &q)
           (((int32_t)bufi[idx26]    + (int32_t)bufi[idx36]) * 1876) +
           (((int32_t)bufi[idx28]    + (int32_t)bufi[idx34]) * -3347) +
           (((int32_t)bufi[idx30]    + (int32_t)bufi[idx32]) * 10387) +
-          (((int32_t)bufi[idx31]                 ) * 16384) >> 15);
+          ((((int32_t)bufi[idx31]                 ) * 16384) >> 15));
 
         q = (
           //(bufq[pointer]  + bufq[idx62]) * 0) + 
@@ -94,7 +94,7 @@ bool half_band_filter2 :: filter(int16_t &i, int16_t &q)
           (((int32_t)bufq[idx26]    + (int32_t)bufq[idx36]) * 1876) +
           (((int32_t)bufq[idx28]    + (int32_t)bufq[idx34]) * -3347) +
           (((int32_t)bufq[idx30]    + (int32_t)bufq[idx32]) * 10387) +
-          (((int32_t)bufq[idx31]                 ) * 16384) >> 15);
+          ((((int32_t)bufq[idx31]                 ) * 16384) >> 15));
 
 
         return true;
