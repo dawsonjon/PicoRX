@@ -75,13 +75,16 @@ class ui
   void display_line2();
   void display_linen(uint8_t line);
   void display_write(char x);
+  void display_write2X(char x);
   void display_print(const char str[]);
+  void display_print2X(const char str[]);
   void display_print_num(const char format[], int16_t num);
+  void display_print_num2X(const char format[], int16_t num);
   void display_show();
 
   ssd1306_t disp;
-  uint8_t cursor_x = 0;
-  uint8_t cursor_y = 0;
+  uint8_t cursor_x = 0;   // pixels 0-127
+  uint8_t cursor_y = 0;   // pixels 0-63
 
   // Status                  
   float calculate_signal_strength(rx_status &status);

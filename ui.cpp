@@ -99,34 +99,54 @@ void ui::display_line1()
 
 void ui::display_line2()
 {
-  cursor_y = 1;
+  cursor_y = 8;
   cursor_x = 0;
 }
 
 void ui::display_linen(uint8_t line)
 {
-  cursor_y = line-1;
+  cursor_y = 8*(line-1);
   cursor_x = 0;
 }
 
 void ui::display_write(char x)
 {
-  ssd1306_draw_char(&disp, cursor_x*6, cursor_y*8, 1, x);
-  cursor_x++;
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, 1, x);
+  cursor_x += 6;
+}
+
+void ui::display_write2X(char x)
+{
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, 2, x);
+  cursor_x += 12;
 }
 
 void ui::display_print(const char str[])
 {
-  ssd1306_draw_string(&disp, cursor_x*6, cursor_y*8, 1, str);
-  cursor_x+=strlen(str);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, str);
+  cursor_x += 6*strlen(str);
+}
+
+void ui::display_print2X(const char str[])
+{
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, str);
+  cursor_x += 12*strlen(str);
 }
 
 void ui::display_print_num(const char format[], int16_t num)
 {
   char buff[16];
   snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x*6, cursor_y*8, 1, buff);
-  cursor_x+=strlen(buff);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, buff);
+  cursor_x += 6*strlen(buff);
+}
+
+void ui::display_print_num2X(const char format[], int16_t num)
+{
+  char buff[16];
+  snprintf(buff, 16, format, num);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, buff);
+  cursor_x += 12*strlen(buff);
 }
 
 void ui::display_show()
@@ -238,7 +258,7 @@ void ui::print_option(const char options[], uint8_t option){
     while(1){
       x = options[idx];
       if(x==0 || x=='#') return;
-      display_write(x);
+      display_write2X(x);
       idx++;
     }
 }
@@ -268,8 +288,8 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print(title);
-      display_line2();
+      display_print2X(title);
+      display_linen(3);
       print_option(options, select);
       display_show();
     }
@@ -301,9 +321,9 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print(title);
-      display_line2();
-      display_print_num(format, select*multiple);
+      display_print2X(title);
+      display_linen(3);
+      display_print_num2X(format, select*multiple);
       display_show();
     }
 
@@ -939,31 +959,32 @@ bool ui::frequency_entry(){
       display_line1();
       for(i=0; i<8; i++)
       {
-        display_write(digits[i] + '0');
-        if(i==1||i==4) display_write('.');
+        display_write2X(digits[i] + '0');
+        if(i==1||i==4) display_write2X('.');
       }
+      display_linen(4);
       display_print(" Y N");
 
       //print cursor
-      display_line2();
+      display_linen(3);
       for(i=0; i<16; i++)
       {
         if(i==digit)
         {
           if(edit_mode)
           {
-            display_write('X');
+            display_print("XX");
           } 
           else 
           {
-            display_write('^');
+            display_print("^^");
           }
         } 
         else 
         {
-          display_write(' ');
+          display_print("  ");
         }
-        if(i==1||i==4||i==7|i==8) display_write(' ');
+        if(i==1||i==4||i==7|i==8) display_print("  ");
       }
       display_show();
     }
@@ -1094,7 +1115,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 14, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Freq. Step#CW ST Freq#Reg Mode#Rev Encoder#Swap IQ#Flip OLED#USB Mem Up#USB FW Up", 14, &setting)) return 1;
 
       uint32_t bit_setting = 0;
 
@@ -1129,12 +1150,12 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 7 : 
-          rx_settings_changed = enumerate_entry("Frequency Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
+          rx_settings_changed = enumerate_entry("Freq. Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
         case 8 : 
-          rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
+          rx_settings_changed = number_entry("CW ST Freq", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
         case 9 : 
@@ -1144,11 +1165,11 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 10 : 
-          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          rx_settings_changed = bit_entry("Rev Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
         case 11 : 
-          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          rx_settings_changed = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
         case 12: 
@@ -1158,7 +1179,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
         case 13 : 
           setting = 0;
-          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
+          enumerate_entry("USB Mem Up", "No#Yes#", 1, &setting);
           if(setting)
           {
             upload();
@@ -1167,7 +1188,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
         case 14 : 
           setting = 0;
-          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
+          enumerate_entry("USB FW Up", "No#Yes#", 1, &setting);
           if(setting)
           {
             display_clear();
