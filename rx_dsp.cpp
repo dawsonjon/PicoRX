@@ -25,13 +25,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       const int16_t raw_sample = samples[idx];// - (1<<(adc_bits-1));
       sample_accumulator += raw_sample;
 
-
-      //remove dc
-      const int16_t sample = raw_sample - dc;
-
       //work out which samples are i and q
-      int16_t i = (idx&1^1^swap_iq)*raw_sample;//even samples contain i data
-      int16_t q = (idx&1^swap_iq)*raw_sample;//odd samples contain q data
+      int16_t i = ((idx&1)^1^swap_iq)*raw_sample;//even samples contain i data
+      int16_t q = ((idx&1)^swap_iq)*raw_sample;//odd samples contain q data
 
 
       //Apply frequency shift (move tuned frequency to DC)         
@@ -205,7 +201,7 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         //  <-----+----->
 
         //        | ____
-        //  ______|/    \
+        //  ______|/    \_
         //        |
         //  <-----+----->
 
@@ -226,8 +222,8 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
           ssb_phase = (ssb_phase - 1) & 3u;
         }
 
-        const int16_t sample_i[4] = {i, q, -i, -q};
-        const int16_t sample_q[4] = {q, -i, -q, i};
+        const int16_t sample_i[4] = {i, q, (int16_t)-i, (int16_t)-q};
+        const int16_t sample_q[4] = {q, (int16_t)-i, (int16_t)-q, i};
         int16_t ii = sample_i[ssb_phase];
         int16_t qq = sample_q[ssb_phase];
         ssb_filter.filter(ii,  qq);
@@ -248,7 +244,7 @@ int16_t rx_dsp :: demodulate(int16_t i, int16_t q)
         //        |
         //  <-----+----->
 
-        const int16_t audio[4] = {-qq, -ii, qq, ii};
+        const int16_t audio[4] = {(int16_t)-qq, (int16_t)-ii, qq, ii};
         return audio[ssb_phase];
 
     }
@@ -548,19 +544,19 @@ void rx_dsp :: set_squelch(uint8_t val)
 {
   //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
   const int16_t thresholds[] = {
-    s9_threshold>>9, //s0
-    s9_threshold>>8, //s1
-    s9_threshold>>7, //s2
-    s9_threshold>>6, //s3
-    s9_threshold>>5, //s4
-    s9_threshold>>4, //s5
-    s9_threshold>>3, //s6
-    s9_threshold>>2, //s7
-    s9_threshold>>1, //s8
-    s9_threshold,    //s9
-    s9_threshold*3,  //s9+10dB
-    s9_threshold*10, //s9+20dB
-    s9_threshold*31, //s9+30dB
+    (int16_t)(s9_threshold>>9), //s0
+    (int16_t)(s9_threshold>>8), //s1
+    (int16_t)(s9_threshold>>7), //s2
+    (int16_t)(s9_threshold>>6), //s3
+    (int16_t)(s9_threshold>>5), //s4
+    (int16_t)(s9_threshold>>4), //s5
+    (int16_t)(s9_threshold>>3), //s6
+    (int16_t)(s9_threshold>>2), //s7
+    (int16_t)(s9_threshold>>1), //s8
+    (int16_t)(s9_threshold),    //s9
+    (int16_t)(s9_threshold*3),  //s9+10dB
+    (int16_t)(s9_threshold*10), //s9+20dB
+    (int16_t)(s9_threshold*31), //s9+30dB
   };
   squelch_threshold = thresholds[val];
 }

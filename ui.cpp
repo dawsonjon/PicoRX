@@ -160,9 +160,9 @@ void ui::update_display(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  snprintf(buff, 21, "%2u.%03u", MHz, kHz);
+  snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
   ssd1306_draw_string(&disp, 0, 0, 2, buff);
-  snprintf(buff, 21, ".%03u", Hz);
+  snprintf(buff, 21, ".%03lu", Hz);
   ssd1306_draw_string(&disp, 72, 0, 1, buff);
 
   //mode
@@ -466,7 +466,7 @@ void ui::autorestore()
     } 
   }
 
-  uint16_t last_channel_written;
+  uint16_t last_channel_written = 255;
   if(empty_channel > 0) last_channel_written = empty_channel - 1;
   if(!empty_channel_found) last_channel_written = 255;
   for(uint8_t i=0; i<16; i++){
@@ -511,7 +511,7 @@ bool ui::upload()
                 sector_copy[channel][location] = 0xffffffffu;
                 done = true;
               }
-              if (sscanf(line, " %x", &data))
+              if (sscanf(line, " %lx", &data))
               {
                 sector_copy[channel][location] = data;
               }
@@ -815,9 +815,8 @@ bool ui::recall()
 bool ui::string_entry(char string[]){
 
   int32_t position=0;
-  int32_t i, digit_val;
+  int32_t i;
   int32_t edit_mode = 0;
-  unsigned frequency;
 
   bool draw_once = true;
   while(1){
@@ -963,7 +962,7 @@ bool ui::frequency_entry(){
         {
           display_write(' ');
         }
-        if(i==1||i==4||i==7|i==8) display_write(' ');
+        if(i==1||i==4||i==7||i==8) display_write(' ');
       }
       display_show();
     }
@@ -1095,8 +1094,6 @@ bool ui::do_ui(bool rx_settings_changed)
       //top level menu
       uint32_t setting = 0;
       if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 14, &setting)) return 1;
-
-      uint32_t bit_setting = 0;
 
       switch(setting)
       {
