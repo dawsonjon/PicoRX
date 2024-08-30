@@ -169,9 +169,9 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
     float adjusted_frequency_up = tuned_frequency + 6000;
     float adjusted_frequency_down = tuned_frequency - 6000;
     PLLSettings best_settings = {0};
-    float best_frequency = 1;
-    float best_divider;
-    float best_error=1000000;
+    float best_frequency = 1.0f;
+    float best_divider = 0.0f;
+    float best_error=1000000.0f;
 
     best_frequency = 1;
     
