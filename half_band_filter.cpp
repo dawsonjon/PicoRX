@@ -48,7 +48,7 @@ bool half_band_filter :: filter(int16_t &i, int16_t &q)
           (((int32_t)bufi[idx8]     + (int32_t)bufi[idx18]) * 1121) +
           (((int32_t)bufi[idx10]    + (int32_t)bufi[idx16]) * -2795) +
           (((int32_t)bufi[idx12]    + (int32_t)bufi[idx14]) * 10183) +
-          ((((int32_t)bufi[idx13]                 ) * 16384) >> 15));
+          (((int32_t)bufi[idx13]                 ) * 16384)) >> 15;
 
         q = (
           //(bufq[pointer]  + bufq[idx26]) * 0) + 
@@ -58,7 +58,7 @@ bool half_band_filter :: filter(int16_t &i, int16_t &q)
           (((int32_t)bufq[idx8]     + (int32_t)bufq[idx18]) * 1121) +
           (((int32_t)bufq[idx10]    + (int32_t)bufq[idx16]) * -2795) +
           (((int32_t)bufq[idx12]    + (int32_t)bufq[idx14]) * 10183) +
-          ((((int32_t)bufq[idx13]                 ) * 16384) >> 15));
+          (((int32_t)bufq[idx13]                 ) * 16384)) >> 15;
 
         return true;
     }
