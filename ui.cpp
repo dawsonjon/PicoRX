@@ -81,7 +81,7 @@ void ui::setup_display() {
   gpio_pull_up(PIN_DISPLAY_SDA);
   gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
 }
 
 void ui::display_clear()
@@ -160,9 +160,9 @@ void ui::update_display(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  snprintf(buff, 21, "%2u.%03u", MHz, kHz);
+  snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
   ssd1306_draw_string(&disp, 0, 0, 2, buff);
-  snprintf(buff, 21, ".%03u", Hz);
+  snprintf(buff, 21, ".%03lu", Hz);
   ssd1306_draw_string(&disp, 72, 0, 1, buff);
 
   //mode
@@ -335,6 +335,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
+  settings_to_apply.flip_oled = (settings[idx_hw_setup] >> flag_flip_oled) & 1;
   receiver.release();
 }
 
@@ -465,7 +466,7 @@ void ui::autorestore()
     } 
   }
 
-  uint16_t last_channel_written;
+  uint16_t last_channel_written = 255;
   if(empty_channel > 0) last_channel_written = empty_channel - 1;
   if(!empty_channel_found) last_channel_written = 255;
   for(uint8_t i=0; i<16; i++){
@@ -473,6 +474,7 @@ void ui::autorestore()
   }
 
   apply_settings(false);
+  ssd1306_flip(&disp, settings_to_apply.flip_oled );
 
 }
 
@@ -509,7 +511,7 @@ bool ui::upload()
                 sector_copy[channel][location] = 0xffffffffu;
                 done = true;
               }
-              if (sscanf(line, " %x", &data))
+              if (sscanf(line, " %lx", &data))
               {
                 sector_copy[channel][location] = data;
               }
@@ -813,9 +815,8 @@ bool ui::recall()
 bool ui::string_entry(char string[]){
 
   int32_t position=0;
-  int32_t i, digit_val;
+  int32_t i;
   int32_t edit_mode = 0;
-  unsigned frequency;
 
   bool draw_once = true;
   while(1){
@@ -961,7 +962,7 @@ bool ui::frequency_entry(){
         {
           display_write(' ');
         }
-        if(i==1||i==4||i==7|i==8) display_write(' ');
+        if(i==1||i==4||i==7||i==8) display_write(' ');
       }
       display_show();
     }
@@ -1092,9 +1093,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#USB Memory Upload#USB Firmware Upgrade", 13, &setting)) return 1;
-
-      uint32_t bit_setting = 0;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 14, &setting)) return 1;
 
       switch(setting)
       {
@@ -1149,7 +1148,12 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
-        case 12 : 
+        case 12: 
+          rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
+          break;
+
+        case 13 : 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1158,7 +1162,7 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
 
-        case 13 : 
+        case 14 : 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)

@@ -1,7 +1,7 @@
 //  _  ___  _   _____ _     _                 
 // / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___ 
 // | | | | | |   | | | '_ \| | '_ \ / _` / __|
-// | | |_| | |   | | | | | | | | | | (_| \__ \
+// | | |_| | |   | | | | | | | | | | (_| \__ \.
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
 //                                  |___/    
 //
@@ -35,15 +35,15 @@ class fft_filter
   fft_filter()
   {
     fft_initialise();
-    for (int i = 0; i < fft_size; i++) {
+    for (uint16_t i = 0; i < fft_size; i++) {
       float multiplier = 0.5 * (1 - cosf(2*M_PI*i/fft_size));
       window[i] = float2fixed(multiplier);
     }
-    for (int i = 0; i < fft_size/2u; i++) {
+    for (uint16_t i = 0; i < fft_size/2u; i++) {
       last_input_real[i] = 0;
       last_input_imag[i] = 0;
     }
-    for (int i = 0; i < new_fft_size/2; i++) {
+    for (uint16_t i = 0; i < new_fft_size/2; i++) {
       last_output_real[i] = 0;
       last_output_imag[i] = 0;
     }

@@ -33,8 +33,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       const int16_t sample = raw_sample - dc;
 
       //work out which samples are i and q
-      int16_t i = (idx&1^1^swap_iq)*raw_sample;//even samples contain i data
-      int16_t q = (idx&1^swap_iq)*raw_sample;  //odd samples contain q data
+      int16_t i = ((idx&1)^1^swap_iq)*sample;//even samples contain i data
+      int16_t q = ((idx&1)^swap_iq)*sample;//odd samples contain q data
 
       //reduce sample rate by a factor of 16
       if(decimate(i, q))
@@ -193,7 +193,6 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     else if(mode == LSB || mode == USB)
     {
         return i;
-
     }
     else //if(mode==cw)
     {
@@ -414,19 +413,19 @@ void rx_dsp :: set_squelch(uint8_t val)
 {
   //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
   const int16_t thresholds[] = {
-    s9_threshold>>9, //s0
-    s9_threshold>>8, //s1
-    s9_threshold>>7, //s2
-    s9_threshold>>6, //s3
-    s9_threshold>>5, //s4
-    s9_threshold>>4, //s5
-    s9_threshold>>3, //s6
-    s9_threshold>>2, //s7
-    s9_threshold>>1, //s8
-    s9_threshold,    //s9
-    s9_threshold*3,  //s9+10dB
-    s9_threshold*10, //s9+20dB
-    s9_threshold*31, //s9+30dB
+    (int16_t)(s9_threshold>>9), //s0
+    (int16_t)(s9_threshold>>8), //s1
+    (int16_t)(s9_threshold>>7), //s2
+    (int16_t)(s9_threshold>>6), //s3
+    (int16_t)(s9_threshold>>5), //s4
+    (int16_t)(s9_threshold>>4), //s5
+    (int16_t)(s9_threshold>>3), //s6
+    (int16_t)(s9_threshold>>2), //s7
+    (int16_t)(s9_threshold>>1), //s8
+    (int16_t)(s9_threshold),    //s9
+    (int16_t)(s9_threshold*3),  //s9+10dB
+    (int16_t)(s9_threshold*10), //s9+20dB
+    (int16_t)(s9_threshold*31), //s9+30dB
   };
   squelch_threshold = thresholds[val];
 }

@@ -136,6 +136,16 @@ inline void ssd1306_invert(ssd1306_t *p, uint8_t inv) {
     ssd1306_write(p, SET_NORM_INV | (inv & 1));
 }
 
+inline void ssd1306_flip(ssd1306_t *p, uint8_t flip) {
+    if (flip) {
+        ssd1306_write(p, SET_SEG_REMAP | 0x00);
+        ssd1306_write(p, SET_COM_OUT_DIR | 0x00);
+    } else {
+        ssd1306_write(p, SET_SEG_REMAP | 0x01);
+        ssd1306_write(p, SET_COM_OUT_DIR | 0x08);
+    }
+}
+
 inline void ssd1306_clear(ssd1306_t *p) {
     memset(p->buffer, 0, p->bufsize);
 }
@@ -248,7 +258,7 @@ void ssd1306_bmp_show_image_with_offset(ssd1306_t *p, const uint8_t *data, const
         return;
 
     const int table_start=14+biSize;
-    uint8_t color_val;
+    uint8_t color_val = 0;
 
     for(uint8_t i=0; i<2; ++i) {
         if(!((data[table_start+i*4]<<16)|(data[table_start+i*4+1]<<8)|data[table_start+i*4+2])) {

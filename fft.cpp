@@ -69,7 +69,7 @@ unsigned bit_reverse(unsigned x, unsigned m) {
         0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
   };
   x = (lookup[x&0xff] << 8) | lookup[x>>8];
-  return x >> 16-m;
+  return x >> (16-m);
 }
 
 #ifndef SIMULATION
@@ -77,13 +77,13 @@ void __not_in_flash_func(fixed_fft)(int16_t reals[], int16_t imaginaries[], unsi
 #else
 void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #endif
-  int16_t stage, subdft_size, span, j, i, ip;
+  uint16_t stage, subdft_size, span, j, i, ip;
   int16_t temp_real, temp_imaginary;
   int16_t imaginary_twiddle, real_twiddle;
   const unsigned n = 1 << m;
 
   // bit reverse data
-  for (i = 0; i < n; i++) {
+  for (i = 0u; i < n; i++) {
     ip = bit_reverse(i, m);
     if (i < ip) {
       temp_real = reals[i];
