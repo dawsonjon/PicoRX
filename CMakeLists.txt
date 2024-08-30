@@ -4,6 +4,10 @@ include(pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 11)
 
+add_compile_options(-Wall -fdata-sections -ffunction-sections)
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
+
 if(PICO_BOARD STREQUAL "pico")
 
   #main application
