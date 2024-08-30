@@ -284,6 +284,9 @@ rx_dsp :: rx_dsp()
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_speed(3);
 
+  //initialise PWM frequency
+  pwm_scale = 1+((INT16_MAX * 2)/500);
+
   //clear cic filter
   decimate_count=0;
   integratori1=0; integratorq1=0;
@@ -428,6 +431,11 @@ void rx_dsp :: set_squelch(uint8_t val)
     (int16_t)(s9_threshold*31), //s9+30dB
   };
   squelch_threshold = thresholds[val];
+}
+
+void rx_dsp :: set_pwm_max(uint32_t pwm_max)
+{
+  pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()

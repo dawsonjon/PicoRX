@@ -4,12 +4,9 @@
 
 const uint32_t adc_sample_rate = 500e3;
 const uint32_t audio_sample_rate = adc_sample_rate/2;
-const uint32_t system_clock_rate = 125e6;
 const uint8_t  adc_bits = 12u;
 const uint16_t adc_max=1<<(adc_bits-1);
 const uint16_t adc_block_size = 2048u;
-const uint32_t pwm_max = (system_clock_rate/audio_sample_rate)-1;
-const uint32_t pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
 const uint8_t  AM = 0u;
 const uint8_t  LSB = 1u;
 const uint8_t  USB = 2u;

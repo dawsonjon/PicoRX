@@ -16,6 +16,7 @@ if(PICO_BOARD STREQUAL "pico")
   add_executable(picorx
       ssd1306.c
       picorx.cpp
+      nco.cpp
       rx.cpp
       rx_dsp.cpp
       fft.cpp
@@ -51,6 +52,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     add_executable(pico2rx-riscv
         ssd1306.c
         picorx.cpp
+        nco.cpp
         rx.cpp
         rx_dsp.cpp
         fft.cpp
@@ -83,6 +85,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     add_executable(pico2rx
         ssd1306.c
         picorx.cpp
+        nco.cpp
         rx.cpp
         rx_dsp.cpp
         fft.cpp

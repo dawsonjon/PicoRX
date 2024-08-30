@@ -19,6 +19,7 @@ class rx_dsp
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
+  void set_pwm_max(uint32_t pwm_max);
   int16_t get_signal_strength_dBm();
   void get_spectrum(float spectrum[], int16_t &offset);
 
@@ -94,6 +95,8 @@ class rx_dsp
   uint16_t hang_timer;
   const bool agc_enabled = true;
   int32_t max_hold;
+  uint32_t pwm_scale;
+
 
 
 };

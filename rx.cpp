@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "rx.h"
+#include "nco.h"
 
 
 //buffers and dma for ADC
@@ -84,7 +85,8 @@ void rx::apply_settings()
       {
         //apply frequency
         tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-        nco_frequency_Hz = nco_program_init(pio, sm, offset, tuned_frequency_Hz);
+        uint32_t system_clock_rate;
+        nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
         offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
         if(tuned_frequency_Hz > 16.0e6)
@@ -118,7 +120,12 @@ void rx::apply_settings()
           gpio_put(4, 1);
         }
 
+        //apply pwm_max
+        pwm_max = (system_clock_rate/audio_sample_rate)-1;
+        rx_dsp_inst.set_pwm_max(pwm_max);
+        pwm_set_wrap(audio_pwm_slice_num, pwm_max); 
 
+        //apply frequency offset
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         //apply CW sidetone
@@ -163,8 +170,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     //Configure PIO to act as quadrature oscilator
     pio = pio0;
-    offset = pio_add_program(pio, &hello_program);
+    offset = pio_add_program(pio, &nco_program);
     sm = pio_claim_unused_sm(pio, true);
+    nco_program_init(pio, sm, offset);
 
     //configure SMPS into power save mode
     const uint PSU_PIN = 23;
@@ -220,8 +228,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
     audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
     pwm_config config = pwm_get_default_config();
-    pwm_config_set_clkdiv(&config, 1.f); //125MHz
-    pwm_config_set_wrap(&config, pwm_max); 
+    pwm_config_set_clkdiv(&config, 1.f);
+    pwm_max = 500;
+    pwm_config_set_wrap(&config, pwm_max);
     pwm_init(audio_pwm_slice_num, &config, true);
 
     //configure DMA for audio transfers

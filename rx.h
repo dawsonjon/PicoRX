@@ -82,6 +82,7 @@ class rx
   static int16_t pong_audio[adc_block_size];
   static bool audio_running;
   static void dma_handler();
+  uint32_t pwm_max;
   
   //store busy time for performance monitoring
   clock_t busy_time;
