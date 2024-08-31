@@ -335,6 +335,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
+  settings_to_apply.bandwidth = settings[idx_bandwidth];
   receiver.release();
 }
 
@@ -1138,7 +1139,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return 1;
 
       switch(setting)
       {
@@ -1167,19 +1168,23 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 6 :
+          rx_settings_changed = enumerate_entry("Bandwidth", "very_narrow#narrow#normal#wide#very_wide#", 4, &settings[idx_bandwidth]);
+          break;
+
+        case 7 :
           rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 12, &settings[idx_squelch]);
           break;
 
-        case 7 : 
+        case 8 : 
           rx_settings_changed = enumerate_entry("Frequency Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 8 : 
+        case 9 : 
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 9: 
+        case 10: 
           setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
           rx_settings_changed = enumerate_entry("Display timeout (s)", "never#5#10#15#30#60#120#240#", 7, &setting);
           display_timer = timeout_lookup[setting];
@@ -1187,26 +1192,26 @@ bool ui::do_ui(bool rx_settings_changed)
           settings[idx_hw_setup] |=  setting << flag_display_timeout;
           break;
 
-        case 10 : 
+        case 11 : 
           enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
 
-        case 11 : 
+        case 12 : 
           rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
-        case 12 : 
+        case 13 : 
           rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
-        case 13: 
+        case 14: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
           break;
 
-        case 14 : 
+        case 15 : 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1215,7 +1220,7 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
 
-        case 15 : 
+        case 16 : 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)
@@ -1248,6 +1253,7 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+      settings_to_apply.bandwidth = settings[idx_bandwidth];
       receiver.release();
     }
     update_display(status, receiver);

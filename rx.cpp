@@ -135,7 +135,7 @@ void rx::apply_settings()
         rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
 
         //apply mode
-        rx_dsp_inst.set_mode(settings_to_apply.mode);
+        rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
 
         //apply volume
         rx_dsp_inst.set_volume(settings_to_apply.volume);

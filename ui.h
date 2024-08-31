@@ -32,6 +32,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_volume 7
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
+#define idx_bandwidth 11
 
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1

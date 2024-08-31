@@ -207,6 +207,7 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
+
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
 {
     if(mode == AM)
@@ -315,7 +316,7 @@ rx_dsp :: rx_dsp()
   swap_iq = 0;
 
   //initialise semaphore for spectrum
-  set_mode(AM);
+  set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_speed(3);
 
@@ -385,37 +386,22 @@ void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
   frequency = ((double)(1ull<<32)*offset_frequency)*cic_decimation_rate/(adc_sample_rate);
 }
 
-void rx_dsp :: set_mode(uint8_t val)
+
+void rx_dsp :: set_mode(uint8_t mode, uint8_t bw)
 {
-  mode = val;
-  if(mode == LSB || mode == USB)
-  {
-    start_frequency = 3; //240Hz
-    stop_frequency = 22; //2700Hz
-    lower_sideband = (mode == LSB);
-    upper_sideband = (mode == USB);
-  }
-  else if(mode == AM)
-  {
-    start_frequency = 0; //0Hz
-    stop_frequency = 25; //6000Hz
-    lower_sideband = true;
-    upper_sideband = true;
-  }
-  else if(mode == FM)
-  {
-    start_frequency = 0; //0Hz
-    stop_frequency = 37; //9000Hz
-    lower_sideband = true;
-    upper_sideband = true;
-  }
-  else //CW
-  {
-    start_frequency = 0; //0Hz
-    stop_frequency = 1; //300Hz
-    lower_sideband = true;
-    upper_sideband = true;
-  }
+  //                           AM LSB USB NFM CW
+  uint8_t start_bins[5]   =  {  0,  3,  3,  0, 0};
+
+  uint8_t stop_bins[5][5] = {{ 19, 16, 16, 31, 0},  //very narrow
+                             { 22, 19, 19, 34, 1},  //narrow
+                             { 25, 22, 22, 37, 2},  //normal
+                             { 28, 25, 25, 40, 3},  //wide
+                             { 31, 28, 28, 43, 4}}; //very wide
+
+  lower_sideband = (mode != USB);
+  upper_sideband = (mode != LSB);
+  start_frequency = start_bins[mode];
+  stop_frequency = stop_bins[bw][mode];
 }
 
 void rx_dsp :: set_swap_iq(uint8_t val)

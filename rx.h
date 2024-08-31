@@ -24,6 +24,7 @@ struct rx_settings
   uint8_t mode;
   uint8_t volume;
   uint8_t squelch;
+  uint8_t bandwidth;
   uint16_t cw_sidetone_Hz;
   bool suspend;
   bool swap_iq;
