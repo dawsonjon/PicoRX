@@ -33,6 +33,12 @@ SOFTWARE.
 #include "ssd1306.h"
 #include "font.h"
 
+#ifdef DISP_CTRL_SH1106
+#define DISP_COL_OFFSET (2)
+#else
+#define DISP_COL_OFFSET (0)
+#endif
+
 inline static void swap(int32_t *a, int32_t *b) {
     int32_t *t=a;
     *a=*b;
@@ -115,8 +121,12 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
     return true;
 }
 
-inline void ssd1306_deinit(ssd1306_t *p) {
-    free(p->buffer-1);
+inline void ssd1306_deinit(ssd1306_t *p)
+{
+    if (p->buffer - 1)
+    {
+        free(p->buffer - 1);
+    }
 }
 
 inline void ssd1306_poweroff(ssd1306_t *p) {
@@ -288,17 +298,20 @@ inline void ssd1306_bmp_show_image(ssd1306_t *p, const uint8_t *data, const long
     ssd1306_bmp_show_image_with_offset(p, data, size, 0, 0);
 }
 
-void ssd1306_show(ssd1306_t *p) {
-    uint8_t payload[]= {SET_COL_ADDR, 0, p->width-1, SET_PAGE_ADDR, 0, p->pages-1};
-    if(p->width==64) {
-        payload[1]+=32;
-        payload[2]+=32;
+void ssd1306_show(ssd1306_t *p)
+{
+    uint8_t tmp;
+
+    for (uint8_t page = 0; page < p->pages; page++)
+    {
+        uint8_t payload[] = {(0x00 | (DISP_COL_OFFSET & 0x0F)), (0x10 | (DISP_COL_OFFSET >> 4)), (0xB0 | (page & 0x0F))};
+
+        for (size_t i = 0; i < sizeof(payload); ++i)
+            ssd1306_write(p, payload[i]);
+
+        tmp = p->buffer[page * p->width - 1];
+        p->buffer[page * p->width - 1] = 0x40;
+        fancy_write(p->i2c_i, p->address, &p->buffer[page * p->width - 1], p->width + 1, "ssd1306_show");
+        p->buffer[page * p->width - 1] = tmp;
     }
-
-    for(size_t i=0; i<sizeof(payload); ++i)
-        ssd1306_write(p, payload[i]);
-
-    *(p->buffer-1)=0x40;
-
-    fancy_write(p->i2c_i, p->address, p->buffer-1, p->bufsize+1, "ssd1306_show");
 }
