@@ -37,6 +37,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_swap_iq 1
 #define flag_flip_oled 2
 
+#define idx_gain_cal 10
+
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
