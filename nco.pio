@@ -168,10 +168,10 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
 
     float adjusted_frequency_up = tuned_frequency + 6000;
     float adjusted_frequency_down = tuned_frequency - 6000;
-    PLLSettings best_settings;
-    float best_frequency = 1;
-    float best_divider;
-    float best_error=1000000;
+    PLLSettings best_settings = {0};
+    float best_frequency = 1.0f;
+    float best_divider = 0.0f;
+    float best_error=1000000.0f;
 
     best_frequency = 1;
     
@@ -205,6 +205,7 @@ static inline float nco_program_init(PIO pio, uint sm, uint offset, float tuned_
       }
     }
 
+    assert(best_error < 1000000);
     //adjust system clock
     uint32_t vco_freq = (12000000 / best_settings.refdiv) * best_settings.fbdiv;
     set_sys_clock_pll(vco_freq, best_settings.postdiv1, best_settings.postdiv2);
