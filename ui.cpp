@@ -84,11 +84,11 @@ void ui::setup_display() {
   ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
 }
 
-void ui::display_clear()
+void ui::display_clear(bool colour)
 {
   cursor_x = 0;
   cursor_y = 0;
-  ssd1306_clear(&disp);
+  ssd1306_clear(&disp, colour);
 }
 
 void ui::display_line1()
@@ -111,25 +111,25 @@ void ui::display_linen(uint8_t line)
 
 void ui::display_write(char x)
 {
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, 1, x);
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, 1, x, 1);
   cursor_x += 6;
 }
 
-void ui::display_write2X(char x)
+void ui::display_write2X(char x, bool colour)
 {
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, 2, x);
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, 2, x, colour);
   cursor_x += 12;
 }
 
-void ui::display_print(const char str[])
+void ui::display_print(const char str[], bool colour)
 {
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, str);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, str, colour);
   cursor_x += 6*strlen(str);
 }
 
-void ui::display_print2X(const char str[])
+void ui::display_print2X(const char str[], bool colour)
 {
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, str);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, str, colour);
   cursor_x += 12*strlen(str);
 }
 
@@ -137,7 +137,7 @@ void ui::display_print_num(const char format[], int16_t num)
 {
   char buff[16];
   snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, buff);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, buff, 1);
   cursor_x += 6*strlen(buff);
 }
 
@@ -145,7 +145,7 @@ void ui::display_print_num2X(const char format[], int16_t num)
 {
   char buff[16];
   snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, buff);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, buff, 1);
   cursor_x += 12*strlen(buff);
 }
 
@@ -171,7 +171,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   receiver.release();
 
   char buff [21];
-  ssd1306_clear(&disp);
+//  ssd1306_clear(&disp);
+  display_clear();
 
   //frequency
   uint32_t remainder, MHz, kHz, Hz;
@@ -181,20 +182,20 @@ void ui::update_display(rx_status & status, rx & receiver)
   remainder = remainder%1000u; 
   Hz = remainder;
   snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
-  ssd1306_draw_string(&disp, 0, 0, 2, buff);
+  ssd1306_draw_string(&disp, 0, 0, 2, buff, 1);
   snprintf(buff, 21, ".%03lu", Hz);
-  ssd1306_draw_string(&disp, 72, 0, 1, buff);
+  ssd1306_draw_string(&disp, 72, 0, 1, buff, 1);
 
   //mode
   static const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
-  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
+  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]], 1);
 
   //step
   static const char steps[][8]  = {
     "   10Hz", "   50Hz", "  100Hz", "   1kHz",
     "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
     "  50kHz", " 100kHz"};
-  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]]);
+  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]], 1);
 
   //signal strength/cpu
   static const char smeter[][12]  = {
@@ -207,22 +208,22 @@ void ui::update_display(rx_status & status, rx & receiver)
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
-  ssd1306_draw_string(&disp, 0, 24, 1, buff);
+  ssd1306_draw_string(&disp, 0, 24, 1, buff, 1);
   snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 0, 16, 1, buff);
+  ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
 
   //Display spectrum capture
   static float spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
-  ssd1306_draw_line(&disp, 0, 34, 127, 34);
+  ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
-  ssd1306_draw_line(&disp, 0,   32, 0,   36);
-  ssd1306_draw_line(&disp, 64,  32, 64,  36);
-  ssd1306_draw_line(&disp, 127, 32, 127, 36);
+  ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
+  ssd1306_draw_line(&disp, 64,  32, 64,  36, 1);
+  ssd1306_draw_line(&disp, 127, 32, 127, 36, 1);
 
-  ssd1306_draw_line(&disp, 32, 33, 32, 35);
-  ssd1306_draw_line(&disp, 96, 33, 96, 35);
+  ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
+  ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
   float min=2;
   float max=6;
@@ -234,7 +235,7 @@ void ui::update_display(rx_status & status, rx & receiver)
       int16_t y = scale*(log10f(spectrum[x])-min);
       if(y < 0) y=0;
       if(y > 31) y=31;
-      ssd1306_draw_line(&disp, x, 63-y, x, 63);
+      ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
   ssd1306_show(&disp);
@@ -958,33 +959,18 @@ bool ui::frequency_entry(){
       display_line1();
       for(i=0; i<8; i++)
       {
-        display_write2X(digits[i] + '0');
+        if (!edit_mode && (i==digit)) {
+          display_write2X(digits[i] + '0',0);
+        } else {
+          display_write2X(digits[i] + '0',1);
+        }
         if(i==1||i==4) display_write2X('.');
       }
       display_linen(4);
-      display_print(" Y N");
+      display_print2X("Ok", digit==8 ? 0 : 1 );
+      display_print("     ");
+      display_print2X("Exit", digit==9 ? 0 : 1 );
 
-      //print cursor
-      display_linen(3);
-      for(i=0; i<16; i++)
-      {
-        if(i==digit)
-        {
-          if(edit_mode)
-          {
-            display_print("XX");
-          } 
-          else 
-          {
-            display_print("^^");
-          }
-        } 
-        else 
-        {
-          display_print("  ");
-        }
-        if(i==1||i==4||i==7||i==8) display_print("  ");
-      }
       display_show();
     }
 
@@ -993,7 +979,8 @@ bool ui::frequency_entry(){
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
-	    if(digit==8) //Yes
+      
+	    if(digit==8) //Yes, Ok
       {
 	      digit_val = 10000000;
 
