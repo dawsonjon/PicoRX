@@ -20,9 +20,7 @@ const uint16_t extra_bits = 2u;
 const uint8_t  cic_order = 4u;
 const uint8_t  cic_bit_growth = ceilf(cic_order*log2f(cic_decimation_rate));
 const float    cic_gain = powf(2.0f, (cic_order*log2f(cic_decimation_rate)) - (cic_bit_growth - extra_bits));
-const float    freq_shift_bias = 0.5f;
-const float    bias = (cic_gain * freq_shift_bias) + 0.5f; //cic contributes bias of 0.5 lsbs
-const uint32_t bias_adjustment = (bias + 0.5f) * (1<<15);
+const uint32_t bias_adjustment = (0.5f) * (1<<15);
 
 const float full_scale_signal_strength = 0.707f*adc_max*(1<<extra_bits);
 const float full_scale_rms_mW = (0.5f * 0.707f * 1000.0f * 3.3f * 3.3f) / 50.0f;
