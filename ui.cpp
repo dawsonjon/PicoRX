@@ -1167,7 +1167,7 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 6 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 13, &settings[idx_squelch]);
+          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 12, &settings[idx_squelch]);
           break;
 
         case 7 : 
