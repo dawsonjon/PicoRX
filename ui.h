@@ -36,6 +36,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
+#define flag_display_timeout 3
+#define mask_display_timeout (0x7 << 3)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -51,6 +53,7 @@ class ui
 
   uint32_t settings[16];
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
+  const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
 
   // Encoder 
   void setup_encoder();
@@ -82,6 +85,7 @@ class ui
   ssd1306_t disp;
   uint8_t cursor_x = 0;
   uint8_t cursor_y = 0;
+  uint16_t display_timer = 0;
 
   // Status                  
   float calculate_signal_strength(rx_status &status);
@@ -101,6 +105,7 @@ class ui
   bool upload();
   void autosave();
   void apply_settings(bool suspend);
+  bool display_timeout(bool encoder_change);
 
   uint32_t regmode = 1;
 

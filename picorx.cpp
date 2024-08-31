@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include "pico/multicore.h"
+#include "pico/time.h"
 #include "rx.h"
 #include "ui.h"
 
@@ -24,10 +25,12 @@ int main()
   user_interface.autorestore();
 
   bool settings_changed = true;
+  uint32_t last_update = to_ms_since_boot(get_absolute_time());
   while(1)
   {
     user_interface.do_ui(settings_changed);
     settings_changed = false;
-    sleep_us(100000);
+    
+    while(to_ms_since_boot(get_absolute_time()) - last_update < 100) sleep_ms(1);
   }
 }

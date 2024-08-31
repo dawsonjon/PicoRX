@@ -27,7 +27,6 @@ struct rx_settings
   uint16_t cw_sidetone_Hz;
   bool suspend;
   bool swap_iq;
-  bool flip_oled;
 };
 
 struct rx_status

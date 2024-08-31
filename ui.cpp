@@ -335,7 +335,6 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-  settings_to_apply.flip_oled = (settings[idx_hw_setup] >> flag_flip_oled) & 1;
   receiver.release();
 }
 
@@ -474,7 +473,9 @@ void ui::autorestore()
   }
 
   apply_settings(false);
-  ssd1306_flip(&disp, settings_to_apply.flip_oled );
+  ssd1306_flip(&disp, settings[idx_hw_setup] & flag_flip_oled);
+  uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+  display_timer = timeout_lookup[display_timeout_setting];
 
 }
 
@@ -1003,6 +1004,46 @@ bool ui::frequency_entry(){
   }
 }
 
+bool ui::display_timeout(bool encoder_change)
+{
+    uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+    uint16_t display_timeout = timeout_lookup[display_timeout_setting];
+
+    //A timeout value of zero means never time out
+    if(!display_timeout) return true;
+
+    //A button press causes timer to be reset to max value
+    //and re-enables the display if it was previously off
+    if(encoder_change || check_button(PIN_MENU) || check_button(PIN_BACK) || check_button(PIN_ENCODER_PUSH))
+    {
+      if(!display_timer)
+      {
+        ssd1306_poweron(&disp);
+        while(check_button(PIN_MENU) || check_button(PIN_BACK) || check_button(PIN_ENCODER_PUSH)) WAIT_100MS;
+        display_timer = display_timeout;
+        return false;
+      }
+      display_timer = display_timeout;
+      return true;
+    }
+
+    //if display is on, decrement the timer, once every 100ms
+    if(display_timer)
+    {
+      --display_timer;
+      //if a timeout occurs turn display off
+      if(!display_timer)
+      {
+         ssd1306_poweroff(&disp);
+         return false;
+      }
+      return true;
+    }
+
+    //at this point timer must be expired and display is off
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
@@ -1010,9 +1051,12 @@ bool ui::do_ui(bool rx_settings_changed)
 {
 
     bool autosave_settings = false;
+    uint32_t encoder_change = get_encoder_change();
+
+    //automatically switch off display after a period of inactivity
+    if(!display_timeout(encoder_change)) return false;
 
     //update frequency if encoder changes
-    uint32_t encoder_change = get_encoder_change();
     switch(button_state)
     {
       case idle:
@@ -1087,13 +1131,14 @@ bool ui::do_ui(bool rx_settings_changed)
       }
     }
 
+
     //if button is pressed enter menu
     else if(button_state == menu)
     {
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 14, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return 1;
 
       switch(setting)
       {
@@ -1134,26 +1179,34 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 9 : 
+        case 9: 
+          setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+          rx_settings_changed = enumerate_entry("Display timeout (s)", "never#5#10#15#30#60#120#240#", 7, &setting);
+          display_timer = timeout_lookup[setting];
+          settings[idx_hw_setup] &=  ~mask_display_timeout;
+          settings[idx_hw_setup] |=  setting << flag_display_timeout;
+          break;
+
+        case 10 : 
           enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
 
-        case 10 : 
+        case 11 : 
           rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
-        case 11 : 
+        case 12 : 
           rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
-        case 12: 
+        case 13: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
           break;
 
-        case 13 : 
+        case 14 : 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1162,7 +1215,7 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
 
-        case 14 : 
+        case 15 : 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)
