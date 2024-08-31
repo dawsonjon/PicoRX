@@ -40,8 +40,43 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       if(decimate(i, q))
       {
 
+        #ifdef HIGH_PASS_FILTERING
+        static int16_t prev_i_in = 0;
+        static int16_t prev_i_out = 0;
+        static int16_t prev_q_in = 0;
+        static int16_t prev_q_out = 0;
+
+        int16_t input_i = i;
+        int16_t input_q = q;
+
+        int16_t bias = 1<<7;
+        i = ((29774 * (int32_t)(prev_i_out + input_i - prev_i_in))+bias) >> 15;
+        q = ((29774 * (int32_t)(prev_q_out + input_q - prev_q_in))+bias) >> 15;
+
+        prev_i_in = input_i;
+        prev_q_in = input_q;
+        prev_i_out = i;
+        prev_q_out = q;
+        #endif 
+
         //Apply frequency shift (move tuned frequency to DC)
         frequency_shift(i, q);
+
+        #ifdef MEASURE_DC_BIAS 
+        static int64_t bias_measurement = 0; 
+        static int32_t num_bias_measurements = 0; 
+        if(num_bias_measurements == 100000) { 
+          printf("DC BIAS x 100 %lli\n", bias_measurement/1000); 
+          num_bias_measurements = 0; 
+          bias_measurement = 0; 
+        } 
+        else { 
+          num_bias_measurements++; 
+          bias_measurement += i; 
+        } 
+        #endif 
+
+
 
         real[decimated_index] = i;
         imag[decimated_index] = q;
@@ -69,6 +104,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
           capture_data = false;
         }
       }
+
 
       //Measure amplitude (for signal strength indicator)
       int32_t amplitude = rectangular_2_magnitude(i, q);
@@ -100,6 +136,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
+    //dc = (dc - (dc >> 1)) + ((sample_accumulator/adc_block_size) >> 1);
     dc = sample_accumulator/adc_block_size;
 
     return audio_index;
@@ -114,8 +151,9 @@ void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 
     phase += frequency;
     //truncating fractional bits introduces bias, but it is more efficient to remove it after decimation
-    const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
-    const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
+    int32_t bias = (1<<14);
+    const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q) + bias) >> 15;
+    const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q) + bias) >> 15;
 
     i = i_shifted;
     q = q_shifted;
@@ -159,12 +197,9 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         delayq3 = combq3;
 
         //remove bit growth, but keep some extra bits since noise floor is now lower
-        i = combi4>>(cic_bit_growth-extra_bits);
-        q = combq4>>(cic_bit_growth-extra_bits);
-
-        //compensate for bias introduced in frequency shift, CIC and half band filters
-        i = (((uint32_t)i << 15) + bias_adjustment) >> 15;
-        q = (((uint32_t)q << 15) + bias_adjustment) >> 15;
+        int32_t bias = 1 << (cic_bit_growth-extra_bits-1);
+        i = (combi4-bias)>>(cic_bit_growth-extra_bits);
+        q = (combq4-bias)>>(cic_bit_growth-extra_bits);
 
         return true;
       }

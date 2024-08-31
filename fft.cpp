@@ -18,8 +18,7 @@ int16_t float2fixed(float float_value) {
         return round(float_value * (1 << fraction_bits));
 }
 int16_t product(int16_t a, int16_t b) {
-        //return ((static_cast<int32_t>(b) * a)+K) >> fraction_bits;
-        return ((static_cast<int32_t>(b) * a)) >> fraction_bits;
+        return ((static_cast<int32_t>(b) * a)+K) >> fraction_bits;
 }
 
 void fft_initialise() {

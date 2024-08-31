@@ -42,7 +42,7 @@ class rx_dsp
   uint16_t segment=0;
 
   //used in dc canceler
-  int16_t dc;
+  int64_t dc;
 
   //used in cic decimator
   uint8_t decimate_count;
