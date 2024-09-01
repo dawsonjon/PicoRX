@@ -88,6 +88,7 @@ class rx_dsp
 
   //squelch
   int16_t squelch_threshold=0;
+  int16_t s9_threshold=0;
 
   //used in AGC
   uint8_t attack_factor;

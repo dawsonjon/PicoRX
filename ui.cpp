@@ -474,11 +474,10 @@ void ui::autorestore()
   }
 
   apply_settings(false);
-  ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
   display_timer = timeout_lookup[display_timeout_setting];
-  ssd1306_flip(&disp, settings_to_apply.flip_oled );
-  ssd1306_type(&disp, settings_to_apply.oled_type );
+  ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+  ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
 
 }
 
@@ -1082,12 +1081,12 @@ bool ui::configuration_menu()
 
         case 5: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
-          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
+          ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
         case 6: 
           rx_settings_changed = bit_entry("Oled Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
-          ssd1306_type(&disp, settings[idx_hw_setup] >> flag_oled_type);
+          ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
         case 7: 
@@ -1123,7 +1122,7 @@ void ui::do_ui(void)
     uint32_t encoder_change = get_encoder_change();
 
     //automatically switch off display after a period of inactivity
-    if(!display_timeout(encoder_change)) return false;
+    if(!display_timeout(encoder_change)) return;
 
     //update frequency if encoder changes
     switch(button_state)
@@ -1207,7 +1206,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Configuration", 10, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Configuration", 10, &setting)) return;
 
       switch(setting)
       {

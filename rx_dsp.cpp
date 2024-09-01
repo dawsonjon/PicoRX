@@ -419,6 +419,7 @@ void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
 void rx_dsp :: set_gain_cal_dB(uint16_t val)
 {
   amplifier_gain_dB = val;
+  s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);
 }
 
 //volume settings 0 to 9

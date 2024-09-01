@@ -40,7 +40,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_flip_oled 2
 #define flag_oled_type 3
 #define flag_display_timeout 4
-#define mask_display_timeout (0x7 << 3)
+#define mask_display_timeout (0x7 << flag_display_timeout)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
