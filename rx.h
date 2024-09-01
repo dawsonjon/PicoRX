@@ -25,6 +25,7 @@ struct rx_settings
   uint8_t volume;
   uint8_t squelch;
   uint16_t cw_sidetone_Hz;
+  uint16_t gain_cal;
   bool suspend;
   bool swap_iq;
   bool flip_oled;
