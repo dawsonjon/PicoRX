@@ -1008,9 +1008,9 @@ bool ui::frequency_entry(){
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::do_ui(bool rx_settings_changed)
+void ui::do_ui(void)
 {
-
+    static bool rx_settings_changed = true;
     bool autosave_settings = false;
 
     //update frequency if encoder changes
@@ -1095,7 +1095,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return;
 
       switch(setting)
       {
@@ -1210,7 +1210,7 @@ bool ui::do_ui(bool rx_settings_changed)
     }
     update_display(status, receiver);
 
-    return rx_settings_changed;
+    rx_settings_changed = false;
 
 }
 
