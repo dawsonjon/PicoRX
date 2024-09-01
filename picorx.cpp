@@ -30,7 +30,6 @@ int main()
   {
     uint32_t _time_us = time_us_32();
     user_interface.do_ui();
-    sleep_us(100000);
     _time_us = time_us_32() - _time_us;
     if (_time_us < UI_REFRESH_US)
       sleep_us(UI_REFRESH_US - _time_us);
