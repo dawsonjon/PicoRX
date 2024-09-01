@@ -33,12 +33,6 @@ SOFTWARE.
 #include "ssd1306.h"
 #include "font.h"
 
-#ifdef DISP_CTRL_SH1106
-#define DISP_COL_OFFSET (2)
-#else
-#define DISP_COL_OFFSET (0)
-#endif
-
 inline static void swap(int32_t *a, int32_t *b) {
     int32_t *t=a;
     *a=*b;
@@ -69,7 +63,7 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
     p->height=height;
     p->pages=height/8;
     p->address=address;
-
+    p->disp_col_offset=0;
     p->i2c_i=i2c_instance;
 
     // 1 + p->width so each page is 129 bytes long
@@ -153,6 +147,14 @@ inline void ssd1306_flip(ssd1306_t *p, uint8_t flip) {
     } else {
         ssd1306_write(p, SET_SEG_REMAP | 0x01);
         ssd1306_write(p, SET_COM_OUT_DIR | 0x08);
+    }
+}
+
+inline void ssd1306_type(ssd1306_t *p, uint8_t type) {
+    if (type) {
+        p->disp_col_offset = 2;
+    } else {
+        p->disp_col_offset = 0;
     }
 }
 
@@ -303,7 +305,7 @@ void ssd1306_show(ssd1306_t *p)
 
     for (uint8_t page = 0; page < p->pages; page++)
     {
-        uint8_t payload[] = {(0x00 | (DISP_COL_OFFSET & 0x0F)), (0x10 | (DISP_COL_OFFSET >> 4)), (0xB0 | (page & 0x0F))};
+        uint8_t payload[] = {(0x00 | (p->disp_col_offset & 0x0F)), (0x10 | (p->disp_col_offset >> 4)), (0xB0 | (page & 0x0F))};
 
         for (size_t i = 0; i < sizeof(payload); ++i)
             ssd1306_write(p, payload[i]);

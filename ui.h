@@ -36,6 +36,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
+#define flag_oled_type 3
 
 #define idx_gain_cal 10
 

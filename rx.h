@@ -29,6 +29,7 @@ struct rx_settings
   bool suspend;
   bool swap_iq;
   bool flip_oled;
+  bool oled_type;
 };
 
 struct rx_status
