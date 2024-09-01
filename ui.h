@@ -113,7 +113,7 @@ class ui
   public:
 
   void autorestore();
-  bool do_ui(bool rx_settings_changed);
+  void do_ui(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
 
 };

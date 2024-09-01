@@ -4,10 +4,13 @@
 #include "rx.h"
 #include "ui.h"
 
-rx_settings settings_to_apply;
-rx_status status;
-rx receiver(settings_to_apply, status);
-ui user_interface(settings_to_apply, status,  receiver);
+#define UI_REFRESH_HZ (10UL)
+#define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
+
+static rx_settings settings_to_apply;
+static rx_status status;
+static rx receiver(settings_to_apply, status);
+static ui user_interface(settings_to_apply, status,  receiver);
 
 void core1_main()
 {
@@ -23,11 +26,13 @@ int main()
   //sleep_us(5000000);
   user_interface.autorestore();
 
-  bool settings_changed = true;
   while(1)
   {
-    user_interface.do_ui(settings_changed);
-    settings_changed = false;
+    uint32_t _time_us = time_us_32();
+    user_interface.do_ui();
     sleep_us(100000);
+    _time_us = time_us_32() - _time_us;
+    if (_time_us < UI_REFRESH_US)
+      sleep_us(UI_REFRESH_US - _time_us);
   }
 }
