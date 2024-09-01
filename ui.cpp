@@ -292,8 +292,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 //select a number in a range
 int16_t ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value)
 {
-  int32_t select=*value;
-
+  int32_t select=*value/multiple;
   bool draw_once = true;
   while(1){
     if(encoder_control(&select, min, max)!=0 || draw_once)
@@ -474,7 +473,7 @@ void ui::autorestore()
   }
 
   apply_settings(false);
-  ssd1306_flip(&disp, settings[idx_hw_setup] & flag_flip_oled);
+  ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
   display_timer = timeout_lookup[display_timeout_setting];
 
@@ -1045,6 +1044,63 @@ bool ui::display_timeout(bool encoder_change)
     return false;
 }
 
+bool ui::configuration_menu()
+{
+      bool rx_settings_changed=false;
+      uint32_t setting = 0;
+      if(!enumerate_entry("Configuration:", "Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 6, &setting)) return 1;
+      switch(setting)
+      {
+        case 0: 
+          setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+          rx_settings_changed = enumerate_entry("Display timeout (s)", "never#5#10#15#30#60#120#240#", 7, &setting);
+          display_timer = timeout_lookup[setting];
+          settings[idx_hw_setup] &=  ~mask_display_timeout;
+          settings[idx_hw_setup] |=  setting << flag_display_timeout;
+          break;
+
+        case 1 : 
+          enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
+          gpio_set_dir(23, GPIO_OUT);
+          gpio_put(23, regmode);
+          break;
+
+        case 2 : 
+          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          break;
+
+        case 3 : 
+          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          break;
+
+        case 4: 
+          rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
+          break;
+
+        case 5 : 
+          setting = 0;
+          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
+          if(setting)
+          {
+            upload();
+          }
+          break;
+
+        case 6 : 
+          setting = 0;
+          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
+          if(setting)
+          {
+            reset_usb_boot(0,0);
+          }
+          break;
+      }
+
+      return rx_settings_changed;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
@@ -1139,7 +1195,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Configuration", 10, &setting)) return 1;
 
       switch(setting)
       {
@@ -1168,7 +1224,7 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 6 :
-          rx_settings_changed = enumerate_entry("Bandwidth", "very_narrow#narrow#normal#wide#very_wide#", 4, &settings[idx_bandwidth]);
+          rx_settings_changed = enumerate_entry("Bandwidth", "very narrow#narrow#normal#wide#very wide#", 4, &settings[idx_bandwidth]);
           break;
 
         case 7 :
@@ -1184,50 +1240,10 @@ bool ui::do_ui(bool rx_settings_changed)
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 10: 
-          setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed = enumerate_entry("Display timeout (s)", "never#5#10#15#30#60#120#240#", 7, &setting);
-          display_timer = timeout_lookup[setting];
-          settings[idx_hw_setup] &=  ~mask_display_timeout;
-          settings[idx_hw_setup] |=  setting << flag_display_timeout;
+        case 10 : 
+          rx_settings_changed = configuration_menu();
           break;
 
-        case 11 : 
-          enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
-          gpio_set_dir(23, GPIO_OUT);
-          gpio_put(23, regmode);
-          break;
-
-        case 12 : 
-          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
-          break;
-
-        case 13 : 
-          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
-          break;
-
-        case 14: 
-          rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
-          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
-          break;
-
-        case 15 : 
-          setting = 0;
-          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
-          if(setting)
-          {
-            upload();
-          }
-          break;
-
-        case 16 : 
-          setting = 0;
-          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
-          if(setting)
-          {
-            reset_usb_boot(0,0);
-          }
-          break;
       }
       autosave_settings = rx_settings_changed;
     }

@@ -101,6 +101,7 @@ class ui
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();
   bool string_entry(char string[]);
+  bool configuration_menu();
   bool recall();
   bool store();
   bool upload();

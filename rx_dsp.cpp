@@ -233,6 +233,7 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     else //if(mode==cw)
     {
       cw_sidetone_phase += cw_sidetone_frequency_Hz * 2048 * decimation_rate / adc_sample_rate;
+      printf("sidetone phase %u\n", cw_sidetone_phase);
       const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
       const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((i * rotation_i) - (q * rotation_q)) >> 15;
@@ -387,8 +388,9 @@ void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 }
 
 
-void rx_dsp :: set_mode(uint8_t mode, uint8_t bw)
+void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
 {
+  mode = val;
   //                           AM LSB USB NFM CW
   uint8_t start_bins[5]   =  {  0,  3,  3,  0, 0};
 
