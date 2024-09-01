@@ -72,14 +72,14 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
 
     p->i2c_i=i2c_instance;
 
-
-    p->bufsize=(p->pages)*(p->width);
-    if((p->mbuffer=malloc(p->bufsize+1))==NULL) {
+    // 1 + p->width so each page is 129 bytes long
+    // allows room for the 0x40 byte at the start of each page
+    // draw_pixel knows about this and does the right thing
+    p->bufsize = (p->pages) * (1 + p->width);
+    if((p->buffer=malloc(p->bufsize))==NULL) {
         p->bufsize=0;
         return false;
     }
-
-    p->buffer = p->mbuffer + 1;
 
     // from https://github.com/makerportal/rpi-pico-ssd1306
     uint8_t cmds[]= {
@@ -123,9 +123,9 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
 
 inline void ssd1306_deinit(ssd1306_t *p)
 {
-    if ( p->mbuffer )
+    if ( p->buffer )
     {
-        free(p->mbuffer);
+        free(p->buffer);
     }
 }
 
@@ -162,8 +162,8 @@ inline void ssd1306_clear(ssd1306_t *p) {
 
 void ssd1306_draw_pixel(ssd1306_t *p, uint32_t x, uint32_t y) {
     if(x>=p->width || y>=p->height) return;
-
-    p->buffer[x+p->width*(y>>3)]|=0x1<<(y&0x07); // y>>3==y/8 && y&0x7==y%8
+    // each page is 129 bytes long for the oled cmd byte at the start
+    p->buffer[1 + x + (1 + p->width)*(y>>3) ] |= 0x1<<(y&0x07); // y>>3==y/8 && y&0x7==y%8
 }
 
 void ssd1306_draw_line(ssd1306_t *p, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
@@ -300,7 +300,6 @@ inline void ssd1306_bmp_show_image(ssd1306_t *p, const uint8_t *data, const long
 
 void ssd1306_show(ssd1306_t *p)
 {
-    uint8_t tmp;
 
     for (uint8_t page = 0; page < p->pages; page++)
     {
@@ -309,9 +308,7 @@ void ssd1306_show(ssd1306_t *p)
         for (size_t i = 0; i < sizeof(payload); ++i)
             ssd1306_write(p, payload[i]);
 
-        tmp = p->mbuffer[page * p->width];
-        p->mbuffer[page * p->width] = 0x40;
-        fancy_write(p->i2c_i, p->address, &p->mbuffer[page * p->width], p->width + 1, "ssd1306_show");
-        p->mbuffer[page * p->width] = tmp;
+        p->buffer[page * (1+p->width)] = 0x40; // oled data not cmd
+        fancy_write(p->i2c_i, p->address, &p->buffer[page * (1+p->width)], p->width + 1, "ssd1306_show");
     }
 }
