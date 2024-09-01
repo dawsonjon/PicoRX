@@ -74,12 +74,12 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
 
 
     p->bufsize=(p->pages)*(p->width);
-    if((p->buffer=malloc(p->bufsize+1))==NULL) {
+    if((p->mbuffer=malloc(p->bufsize+1))==NULL) {
         p->bufsize=0;
         return false;
     }
 
-    ++(p->buffer);
+    p->buffer = p->mbuffer + 1;
 
     // from https://github.com/makerportal/rpi-pico-ssd1306
     uint8_t cmds[]= {
@@ -123,9 +123,9 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
 
 inline void ssd1306_deinit(ssd1306_t *p)
 {
-    if (p->buffer - 1)
+    if ( p->mbuffer )
     {
-        free(p->buffer - 1);
+        free(p->mbuffer);
     }
 }
 
@@ -309,9 +309,9 @@ void ssd1306_show(ssd1306_t *p)
         for (size_t i = 0; i < sizeof(payload); ++i)
             ssd1306_write(p, payload[i]);
 
-        tmp = p->buffer[page * p->width - 1];
-        p->buffer[page * p->width - 1] = 0x40;
-        fancy_write(p->i2c_i, p->address, &p->buffer[page * p->width - 1], p->width + 1, "ssd1306_show");
-        p->buffer[page * p->width - 1] = tmp;
+        tmp = p->mbuffer[page * p->width];
+        p->mbuffer[page * p->width] = 0x40;
+        fancy_write(p->i2c_i, p->address, &p->mbuffer[page * p->width], p->width + 1, "ssd1306_show");
+        p->mbuffer[page * p->width] = tmp;
     }
 }
