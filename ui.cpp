@@ -338,6 +338,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.flip_oled = (settings[idx_hw_setup] >> flag_flip_oled) & 1;
+  settings_to_apply.oled_type = (settings[idx_hw_setup] >> flag_oled_type) & 1;
   receiver.release();
 }
 
@@ -477,6 +478,7 @@ void ui::autorestore()
 
   apply_settings(false);
   ssd1306_flip(&disp, settings_to_apply.flip_oled );
+  ssd1306_type(&disp, settings_to_apply.oled_type );
 
 }
 
@@ -1095,7 +1097,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 15, &setting)) return;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 16, &setting)) return;
 
       switch(setting)
       {
@@ -1159,7 +1161,12 @@ void ui::do_ui(void)
           ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
           break;
 
-        case 14 : 
+        case 14: 
+          rx_settings_changed = bit_entry("Oled Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          ssd1306_type(&disp, settings[idx_hw_setup] >> flag_oled_type);
+          break;
+
+        case 15: 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1168,7 +1175,7 @@ void ui::do_ui(void)
           }
           break;
 
-        case 15 : 
+        case 16: 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)

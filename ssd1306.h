@@ -72,6 +72,7 @@ typedef struct {
     bool external_vcc; 	/**< whether display uses external vcc */ 
     uint8_t *buffer;	/**< display buffer */
     size_t bufsize;		/**< buffer size */
+	uint8_t disp_col_offset; /**< 0 for ssd1306, 2 for sh1106 */
 } ssd1306_t;
 
 /**
@@ -139,6 +140,15 @@ void ssd1306_invert(ssd1306_t *p, uint8_t inv);
 
 */
 void ssd1306_flip(ssd1306_t *p, uint8_t flip);
+
+/**
+	@brief set  display type ssd1306, sh1106
+
+	@param[in] p : instance of display
+	@param[in] type : ssd1306==0:  sh1106 !=0: type
+
+*/
+void ssd1306_type(ssd1306_t *p, uint8_t type);
 
 /**
 	@brief display buffer, should be called on change
