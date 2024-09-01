@@ -32,12 +32,14 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_volume 7
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
+#define idx_gain_cal 10
 #define idx_bandwidth 11
 
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
-#define flag_display_timeout 3
+#define flag_oled_type 3
+#define flag_display_timeout 4
 #define mask_display_timeout (0x7 << 3)
 
 // define wait macros
@@ -118,7 +120,7 @@ class ui
   public:
 
   void autorestore();
-  bool do_ui(bool rx_settings_changed);
+  void do_ui(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
 
 };

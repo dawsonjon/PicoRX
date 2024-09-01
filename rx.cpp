@@ -131,6 +131,9 @@ void rx::apply_settings()
         //apply CW sidetone
         rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
 
+        //apply gain calibration
+        rx_dsp_inst.set_gain_cal_dB(settings_to_apply.gain_cal);
+
         //apply AGC speed
         rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
 

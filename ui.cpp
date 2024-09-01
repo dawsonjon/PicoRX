@@ -332,6 +332,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.squelch = settings[idx_squelch];
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+  settings_to_apply.gain_cal = settings[idx_gain_cal];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
@@ -476,6 +477,8 @@ void ui::autorestore()
   ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
   display_timer = timeout_lookup[display_timeout_setting];
+  ssd1306_flip(&disp, settings_to_apply.flip_oled );
+  ssd1306_type(&disp, settings_to_apply.oled_type );
 
 }
 
@@ -1048,7 +1051,7 @@ bool ui::configuration_menu()
 {
       bool rx_settings_changed=false;
       uint32_t setting = 0;
-      if(!enumerate_entry("Configuration:", "Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Flip OLED#USB Memory Upload#USB Firmware Upgrade", 6, &setting)) return 1;
+      if(!enumerate_entry("Configuration:", "Display Timeout#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 8, &setting)) return 1;
       switch(setting)
       {
         case 0: 
@@ -1074,11 +1077,20 @@ bool ui::configuration_menu()
           break;
 
         case 4: 
+          rx_settings_changed = number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          break;
+
+        case 5: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
           break;
 
-        case 5 : 
+        case 6: 
+          rx_settings_changed = bit_entry("Oled Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          ssd1306_type(&disp, settings[idx_hw_setup] >> flag_oled_type);
+          break;
+
+        case 7: 
           setting = 0;
           enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
           if(setting)
@@ -1087,7 +1099,7 @@ bool ui::configuration_menu()
           }
           break;
 
-        case 6 : 
+        case 8: 
           setting = 0;
           enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
           if(setting)
@@ -1104,9 +1116,9 @@ bool ui::configuration_menu()
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::do_ui(bool rx_settings_changed)
+void ui::do_ui(void)
 {
-
+    static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
 
@@ -1270,11 +1282,12 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
+      settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
     update_display(status, receiver);
 
-    return rx_settings_changed;
+    rx_settings_changed = false;
 
 }
 

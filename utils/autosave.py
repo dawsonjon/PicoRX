@@ -10,7 +10,9 @@ import struct
 #define idx_squelch 6
 #define idx_volume 7
 #define idx_cw_sidetone 8
-#define idx_cw_speed 9
+#define idx_hw_setup 9
+#define idx_gain_cal 10
+
 
 modes = {
   "AM" :0,
@@ -21,6 +23,7 @@ modes = {
   255:0xffffffff
 }
 agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3, 255:0xfffffff}
+filter_bandwidths = {"VERY_SLOW": 0, "SLOW": 1, "NORMAL": 2, "FAST": 3, "VERY_FAST": 4, 255:0xfffffff}
 steps = {
     "10Hz": 0,
     "50Hz": 1,
@@ -42,26 +45,26 @@ class Memory:
   def __init__(self):
     self.memory = []
 
-  def add(self, frequency, min_frequency, max_frequency, mode, agc_speed, step, cw_sidetone, volume, squelch):
+  def add(self, frequency, min_frequency, max_frequency, mode, agc_speed, step, cw_sidetone, volume, squelch, gain_cal, filter_bandwidth):
 
       #split frequency into bytes
       data = [
-        int(frequency)&0xffffffff,     #0
-        modes[mode],                   #1
-        agc_speeds[agc_speed],         #2
-        steps[step],                   #3
-        int(max_frequency)&0xffffffff, #4
-        int(min_frequency)&0xffffffff, #5
-        squelch,                       #6
-        volume,                        #7
-        int(cw_sidetone),              #8
-        0x00000000,                    #9
-        0xffffffff,                    #a
-        0xffffffff,                    #b
-        0xffffffff,                    #c
-        0xffffffff,                    #d
-        0xffffffff,                    #e
-        0xffffffff,                    #f
+        int(frequency)&0xffffffff,           #0
+        modes[mode],                         #1
+        agc_speeds[agc_speed],               #2
+        steps[step],                         #3
+        int(max_frequency)&0xffffffff,       #4
+        int(min_frequency)&0xffffffff,       #5
+        squelch,                             #6
+        volume,                              #7
+        int(cw_sidetone),                    #8
+        0x00000000,                          #9
+        int(gain_cal),                       #a
+        filter_bandwidths[filter_bandwidth], #b
+        0xffffffff,                          #c
+        0xffffffff,                          #d
+        0xffffffff,                          #e
+        0xffffffff,                          #f
       ]
       self.memory.append(data)
 
@@ -81,5 +84,5 @@ const uint32_t __in_flash() __attribute__((aligned(4096))) autosave_memory[%s][%
         outf.write(buffer)
 
 mem = Memory()
-mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0)
+mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0, 62, "NORMAL")
 mem.generate_c_header()

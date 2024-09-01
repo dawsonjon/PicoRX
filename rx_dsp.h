@@ -16,6 +16,7 @@ class rx_dsp
   void set_agc_speed(uint8_t agc_setting);
   void set_mode(uint8_t mode, uint8_t bw);
   void set_cw_sidetone_Hz(uint16_t val);
+  void set_gain_cal_dB(uint16_t val);
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
@@ -98,6 +99,9 @@ class rx_dsp
   uint32_t pwm_scale;
 
 
+
+  // gain calibration
+  float amplifier_gain_dB = 62.0f;
 
 };
 
