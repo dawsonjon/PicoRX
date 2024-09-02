@@ -13,6 +13,7 @@
 
 #include "fft_filter.h"
 #include "fft.h"
+#include "utils.h"
 #include <cmath>
 #include <cstdio>
 
@@ -22,9 +23,9 @@
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
+void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
 #else
-void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
+void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
 #endif
 
   // window
@@ -36,7 +37,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
   // forward FFT
   fixed_fft(sample_real, sample_imag, 8);
 
-  if(capture)
+  if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
       capture_i[i] = sample_real[i];
@@ -44,10 +45,15 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
     }
   }
 
+  //largest bin
+  int16_t peak = 0;
+  int16_t next_peak = 0;
+  uint16_t peak_bin = 0;
+
   //DC and positive frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u) + 1; i++) {
     //clear bins outside pass band
-    if(!upper_sideband || i < start_bin || i > stop_bin)
+    if(!filter_control.upper_sideband || i < filter_control.start_bin || i > filter_control.stop_bin)
     {
       sample_real[i] = 0;
       sample_imag[i] = 0;
@@ -56,21 +62,71 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
     {
       sample_real[i] = sample_real[i];
       sample_imag[i] = sample_imag[i];
+
+      //capture highest and second highest peak
+      uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+      if(magnitude > peak)
+      {
+        peak = magnitude; 
+        peak_bin = i;
+      }
+      else if(magnitude > next_peak)
+      {
+        next_peak = magnitude;
+      }
+
     }
   }
 
   //negative frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u)-1; i++) {
-    uint16_t bin = new_fft_size/2 - i - 1;
-    if(!lower_sideband || bin < start_bin || bin > stop_bin)
+    const uint16_t bin = new_fft_size/2 - i - 1;
+    const uint16_t new_idx = (new_fft_size/2u) + 1 + i;
+    if(!filter_control.lower_sideband || bin < filter_control.start_bin || bin > filter_control.stop_bin)
     {
-      sample_real[(new_fft_size/2u) + 1 + i] = 0;
-      sample_imag[(new_fft_size/2u) + 1 + i] = 0;
+      sample_real[new_idx] = 0;
+      sample_imag[new_idx] = 0;
     }
     else
     {
-      sample_real[(new_fft_size/2u) + 1 + i] = sample_real[fft_size - (new_fft_size/2u) + i + 1];
-      sample_imag[(new_fft_size/2u) + 1 + i] = sample_imag[fft_size - (new_fft_size/2u) + i + 1];
+      sample_real[new_idx] = sample_real[fft_size - (new_fft_size/2u) + i + 1];
+      sample_imag[new_idx] = sample_imag[fft_size - (new_fft_size/2u) + i + 1];
+
+      //capture highest and second highest peak
+      uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+      if(magnitude > peak)
+      {
+        peak = magnitude; 
+        peak_bin = i;
+      }
+      else if(magnitude > next_peak)
+      {
+        next_peak = magnitude;
+      }
+    }
+  }
+
+
+
+  if(filter_control.enable_auto_notch)
+  {
+    //check for a consistent
+    const uint8_t confirm_threshold = 255u;
+    static uint8_t confirm_count = 0u;
+    static uint8_t last_peak_bin = 0u;
+    if(peak_bin == last_peak_bin && confirm_count < confirm_threshold) confirm_count++;
+    if(peak_bin != last_peak_bin && confirm_count > 0) confirm_count--;
+    last_peak_bin = peak_bin;
+
+    //remove highest bin
+    if((confirm_count > confirm_threshold/2u) && (peak_bin > 3u) && (peak_bin < new_fft_size-3u))
+    {
+      sample_real[peak_bin] = 0;
+      sample_imag[peak_bin] = 0;
+      sample_real[peak_bin+1] = 0;
+      sample_imag[peak_bin+1] = 0;
+      sample_real[peak_bin-1] = 0;
+      sample_imag[peak_bin-1] = 0;
     }
   }
 
@@ -82,9 +138,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
+void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
 #else
-void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
+void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
 #endif
 
   int16_t real[fft_size];
@@ -100,7 +156,7 @@ void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], ui
   }
 
   //filter combined block
-  filter_block(real, imag, start_bin, stop_bin, lower_sideband, upper_sideband, capture, capture_i, capture_q);
+  filter_block(real, imag, filter_control, capture_i, capture_q);
 
   for (uint16_t i = 0; i < (new_fft_size/2u); i++) {
     sample_real[i] = real[i] + last_output_real[i];

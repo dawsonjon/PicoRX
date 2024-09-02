@@ -79,9 +79,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
   //fft filter decimates a further 2x
   //if the capture buffer isn't in use, fill it
-  bool capture_spectrum = sem_try_acquire(&spectrum_semaphore);
-  fft_filter_inst.process_sample(real, imag, start_frequency, stop_frequency, lower_sideband, upper_sideband, capture_spectrum, capture_i, capture_q);
-  if(capture_spectrum) sem_release(&spectrum_semaphore);
+  filter_control.capture = sem_try_acquire(&spectrum_semaphore);
+  fft_filter_inst.process_sample(real, imag, filter_control, capture_i, capture_q);
+  if(filter_control.capture) sem_release(&spectrum_semaphore);
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
@@ -215,7 +215,6 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     else //if(mode==cw)
     {
       cw_sidetone_phase += cw_sidetone_frequency_Hz * 2048 * decimation_rate / adc_sample_rate;
-      printf("sidetone phase %u\n", cw_sidetone_phase);
       const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
       const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((i * rotation_i) - (q * rotation_q)) >> 15;
@@ -302,6 +301,7 @@ rx_dsp :: rx_dsp()
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_speed(3);
+  filter_control.enable_auto_notch = false;
 
   //initialise PWM frequency
   pwm_scale = 1+((INT16_MAX * 2)/500);
@@ -319,6 +319,11 @@ rx_dsp :: rx_dsp()
 
   for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
 
+}
+
+void rx_dsp :: set_auto_notch(bool enable_auto_notch)
+{
+  filter_control.enable_auto_notch = enable_auto_notch;
 }
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)
@@ -382,10 +387,10 @@ void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
                              { 28, 25, 25, 40, 3},  //wide
                              { 31, 28, 28, 43, 4}}; //very wide
 
-  lower_sideband = (mode != USB);
-  upper_sideband = (mode != LSB);
-  start_frequency = start_bins[mode];
-  stop_frequency = stop_bins[bw][mode];
+  filter_control.lower_sideband = (mode != USB);
+  filter_control.upper_sideband = (mode != LSB);
+  filter_control.start_bin = start_bins[mode];
+  filter_control.stop_bin = stop_bins[bw][mode];
 }
 
 void rx_dsp :: set_swap_iq(uint8_t val)

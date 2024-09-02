@@ -211,7 +211,6 @@ void ui::update_display(rx_status & status, rx & receiver)
   for(uint16_t x=0; x<128; x++)
   {
       int16_t y = scale*(log10f(spectrum[x])-min);
-      printf("spectrum: %u, %f\n", x,  log10f(spectrum[x]));
       if(y < 0) y=0;
       if(y > 31) y=31;
       ssd1306_draw_line(&disp, x, 63-y, x, 63);
@@ -327,6 +326,7 @@ void ui::apply_settings(bool suspend)
   receiver.access(true);
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
   settings_to_apply.agc_speed = settings[idx_agc_speed];
+  settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
   settings_to_apply.mode = settings[idx_mode];
   settings_to_apply.volume = settings[idx_volume];
   settings_to_apply.squelch = settings[idx_squelch];
@@ -1206,7 +1206,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Frequency Step#CW Sidetone Frequency#Configuration", 10, &setting)) return;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency Step#CW Sidetone Frequency#Configuration", 11, &setting)) return;
 
       switch(setting)
       {
@@ -1243,15 +1243,19 @@ void ui::do_ui(void)
           break;
 
         case 8 : 
+          rx_settings_changed = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
+          break;
+
+        case 9 : 
           rx_settings_changed = enumerate_entry("Frequency Step", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 9 : 
+        case 10 : 
           rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 10 : 
+        case 11 : 
           rx_settings_changed = configuration_menu();
           break;
 
@@ -1275,6 +1279,7 @@ void ui::do_ui(void)
       receiver.access(true);
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
       settings_to_apply.agc_speed = settings[idx_agc_speed];
+      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
       settings_to_apply.mode = settings[idx_mode];
       settings_to_apply.volume = settings[idx_volume];
       settings_to_apply.squelch = settings[idx_squelch];

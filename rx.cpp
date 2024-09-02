@@ -137,6 +137,9 @@ void rx::apply_settings()
         //apply AGC speed
         rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
 
+        //apply Automatic Notch Filter
+        rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
+
         //apply mode
         rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
 

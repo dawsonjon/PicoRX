@@ -34,13 +34,18 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_hw_setup 9
 #define idx_gain_cal 10
 #define idx_bandwidth 11
+#define idx_rx_features 12
 
+//flags for HW settings
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
 #define flag_oled_type 3
 #define flag_display_timeout 4
 #define mask_display_timeout (0x7 << flag_display_timeout)
+
+//flags for receiver features
+#define flag_enable_auto_notch 0
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

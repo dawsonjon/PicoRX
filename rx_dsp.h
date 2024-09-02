@@ -21,6 +21,7 @@ class rx_dsp
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
   void set_pwm_max(uint32_t pwm_max);
+  void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
   void get_spectrum(float spectrum[]);
 
@@ -38,7 +39,6 @@ class rx_dsp
   int16_t capture_q[256];
   float accumulator[256];
   semaphore_t spectrum_semaphore;
-  //uint16_t segment=0;
 
   //used in dc canceler
   int64_t dc;
@@ -56,10 +56,7 @@ class rx_dsp
 
   //used in fft filter
   fft_filter fft_filter_inst;
-  uint16_t start_frequency;
-  uint16_t stop_frequency;
-  bool lower_sideband;
-  bool upper_sideband;
+  s_filter_control filter_control;
 
   //used in frequency shifter
   uint8_t swap_iq;
@@ -96,8 +93,6 @@ class rx_dsp
   const bool agc_enabled = true;
   int32_t max_hold;
   uint32_t pwm_scale;
-
-
 
   // gain calibration
   float amplifier_gain_dB = 62.0f;

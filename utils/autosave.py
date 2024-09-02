@@ -61,7 +61,7 @@ class Memory:
         0x00000000,                          #9
         int(gain_cal),                       #a
         filter_bandwidths[filter_bandwidth], #b
-        0xffffffff,                          #c
+        0x00000000,                          #c
         0xffffffff,                          #d
         0xffffffff,                          #e
         0xffffffff,                          #f
