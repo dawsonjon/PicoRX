@@ -7,7 +7,7 @@
 #include "pico/stdlib.h"
 #endif
 
-static const uint16_t max_m = 12; // the largest size of FFT supported
+static const uint16_t max_m = 8; // the largest size of FFT supported
 static const uint16_t max_n_over_2 = 1 << (max_m - 1);
 static int16_t fixed_cos_table[max_n_over_2];
 static int16_t fixed_sin_table[max_n_over_2];

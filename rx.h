@@ -92,7 +92,7 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
-  void get_spectrum(float spectrum[], int16_t &offset);
+  void get_spectrum(float spectrum[]);
   rx_settings &settings_to_apply;
   rx_status &status;
   rx_dsp rx_dsp_inst;

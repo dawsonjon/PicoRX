@@ -15,14 +15,6 @@ uint16_t rectangular_2_magnitude(int16_t i, int16_t q)
   return absi > absq ? absi + absq / 4 : absq + absi / 4;
 }
 
-float flt_rectangular_2_magnitude(float i, float q)
-{
-  //Measure magnitude
-  const float absi = fabs(i);
-  const float absq = fabs(q);
-  return absi > absq ? ((absi * 0.947543636291) + (absq * 0.392485425092)) : ((absq * 0.947543636291) + (absi * 0.392485425092));
-}
-
 //from: https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
 //converted to fixed point
 int16_t rectangular_2_phase(int16_t i, int16_t q)
@@ -61,65 +53,5 @@ void initialise_luts()
   }
 
 }
-
-//bit reverse
-static unsigned char lookup[16] = {
-0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
-
-uint8_t bit_reverse(uint8_t n) 
-{
-   // Reverse the top and bottom nibble then swap them.
-   return (lookup[n&0b1111] << 4) | lookup[n>>4];
-}
-
-//calculate fft
-void fft(float reals[], float imaginaries[]){
-
-    int16_t stage, subdft_size, span, j, i, ip;
-    float temp_real, temp_imaginary, imaginary_twiddle, real_twiddle;
-
-
-    //bit reverse data
-    for(i=0; i<256; i++){
-        ip = bit_reverse(i);
-        if(i < ip){
-            temp_real = reals[i];
-            temp_imaginary = imaginaries[i];
-            reals[i] = reals[ip];
-            imaginaries[i] = imaginaries[ip];
-            reals[ip] = temp_real;
-            imaginaries[ip] = temp_imaginary;
-        }
-    }
-
-    //butterfly multiplies
-    for(stage=0; stage<8; stage++){
-        subdft_size = 2 << stage;
-        span = subdft_size >> 1;
-
-        for(j=0; j<span; j++){
-            for(i=j; i<256; i+=subdft_size){
-                ip=i+span;
-
-                real_twiddle=cosf((float)j*M_PI/span);
-                imaginary_twiddle=-sinf((float)j*M_PI/span);
-
-                temp_real      = (reals[ip]*real_twiddle)      - (imaginaries[ip]*imaginary_twiddle);
-                temp_imaginary = (reals[ip]*imaginary_twiddle) + (imaginaries[ip]*real_twiddle);
-
-                reals[ip]       = reals[i]-temp_real;
-                imaginaries[ip] = imaginaries[i]-temp_imaginary;
-
-                reals[i]       = reals[i]+temp_real;
-                imaginaries[i] = imaginaries[i]+temp_imaginary;
-
-            }
-        }
-
-    }
-
-}
-
 
 #endif

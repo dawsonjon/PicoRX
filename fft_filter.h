@@ -29,7 +29,7 @@ class fft_filter
   int16_t last_output_real[new_fft_size/2];
   int16_t last_output_imag[new_fft_size/2];
   int32_t window[fft_size];
-  void filter_block(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband);
+  void filter_block(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]);
 
   public:
   fft_filter()
@@ -48,7 +48,7 @@ class fft_filter
       last_output_imag[i] = 0;
     }
   }
-  void process_sample(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband);
+  void process_sample(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]);
 
 };
 

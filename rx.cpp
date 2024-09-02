@@ -160,9 +160,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(float spectrum[], int16_t &offset)
+void rx::get_spectrum(float spectrum[])
 {
-  rx_dsp_inst.get_spectrum(spectrum, offset);
+  rx_dsp_inst.get_spectrum(spectrum);
 }
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)

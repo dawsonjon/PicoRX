@@ -22,9 +22,9 @@
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband) {
+void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
 #else
-void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband) {
+void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
 #endif
 
   // window
@@ -35,6 +35,14 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
 
   // forward FFT
   fixed_fft(sample_real, sample_imag, 8);
+
+  if(capture)
+  {
+    for (uint16_t i = 0; i < fft_size; i++) {
+      capture_i[i] = sample_real[i];
+      capture_q[i] = sample_imag[i];
+    }
+  }
 
   //DC and positive frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u) + 1; i++) {
@@ -74,9 +82,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], uint
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband) {
+void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
 #else
-void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband) {
+void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], uint16_t start_bin, uint16_t stop_bin, bool lower_sideband, bool upper_sideband, bool capture, int16_t capture_i[], int16_t capture_q[]) {
 #endif
 
   int16_t real[fft_size];
@@ -92,7 +100,7 @@ void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], ui
   }
 
   //filter combined block
-  filter_block(real, imag, start_bin, stop_bin, lower_sideband, upper_sideband);
+  filter_block(real, imag, start_bin, stop_bin, lower_sideband, upper_sideband, capture, capture_i, capture_q);
 
   for (uint16_t i = 0; i < (new_fft_size/2u); i++) {
     sample_real[i] = real[i] + last_output_real[i];

@@ -19,7 +19,7 @@ int main()
       t++;
     }
 
-    filt.process_sample(i, q, 0, 32, true, true);
+    filt.process_sample(i, q, 0, 32, true, true, false, NULL, NULL);
 
     for(uint16_t idx = 0; idx<64; ++idx)
     {
