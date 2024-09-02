@@ -77,12 +77,9 @@ class ui
   void display_line1();
   void display_line2();
   void display_linen(uint8_t line);
-  void display_write(char x);
-  void display_write2X(char x, bool colour=1);
-  void display_print(const char str[], bool colour=1);
-  void display_print2X(const char str[], bool colour=1);
-  void display_print_num(const char format[], int16_t num);
-  void display_print_num2X(const char format[], int16_t num);
+  void display_write(char x, uint32_t scale=1, bool colour=1);
+  void display_print(const char str[], uint32_t scale=1, bool colour=1);
+  void display_print_num(const char format[], int16_t num, uint32_t scale=1, bool colour=1);
   void display_show();
 
   ssd1306_t disp;

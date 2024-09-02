@@ -109,44 +109,24 @@ void ui::display_linen(uint8_t line)
   cursor_x = 0;
 }
 
-void ui::display_write(char x)
+void ui::display_write(char x, uint32_t scale, bool colour)
 {
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, 1, x, 1);
-  cursor_x += 6;
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, x, colour);
+  cursor_x += (6*scale);
 }
 
-void ui::display_write2X(char x, bool colour)
+void ui::display_print(const char str[], uint32_t scale, bool colour)
 {
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, 2, x, colour);
-  cursor_x += 12;
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, scale, str, colour);
+  cursor_x += 6*scale*strlen(str);
 }
 
-void ui::display_print(const char str[], bool colour)
-{
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, str, colour);
-  cursor_x += 6*strlen(str);
-}
-
-void ui::display_print2X(const char str[], bool colour)
-{
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, str, colour);
-  cursor_x += 12*strlen(str);
-}
-
-void ui::display_print_num(const char format[], int16_t num)
+void ui::display_print_num(const char format[], int16_t num, uint32_t scale, bool colour)
 {
   char buff[16];
   snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 1, buff, 1);
-  cursor_x += 6*strlen(buff);
-}
-
-void ui::display_print_num2X(const char format[], int16_t num)
-{
-  char buff[16];
-  snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x, cursor_y, 2, buff, 1);
-  cursor_x += 12*strlen(buff);
+  ssd1306_draw_string(&disp, cursor_x, cursor_y, scale, buff, colour);
+  cursor_x += 6*scale*strlen(buff);
 }
 
 void ui::display_show()
@@ -259,7 +239,7 @@ void ui::print_option(const char options[], uint8_t option){
     while(1){
       x = options[idx];
       if(x==0 || x=='#') return;
-      display_write2X(x);
+      display_write(x, 2);
       idx++;
     }
 }
@@ -289,7 +269,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print2X(title);
+      display_print(title,2);
       display_linen(3);
       print_option(options, select);
       display_show();
@@ -322,9 +302,9 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print2X(title);
+      display_print(title, 2);
       display_linen(3);
-      display_print_num2X(format, select*multiple);
+      display_print_num(format, select*multiple,2);
       display_show();
     }
 
@@ -964,16 +944,16 @@ bool ui::frequency_entry(){
       for(i=0; i<8; i++)
       {
         if (!edit_mode && (i==digit)) {
-          display_write2X(digits[i] + '0',0);
+          display_write(digits[i] + '0',2,0);
         } else {
-          display_write2X(digits[i] + '0',1);
+          display_write(digits[i] + '0',2,1);
         }
-        if(i==1||i==4) display_write2X('.');
+        if(i==1||i==4) display_write('.',2,1);
       }
       display_linen(4);
-      display_print2X("Ok", digit==8 ? 0 : 1 );
+      display_print(" Ok ", 2, digit==8 ? 0 : 1 );
       display_print("     ");
-      display_print2X("Exit", digit==9 ? 0 : 1 );
+      display_print("Exit", 2, digit==9 ? 0 : 1 );
 
       display_show();
     }
