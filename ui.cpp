@@ -354,9 +354,12 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.squelch = settings[idx_squelch];
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+  settings_to_apply.gain_cal = settings[idx_gain_cal];
+
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.flip_oled = (settings[idx_hw_setup] >> flag_flip_oled) & 1;
+  settings_to_apply.oled_type = (settings[idx_hw_setup] >> flag_oled_type) & 1;
   receiver.release();
 }
 
@@ -496,6 +499,7 @@ void ui::autorestore()
 
   apply_settings(false);
   ssd1306_flip(&disp, settings_to_apply.flip_oled );
+  ssd1306_type(&disp, settings_to_apply.oled_type );
 
 }
 
@@ -1014,9 +1018,9 @@ bool ui::frequency_entry(){
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::do_ui(bool rx_settings_changed)
+void ui::do_ui(void)
 {
-
+    static bool rx_settings_changed = true;
     bool autosave_settings = false;
 
     //update frequency if encoder changes
@@ -1101,7 +1105,7 @@ bool ui::do_ui(bool rx_settings_changed)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Freq. Step#CW ST Freq#Reg Mode#Rev Encoder#Swap IQ#Flip OLED#USB Mem Up#USB FW Up", 14, &setting)) return 1;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 16, &setting)) return;
 
       switch(setting)
       {
@@ -1130,7 +1134,7 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 6 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 13, &settings[idx_squelch]);
+          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 12, &settings[idx_squelch]);
           break;
 
         case 7 : 
@@ -1157,11 +1161,20 @@ bool ui::do_ui(bool rx_settings_changed)
           break;
 
         case 12: 
+          rx_settings_changed = number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          break;
+
+        case 13: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
           break;
 
-        case 13 : 
+        case 14: 
+          rx_settings_changed = bit_entry("Oled Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          ssd1306_type(&disp, settings[idx_hw_setup] >> flag_oled_type);
+          break;
+
+        case 15: 
           setting = 0;
           enumerate_entry("USB Mem Up", "No#Yes#", 1, &setting);
           if(setting)
@@ -1170,7 +1183,7 @@ bool ui::do_ui(bool rx_settings_changed)
           }
           break;
 
-        case 14 : 
+        case 16: 
           setting = 0;
           enumerate_entry("USB FW Up", "No#Yes#", 1, &setting);
           if(setting)
@@ -1207,11 +1220,12 @@ bool ui::do_ui(bool rx_settings_changed)
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+      settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
     update_display(status, receiver);
 
-    return rx_settings_changed;
+    rx_settings_changed = false;
 
 }
 

@@ -25,15 +25,17 @@ struct rx_settings
   uint8_t volume;
   uint8_t squelch;
   uint16_t cw_sidetone_Hz;
+  uint16_t gain_cal;
   bool suspend;
   bool swap_iq;
   bool flip_oled;
+  bool oled_type;
 };
 
 struct rx_status
 {
   int32_t signal_strength_dBm;
-  clock_t busy_time;
+  uint32_t busy_time;
   uint16_t temp;
   uint16_t battery;
 };
@@ -84,7 +86,7 @@ class rx
   static void dma_handler();
   
   //store busy time for performance monitoring
-  clock_t busy_time;
+  uint32_t busy_time;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

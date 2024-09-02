@@ -36,6 +36,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
+#define flag_oled_type 3
+
+#define idx_gain_cal 10
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -114,7 +117,7 @@ class ui
   public:
 
   void autorestore();
-  bool do_ui(bool rx_settings_changed);
+  void do_ui(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
 
 };

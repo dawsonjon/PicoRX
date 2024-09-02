@@ -521,6 +521,11 @@ void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
   cw_sidetone_frequency_Hz = val;
 }
 
+void rx_dsp :: set_gain_cal_dB(uint16_t val)
+{
+  amplifier_gain_dB = val;
+}
+
 //volume settings 0 to 9
 void rx_dsp :: set_volume(uint8_t val)
 {
@@ -568,7 +573,7 @@ int16_t rx_dsp :: get_signal_strength_dBm()
     return -130;
   }
   const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude / full_scale_signal_strength);
-  return roundf(full_scale_dBm - amplifier_gain_dB - preamplifier_gain_dB - filter_gain_dB + signal_strength_dBFS);
+  return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
 void rx_dsp :: set_decimation_rate(uint8_t i) 
