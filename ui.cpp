@@ -84,11 +84,11 @@ void ui::setup_display() {
   ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
 }
 
-void ui::display_clear()
+void ui::display_clear(bool colour)
 {
   cursor_x = 0;
   cursor_y = 0;
-  ssd1306_clear(&disp);
+  ssd1306_clear(&disp, colour);
 }
 
 void ui::display_line1()
@@ -99,34 +99,64 @@ void ui::display_line1()
 
 void ui::display_line2()
 {
-  cursor_y = 1;
+  cursor_y = 8;
   cursor_x = 0;
 }
 
 void ui::display_linen(uint8_t line)
 {
-  cursor_y = line-1;
+  cursor_y = 8*(line-1);
   cursor_x = 0;
 }
 
-void ui::display_write(char x)
+void ui::display_set_xy(uint8_t x, uint8_t y)
 {
-  ssd1306_draw_char(&disp, cursor_x*6, cursor_y*8, 1, x);
-  cursor_x++;
+  cursor_x = x;
+  cursor_y = y;
 }
 
-void ui::display_print(const char str[])
+void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  ssd1306_draw_string(&disp, cursor_x*6, cursor_y*8, 1, str);
-  cursor_x+=strlen(str);
+  if (cursor_x > 128 - 6*scale) {
+    cursor_x = 0;
+    cursor_y += 9*scale;
+  }
+
+  ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, x, !(style&style_reverse) );
+  cursor_x += (6*scale);
 }
 
-void ui::display_print_num(const char format[], int16_t num)
+void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
+{
+  bool colour = !(style&style_reverse);
+
+  if ( (style & style_centered) && (strlen(str) < (128/(6*scale))) ) {
+    cursor_x = (128- 6*scale*strlen(str))/2;
+  }
+  for (size_t i=0; i<strlen(str); i++) {
+    if (str[i] == '\n') {
+      cursor_x = 0;
+      cursor_y += 9*scale;
+      continue;
+    }
+    if (str[i] == '\a') {
+      colour = !colour;
+      continue;
+    }
+    if (cursor_x > 128 - 6*scale) {
+      cursor_x = 0;
+      cursor_y += 9*scale;
+    }
+    ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+    cursor_x += 6*scale;
+  }
+}
+
+void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uint32_t style)
 {
   char buff[16];
   snprintf(buff, 16, format, num);
-  ssd1306_draw_string(&disp, cursor_x*6, cursor_y*8, 1, buff);
-  cursor_x+=strlen(buff);
+  display_print_str(buff, scale, style);
 }
 
 void ui::display_show()
@@ -151,7 +181,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   receiver.release();
 
   char buff [21];
-  ssd1306_clear(&disp);
+//  ssd1306_clear(&disp);
+  display_clear();
 
   //frequency
   uint32_t remainder, MHz, kHz, Hz;
@@ -161,20 +192,20 @@ void ui::update_display(rx_status & status, rx & receiver)
   remainder = remainder%1000u; 
   Hz = remainder;
   snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
-  ssd1306_draw_string(&disp, 0, 0, 2, buff);
+  ssd1306_draw_string(&disp, 0, 0, 2, buff, 1);
   snprintf(buff, 21, ".%03lu", Hz);
-  ssd1306_draw_string(&disp, 72, 0, 1, buff);
+  ssd1306_draw_string(&disp, 72, 0, 1, buff, 1);
 
   //mode
   static const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
-  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]]);
+  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]], 1);
 
   //step
   static const char steps[][8]  = {
     "   10Hz", "   50Hz", "  100Hz", "   1kHz",
     "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
     "  50kHz", " 100kHz"};
-  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]]);
+  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]], 1);
 
   //signal strength/cpu
   static const char smeter[][12]  = {
@@ -187,22 +218,22 @@ void ui::update_display(rx_status & status, rx & receiver)
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
-  ssd1306_draw_string(&disp, 0, 24, 1, buff);
+  ssd1306_draw_string(&disp, 0, 24, 1, buff, 1);
   snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 0, 16, 1, buff);
+  ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
 
   //Display spectrum capture
   static float spectrum[128];
   int16_t offset;
   receiver.get_spectrum(spectrum, offset);
-  ssd1306_draw_line(&disp, 0, 34, 127, 34);
+  ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
-  ssd1306_draw_line(&disp, 0,   32, 0,   36);
-  ssd1306_draw_line(&disp, 64,  32, 64,  36);
-  ssd1306_draw_line(&disp, 127, 32, 127, 36);
+  ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
+  ssd1306_draw_line(&disp, 64,  32, 64,  36, 1);
+  ssd1306_draw_line(&disp, 127, 32, 127, 36, 1);
 
-  ssd1306_draw_line(&disp, 32, 33, 32, 35);
-  ssd1306_draw_line(&disp, 96, 33, 96, 35);
+  ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
+  ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
   float min=2;
   float max=6;
@@ -214,7 +245,7 @@ void ui::update_display(rx_status & status, rx & receiver)
       int16_t y = scale*(log10f(spectrum[x])-min);
       if(y < 0) y=0;
       if(y > 31) y=31;
-      ssd1306_draw_line(&disp, x, 63-y, x, 63);
+      ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
   ssd1306_show(&disp);
@@ -225,7 +256,7 @@ void ui::update_display(rx_status & status, rx & receiver)
 // Generic Menu Options
 ////////////////////////////////////////////////////////////////////////////////
 
-void ui::print_option(const char options[], uint8_t option){
+void ui::print_option(const char options[], uint8_t option, uint8_t y_pos){
     char x;
     uint8_t i, idx=0;
 
@@ -234,13 +265,22 @@ void ui::print_option(const char options[], uint8_t option){
       while(options[idx++]!='#'){}
     }
 
-    //print substring
-    while(1){
+    //extract substring to temp buffer
+    char buff[32];
+    for (uint8_t i=0; i<31; i++){
       x = options[idx];
-      if(x==0 || x=='#') return;
-      display_write(x);
+      if(x==0 || x=='#') {
+        buff[i] = 0;
+        break;
+      }
+      buff[i] = x;
       idx++;
     }
+    if (y_pos) {
+      display_set_xy(0,y_pos);
+    }
+    display_print_str(buff, 2, style_centered);
+ 
 }
 
 uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
@@ -262,15 +302,16 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 {
   int32_t select=*value;
   bool draw_once = true;
+  bool is_topmenu = ~strcmp(title, "menu:");
   while(1){
     if(encoder_control(&select, 0, max)!=0 || draw_once)
     {
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print(title);
-      display_line2();
-      print_option(options, select);
+      display_print_str(title,2);
+      display_print_str("\n",2);
+      print_option(options, select, is_topmenu ? 0 : 48);
       display_show();
     }
 
@@ -301,9 +342,10 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       //print selected menu item
       draw_once = false;
       display_clear();
-      display_print(title);
-      display_line2();
-      display_print_num(format, select*multiple);
+      display_print_str(title, 2);
+      display_print_str("\n", 2);
+      display_set_xy(0,48);
+      display_print_num(format, select*multiple, 2, style_centered);
       display_show();
     }
 
@@ -486,7 +528,7 @@ void ui::autorestore()
 bool ui::upload()
 {
       display_clear();
-      display_print("Ready for data...");
+      display_print_str("Ready for data...");
       display_show();
 
       //work out which flash sector the channel sits in.
@@ -594,10 +636,10 @@ bool ui::store()
         //print selected menu item
         draw_once = false;
         display_clear();
-        display_print("Store");
+        display_print_str("Store");
         display_line2();
         display_print_num("%03i ", select);
-        display_print(name);
+        display_print_str(name);
         display_show();
       }
       else
@@ -605,10 +647,10 @@ bool ui::store()
         //print selected menu item
         draw_once = false;
         display_clear();
-        display_print("Store");
+        display_print_str("Store");
         display_line2();
         display_print_num("%03i ", select);
-        display_print("BLANK");
+        display_print_str("BLANK");
         display_show();
       }
     }
@@ -731,10 +773,10 @@ bool ui::recall()
         //print selected menu item
         draw_once = false;
         display_clear();
-        display_print("Recall");
+        display_print_str("Recall");
         display_line2();
         display_print_num("%03i ", select);
-        display_print(name);
+        display_print_str(name);
 
         //draw frequency
         display_linen(4);
@@ -750,9 +792,9 @@ bool ui::recall()
 
         //draw mode
         display_linen(5);
-        display_print("mode: ");
+        display_print_str("mode: ");
         static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
-        display_print(modes[radio_memory[select][idx_mode]]);
+        display_print_str(modes[radio_memory[select][idx_mode]]);
 
         //draw band range 
         display_linen(6);
@@ -783,10 +825,10 @@ bool ui::recall()
         //print selected menu item
         draw_once = false;
         display_clear();
-        display_print("Recall");
+        display_print_str("Recall");
         display_line2();
         display_print_num("%03i ", select);
-        display_print("BLANK");
+        display_print_str("BLANK");
         display_show();
       }
     }
@@ -852,8 +894,8 @@ bool ui::string_entry(char string[]){
 
       //write frequency to lcd
       display_line1();
-      display_print(string);
-      display_print("YN");
+      display_print_str(string);
+      display_print_str("YN");
 
       //print cursor
       display_line2();
@@ -863,16 +905,16 @@ bool ui::string_entry(char string[]){
         {
           if(edit_mode)
           {
-            display_write('X');
+            display_print_char('X');
           } 
           else 
           {
-            display_write('^');
+            display_print_char('^');
           }
         } 
         else 
         {
-          display_write(' ');
+          display_print_char(' ');
         }
       }
       display_show();
@@ -942,32 +984,18 @@ bool ui::frequency_entry(){
       display_line1();
       for(i=0; i<8; i++)
       {
-        display_write(digits[i] + '0');
-        if(i==1||i==4) display_write('.');
-      }
-      display_print(" Y N");
-
-      //print cursor
-      display_line2();
-      for(i=0; i<16; i++)
-      {
-        if(i==digit)
-        {
-          if(edit_mode)
-          {
-            display_write('X');
-          } 
-          else 
-          {
-            display_write('^');
-          }
-        } 
-        else 
-        {
-          display_write(' ');
+        if (!edit_mode && (i==digit)) {
+          display_print_char(digits[i] + '0', 2, style_reverse);
+        } else {
+          display_print_char(digits[i] + '0', 2 );
         }
-        if(i==1||i==4||i==7||i==8) display_write(' ');
+        if(i==1||i==4) display_print_char('.', 2 );
       }
+      display_linen(4);
+      display_print_str(" Ok ", 2, digit==8 ? style_reverse : style_normal );
+      display_print_str("     ");
+      display_print_str("Exit", 2, digit==9 ? style_reverse : style_normal );
+
       display_show();
     }
 
@@ -976,7 +1004,8 @@ bool ui::frequency_entry(){
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
-	    if(digit==8) //Yes
+      
+	    if(digit==8) //Yes, Ok
       {
 	      digit_val = 10000000;
 
@@ -1097,7 +1126,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Sidetone Frequency#Regulator Mode#Reverse Encoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 16, &setting)) return;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Tone\nFrequency#Regulator Mode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 16, &setting)) return;
 
       switch(setting)
       {
@@ -1135,21 +1164,21 @@ void ui::do_ui(void)
           break;
 
         case 8 : 
-          rx_settings_changed = number_entry("CW Sidetone Frequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
+          rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
         case 9 : 
-          enumerate_entry("PSU Mode", "FM#PWM#", 2, &regmode);
+          enumerate_entry("PSU Mode", "FM#PWM#", 1, &regmode);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
 
         case 10 : 
-          rx_settings_changed = bit_entry("Reverse Encoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          rx_settings_changed = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
         case 11 : 
-          rx_settings_changed = bit_entry("Swap IQ Channel", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          rx_settings_changed = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
         case 12: 
@@ -1168,7 +1197,7 @@ void ui::do_ui(void)
 
         case 15: 
           setting = 0;
-          enumerate_entry("USB Memory Upload   ", "No#Yes#", 1, &setting);
+          enumerate_entry("USB Memory Upload", "No#Yes#", 1, &setting);
           if(setting)
           {
             upload();
@@ -1177,11 +1206,13 @@ void ui::do_ui(void)
 
         case 16: 
           setting = 0;
-          enumerate_entry("USB Firmware Upgrade", "No#Yes#", 1, &setting);
+          enumerate_entry("USB Firmware Upload", "No#Yes#", 1, &setting);
           if(setting)
           {
             display_clear();
-            display_print("Ready for upload...");
+            display_print_str("Ready for",2, style_centered);
+            display_print_char('\n', 2);
+            display_print_str("upload...",2, style_centered);
             display_show();
 
             reset_usb_boot(0,0);
