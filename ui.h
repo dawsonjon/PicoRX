@@ -54,6 +54,13 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 
 enum e_button_state {idle, down, fast_mode, menu};
 
+// font styles styles as bits to be ORed
+#define style_normal      0
+#define style_reverse     (1<<0)
+#define style_centered    (1<<1)
+//#define style_bold        (1<<2)
+
+
 class ui
 {
 
@@ -81,18 +88,20 @@ class ui
 
   // Display
   void setup_display();
-  void display_clear();
+  void display_clear(bool colour=0);
   void display_line1();
   void display_line2();
   void display_linen(uint8_t line);
-  void display_write(char x);
-  void display_print(const char str[]);
-  void display_print_num(const char format[], int16_t num);
+  void display_set_xy(uint8_t x, uint8_t y);
+  void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
+  void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
+  void display_print_line(const char str[], uint32_t scale=1, uint32_t style=0);
+  void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_show();
 
   ssd1306_t disp;
-  uint8_t cursor_x = 0;
-  uint8_t cursor_y = 0;
+  uint8_t cursor_x = 0;   // pixels 0-127
+  uint8_t cursor_y = 0;   // pixels 0-63
   uint16_t display_timer = 0;
 
   // Status                  
@@ -102,7 +111,9 @@ class ui
   uint8_t frequency_autosave_timer = 10u;
 
   // Menu                    
-  void print_option(const char options[], uint8_t option);
+  void print_enum_option(const char options[], uint8_t option);
+  void print_menu_option(const char options[], uint8_t option);
+  uint32_t menu_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
   uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);

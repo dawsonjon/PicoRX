@@ -35,7 +35,7 @@ struct rx_settings
 struct rx_status
 {
   int32_t signal_strength_dBm;
-  clock_t busy_time;
+  uint32_t busy_time;
   uint16_t temp;
   uint16_t battery;
 };
@@ -87,7 +87,7 @@ class rx
   uint32_t pwm_max;
   
   //store busy time for performance monitoring
-  clock_t busy_time;
+  uint32_t busy_time;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

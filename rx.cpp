@@ -329,10 +329,9 @@ void rx::run()
 
           //process adc data as each block completes
           dma_channel_wait_for_finish_blocking(adc_dma_ping);
-          clock_t start_time;
-          start_time = time_us_64();
+          uint32_t start_time = time_us_32();
           num_ping_samples = rx_dsp_inst.process_block(ping_samples, ping_audio);
-          busy_time = time_us_64()-start_time;
+          busy_time = time_us_32()-start_time;
           dma_channel_wait_for_finish_blocking(adc_dma_pong);
           num_pong_samples = rx_dsp_inst.process_block(pong_samples, pong_audio);
       }
