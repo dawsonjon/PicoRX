@@ -115,6 +115,12 @@ void ui::display_set_xy(uint8_t x, uint8_t y)
   cursor_y = y;
 }
 
+void ui::display_add_xy(int8_t x, int8_t y)
+{
+  cursor_x += x;
+  cursor_y += y;
+}
+
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
   if (cursor_x > 128 - 6*scale) {
@@ -129,6 +135,7 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
 {
   bool colour = !(style&style_reverse);
+  char last_char = 0;
 
   if ( (style & style_centered) && (strlen(str) < (128/(6*scale))) ) {
     cursor_x = (128- 6*scale*strlen(str))/2;
@@ -146,12 +153,18 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       colour = !colour;
       continue;
     }
-    if (cursor_x > 128 - 6*scale) {
+    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
       cursor_x = 0;
       cursor_y += 9*scale;
     }
-    ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
-    cursor_x += 6*scale;
+
+    if ((style&style_trim_spaces) && (str[i]==' ') && (last_char==' ')) {
+        // do nothing to skip the repeated space
+    } else {
+      ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+      cursor_x += 6*scale;
+    }
+    last_char = str[i];
   }
 }
 
@@ -786,30 +799,25 @@ bool ui::recall()
         draw_once = false;
         display_clear();
         display_print_str("Recall");
-        display_line2();
-        display_print_num("%03i ", select);
-        display_print_str(name);
+        display_print_num(" %03i ", select, 1, style_centered);
+        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
+        display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+
+        display_print_str("\n", 1);
+        display_print_str(name,2,style_nowrap|style_trim_spaces);
 
         //draw frequency
-        display_linen(4);
+        display_print_str("\n",2);
         int32_t frequency = radio_memory[select][idx_frequency];
         const int32_t MHz = frequency / 1000000;
         frequency %= 1000000;
         const int32_t kHz = frequency / 1000;
         frequency %= 1000;
         const int32_t Hz = frequency;
-        display_print_num("freq: %02i,", MHz);
-        display_print_num("%03i,", kHz);
-        display_print_num("%03i Hz ", Hz);
+        display_print_num("%02i,", MHz, 2);
+        display_print_num("%03i,", kHz, 2);
+        display_print_num("%03i\n", Hz, 2);
 
-        //draw mode
-        display_linen(5);
-        display_print_str("mode: ");
-        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
-        display_print_str(modes[radio_memory[select][idx_mode]]);
-
-        //draw band range 
-        display_linen(6);
         int32_t min_frequency = radio_memory[select][idx_min_frequency];
         const int32_t min_MHz = min_frequency / 1000000;
         min_frequency %= 1000000;
@@ -819,7 +827,8 @@ bool ui::recall()
         display_print_num("from: %02i,", min_MHz);
         display_print_num("%03i,", min_kHz);
         display_print_num("%03i Hz ", min_Hz);
-        display_linen(7);
+        display_print_str("\n",1);
+
         int32_t max_frequency = radio_memory[select][idx_max_frequency];
         const int32_t max_MHz = max_frequency / 1000000;
         max_frequency %= 1000000;
