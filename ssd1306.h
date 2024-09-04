@@ -124,22 +124,22 @@ void ssd1306_poweron(ssd1306_t *p);
 void ssd1306_contrast(ssd1306_t *p, uint8_t val);
 
 /**
-	@brief set invert display
+	@brief set inverted colour display
 
 	@param[in] p : instance of display
 	@param[in] inv : inv==0: disable inverting, inv!=0: invert
 
 */
-void ssd1306_invert(ssd1306_t *p, uint8_t inv);
+void ssd1306_invert(ssd1306_t *p, bool inv);
 
 /**
-	@brief set  display flip (180deg)
+	@brief set 180deg display flip
 
 	@param[in] p : instance of display
 	@param[in] flip : inv==0: disable flipping, inv!=0: flip
 
 */
-void ssd1306_flip(ssd1306_t *p, uint8_t flip);
+void ssd1306_flip(ssd1306_t *p, bool flip);
 
 /**
 	@brief set  display type ssd1306, sh1106

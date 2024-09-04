@@ -133,6 +133,9 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   if ( (style & style_centered) && (strlen(str) < (128/(6*scale))) ) {
     cursor_x = (128- 6*scale*strlen(str))/2;
   }
+  if ( (style & style_right) && (strlen(str) < (128/(6*scale))) ) {
+    cursor_x = (128- 6*scale*strlen(str));
+  }
   for (size_t i=0; i<strlen(str); i++) {
     if (str[i] == '\n') {
       cursor_x = 0;
@@ -257,30 +260,32 @@ void ui::update_display(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 
 void ui::print_option(const char options[], uint8_t option, uint8_t y_pos){
-    char x;
-    uint8_t i, idx=0;
 
-    //find nth substring
-    for(i=0; i<option; i++){ 
-      while(options[idx++]!='#'){}
-    }
+  #define MAX_OPTS 32
+  char *splits[MAX_OPTS];
+  int num_splits;
+  char *new_options;
 
-    //extract substring to temp buffer
-    char buff[32];
-    for (uint8_t i=0; i<31; i++){
-      x = options[idx];
-      if(x==0 || x=='#') {
-        buff[i] = 0;
-        break;
-      }
-      buff[i] = x;
-      idx++;
-    }
-    if (y_pos) {
-      display_set_xy(0,y_pos);
-    }
-    display_print_str(buff, 2, style_centered);
- 
+  new_options = (char*)malloc(strlen(options)+1);
+  strcpy (new_options, options);
+
+  splits[0] = strtok(new_options, "#");
+  for ( num_splits = 1; num_splits < MAX_OPTS; num_splits++) {
+          splits[num_splits] = strtok(NULL, "#");
+          if (!splits[num_splits]) break;
+  }
+
+  if (y_pos) {
+    display_set_xy(0,y_pos);
+  }
+  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1]+1) < 128/12) {
+    display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
+    display_print_str(" ");
+    display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
+  } else {
+    display_print_str(splits[option], 2, style_centered);
+  }
+
 }
 
 uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
@@ -991,11 +996,9 @@ bool ui::frequency_entry(){
         }
         if(i==1||i==4) display_print_char('.', 2 );
       }
-      display_linen(4);
+      display_set_xy(0,48);
       display_print_str(" Ok ", 2, digit==8 ? style_reverse : style_normal );
-      display_print_str("     ");
-      display_print_str("Exit", 2, digit==9 ? style_reverse : style_normal );
-
+      display_print_str("Exit", 2, style_right|(digit==9 ? style_reverse : style_normal ));
       display_show();
     }
 
@@ -1126,7 +1129,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Tone\nFrequency#Regulator Mode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade", 16, &setting)) return;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Tone\nFrequency#Regulator Mode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade#", 16, &setting)) return;
 
       switch(setting)
       {
@@ -1147,7 +1150,7 @@ void ui::do_ui(void)
           break;
 
         case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW", 4, &settings[idx_mode]);
+          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", 4, &settings[idx_mode]);
           break;
 
         case 5 :
@@ -1155,7 +1158,7 @@ void ui::do_ui(void)
           break;
 
         case 6 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 12, &settings[idx_squelch]);
+          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", 12, &settings[idx_squelch]);
           break;
 
         case 7 : 
@@ -1187,12 +1190,12 @@ void ui::do_ui(void)
 
         case 13: 
           rx_settings_changed = bit_entry("Flip Oled", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
-          ssd1306_flip(&disp, settings[idx_hw_setup] >> flag_flip_oled);
+          ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 0x1);
           break;
 
         case 14: 
           rx_settings_changed = bit_entry("Oled Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
-          ssd1306_type(&disp, settings[idx_hw_setup] >> flag_oled_type);
+          ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 0x1);
           break;
 
         case 15: 

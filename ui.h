@@ -51,7 +51,8 @@ enum e_button_state {idle, down, fast_mode, menu};
 #define style_normal      0
 #define style_reverse     (1<<0)
 #define style_centered    (1<<1)
-//#define style_bold        (1<<2)
+#define style_right       (1<<2)
+//#define style_bold        (1<<3)
 
 
 class ui
