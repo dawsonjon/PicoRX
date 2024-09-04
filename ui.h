@@ -58,6 +58,8 @@ enum e_button_state {idle, down, fast_mode, menu};
 #define style_normal      0
 #define style_reverse     (1<<0)
 #define style_centered    (1<<1)
+#define style_right       (1<<2)
+#define style_nowrap      (1<<3)
 //#define style_bold        (1<<2)
 
 
@@ -93,10 +95,12 @@ class ui
   void display_line2();
   void display_linen(uint8_t line);
   void display_set_xy(uint8_t x, uint8_t y);
+  void display_add_xy(int8_t x, int8_t y);
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_line(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
+  void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_show();
 
   ssd1306_t disp;
@@ -122,7 +126,7 @@ class ui
   bool configuration_menu();
   bool recall();
   bool store();
-  bool upload();
+  bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
   bool display_timeout(bool encoder_change);
