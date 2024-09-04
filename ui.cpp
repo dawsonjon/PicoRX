@@ -123,7 +123,7 @@ void ui::display_add_xy(int8_t x, int8_t y)
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  if (cursor_x > 128 - 6*scale) {
+  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
     cursor_x = 0;
     cursor_y += 9*scale;
   }
@@ -753,7 +753,16 @@ bool ui::store()
           }
         }
       }
-      
+
+      // print the top row
+      display_clear();
+
+      display_print_str("Store");
+      display_print_num(" %03i ", select, 1, style_centered);
+      static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
+      display_print_str(modes[settings[idx_mode]],1,style_right);
+      display_print_str("\n", 1);
+
       //modify the selected channel
       strcpy(name, "SAVED CHANNEL   ");
       if(!string_entry(name)) return false;
@@ -950,7 +959,7 @@ bool ui::recall()
 bool ui::string_entry(char string[]){
 
   int32_t position=0;
-  int32_t i;
+//  int32_t i;
   int32_t edit_mode = 0;
 
   bool draw_once = true;
@@ -979,33 +988,29 @@ bool ui::string_entry(char string[]){
     if(encoder_changed || draw_once)
     {
       draw_once = false;
-      display_clear();
 
-      //write frequency to lcd
-      display_line1();
-      display_print_str(string);
-      display_print_str("YN");
+      // poor mans clear
+      display_set_xy(0,9);
+      display_print_str("                ",2,style_nowrap);
+      display_set_xy(0,9);
 
-      //print cursor
-      display_line2();
-      for(i=0; i<18; i++)
-      {
-        if(i==position)
-        {
-          if(edit_mode)
-          {
-            display_print_char('X');
-          } 
-          else 
-          {
-            display_print_char('^');
-          }
-        } 
-        else 
-        {
-          display_print_char(' ');
+      int start = 0;
+      if (position > 6) start = (position-6);
+      if (position > 15) start = (15-6);
+
+      //write preset name to lcd
+      for(int i=start; i<16; i++) {
+        if (!edit_mode && (i==position)) {
+          display_print_char(string[i], 2, style_nowrap|style_reverse);
+        } else {
+          display_print_char(string[i], 2, style_nowrap );
         }
       }
+
+      display_set_xy(0,48);
+      display_print_str(" Ok ", 2, position==16 ? style_reverse : style_normal );
+      display_print_str("Exit", 2, style_right | (position==17 ? style_reverse : style_normal ));
+
       display_show();
     }
 
