@@ -110,7 +110,7 @@ class ui
   bool string_entry(char string[]);
   bool recall();
   bool store();
-  bool upload();
+  bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
 

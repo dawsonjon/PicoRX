@@ -530,10 +530,12 @@ void ui::autorestore()
 }
 
 //Upload memories via USB interface
-bool ui::upload()
+bool ui::upload_memory()
 {
       display_clear();
-      display_print_str("Ready for data...");
+      display_print_str("Ready for",2, style_centered);
+      display_print_char('\n', 2);
+      display_print_str("memories",2, style_centered);
       display_show();
 
       //work out which flash sector the channel sits in.
@@ -1129,7 +1131,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Tone\nFrequency#Regulator Mode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Memory Upload#USB Firmware Upgrade#", 16, &setting)) return;
+      if(!enumerate_entry("menu:", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Squelch#Frequency Step#CW Tone\nFrequency#Regulator Mode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB Upload#", 15, &setting)) return;
 
       switch(setting)
       {
@@ -1200,27 +1202,20 @@ void ui::do_ui(void)
 
         case 15: 
           setting = 0;
-          enumerate_entry("USB Memory Upload", "No#Yes#", 1, &setting);
-          if(setting)
-          {
-            upload();
-          }
-          break;
-
-        case 16: 
-          setting = 0;
-          enumerate_entry("USB Firmware Upload", "No#Yes#", 1, &setting);
-          if(setting)
-          {
+          enumerate_entry("USB Upload", "Back#Memory#Firmware#", 2, &setting);
+          if(setting==1) {
+            upload_memory();
+          } else if (setting == 2) {
             display_clear();
             display_print_str("Ready for",2, style_centered);
             display_print_char('\n', 2);
-            display_print_str("upload...",2, style_centered);
+            display_print_str("firmware",2, style_centered);
             display_show();
 
-            reset_usb_boot(0,0);
+            reset_usb_boot(0,0);            
           }
           break;
+
       }
       autosave_settings = rx_settings_changed;
     }
