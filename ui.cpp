@@ -115,6 +115,12 @@ void ui::display_set_xy(uint8_t x, uint8_t y)
   cursor_y = y;
 }
 
+void ui::display_add_xy(int8_t x, int8_t y)
+{
+  cursor_x += x;
+  cursor_y += y;
+}
+
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
   if (cursor_x > 128 - 6*scale) {
@@ -134,12 +140,15 @@ void ui::display_print_line(const char str[], uint32_t scale, uint32_t style)
   if ( (style & style_centered) && (strlen(str) < (128/(6*scale))) ) {
     cursor_x = (128- 6*scale*strlen(str))/2;
   }
+  if ( (style & style_right) && (strlen(str) < (128/(6*scale))) ) {
+    cursor_x = (128- 6*scale*strlen(str));
+  }
   for (size_t i=0; i<strlen(str); i++) {
     if (str[i] == '\a') {
       colour = !colour;
       continue;
     }
-    if (cursor_x > 128 - 6*scale) {
+    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
       cursor_x = 0;
       cursor_y += 9*scale;
     }
@@ -177,6 +186,18 @@ void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uin
 {
   char buff[16];
   snprintf(buff, 16, format, num);
+  display_print_str(buff, scale, style);
+}
+
+void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
+{
+  char buff[16];
+  const int32_t MHz = frequency / 1000000;
+  frequency %= 1000000;
+  const int32_t kHz = frequency / 1000;
+  frequency %= 1000;
+  const int32_t Hz = frequency;
+  snprintf(buff, 16, "%2ld,%03ld,%03ld", MHz, kHz, Hz);
   display_print_str(buff, scale, style);
 }
 
@@ -277,27 +298,27 @@ void ui::update_display(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 
 void ui::print_enum_option(const char options[], uint8_t option){
-    char x;
-    uint8_t i, idx=0;
+#define MAX_OPTS 32
+  char *splits[MAX_OPTS];
+  int num_splits;
+  char *new_options;
 
-    //find nth substring
-    for(i=0; i<option; i++){ 
-      while(options[idx++]!='#'){}
-    }
+  new_options = (char*)malloc(strlen(options)+1);
+  strcpy (new_options, options);
 
-    //extract substring to temp buffer
-    char buff[32];
-    for (uint8_t i=0; i<31; i++){
-      x = options[idx];
-      if(x==0 || x=='#') {
-        buff[i] = 0;
-        break;
-      }
-      buff[i] = x;
-      idx++;
-    }
-    display_print_str(buff, 2, style_centered);
- 
+  splits[0] = strtok(new_options, "#");
+  for ( num_splits = 1; num_splits < MAX_OPTS; num_splits++) {
+          splits[num_splits] = strtok(NULL, "#");
+          if (!splits[num_splits]) break;
+  }
+
+  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1]+1) < 128/12) {
+    display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
+    display_print_str(" ");
+    display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
+  } else {
+    display_print_str(splits[option], 2, style_centered);
+  }
 }
 
 uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
@@ -575,11 +596,15 @@ void ui::autorestore()
 }
 
 //Upload memories via USB interface
-bool ui::upload()
+bool ui::upload_memory()
 {
       display_clear();
-      display_print_str("Ready for\n data...", 2);
+      display_print_str("Ready for",2, style_centered);
+      display_print_char('\n', 2);
+      display_print_str("memories",2, style_centered);
       display_show();
+
+      uint8_t progress_ctr=0;
 
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
@@ -619,6 +644,9 @@ bool ui::upload()
           }
         }
         
+        // show some progress
+        ssd1306_invert( &disp, 0x1 & (++progress_ctr));
+
         //write sector to flash
         const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
         const uint32_t flash_address = address - XIP_BASE; 
@@ -760,6 +788,7 @@ bool ui::store()
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       //!!! Normal operation resumed
 
+      ssd1306_invert( &disp, 0);
       return false;
     }
 
@@ -1130,7 +1159,7 @@ bool ui::configuration_menu()
 {
       bool rx_settings_changed=false;
       uint32_t setting = 0;
-      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Memory\nUpload#Firmware\nUpgrade", 8, &setting)) return 1;
+      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", 7, &setting)) return 1;
       switch(setting)
       {
         case 0: 
@@ -1171,22 +1200,14 @@ bool ui::configuration_menu()
 
         case 7: 
           setting = 0;
-          enumerate_entry("Memory\nUpload", "No#Yes#", 1, &setting);
-          if(setting)
-          {
-            upload();
-          }
-          break;
-
-        case 8: 
-          setting = 0;
-          enumerate_entry("Firmware\nUpgrade", "No#Yes#", 1, &setting);
-          if(setting)
-          {
+          enumerate_entry("USB Upload", "Back#Memory#Firmware#", 2, &setting);
+          if(setting==1) {
+            upload_memory();
+          } else if (setting == 2) {
             display_clear();
             display_print_str("Ready for",2, style_centered);
             display_print_char('\n', 2);
-            display_print_str("upload...",2, style_centered);
+            display_print_str("firmware",2, style_centered);
             display_show();
             reset_usb_boot(0,0);
           }
@@ -1312,7 +1333,7 @@ void ui::do_ui(void)
           break;
 
         case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW", 4, &settings[idx_mode]);
+          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", 4, &settings[idx_mode]);
           break;
 
         case 5 :
@@ -1324,7 +1345,7 @@ void ui::do_ui(void)
           break;
 
         case 7 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB", 12, &settings[idx_squelch]);
+          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", 12, &settings[idx_squelch]);
           break;
 
         case 8 : 
