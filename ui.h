@@ -92,6 +92,7 @@ class ui
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
+  void display_print_freq( int32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_show();
 
   ssd1306_t disp;

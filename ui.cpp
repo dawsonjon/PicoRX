@@ -175,6 +175,18 @@ void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uin
   display_print_str(buff, scale, style);
 }
 
+void ui::display_print_freq(int32_t frequency, uint32_t scale, uint32_t style)
+{
+  char buff[16];
+  const int32_t MHz = frequency / 1000000;
+  frequency %= 1000000;
+  const int32_t kHz = frequency / 1000;
+  frequency %= 1000;
+  const int32_t Hz = frequency;
+  snprintf(buff, 16, "%2ld,%03ld,%03ld", MHz, kHz, Hz);
+  display_print_str(buff, scale, style);
+}
+
 void ui::display_show()
 {
   ssd1306_show(&disp);
@@ -750,11 +762,11 @@ bool ui::store()
 //load a channel from memory
 bool ui::recall()
 {
-  // last selected memory
 
   //encoder loops through memories
-  uint32_t min = 0;
-  uint32_t max = num_chans-1;
+  int32_t min = 0;
+  int32_t max = num_chans-1;
+  // last selected memory
   static int32_t last_select=min;
   int32_t select=last_select;
 
@@ -774,12 +786,14 @@ bool ui::recall()
       if (radio_memory[select][9] == 0xffffffff) {
         if (pos_change < 0) { // search backwards up to 512 times
           for (unsigned int i=0; i<num_chans; i++) {
+            if (select < min) select = max;
             if(radio_memory[--select][9] != 0xffffffff)
               break;
           }
-        } else {  // forwards (or zero which should not happen)
+        } else if (pos_change > 0) {  // forwards
           for (unsigned int i=0; i<num_chans; i++) {
-            if(radio_memory[++select][9] != 0xffffffff)
+            if (++select > max) select = min;
+            if(radio_memory[select][9] != 0xffffffff)
               break;
           }
         }
@@ -807,6 +821,12 @@ bool ui::recall()
         name[15] = radio_memory[select][9];
         name[16] = 0;
 
+        // strip trailing spaces
+        for (int i=15; i>=0; i--) {
+          if (name[i] != ' ') break;
+          name[i] = 0;
+        }
+
         //(temporarily) apply lodaed settings to RX
         for(uint8_t i=0; i<settings_to_store; i++){
           settings[i] = radio_memory[select][i];
@@ -822,40 +842,24 @@ bool ui::recall()
         display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
 
         display_print_str("\n", 1);
-        display_print_str(name,2,style_nowrap|style_trim_spaces);
-
+        if (12*strlen(name) > 128) {
+          display_add_xy(0,4);
+          display_print_str(name,1,style_nowrap|style_centered);
+        } else {
+          display_print_str(name,2,style_nowrap|style_centered);
+        }
         //draw frequency
+        display_set_xy(0,27);
+        display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
         display_print_str("\n",2);
-        int32_t frequency = radio_memory[select][idx_frequency];
-        const int32_t MHz = frequency / 1000000;
-        frequency %= 1000000;
-        const int32_t kHz = frequency / 1000;
-        frequency %= 1000;
-        const int32_t Hz = frequency;
-        display_print_num("%02i,", MHz, 2);
-        display_print_num("%03i,", kHz, 2);
-        display_print_num("%03i\n", Hz, 2);
 
-        int32_t min_frequency = radio_memory[select][idx_min_frequency];
-        const int32_t min_MHz = min_frequency / 1000000;
-        min_frequency %= 1000000;
-        const int32_t min_kHz = min_frequency / 1000;
-        min_frequency %= 1000;
-        const int32_t min_Hz = frequency;
-        display_print_num("from: %02i,", min_MHz);
-        display_print_num("%03i,", min_kHz);
-        display_print_num("%03i Hz ", min_Hz);
-        display_print_str("\n",1);
+        display_print_str("from: ", 1);
+        display_print_freq(radio_memory[select][idx_min_frequency], 1);
+        display_print_str(" Hz\n",1);
 
-        int32_t max_frequency = radio_memory[select][idx_max_frequency];
-        const int32_t max_MHz = max_frequency / 1000000;
-        max_frequency %= 1000000;
-        const int32_t max_kHz = max_frequency / 1000;
-        max_frequency %= 1000;
-        const int32_t max_Hz = frequency;
-        display_print_num("  to: %02i,", max_MHz);
-        display_print_num("%03i,", max_kHz);
-        display_print_num("%03i Hz ", max_Hz);
+        display_print_str("  To: ", 1);
+        display_print_freq(radio_memory[select][idx_max_frequency], 1);
+        display_print_str(" Hz\n",1);
 
         display_show();
       }
