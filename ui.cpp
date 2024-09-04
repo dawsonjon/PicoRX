@@ -538,6 +538,8 @@ bool ui::upload_memory()
       display_print_str("memories",2, style_centered);
       display_show();
 
+      uint8_t progress_ctr=0;
+
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
 
@@ -575,7 +577,9 @@ bool ui::upload_memory()
             }
           }
         }
-        
+        // show some progress
+        ssd1306_invert( &disp, 0x1 & (++progress_ctr));
+
         //write sector to flash
         const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
         const uint32_t flash_address = address - XIP_BASE; 
@@ -601,6 +605,7 @@ bool ui::upload_memory()
 
       }
 
+      ssd1306_invert( &disp, 0);
       return false;
 }
 
