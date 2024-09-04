@@ -750,11 +750,15 @@ bool ui::store()
 //load a channel from memory
 bool ui::recall()
 {
+  // last selected memory
 
   //encoder loops through memories
   uint32_t min = 0;
   uint32_t max = num_chans-1;
-  int32_t select=min;
+  static int32_t last_select=min;
+  int32_t select=last_select;
+
+  int32_t pos_change;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -764,8 +768,22 @@ bool ui::recall()
 
   bool draw_once = true;
   while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
-    {
+    pos_change = encoder_control(&select, min, max);
+    if( pos_change != 0 || draw_once) {
+
+      if (radio_memory[select][9] == 0xffffffff) {
+        if (pos_change < 0) { // search backwards up to 512 times
+          for (unsigned int i=0; i<num_chans; i++) {
+            if(radio_memory[--select][9] != 0xffffffff)
+              break;
+          }
+        } else {  // forwards (or zero which should not happen)
+          for (unsigned int i=0; i<num_chans; i++) {
+            if(radio_memory[++select][9] != 0xffffffff)
+              break;
+          }
+        }
+      }
 
       if(radio_memory[select][9] != 0xffffffff)
       {
@@ -843,6 +861,8 @@ bool ui::recall()
       }
       else
       {
+        // should never get here with the blank check logic above
+        // unless ALL memory is blank
         //print selected menu item
         draw_once = false;
         display_clear();
@@ -855,10 +875,12 @@ bool ui::recall()
     }
 
     if(get_button(PIN_ENCODER_PUSH)){
+      last_select=min;
       return 1;
     }
 
     if(get_button(PIN_MENU)){
+      last_select=select;
       return 1;
     }
 
