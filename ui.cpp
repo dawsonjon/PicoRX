@@ -806,9 +806,13 @@ bool ui::recall()
 {
 
   //encoder loops through memories
-  uint32_t min = 0;
-  uint32_t max = num_chans-1;
-  int32_t select=min;
+  int32_t min = 0;
+  int32_t max = num_chans-1;
+  // last selected memory
+  static int32_t last_select=min;
+  int32_t select=last_select;
+
+  int32_t pos_change;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -818,8 +822,24 @@ bool ui::recall()
 
   bool draw_once = true;
   while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
-    {
+    pos_change = encoder_control(&select, min, max);
+    if( pos_change != 0 || draw_once) {
+
+      if (radio_memory[select][9] == 0xffffffff) {
+        if (pos_change < 0) { // search backwards up to 512 times
+          for (unsigned int i=0; i<num_chans; i++) {
+            if (select < min) select = max;
+            if(radio_memory[--select][9] != 0xffffffff)
+              break;
+          }
+        } else if (pos_change > 0) {  // forwards
+          for (unsigned int i=0; i<num_chans; i++) {
+            if (++select > max) select = min;
+            if(radio_memory[select][9] != 0xffffffff)
+              break;
+          }
+        }
+      }
 
       if(radio_memory[select][9] != 0xffffffff)
       {
@@ -843,6 +863,12 @@ bool ui::recall()
         name[15] = radio_memory[select][9];
         name[16] = 0;
 
+        // strip trailing spaces
+        for (int i=15; i>=0; i--) {
+          if (name[i] != ' ') break;
+          name[i] = 0;
+        }
+
         //(temporarily) apply lodaed settings to RX
         for(uint8_t i=0; i<settings_to_store; i++){
           settings[i] = radio_memory[select][i];
@@ -853,55 +879,37 @@ bool ui::recall()
         draw_once = false;
         display_clear();
         display_print_str("Recall");
-        display_line2();
-        display_print_num("%03i ", select);
-        display_print_str(name);
+        display_print_num(" %03i ", select, 1, style_centered);
+        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
+        display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+
+        display_print_str("\n", 1);
+        if (12*strlen(name) > 128) {
+          display_add_xy(0,4);
+          display_print_str(name,1,style_nowrap|style_centered);
+        } else {
+          display_print_str(name,2,style_nowrap|style_centered);
+        }
 
         //draw frequency
-        display_linen(4);
-        int32_t frequency = radio_memory[select][idx_frequency];
-        const int32_t MHz = frequency / 1000000;
-        frequency %= 1000000;
-        const int32_t kHz = frequency / 1000;
-        frequency %= 1000;
-        const int32_t Hz = frequency;
-        display_print_num("freq: %02i,", MHz);
-        display_print_num("%03i,", kHz);
-        display_print_num("%03i Hz ", Hz);
+        display_set_xy(0,27);
+        display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+        display_print_str("\n",2);
 
-        //draw mode
-        display_linen(5);
-        display_print_str("mode: ");
-        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
-        display_print_str(modes[radio_memory[select][idx_mode]]);
+        display_print_str("from: ", 1);
+        display_print_freq(radio_memory[select][idx_min_frequency], 1);
+        display_print_str(" Hz\n",1);
 
-        //draw band range 
-        display_linen(6);
-        int32_t min_frequency = radio_memory[select][idx_min_frequency];
-        const int32_t min_MHz = min_frequency / 1000000;
-        min_frequency %= 1000000;
-        const int32_t min_kHz = min_frequency / 1000;
-        min_frequency %= 1000;
-        const int32_t min_Hz = frequency;
-        display_print_num("from: %02i,", min_MHz);
-        display_print_num("%03i,", min_kHz);
-        display_print_num("%03i Hz ", min_Hz);
-        display_linen(7);
-        int32_t max_frequency = radio_memory[select][idx_max_frequency];
-        const int32_t max_MHz = max_frequency / 1000000;
-        max_frequency %= 1000000;
-        const int32_t max_kHz = max_frequency / 1000;
-        max_frequency %= 1000;
-        const int32_t max_Hz = frequency;
-        display_print_num("  to: %02i,", max_MHz);
-        display_print_num("%03i,", max_kHz);
-        display_print_num("%03i Hz ", max_Hz);
+        display_print_str("  To: ", 1);
+        display_print_freq(radio_memory[select][idx_max_frequency], 1);
+        display_print_str(" Hz\n",1);
 
         display_show();
       }
       else
       {
-        //print selected menu item
+        // should never get here with the blank check logic above
+        // unless ALL memory is blank
         draw_once = false;
         display_clear();
         display_print_str("Recall");
@@ -913,10 +921,12 @@ bool ui::recall()
     }
 
     if(get_button(PIN_ENCODER_PUSH)){
+      last_select=min;
       return 1;
     }
 
     if(get_button(PIN_MENU)){
+      last_select=select;
       return 1;
     }
 
@@ -1070,11 +1080,9 @@ bool ui::frequency_entry(){
         }
         if(i==1||i==4) display_print_char('.', 2 );
       }
-      display_linen(4);
+      display_set_xy(0,48);
       display_print_str(" Ok ", 2, digit==8 ? style_reverse : style_normal );
-      display_print_str("     ");
-      display_print_str("Exit", 2, digit==9 ? style_reverse : style_normal );
-
+      display_print_str("Exit", 2, style_right|(digit==9 ? style_reverse : style_normal ));
       display_show();
     }
 
