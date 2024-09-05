@@ -98,10 +98,10 @@ class ui
   void display_add_xy(int8_t x, int8_t y);
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
-  void display_print_line(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_show();
+  int strchr_idx(const char str[], uint8_t c);
 
   ssd1306_t disp;
   uint8_t cursor_x = 0;   // pixels 0-127

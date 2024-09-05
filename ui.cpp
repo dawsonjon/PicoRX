@@ -132,20 +132,48 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
   cursor_x += (6*scale);
 }
 
-void ui::display_print_line(const char str[], uint32_t scale, uint32_t style)
-{
+/* return index of 1st match. -1 if not found */
+int ui::strchr_idx(const char str[], uint8_t c) {
+  for (unsigned int i=0; i<strlen(str);i++){
+    if (str[i] == c) return i;
+  }
+  return -1;
+}
 
-  printf("print: %s\n", str);
+void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
+{
   bool colour = !(style&style_reverse);
-  if ( (style & style_centered) && (strlen(str) < (128/(6*scale))) ) {
-    cursor_x = (128- 6*scale*strlen(str))/2;
+  int next_ln;
+  unsigned int length;
+
+  // find the index of the next \n
+  next_ln = strchr_idx( str, '\n');
+  // if found, compute length of string, if not, length to end of str
+  length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
+
+  if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+    cursor_x = (128- 6*scale*length)/2;
   }
-  if ( (style & style_right) && (strlen(str) < (128/(6*scale))) ) {
-    cursor_x = (128- 6*scale*strlen(str));
+  if ( (style & style_right) && (length < (128/(6*scale))) ) {
+    cursor_x = (128- 6*scale*length);
   }
+
   for (size_t i=0; i<strlen(str); i++) {
     if (str[i] == '\a') {
       colour = !colour;
+      continue;
+    }
+    if (str[i] == '\n') {
+      next_ln = strchr_idx( &str[i+1], '\n');
+      length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
+
+      if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+        cursor_x = (128- 6*scale*length)/2;
+      }
+      if ( (style & style_right) && (length < (128/(6*scale))) ) {
+        cursor_x = (128- 6*scale*length);
+      }
+      cursor_y += 9*scale;
       continue;
     }
     if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
@@ -154,31 +182,6 @@ void ui::display_print_line(const char str[], uint32_t scale, uint32_t style)
     }
     ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
     cursor_x += 6*scale;
-  }
-}
-
-void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
-{
-  char line[256];
-  uint8_t o = 0;
-  for (size_t i=0; i<256; i++) {
-    char x = str[i];
-    if(x == 0)
-    {
-      line[o++] = 0;
-      display_print_line(line, scale, style);
-      break;
-    }
-    else if(x == '\n')
-    {
-      line[o++] = 0;
-      display_print_line(line, scale, style);
-      cursor_y += 9*scale;
-      cursor_x = 0;
-      o = 0;
-    } else {
-      line[o++] = x; 
-    }
   }
 }
 
