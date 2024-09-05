@@ -484,5 +484,5 @@ void rx_dsp :: get_spectrum(float spectrum[])
   }
   sem_release(&spectrum_semaphore);
 
-  for(uint16_t i=0; i<128; i++) spectrum[i] = accumulator[i*2] + accumulator[(i*2)+1];
+  for(uint16_t i=0; i<256; i++) spectrum[i] = accumulator[i];
 }

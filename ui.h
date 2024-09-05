@@ -11,6 +11,7 @@
 #include "rx.h"
 #include "memory.h"
 #include "autosave_memory.h"
+#include "waterfall.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -71,6 +72,9 @@ class ui
   uint32_t settings[16];
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
+
+  // Waterfall
+  waterfall waterfall_inst;
 
   // Encoder 
   void setup_encoder();

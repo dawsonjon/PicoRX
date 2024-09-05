@@ -23,6 +23,8 @@ if(PICO_BOARD STREQUAL "pico")
       fft_filter.cpp
       ui.cpp
       utils.cpp
+      ili934x.cpp
+      waterfall.cpp
   )
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -30,7 +32,7 @@ if(PICO_BOARD STREQUAL "pico")
   # enable usb output, disable uart output
   pico_enable_stdio_usb(picorx 1)
   pico_enable_stdio_uart(picorx 0)
-  target_link_libraries(picorx pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c)
+  target_link_libraries(picorx pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c hardware_spi)
 
   #battery check utility
   project(battery_check)
@@ -60,6 +62,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
         fft_filter.cpp
         ui.cpp
         utils.cpp
+        ili9341.cpp
+        waterfall.cpp
     )
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -67,7 +71,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     # enable usb output, disable uart output
     pico_enable_stdio_usb(pico2rx-riscv 1)
     pico_enable_stdio_uart(pico2rx-riscv 0)
-    target_link_libraries(pico2rx-riscv pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c)
+    target_link_libraries(pico2rx-riscv pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c hardware_spi)
 
     #battery check utility
     project(battery_check_pico2-riscv)
@@ -94,6 +98,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
         fft_filter.cpp
         ui.cpp
         utils.cpp
+        ili9341.cpp
+        waterfall.cpp
     )
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -101,7 +107,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     # enable usb output, disable uart output
     pico_enable_stdio_usb(pico2rx 1)
     pico_enable_stdio_uart(pico2rx 0)
-    target_link_libraries(pico2rx pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c)
+    target_link_libraries(pico2rx pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c hardware_spi)
 
     #battery check utility
     project(battery_check_pico2)
