@@ -169,9 +169,10 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
 
       if ( (style & style_centered) && (length < (128/(6*scale))) ) {
         cursor_x = (128- 6*scale*length)/2;
-      }
-      if ( (style & style_right) && (length < (128/(6*scale))) ) {
+      } else if ( (style & style_right) && (length < (128/(6*scale))) ) {
         cursor_x = (128- 6*scale*length);
+      } else {
+        cursor_x = 0;
       }
       cursor_y += 9*scale;
       continue;
@@ -242,7 +243,6 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 72, 0, 1, buff, 1);
 
   //mode
-  static const char modes[][4]  = {" AM", "LSB", "USB", " FM", " CW"};
   ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]], 1);
 
   //step
@@ -762,7 +762,6 @@ bool ui::store()
 
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
-      static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
       display_print_str(modes[settings[idx_mode]],1,style_right);
       display_print_str("\n", 1);
 
@@ -892,7 +891,6 @@ bool ui::recall()
         display_clear();
         display_print_str("Recall");
         display_print_num(" %03i ", select, 1, style_centered);
-        static const char modes[][4]  = {"AM ", "LSB", "USB", "FM ", "CW "};
         display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
 
         display_print_str("\n", 1);
