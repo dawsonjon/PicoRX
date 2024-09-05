@@ -119,8 +119,8 @@ class ui
   // Menu                    
   void print_enum_option(const char options[], uint8_t option);
   void print_menu_option(const char options[], uint8_t option);
-  uint32_t menu_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
-  uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
+  uint32_t menu_entry(const char title[], const char options[], uint32_t *value);
+  uint32_t enumerate_entry(const char title[], const char options[], uint32_t *value);
   uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();

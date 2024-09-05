@@ -227,7 +227,6 @@ void ui::update_display(rx_status & status, rx & receiver)
   receiver.release();
 
   char buff [21];
-//  ssd1306_clear(&disp);
   display_clear();
 
   //frequency
@@ -327,7 +326,7 @@ void ui::print_enum_option(const char options[], uint8_t option){
 uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
 {
     uint32_t bit = (*value >> bit_position) & 1;
-    uint32_t return_value = enumerate_entry(title, options, 1, &bit);
+    uint32_t return_value = enumerate_entry(title, options, &bit);
     if(bit)
     {
      *value |= (1 << bit_position);
@@ -339,10 +338,18 @@ uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_pos
 }
 
 //choose from an enumerate list of settings
-uint32_t ui::menu_entry(const char title[], const char options[], uint32_t max, uint32_t *value)
+uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *value)
 {
   int32_t select=*value;
   bool draw_once = true;
+    uint32_t max = 0;
+  for (size_t i=0; i<strlen(options); i++) {
+    if (options[i] == '#') max++;
+  }
+  // workaround for accidental last # oissions
+  if (options[strlen(options)-1] != '#') max++;
+  if (max > 0) max--;
+
   while(1){
     if(encoder_control(&select, 0, max)!=0 || draw_once)
     {
@@ -372,10 +379,18 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t max, 
 }
 
 //choose from an enumerate list of settings
-uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value)
+uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t *value)
 {
   int32_t select=*value;
   bool draw_once = true;
+  uint32_t max = 0;
+  for (size_t i=0; i<strlen(options); i++) {
+    if (options[i] == '#') max++;
+  }
+  // workaround for accidental last # oissions
+  if (options[strlen(options)-1] != '#') max++;
+  if (max > 0) max--;
+
   while(1){
     if(encoder_control(&select, 0, max)!=0 || draw_once)
     {
@@ -1008,9 +1023,9 @@ bool ui::string_entry(char string[]){
         }
       }
 
-      display_set_xy(0,48);
-      display_print_str(" Ok ", 2, position==16 ? style_reverse : style_normal );
-      display_print_str("Exit", 2, style_right | (position==17 ? style_reverse : style_normal ));
+      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_linen(6);
+      print_enum_option(" OK #EXIT#", position-16);
 
       display_show();
     }
@@ -1086,9 +1101,9 @@ bool ui::frequency_entry(){
         }
         if(i==1||i==4) display_print_char('.', 2 );
       }
-      display_set_xy(0,48);
-      display_print_str(" Ok ", 2, digit==8 ? style_reverse : style_normal );
-      display_print_str("Exit", 2, style_right|(digit==9 ? style_reverse : style_normal ));
+      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_linen(6);
+      print_enum_option(" OK #EXIT#", digit-8);
       display_show();
     }
 
@@ -1173,19 +1188,19 @@ bool ui::configuration_menu()
 {
       bool rx_settings_changed=false;
       uint32_t setting = 0;
-      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", 7, &setting)) return 1;
+      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
         case 0: 
           setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", 7, &setting);
+          rx_settings_changed = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
           display_timer = timeout_lookup[setting];
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting << flag_display_timeout;
           break;
 
         case 1 : 
-          enumerate_entry("PSU Mode", "FM#PWM#", 1, &regmode);
+          enumerate_entry("PSU Mode", "FM#PWM#", &regmode);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
@@ -1214,7 +1229,7 @@ bool ui::configuration_menu()
 
         case 7: 
           setting = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", 2, &setting);
+          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting);
           if(setting==1) {
             upload_memory();
           } else if (setting == 2) {
@@ -1326,7 +1341,7 @@ void ui::do_ui(void)
 
       //top level menu
       uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency\nStep#CW Tone\nFrequency#HW Config", 11, &setting)) return;
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
 
       switch(setting)
       {
@@ -1347,19 +1362,19 @@ void ui::do_ui(void)
           break;
 
         case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", 4, &settings[idx_mode]);
+          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
           break;
 
         case 5 :
-          rx_settings_changed = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", 3, &settings[idx_agc_speed]);
+          rx_settings_changed = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
           break;
 
         case 6 :
-          rx_settings_changed = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", 4, &settings[idx_bandwidth]);
+          rx_settings_changed = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
           break;
 
         case 7 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", 12, &settings[idx_squelch]);
+          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
           break;
 
         case 8 : 
@@ -1367,7 +1382,7 @@ void ui::do_ui(void)
           break;
 
         case 9 : 
-          rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", 9, &settings[idx_step]);
+          rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
