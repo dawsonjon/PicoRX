@@ -72,6 +72,8 @@ class ui
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
 
+  static constexpr char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
+
   // Encoder 
   void setup_encoder();
   int32_t get_encoder_change();
@@ -98,10 +100,10 @@ class ui
   void display_add_xy(int8_t x, int8_t y);
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
-  void display_print_line(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_show();
+  int strchr_idx(const char str[], uint8_t c);
 
   ssd1306_t disp;
   uint8_t cursor_x = 0;   // pixels 0-127
@@ -117,8 +119,8 @@ class ui
   // Menu                    
   void print_enum_option(const char options[], uint8_t option);
   void print_menu_option(const char options[], uint8_t option);
-  uint32_t menu_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
-  uint32_t enumerate_entry(const char title[], const char options[], uint32_t max, uint32_t *value);
+  uint32_t menu_entry(const char title[], const char options[], uint32_t *value);
+  uint32_t enumerate_entry(const char title[], const char options[], uint32_t *value);
   uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
   bool frequency_entry();
