@@ -1,6 +1,7 @@
 #include <string.h>
 #include "pico/multicore.h"
 #include "ui.h"
+#include "fft_filter.h"
 #include <hardware/flash.h>
 
 
@@ -266,8 +267,9 @@ void ui::update_display(rx_status & status, rx & receiver)
 
   //Display spectrum capture
   static float spectrum[256];
-  receiver.get_spectrum(spectrum);
-  waterfall_inst.new_spectrum(spectrum);
+  s_filter_control fc;
+  receiver.get_spectrum(spectrum, fc);
+  waterfall_inst.new_spectrum(spectrum, fc);
   ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
   ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
@@ -277,16 +279,10 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
   ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
-  float min=0;
-  float max=6;
-  float scale = 32.0f/(max-min);
-
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = scale*(log10f(spectrum[x*2])-min);
-      if(y < 0) y=0;
-      if(y > 31) y=31;
+      int16_t y = spectrum[x*2]*31.0f;
       ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 

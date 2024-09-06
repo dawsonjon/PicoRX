@@ -5,6 +5,7 @@
 
 #include "rx.h"
 #include "nco.h"
+#include "fft_filter.h"
 
 
 //buffers and dma for ADC
@@ -163,9 +164,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(float spectrum[])
+void rx::get_spectrum(float spectrum[], s_filter_control &fc)
 {
-  rx_dsp_inst.get_spectrum(spectrum);
+  rx_dsp_inst.get_spectrum(spectrum, fc);
 }
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)

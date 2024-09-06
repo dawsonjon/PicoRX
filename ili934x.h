@@ -75,7 +75,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MADCTL_RGB 0x00 ///< Red-Green-Blue pixel order
 #define MADCTL_BGR 0x08 ///< Blue-Green-Red pixel order
 
-#define _MAX_CHUNK_SIZE 4096
+#define _MAX_CHUNK_SIZE 256
 
 /* Windows 16 colour pallet converted to 5-6-5 */
 #define COLOUR_BLACK 0x0000
@@ -116,7 +116,8 @@ public:
     void init();
     void setRotation(ILI934X_ROTATION rotation = R0DEG);
     void setPixel(uint16_t x, uint16_t y, uint16_t colour);
-    void writeLine(uint16_t y, uint16_t w, uint16_t line[]);
+    void writeHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t line[]);
+    void writeVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t line[]);
     void fillRect(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t colour);
     void drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
     void drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);

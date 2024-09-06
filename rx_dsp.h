@@ -23,7 +23,7 @@ class rx_dsp
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(float spectrum[]);
+  void get_spectrum(float spectrum[], s_filter_control &fc);
 
 
   private:
@@ -57,6 +57,7 @@ class rx_dsp
   //used in fft filter
   fft_filter fft_filter_inst;
   s_filter_control filter_control;
+  s_filter_control capture_filter_control;
 
   //used in frequency shifter
   uint8_t swap_iq;

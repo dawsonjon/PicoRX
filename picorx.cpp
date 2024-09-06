@@ -24,6 +24,7 @@ int main()
   stdio_init_all();
   multicore_launch_core1(core1_main);    
   user_interface.autorestore();
+  sleep_ms(5000);
   while(1)
   {
     uint32_t _time_us = time_us_32();

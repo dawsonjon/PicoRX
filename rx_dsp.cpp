@@ -1,5 +1,6 @@
 #include "rx_dsp.h"
 #include "rx_definitions.h"
+#include "fft_filter.h"
 #include "utils.h"
 #include <math.h>
 #include <cstdio>
@@ -80,6 +81,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   //fft filter decimates a further 2x
   //if the capture buffer isn't in use, fill it
   filter_control.capture = sem_try_acquire(&spectrum_semaphore);
+  capture_filter_control = filter_control;
   fft_filter_inst.process_sample(real, imag, filter_control, capture_i, capture_q);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
@@ -464,13 +466,14 @@ int16_t rx_dsp :: get_signal_strength_dBm()
   return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
-void rx_dsp :: get_spectrum(float spectrum[])
+void rx_dsp :: get_spectrum(float spectrum[], s_filter_control &fc)
 {
-  const float alpha = 0.1f;
+  const float alpha = 0.5f;
   const float beta = 1.0f - alpha;
 
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
+  fc = capture_filter_control;
   uint8_t f = 0;
   for(uint16_t i=128; i<256; i++)
   {

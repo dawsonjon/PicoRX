@@ -152,15 +152,15 @@ void ILI934X::setRotation(ILI934X_ROTATION rotation)
     _write(_MADCTL, (uint8_t *)buffer, 1);
 }
 
-void ILI934X::writeLine(uint16_t y, uint16_t w, uint16_t line[])
+void ILI934X::writeHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t line[])
 {
-    uint16_t buffer[w];
-    for(uint16_t x=0; x<w; ++x)
-    {
-      buffer[x] = __builtin_bswap16(line[x]);
-    }
-    _writeBlock(0, y, w-1, y);
-    _data((uint8_t *)buffer, w * 2);
+    _writeBlock(x, y, x+w-1, y);
+    _data((uint8_t *)line, w * 2);
+}
+void ILI934X::writeVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t line[])
+{
+    _writeBlock(x, y, x, y+h-1);
+    _data((uint8_t *)line, h * 2);
 }
 
 void ILI934X::setPixel(uint16_t x, uint16_t y, uint16_t colour)
@@ -169,7 +169,7 @@ void ILI934X::setPixel(uint16_t x, uint16_t y, uint16_t colour)
         return;
 
     uint16_t buffer[1];
-    buffer[0] = __builtin_bswap16(colour);
+    buffer[0] = colour;
 
     _writeBlock(x, y, x, y, (uint8_t *)buffer, 2);
 }
@@ -184,7 +184,7 @@ void ILI934X::fillRect(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t 
     uint16_t buffer[_MAX_CHUNK_SIZE];
     for (int x = 0; x < _MAX_CHUNK_SIZE; x++)
     {
-        buffer[x] = __builtin_bswap16(colour);
+        buffer[x] = colour;
     }
 
     uint16_t totalChunks = (uint16_t)((double)(w * h) / _MAX_CHUNK_SIZE);
@@ -492,5 +492,6 @@ void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, ui
 
 uint16_t ILI934X::colour565(uint8_t r, uint8_t g, uint8_t b)
 {
-    return (((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | ((b >> 3) & 0x1f);
+    uint16_t val = (((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | ((b >> 3) & 0x1f);
+    return __builtin_bswap16(val);
 }

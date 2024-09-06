@@ -1,6 +1,7 @@
 #include "waterfall.h"
 
 #include <cmath>
+#include <cstdio>
 
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
@@ -18,7 +19,7 @@ waterfall::waterfall()
     #define PIN_DC   11
     #define PIN_RST  10
     #define SPI_PORT spi1
-    spi_init(SPI_PORT, 20 * 1000 * 1000);
+    spi_init(SPI_PORT, 40 * 1000 * 1000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
@@ -32,7 +33,7 @@ waterfall::waterfall()
     display->reset();
     display->init();
     display->clear();
-    display->drawLine(32, 119, 288, 119, display->colour565(255,255,255));
+    display->drawLine(32, 119, 287, 119, display->colour565(255,255,255));
 }
 
 waterfall::~waterfall()
@@ -40,73 +41,135 @@ waterfall::~waterfall()
     delete display;
 }
 
-void waterfall::heatmap(uint8_t value, uint16_t &colour)
+uint16_t waterfall::heatmap(uint8_t value, bool lighten)
 {
-    uint8_t section = value / 36;
-    uint8_t fraction = (section % 36)*6;
+    uint8_t section = ((uint16_t)value*6)>>8;
+    uint8_t fraction = ((uint16_t)value*6)&0xff;
+    uint8_t light_colour = lighten?64:0;
 
     switch(section)
     {
       case 0: //black->blue
-        colour = display->colour565(0,0,fraction);
-        return;
+        return display->colour565(light_colour,light_colour,fraction);
       case 1: //blue->cyan
-        colour = display->colour565(0,fraction, 255);
-        return;
+        return display->colour565(light_colour,fraction, 255);
       case 2: //cyan->green
-        colour = display->colour565(0,255, 255-fraction);
-        return;
+        return display->colour565(light_colour,255, 255-fraction);
       case 3: //green->yellow
-        colour = display->colour565(fraction, 255, 0);
-        return;
+        return display->colour565(fraction, 255, light_colour);
       case 4: //yellow->red
-        colour = display->colour565(255, 255-fraction, 0);
-        return;
+        return display->colour565(255, 255-fraction, light_colour);
       case 5: //red->white
-        colour = display->colour565(255, fraction, fraction);
-        return;
+        return display->colour565(255, fraction, fraction);
     }
+    return 0;
 }
 
-void waterfall::new_spectrum(float spectrum[])
+void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
 {
-    const uint16_t num_rows = 120u;
+
+    uint32_t t0 = time_us_32();
+    const uint16_t waterfall_width = 100u;
+    const uint16_t waterfall_x = 32u;
+    const uint16_t waterfall_y = 120u;
     const uint16_t num_cols = 256u;
 
-    static uint8_t waterfall_count = 0;
-    static uint16_t top_row = 0;
+    static uint8_t waterfall_count = 0u;
+    const uint8_t max_waterfall_count = 1u;
+    static uint16_t top_row = 0u;
+    static uint8_t interleave = false;
+    static float min=0.0f;
+    static float max=6.0f;
 
+    //normalise spectrum to between 0 and 1
+    float new_min = 100.0f;
+    float new_max = -100.0f;
+    for(uint16_t col=0; col<num_cols; ++col)
+    {
+      if(spectrum[col]==0) continue;
+      new_min = std::fmin(log10f(spectrum[col]), new_min);
+      new_max = std::fmax(log10f(spectrum[col]), new_max);
+    }
+    min=min * 0.9 + new_min * 0.1;
+    max=max * 0.9 + new_max * 0.1;
+    for(uint16_t col=0; col<num_cols; ++col)
+    {
+      const float normalised = (log10f(spectrum[col])-min)/(max-min);
+      const float clamped = std::fmax(std::fmin(normalised, 1.0f), 0.0f);
+      spectrum[col] = clamped;
+    }
+
+    //draw spectrum scope
+    const uint16_t scope_height = 100u;
+    const uint16_t scope_x = 32u;
+    const uint16_t scope_y = 18u;
+    const uint16_t scope_fg = display->colour565(255, 255, 255);
+    const uint16_t scope_bg = display->colour565(0, 0, 0);
+    const uint16_t scope_light_bg = display->colour565(64, 64, 64);
+
+    for(uint16_t col=interleave; col<num_cols; col+=2)
+    {
+      //scale data point
+      uint8_t data_point = (scope_height*0.8) * spectrum[col];
+      uint16_t vline[scope_height];
+  
+      const int16_t fbin = col-128;
+      const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
+      const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
+      const bool is_passband = is_usb_col || is_lsb_col;
+
+
+      for(uint8_t row=0; row<scope_height; ++row)
+      {
+        if(fbin == 0)
+        {
+          vline[scope_height - 1 - row] = scope_fg;
+        }
+        else if(row < data_point)
+        {
+          vline[scope_height - 1 - row] = heatmap(row*256/scope_height, is_passband);
+        }
+        else if(row == data_point)
+        {
+          vline[scope_height - 1 - row] = scope_fg;
+        }
+        else
+        {
+          vline[scope_height - 1 - row] = is_passband?scope_light_bg:scope_bg;
+        }
+      }
+      display->writeVLine(scope_x+col, scope_y, scope_height, vline);
+    }
+    interleave^=1;
+
+    //draw waterfall
     if(!waterfall_count--)
     {
-      waterfall_count = 4;
+      waterfall_count = max_waterfall_count;
 
       //add new line to waterfall
       for(uint16_t col=0; col<num_cols; col++)
       {
-        float min=0.0f;
-        float max=6.0f;
-        float scale = 256.0f/(max-min);
-        waterfall_buffer[top_row][col] = scale*(log10f(spectrum[col])-min);
+        waterfall_buffer[top_row][col] = 255*spectrum[col];
       }
       
       //draw waterfall
-      uint16_t line[320];
-      for(uint16_t idx=0; idx<32; ++idx)    line[idx] = display->colour565(0,0,0);
-      for(uint16_t idx=288; idx<320; ++idx) line[idx] = display->colour565(0,0,0);
-      for(uint16_t row=0; row<120; row++)
+      uint16_t line[num_cols];
+      for(uint16_t row=0; row<waterfall_width; row++)
       {
-        uint16_t row_address = (top_row+row)%num_rows;
+        uint16_t row_address = (top_row+row)%waterfall_width;
         for(uint16_t col=0; col<num_cols; ++col)
         {
            uint8_t heat = waterfall_buffer[row_address][col];
-           uint16_t colour=0; 
-           heatmap(heat, colour);
-           line[32+col] = colour;
+           uint16_t colour=heatmap(heat);
+           line[col] = colour;
         }
-        display->writeLine(row+120, 320, line);
+        display->writeHLine(waterfall_x, row+waterfall_y, num_cols, line);
       }
 
       //scroll waterfall
-      top_row = top_row?top_row-1:num_rows-1;
+      top_row = top_row?top_row-1:waterfall_width-1;
     }
+
+    printf("frame rate %f\n", 1.0e6/(time_us_32()-t0));
 }

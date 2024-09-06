@@ -2,6 +2,7 @@
 #define __waterfall_h__
 #include <cstdint>
 #include "ili934x.h"
+#include "fft_filter.h"
 
 class waterfall
 {
@@ -9,10 +10,10 @@ class waterfall
   public:
   waterfall();
   ~waterfall();
-  void new_spectrum(float spectrum[]);
+  void new_spectrum(float spectrum[], s_filter_control &fc);
 
   private:
-  void heatmap(uint8_t value, uint16_t &color);
+  uint16_t heatmap(uint8_t value, bool lighten = false);
   uint8_t waterfall_buffer[120][256];
   ILI934X *display;
 
