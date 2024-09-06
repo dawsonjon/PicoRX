@@ -105,8 +105,6 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
 
 void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
 {
-
-    uint32_t t0 = time_us_32();
     const uint16_t waterfall_width = 100u;
     const uint16_t waterfall_x = 32u;
     const uint16_t waterfall_y = 120u;
@@ -186,6 +184,4 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
       //scroll waterfall
       top_row = top_row?top_row-1:waterfall_width-1;
     }
-
-    printf("frame rate %f\n", 1.0e6/(time_us_32()-t0));
 }

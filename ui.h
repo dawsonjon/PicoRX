@@ -12,6 +12,7 @@
 #include "memory.h"
 #include "autosave_memory.h"
 #include "waterfall.h"
+#include "event.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -51,9 +52,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
-#define WAIT_500MS sleep_us(500000);;
 
-enum e_button_state {idle, down, fast_mode, menu};
+enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 
 // font styles styles as bits to be ORed
 #define style_normal      0
@@ -86,10 +86,7 @@ class ui
   const uint32_t sm = 0;
   const PIO pio = pio1;
 
-  // Buttons 
-  void setup_buttons();
-  bool get_button(uint8_t button);
-  bool check_button(unsigned button);
+  // Buttons
   e_button_state button_state;
   uint8_t timeout;
 
@@ -134,7 +131,7 @@ class ui
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
-  bool display_timeout(bool encoder_change);
+  bool display_timeout(bool encoder_change, event_t event);
 
   uint32_t regmode = 1;
 
@@ -145,7 +142,7 @@ class ui
   public:
 
   void autorestore();
-  void do_ui(void);
+  void do_ui(event_t event);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
 
 };
