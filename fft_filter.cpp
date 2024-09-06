@@ -23,9 +23,9 @@
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
+void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #else
-void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
+void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
 
   // window
@@ -40,8 +40,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
-      capture_i[i] = (((int32_t)capture_i[i]<<4) - capture_i[i] + sample_real[i]) >> 4;
-      capture_q[i] = (((int32_t)capture_q[i]<<4) - capture_q[i] + sample_imag[i]) >> 4;
+      capture[i] = (((int32_t)capture[i]<<3) - capture[i] + rectangular_2_magnitude(sample_real[i], sample_imag[i])) >> 3;
     }
   }
 
@@ -138,9 +137,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
+void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #else
-void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
+void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
 
   int16_t real[fft_size];
@@ -156,7 +155,7 @@ void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_
   }
 
   //filter combined block
-  filter_block(real, imag, filter_control, capture_i, capture_q);
+  filter_block(real, imag, filter_control, capture);
 
   for (uint16_t i = 0; i < (new_fft_size/2u); i++) {
     sample_real[i] = real[i] + last_output_real[i];

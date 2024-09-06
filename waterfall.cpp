@@ -41,7 +41,7 @@ waterfall::~waterfall()
     delete display;
 }
 
-uint16_t waterfall::heatmap(uint8_t value, bool blend)
+uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
 {
     uint8_t section = ((uint16_t)value*6)>>8;
     uint8_t fraction = ((uint16_t)value*6)&0xff;
@@ -93,6 +93,13 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend)
       b = (uint16_t)b-(b>>1) + (blend_b>>1);
     }
 
+    if(highlight)
+    {
+      r = (uint16_t)(r>>2) + blend_r - (blend_r>>2);
+      g = (uint16_t)(g>>2) + blend_g - (blend_g>>2);
+      b = (uint16_t)(b>>2) + blend_b - (blend_b>>2);
+    }
+
     return display->colour565(r,g,b);
 }
 
@@ -115,8 +122,6 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
     const uint16_t scope_x = 32u;
     const uint16_t scope_y = 18u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
-    const uint16_t scope_bg = display->colour565(0, 0, 0);
-    const uint16_t scope_light_bg = display->colour565(14/2, 158/2, 53/2);
 
     for(uint16_t col=interleave; col<num_cols; col+=2)
     {
@@ -131,11 +136,7 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
 
       for(uint8_t row=0; row<scope_height; ++row)
       {
-        if(fbin == 0)
-        {
-          vline[scope_height - 1 - row] = scope_fg;
-        }
-        else if(row < data_point)
+        if(row < data_point)
         {
           vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband);
         }
@@ -145,7 +146,7 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
         }
         else
         {
-          vline[scope_height - 1 - row] = is_passband?scope_light_bg:scope_bg;
+          vline[scope_height - 1 - row] = heatmap(0, is_passband, fbin==0);
         }
       }
       display->writeVLine(scope_x+col, scope_y, scope_height, vline);
@@ -170,14 +171,13 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
         uint16_t row_address = (top_row+row)%waterfall_width;
         for(uint16_t col=0; col<num_cols; ++col)
         {
-
            const int16_t fbin = col-128;
            const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
            const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
            const bool is_passband = is_usb_col || is_lsb_col;
 
            uint8_t heat = waterfall_buffer[row_address][col];
-           uint16_t colour=fbin==0?scope_fg:heatmap(heat, is_passband);
+           uint16_t colour=heatmap(heat, is_passband, fbin==0);
            line[col] = colour;
         }
         display->writeHLine(waterfall_x, row+waterfall_y, num_cols, line);

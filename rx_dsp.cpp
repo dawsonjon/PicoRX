@@ -83,7 +83,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   //if the capture buffer isn't in use, fill it
   filter_control.capture = sem_try_acquire(&spectrum_semaphore);
   capture_filter_control = filter_control;
-  fft_filter_inst.process_sample(real, imag, filter_control, capture_i, capture_q);
+  fft_filter_inst.process_sample(real, imag, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
@@ -472,14 +472,14 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], s_filter_control &fc)
   fc = capture_filter_control;
 
   //find minimum and maximum values
-  const uint16_t lowest_max = 10000u;
+  const uint16_t lowest_max = 2500u;
   static uint16_t max=65523u;//long term maximum
   uint16_t new_max=0u;
   static uint16_t min=1u;//long term maximum
   uint16_t new_min=65535u;
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    const uint16_t magnitude = capture[i];
     if(magnitude == 0) continue;
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
@@ -493,7 +493,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], s_filter_control &fc)
   uint8_t f = 0;
   for(uint16_t i=128; i<256; i++)
   {
-    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    const uint16_t magnitude = capture[i];
     if(magnitude == 0)
     {
       spectrum[f] = 0u;
@@ -506,7 +506,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], s_filter_control &fc)
   }
   for(uint16_t i=0; i<127; i++)
   {
-    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    const uint16_t magnitude = capture[i];
     if(magnitude == 0)
     {
       spectrum[f] = 0u;

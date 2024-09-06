@@ -35,8 +35,7 @@ class rx_dsp
   bool cw_decimate(int16_t &i, int16_t &q);
 
   //capture samples for spectral analysis
-  int16_t capture_i[256];
-  int16_t capture_q[256];
+  int16_t capture[256];
   semaphore_t spectrum_semaphore;
 
   //used in dc canceler

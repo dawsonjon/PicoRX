@@ -13,7 +13,7 @@ class waterfall
   void new_spectrum(uint8_t spectrum[], s_filter_control &fc);
 
   private:
-  uint16_t heatmap(uint8_t value, bool lighten = false);
+  uint16_t heatmap(uint8_t value, bool lighten = false, bool highlight = false);
   uint8_t waterfall_buffer[120][256];
   ILI934X *display;
 

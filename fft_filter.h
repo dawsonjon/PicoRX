@@ -39,7 +39,7 @@ class fft_filter
   int16_t last_output_real[new_fft_size/2];
   int16_t last_output_imag[new_fft_size/2];
   int32_t window[fft_size];
-  void filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]);
+  void filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]);
 
   public:
   fft_filter()
@@ -58,7 +58,7 @@ class fft_filter
       last_output_imag[i] = 0;
     }
   }
-  void process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]);
+  void process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]);
 
 };
 
