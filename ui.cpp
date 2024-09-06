@@ -268,7 +268,7 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
 
   //Display spectrum capture
-  static float spectrum[256];
+  static uint8_t spectrum[256];
   s_filter_control fc;
   receiver.get_spectrum(spectrum, fc);
   waterfall_inst.new_spectrum(spectrum, fc);
@@ -284,7 +284,7 @@ void ui::update_display(rx_status & status, rx & receiver)
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = spectrum[x*2]*31.0f;
+      int16_t y = spectrum[x*2]/10;
       ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 

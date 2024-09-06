@@ -40,8 +40,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
-      capture_i[i] = sample_real[i];
-      capture_q[i] = sample_imag[i];
+      capture_i[i] = (((int32_t)capture_i[i]<<4) - capture_i[i] + sample_real[i]) >> 4;
+      capture_q[i] = (((int32_t)capture_q[i]<<4) - capture_q[i] + sample_imag[i]) >> 4;
     }
   }
 

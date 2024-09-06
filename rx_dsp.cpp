@@ -4,6 +4,7 @@
 #include "utils.h"
 #include <math.h>
 #include <cstdio>
+#include <algorithm>
 #include "pico/stdlib.h"
 
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
@@ -120,7 +121,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
-    //dc = (dc - (dc >> 1)) + ((sample_accumulator/adc_block_size) >> 1);
     dc = sample_accumulator/adc_block_size;
 
     return audio_index;
@@ -319,8 +319,6 @@ rx_dsp :: rx_dsp()
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
-  for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
-
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
@@ -466,26 +464,59 @@ int16_t rx_dsp :: get_signal_strength_dBm()
   return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
-void rx_dsp :: get_spectrum(float spectrum[], s_filter_control &fc)
+void rx_dsp :: get_spectrum(uint8_t spectrum[], s_filter_control &fc)
 {
-  const float alpha = 0.5f;
-  const float beta = 1.0f - alpha;
 
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
   fc = capture_filter_control;
+
+  //find minimum and maximum values
+  const uint16_t lowest_max = 10000u;
+  static uint16_t max=65523u;//long term maximum
+  uint16_t new_max=0u;
+  static uint16_t min=1u;//long term maximum
+  uint16_t new_min=65535u;
+  for(uint16_t i=0; i<256; ++i)
+  {
+    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    if(magnitude == 0) continue;
+    new_max = std::max(magnitude, new_max);
+    new_min = std::min(magnitude, new_min);
+  }
+  max=max - (max >> 3) + (new_max >> 3);
+  min=min - (min >> 3) + (new_min >> 3);
+  const float logmin = log10f(min);
+  const float logmax = log10f(std::max(max, lowest_max));
+
+  //clamp and convert to log scale 0 -> 255
   uint8_t f = 0;
   for(uint16_t i=128; i<256; i++)
   {
-    accumulator[f] = (beta * accumulator[f]) + (alpha * rectangular_2_magnitude(capture_i[i], capture_q[i]));
+    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    if(magnitude == 0)
+    {
+      spectrum[f] = 0u;
+    } else {
+      const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
+      const float clamped = std::fmax(std::fmin(normalised, 255.0f), 0.0f);
+      spectrum[f] = clamped;
+    }
     f++;
   }
   for(uint16_t i=0; i<127; i++)
   {
-    accumulator[f] = (beta * accumulator[f]) + (alpha * rectangular_2_magnitude(capture_i[i], capture_q[i]));
+    const uint16_t magnitude = rectangular_2_magnitude(capture_i[i], capture_q[i]);
+    if(magnitude == 0)
+    {
+      spectrum[f] = 0u;
+    } else {
+      const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
+      const float clamped = std::fmax(std::fmin(normalised, 255.0f), 0.0f);
+      spectrum[f] = clamped;
+    }
     f++;
   }
   sem_release(&spectrum_semaphore);
 
-  for(uint16_t i=0; i<256; i++) spectrum[i] = accumulator[i];
 }

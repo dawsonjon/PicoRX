@@ -41,31 +41,62 @@ waterfall::~waterfall()
     delete display;
 }
 
-uint16_t waterfall::heatmap(uint8_t value, bool lighten)
+uint16_t waterfall::heatmap(uint8_t value, bool blend)
 {
     uint8_t section = ((uint16_t)value*6)>>8;
     uint8_t fraction = ((uint16_t)value*6)&0xff;
-    uint8_t light_colour = lighten?64:0;
 
+    //blend colour e.g. for cursor
+    uint8_t blend_r = 14;
+    uint8_t blend_g = 158;
+    uint8_t blend_b = 53;
+
+    uint8_t r=0, g=0, b=0;
     switch(section)
     {
       case 0: //black->blue
-        return display->colour565(light_colour,light_colour,fraction);
+        r=0;
+        g=0;
+        b=fraction;
+        break;
       case 1: //blue->cyan
-        return display->colour565(light_colour,fraction, 255);
+        r=0;
+        g=fraction;
+        b=255;
+        break;
       case 2: //cyan->green
-        return display->colour565(light_colour,255, 255-fraction);
+        r=0;
+        g=255;
+        b=255-fraction;
+        break;
       case 3: //green->yellow
-        return display->colour565(fraction, 255, light_colour);
+        r=fraction;
+        g=255;
+        b=0;
+        break;
       case 4: //yellow->red
-        return display->colour565(255, 255-fraction, light_colour);
+        r=255;
+        g=255-fraction;
+        b=0;
+        break;
       case 5: //red->white
-        return display->colour565(255, fraction, fraction);
+        r=255;
+        g=fraction;
+        b=fraction;
+        break;
     }
-    return 0;
+    
+    if(blend)
+    {
+      r = (uint16_t)r-(r>>1) + (blend_r>>1);
+      g = (uint16_t)g-(g>>1) + (blend_g>>1);
+      b = (uint16_t)b-(b>>1) + (blend_b>>1);
+    }
+
+    return display->colour565(r,g,b);
 }
 
-void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
+void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
 {
 
     uint32_t t0 = time_us_32();
@@ -78,26 +109,6 @@ void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
     const uint8_t max_waterfall_count = 1u;
     static uint16_t top_row = 0u;
     static uint8_t interleave = false;
-    static float min=0.0f;
-    static float max=6.0f;
-
-    //normalise spectrum to between 0 and 1
-    float new_min = 100.0f;
-    float new_max = -100.0f;
-    for(uint16_t col=0; col<num_cols; ++col)
-    {
-      if(spectrum[col]==0) continue;
-      new_min = std::fmin(log10f(spectrum[col]), new_min);
-      new_max = std::fmax(log10f(spectrum[col]), new_max);
-    }
-    min=min * 0.9 + new_min * 0.1;
-    max=max * 0.9 + new_max * 0.1;
-    for(uint16_t col=0; col<num_cols; ++col)
-    {
-      const float normalised = (log10f(spectrum[col])-min)/(max-min);
-      const float clamped = std::fmax(std::fmin(normalised, 1.0f), 0.0f);
-      spectrum[col] = clamped;
-    }
 
     //draw spectrum scope
     const uint16_t scope_height = 100u;
@@ -105,19 +116,18 @@ void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
     const uint16_t scope_y = 18u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
     const uint16_t scope_bg = display->colour565(0, 0, 0);
-    const uint16_t scope_light_bg = display->colour565(64, 64, 64);
+    const uint16_t scope_light_bg = display->colour565(14/2, 158/2, 53/2);
 
     for(uint16_t col=interleave; col<num_cols; col+=2)
     {
       //scale data point
-      uint8_t data_point = (scope_height*0.8) * spectrum[col];
+      uint8_t data_point = (scope_height * (uint16_t)spectrum[col])/318;
       uint16_t vline[scope_height];
   
       const int16_t fbin = col-128;
       const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
       const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
       const bool is_passband = is_usb_col || is_lsb_col;
-
 
       for(uint8_t row=0; row<scope_height; ++row)
       {
@@ -127,7 +137,7 @@ void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
         }
         else if(row < data_point)
         {
-          vline[scope_height - 1 - row] = heatmap(row*256/scope_height, is_passband);
+          vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband);
         }
         else if(row == data_point)
         {
@@ -150,7 +160,7 @@ void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
       //add new line to waterfall
       for(uint16_t col=0; col<num_cols; col++)
       {
-        waterfall_buffer[top_row][col] = 255*spectrum[col];
+        waterfall_buffer[top_row][col] = spectrum[col];
       }
       
       //draw waterfall
@@ -160,8 +170,14 @@ void waterfall::new_spectrum(float spectrum[], s_filter_control &fc)
         uint16_t row_address = (top_row+row)%waterfall_width;
         for(uint16_t col=0; col<num_cols; ++col)
         {
+
+           const int16_t fbin = col-128;
+           const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
+           const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
+           const bool is_passband = is_usb_col || is_lsb_col;
+
            uint8_t heat = waterfall_buffer[row_address][col];
-           uint16_t colour=heatmap(heat);
+           uint16_t colour=fbin==0?scope_fg:heatmap(heat, is_passband);
            line[col] = colour;
         }
         display->writeHLine(waterfall_x, row+waterfall_y, num_cols, line);

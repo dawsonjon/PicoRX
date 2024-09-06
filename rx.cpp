@@ -164,7 +164,7 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(float spectrum[], s_filter_control &fc)
+void rx::get_spectrum(uint8_t spectrum[], s_filter_control &fc)
 {
   rx_dsp_inst.get_spectrum(spectrum, fc);
 }
