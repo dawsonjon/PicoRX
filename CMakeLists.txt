@@ -23,6 +23,8 @@ if(PICO_BOARD STREQUAL "pico")
       fft_filter.cpp
       ui.cpp
       utils.cpp
+      debouncer.c
+      event.c
   )
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
