@@ -1266,6 +1266,9 @@ void ui::do_ui(event_t event)
         if (event.tag == ev_button_back_release)
         {
           button_state = idle;
+        } else if (event.tag == ev_button_menu_press)
+        {
+          button_state = very_fast_mode;
         }
         break;
       case down:
