@@ -733,9 +733,20 @@ bool ui::store()
         draw_once = false;
         display_clear();
         display_print_str("Store");
-        display_line2();
-        display_print_num("%03i ", select);
-        display_print_str(name);
+        display_print_num(" %03i ", select, 1, style_centered);
+        display_print_str("\n", 1);
+        // strip trailing spaces
+        for (int i=15; i>=0; i--) {
+          if (name[i] != ' ') break;
+          name[i] = 0;
+        }
+        if (12*strlen(name) > 128) {
+          display_add_xy(0,4);
+          display_print_str(name,1,style_nowrap|style_centered);
+        } else {
+          display_print_str(name,2,style_nowrap|style_centered);
+        }
+
         display_show();
       }
       else
@@ -744,9 +755,9 @@ bool ui::store()
         draw_once = false;
         display_clear();
         display_print_str("Store");
-        display_line2();
-        display_print_num("%03i ", select);
-        display_print_str("BLANK");
+        display_print_num(" %03i ", select, 1, style_centered);
+        display_print_str("\n", 1);
+        display_print_str("BLANK",2,style_nowrap|style_centered);
         display_show();
       }
     }
@@ -1088,10 +1099,11 @@ bool ui::frequency_entry(){
     if(encoder_changed || draw_once)
     {
       draw_once = false;
-      display_clear();
 
       //write frequency to lcd
-      display_line1();
+      display_clear();
+      display_print_str("Frequency",1);
+      display_set_xy(4,9);
       for(i=0; i<8; i++)
       {
         if (!edit_mode && (i==digit)) {
