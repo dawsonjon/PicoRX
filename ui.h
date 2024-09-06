@@ -52,7 +52,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
 
-enum e_button_state {idle, down, fast_mode, menu};
+enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 
 // font styles styles as bits to be ORed
 #define style_normal      0

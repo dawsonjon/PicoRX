@@ -1257,6 +1257,15 @@ void ui::do_ui(event_t event)
         {
           button_state = down;
           timeout = 100;
+        } else if (event.tag == ev_button_back_press)
+        {
+          button_state = slow_mode;
+        }
+        break;
+      case slow_mode:
+        if (event.tag == ev_button_back_release)
+        {
+          button_state = idle;
         }
         break;
       case down:
@@ -1273,6 +1282,19 @@ void ui::do_ui(event_t event)
         if(event.tag == ev_button_menu_release)
         {
           button_state = idle;
+        } else if(event.tag == ev_button_back_press)
+        {
+          button_state = very_fast_mode;
+        }
+        break;
+      case very_fast_mode:
+        if (event.tag == ev_button_back_release)
+        {
+          button_state = fast_mode;
+        }
+        else if (event.tag == ev_button_menu_release)
+        {
+          button_state = slow_mode;
         }
         break;
       case menu:
@@ -1287,22 +1309,27 @@ void ui::do_ui(event_t event)
       frequency_autosave_pending = false;
       frequency_autosave_timer = 10u;
 
-      if(button_state == fast_mode && (event.tag == ev_button_back_press))
+      switch (button_state)
       {
-        //very fast if both buttons pressed
-        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-      }
-      else if(button_state == fast_mode)
-      {
-        //fast if menu button held
+      case fast_mode:
+        // fast if menu button held
         settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-      }
-      else if(event.tag == ev_button_back_press)
-      {
-        //slow if cancel button held
+        break;
+
+      case very_fast_mode:
+        // very fast if both buttons pressed
+        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+        break;
+
+      case slow_mode:
+        // slow if cancel button held
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+        break;
+
+      default:
+      settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+        break;
       }
-      else settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
