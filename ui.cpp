@@ -2,7 +2,11 @@
 #include "pico/multicore.h"
 #include "ui.h"
 #include <hardware/flash.h>
+#include "pico/util/queue.h"
 
+static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
+                                               (1UL << ev_button_back_press) |
+                                               (1UL << ev_button_push_press);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
@@ -38,37 +42,6 @@ int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
 	if(*value > max) *value = min;
 	if(*value < min) *value = max;
 	return position_change;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Buttons 
-////////////////////////////////////////////////////////////////////////////////
-
-void ui::setup_buttons()
-{
-  gpio_init(PIN_MENU);
-  gpio_set_dir(PIN_MENU, GPIO_IN);
-  gpio_pull_up(PIN_MENU);
-  gpio_init(PIN_BACK);
-  gpio_set_dir(PIN_BACK, GPIO_IN);
-  gpio_pull_up(PIN_BACK);
-  gpio_init(PIN_ENCODER_PUSH);
-  gpio_set_dir(PIN_ENCODER_PUSH, GPIO_IN);
-  gpio_pull_up(PIN_ENCODER_PUSH);
-}
-
-bool ui::get_button(uint8_t button){
-	if(!gpio_get(button)){
-		while(!gpio_get(button)){}
-		WAIT_10MS
-		return 1;
-	}
-	WAIT_10MS
-	return 0;
-}
-
-bool ui::check_button(unsigned button){
-	return !gpio_get(button);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -363,18 +336,17 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
       display_show();
     }
 
+    event_t ev = event_get();
     //select menu item
-    if(get_button(PIN_MENU)){
+    if(ev.tag == ev_button_menu_press){
       *value = select;
       return 1;
     }
 
     //cancel
-    if(get_button(PIN_BACK)){
+    if(ev.tag == ev_button_back_press){
       return 0;
     }
-
-    WAIT_100MS
   }
 }
 
@@ -404,18 +376,17 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       display_show();
     }
 
+    event_t ev = event_get();
     //select menu item
-    if(get_button(PIN_MENU)){
+    if(ev.tag == ev_button_menu_press){
       *value = select;
       return 1;
     }
 
     //cancel
-    if(get_button(PIN_BACK)){
+    if(ev.tag == ev_button_back_press){
       return 0;
     }
-
-    WAIT_100MS
   }
 }
 
@@ -437,18 +408,18 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       display_show();
     }
 
+    event_t ev = event_get();
+
     //select menu item
-    if(get_button(PIN_MENU)){
+    if(ev.tag == ev_button_menu_press){
       *value = select*multiple;
       return 1;
     }
 
     //cancel
-    if(get_button(PIN_BACK)){
+    if(ev.tag == ev_button_back_press){
       return 0;
     }
-
-    WAIT_100MS
   }
 }
 
@@ -762,8 +733,10 @@ bool ui::store()
       }
     }
 
+    event_t ev = event_get();
+
     //select menu item
-    if(get_button(PIN_MENU)){
+    if(ev.tag == ev_button_menu_press){
 
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
@@ -830,11 +803,9 @@ bool ui::store()
     }
 
     //cancel
-    if(get_button(PIN_BACK)){
+    if(ev.tag == ev_button_back_press){
       return false;
     }
-
-    WAIT_100MS
   }
 }
 
@@ -956,18 +927,20 @@ bool ui::recall()
       }
     }
 
-    if(get_button(PIN_ENCODER_PUSH)){
+    event_t ev = event_get();
+
+    if(ev.tag == ev_button_push_press){
       last_select=min;
       return 1;
     }
 
-    if(get_button(PIN_MENU)){
+    if(ev.tag == ev_button_menu_press){
       last_select=select;
       return 1;
     }
 
     //cancel
-    if(get_button(PIN_BACK)){
+    if(ev.tag == ev_button_back_press){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -975,8 +948,6 @@ bool ui::recall()
       apply_settings(false);
       return 0;
     }
-
-    WAIT_100MS
   }
 }
 
@@ -1041,8 +1012,10 @@ bool ui::string_entry(char string[]){
       display_show();
     }
 
+    event_t ev = event_get();
+
     //select menu item
-    if(get_button(PIN_MENU))
+    if(ev.tag == ev_button_menu_press)
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -1054,7 +1027,7 @@ bool ui::string_entry(char string[]){
 	  }
 
     //cancel
-    if(get_button(PIN_BACK))
+    if(ev.tag == ev_button_back_press)
     {
       return false;
     }
@@ -1119,8 +1092,10 @@ bool ui::frequency_entry(){
       display_show();
     }
 
+    event_t ev = event_get();
+
     //select menu item
-    if(get_button(PIN_MENU))
+    if(ev.tag == ev_button_menu_press)
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -1149,14 +1124,14 @@ bool ui::frequency_entry(){
 	  }
 
     //cancel
-    if(get_button(PIN_BACK))
+    if(ev.tag == ev_button_back_press)
     {
       return false;
     }
   }
 }
 
-bool ui::display_timeout(bool encoder_change)
+bool ui::display_timeout(bool encoder_change, event_t event)
 {
     uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
     uint16_t display_timeout = timeout_lookup[display_timeout_setting];
@@ -1166,12 +1141,15 @@ bool ui::display_timeout(bool encoder_change)
 
     //A button press causes timer to be reset to max value
     //and re-enables the display if it was previously off
-    if(encoder_change || check_button(PIN_MENU) || check_button(PIN_BACK) || check_button(PIN_ENCODER_PUSH))
+    if(encoder_change || ((1UL << event.tag) & (ev_display_tmout_evset)))
     {
       if(!display_timer)
       {
         ssd1306_poweron(&disp);
-        while(check_button(PIN_MENU) || check_button(PIN_BACK) || check_button(PIN_ENCODER_PUSH)) WAIT_100MS;
+        do
+        {
+          event = event_get();
+        } while (((1UL << event.tag) & (ev_display_tmout_evset)));
         display_timer = display_timeout;
         return false;
       }
@@ -1262,23 +1240,32 @@ bool ui::configuration_menu()
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-void ui::do_ui(void)
+void ui::do_ui(event_t event)
 {
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
 
     //automatically switch off display after a period of inactivity
-    if(!display_timeout(encoder_change)) return;
+    if(!display_timeout(encoder_change, event)) return;
 
     //update frequency if encoder changes
     switch(button_state)
     {
       case idle:
-        if(check_button(PIN_MENU))
+        if(event.tag == ev_button_menu_press)
         {
           button_state = down;
           timeout = 100;
+        } else if (event.tag == ev_button_back_press)
+        {
+          button_state = slow_mode;
+        }
+        break;
+      case slow_mode:
+        if (event.tag == ev_button_back_release)
+        {
+          button_state = idle;
         }
         break;
       case down:
@@ -1286,15 +1273,28 @@ void ui::do_ui(void)
         {
           button_state = fast_mode;
         }
-        else if(!check_button(PIN_MENU))
+        else if(event.tag == ev_button_menu_release)
         {
           button_state = menu;
         }
         break;
       case fast_mode:
-        if(!check_button(PIN_MENU))
+        if(event.tag == ev_button_menu_release)
         {
           button_state = idle;
+        } else if(event.tag == ev_button_back_press)
+        {
+          button_state = very_fast_mode;
+        }
+        break;
+      case very_fast_mode:
+        if (event.tag == ev_button_back_release)
+        {
+          button_state = fast_mode;
+        }
+        else if (event.tag == ev_button_menu_release)
+        {
+          button_state = slow_mode;
         }
         break;
       case menu:
@@ -1309,22 +1309,27 @@ void ui::do_ui(void)
       frequency_autosave_pending = false;
       frequency_autosave_timer = 10u;
 
-      if(button_state == fast_mode && check_button(PIN_BACK))
+      switch (button_state)
       {
-        //very fast if both buttons pressed
-        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-      }
-      else if(button_state == fast_mode)
-      {
-        //fast if menu button held
+      case fast_mode:
+        // fast if menu button held
         settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-      }
-      else if(check_button(PIN_BACK))
-      {
-        //slow if cancel button held
+        break;
+
+      case very_fast_mode:
+        // very fast if both buttons pressed
+        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+        break;
+
+      case slow_mode:
+        // slow if cancel button held
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+        break;
+
+      default:
+      settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+        break;
       }
-      else settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
@@ -1409,7 +1414,7 @@ void ui::do_ui(void)
       }
       autosave_settings = rx_settings_changed;
     }
-    else if(get_button(PIN_ENCODER_PUSH))
+    else if(event.tag == ev_button_push_press)
     {
       rx_settings_changed = recall();
       autosave_settings = rx_settings_changed;
@@ -1446,7 +1451,6 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : sett
 {
   setup_display();
   setup_encoder();
-  setup_buttons();
 
   button_state = idle;
 }
