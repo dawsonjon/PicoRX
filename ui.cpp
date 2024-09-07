@@ -340,7 +340,7 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
 
     event_t ev = event_get();
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select;
       return 1;
     }
@@ -380,7 +380,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 
     event_t ev = event_get();
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select;
       return 1;
     }
@@ -413,7 +413,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select*multiple;
       return 1;
     }
@@ -1027,7 +1027,7 @@ bool ui::string_entry(char string[]){
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press)
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -1109,7 +1109,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press)
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
