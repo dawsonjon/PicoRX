@@ -73,6 +73,9 @@ class ui
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
 
+  // last selected memory
+  int32_t last_select=0;
+
   // Encoder 
   void setup_encoder();
   int32_t get_encoder_change();
@@ -119,7 +122,7 @@ class ui
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t *value);
   uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
-  bool frequency_entry();
+  bool frequency_entry(const char title[], uint32_t which_setting);
   bool string_entry(char string[]);
   bool configuration_menu();
   bool recall();

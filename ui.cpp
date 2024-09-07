@@ -673,7 +673,8 @@ bool ui::store()
   //encoder loops through memories
   uint32_t min = 0;
   uint32_t max = num_chans-1;
-  int32_t select=min;
+  // grab last selected memory
+  int32_t select=last_select;
   char name[17];
 
   bool draw_once = true;
@@ -701,38 +702,32 @@ bool ui::store()
         name[14] = radio_memory[select][9] >> 8;
         name[15] = radio_memory[select][9];
         name[16] = 0;
-
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        // strip trailing spaces
-        for (int i=15; i>=0; i--) {
-          if (name[i] != ' ') break;
-          name[i] = 0;
-        }
-        if (12*strlen(name) > 128) {
-          display_add_xy(0,4);
-          display_print_str(name,1,style_nowrap|style_centered);
-        } else {
-          display_print_str(name,2,style_nowrap|style_centered);
-        }
-
-        display_show();
+      } else {
+        strcpy(name, "BLANK           ");
       }
-      else
-      {
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        display_print_str("BLANK",2,style_nowrap|style_centered);
-        display_show();
+
+
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print_str("Store");
+      display_print_num(" %03i ", select, 1, style_centered);
+      display_print_str("\n", 1);
+      // strip trailing spaces 
+      char ss_name[17];
+      strncpy(ss_name, name, 17);
+      for (int i=15; i>=0; i--) {
+        if (ss_name[i] != ' ') break;
+        ss_name[i] = 0;
       }
+      if (12*strlen(ss_name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(ss_name,1,style_nowrap|style_centered);
+      } else {
+        display_print_str(ss_name,2,style_nowrap|style_centered);
+      }
+
+      display_show();
     }
 
     event_t ev = event_get();
@@ -767,7 +762,6 @@ bool ui::store()
       display_print_str("\n", 1);
 
       //modify the selected channel
-      strcpy(name, "SAVED CHANNEL   ");
       if(!string_entry(name)) return false;
       for(uint8_t lw=0; lw<4; lw++)
       {
@@ -818,8 +812,7 @@ bool ui::recall()
   //encoder loops through memories
   int32_t min = 0;
   int32_t max = num_chans-1;
-  // last selected memory
-  static int32_t last_select=min;
+  // grab last selected memory
   int32_t select=last_select;
 
   int32_t pos_change;
@@ -980,7 +973,7 @@ bool ui::string_entry(char string[]){
     else 
     {
       //change between chars
-      encoder_changed = encoder_control(&position, 0, 17);
+      encoder_changed = encoder_control(&position, 0, 18);
     }
 
     //if encoder changes, or screen hasn't been updated
@@ -1019,7 +1012,14 @@ bool ui::string_entry(char string[]){
 
       ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
       display_linen(6);
-      print_enum_option(" OK #EXIT#", position-16);
+      display_print_str("                ",2,style_nowrap);
+      if (position>=16) {
+        display_linen(6);
+        display_print_str(">",2,style_reverse);
+        display_print_str("<",2,style_reverse|style_right);
+      }
+      display_linen(6);
+      print_enum_option("OK#CLEAR#EXIT#", position-16);
 
       display_show();
     }
@@ -1032,7 +1032,12 @@ bool ui::string_entry(char string[]){
       draw_once = true;
 	    edit_mode = !edit_mode;
 	    if(position==16) return true; //Yes
-	    if(position==17) return false; //No
+	    if(position==18) return false; //No
+      if(position==17) {
+        memset(string, ' ', strlen(string));
+        edit_mode = false;
+        position = 0;
+      }
 	  }
 
     //cancel
@@ -1046,7 +1051,7 @@ bool ui::string_entry(char string[]){
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(){
+bool ui::frequency_entry(const char title[], uint32_t which_setting){
 
   int32_t digit=0;
   int32_t digits[8];
@@ -1055,7 +1060,7 @@ bool ui::frequency_entry(){
   unsigned frequency;
 
   //convert to binary representation
-  frequency = settings[idx_frequency];
+  frequency = settings[which_setting];
   digit_val = 10000000;
   for(i=0; i<8; i++){
       digits[i] = frequency / digit_val;
@@ -1084,7 +1089,7 @@ bool ui::frequency_entry(){
 
       //write frequency to lcd
       display_clear();
-      display_print_str("Frequency",1);
+      display_print_str(title,1);
       display_set_xy(4,9);
       for(i=0; i<8; i++)
       {
@@ -1114,18 +1119,40 @@ bool ui::frequency_entry(){
 	      digit_val = 10000000;
 
         //convert back to a binary representation
-        settings[idx_frequency] = 0;
+        settings[which_setting] = 0;
         for(i=0; i<8; i++)
         {
-	        settings[idx_frequency] += (digits[i] * digit_val);
+	        settings[which_setting] += (digits[i] * digit_val);
 		      digit_val /= 10;
 		    }
 
+        //sanity check the 3 frequencies
         //when manually changing to a frequency outside the current band, remove any band limits
-        if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
-        {
-          settings[idx_min_frequency] = 0;
-          settings[idx_max_frequency] = 30000000;
+        //which changing band limits, force frequency within
+        if (settings[idx_max_frequency] < settings[idx_min_frequency]){
+          // force them to be the same ?
+          settings[idx_max_frequency] = settings[idx_min_frequency];
+        }
+
+        switch (which_setting) {
+          case idx_frequency:
+            if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
+            {
+              settings[idx_min_frequency] = 0;
+              settings[idx_max_frequency] = 30000000;
+            }
+          case idx_max_frequency:
+            if(settings[idx_frequency] > settings[idx_max_frequency])
+            {
+              settings[idx_frequency] = settings[idx_max_frequency];
+            }
+            break;
+          case idx_min_frequency:
+            if(settings[idx_frequency] < settings[idx_min_frequency])
+            {
+              settings[idx_frequency] = settings[idx_min_frequency];
+            }
+            break;
         }
 		    return true;
 	    }
@@ -1370,12 +1397,12 @@ void ui::do_ui(event_t event)
 
       //top level menu
       uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
 
       switch(setting)
       {
         case 0 : 
-          rx_settings_changed = frequency_entry();
+          rx_settings_changed = frequency_entry("frequency", idx_frequency);
           break;
 
         case 1:
@@ -1411,15 +1438,23 @@ void ui::do_ui(event_t event)
           break;
 
         case 9 : 
+          rx_settings_changed = frequency_entry("Band Start", idx_min_frequency);
+          break;
+
+        case 10 : 
+          rx_settings_changed = frequency_entry("Band Stop", idx_max_frequency);
+          break;
+
+        case 11 : 
           rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 10 : 
+        case 12 : 
           rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 11 : 
+        case 13 : 
           rx_settings_changed = configuration_menu();
           break;
 
