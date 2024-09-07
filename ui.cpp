@@ -292,6 +292,8 @@ void ui::print_enum_option(const char options[], uint8_t option){
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
   } else {
+    // default to 1st option if invalid
+    if (option > num_splits) option = 0;
     display_print_str(splits[option], 2, style_centered);
   }
 }
@@ -957,13 +959,12 @@ bool ui::recall()
 bool ui::string_entry(char string[]){
 
   int32_t position=0;
-//  int32_t i;
   int32_t edit_mode = 0;
 
   bool draw_once = true;
   while(1){
 
-    bool encoder_changed;
+    int32_t encoder_changed;
     if(edit_mode){
       //change the value of a digit 
       int32_t val = string[position];
@@ -992,9 +993,13 @@ bool ui::string_entry(char string[]){
       display_print_str("                ",2,style_nowrap);
       display_set_xy(0,9);
 
+      // compute starting point to scroll display
+#define SCREEN_WIDTH 10
+#define BUFFER_WIDTH 16
       int start = 0;
-      if (position > 6) start = (position-6);
-      if (position > 15) start = (15-6);
+      if (position < SCREEN_WIDTH) start = 0;
+      else if (position < BUFFER_WIDTH) start = position-(SCREEN_WIDTH-1);
+      else start = (encoder_changed > 0) ? (BUFFER_WIDTH-SCREEN_WIDTH) : 0;
 
       //write preset name to lcd
       for(int i=start; i<16; i++) {
@@ -1004,6 +1009,13 @@ bool ui::string_entry(char string[]){
           display_print_char(string[i], 2, style_nowrap );
         }
       }
+      // print scroll bar
+#define YP 25
+#define LEN SCREEN_WIDTH*128/BUFFER_WIDTH
+      ssd1306_draw_line(&disp, 0, YP+1, 127, YP+1, false);
+      ssd1306_draw_line(&disp, start*8, YP+1, LEN+start*8, YP+1, true);
+      ssd1306_draw_line(&disp, 0, YP, 0, YP+2, true);
+      ssd1306_draw_line(&disp, 127, YP, 127, YP+2, true);
 
       ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
       display_linen(6);
@@ -1019,10 +1031,7 @@ bool ui::string_entry(char string[]){
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
-	    if(position==16) //Yes
-      {
-		    return true;
-	    }
+	    if(position==16) return true; //Yes
 	    if(position==17) return false; //No
 	  }
 

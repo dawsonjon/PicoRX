@@ -16,7 +16,7 @@ extern "C"
     {
         const event_t ev_press;
         const event_t ev_release;
-        const uint gpio_num;
+        const unsigned int gpio_num;
         size_t count;
     } debouncer_t;
 
