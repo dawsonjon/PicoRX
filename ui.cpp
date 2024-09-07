@@ -1046,7 +1046,7 @@ bool ui::string_entry(char string[]){
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(){
+bool ui::frequency_entry(const char title[], uint32_t which_setting){
 
   int32_t digit=0;
   int32_t digits[8];
@@ -1055,7 +1055,7 @@ bool ui::frequency_entry(){
   unsigned frequency;
 
   //convert to binary representation
-  frequency = settings[idx_frequency];
+  frequency = settings[which_setting];
   digit_val = 10000000;
   for(i=0; i<8; i++){
       digits[i] = frequency / digit_val;
@@ -1084,7 +1084,7 @@ bool ui::frequency_entry(){
 
       //write frequency to lcd
       display_clear();
-      display_print_str("Frequency",1);
+      display_print_str(title,1);
       display_set_xy(4,9);
       for(i=0; i<8; i++)
       {
@@ -1114,18 +1114,34 @@ bool ui::frequency_entry(){
 	      digit_val = 10000000;
 
         //convert back to a binary representation
-        settings[idx_frequency] = 0;
+        settings[which_setting] = 0;
         for(i=0; i<8; i++)
         {
-	        settings[idx_frequency] += (digits[i] * digit_val);
+	        settings[which_setting] += (digits[i] * digit_val);
 		      digit_val /= 10;
 		    }
 
         //when manually changing to a frequency outside the current band, remove any band limits
-        if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
-        {
-          settings[idx_min_frequency] = 0;
-          settings[idx_max_frequency] = 30000000;
+        //which changing band limits, force frequency within
+        switch (which_setting) {
+          case idx_frequency:
+            if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
+            {
+              settings[idx_min_frequency] = 0;
+              settings[idx_max_frequency] = 30000000;
+            }
+          case idx_max_frequency:
+            if(settings[idx_frequency] > settings[idx_max_frequency])
+            {
+              settings[idx_frequency] = settings[idx_max_frequency];
+            }
+            break;
+          case idx_min_frequency:
+            if(settings[idx_frequency] < settings[idx_min_frequency])
+            {
+              settings[idx_frequency] = settings[idx_min_frequency];
+            }
+            break;
         }
 		    return true;
 	    }
@@ -1370,12 +1386,12 @@ void ui::do_ui(event_t event)
 
       //top level menu
       uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
 
       switch(setting)
       {
         case 0 : 
-          rx_settings_changed = frequency_entry();
+          rx_settings_changed = frequency_entry("frequency", idx_frequency);
           break;
 
         case 1:
@@ -1411,15 +1427,23 @@ void ui::do_ui(event_t event)
           break;
 
         case 9 : 
+          rx_settings_changed = frequency_entry("Band Start", idx_min_frequency);
+          break;
+
+        case 10 : 
+          rx_settings_changed = frequency_entry("Band Stop", idx_max_frequency);
+          break;
+
+        case 11 : 
           rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 10 : 
+        case 12 : 
           rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 11 : 
+        case 13 : 
           rx_settings_changed = configuration_menu();
           break;
 
