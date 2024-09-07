@@ -73,6 +73,9 @@ class ui
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
 
+  // last selected memory
+  int32_t last_select=0;
+
   // Encoder 
   void setup_encoder();
   int32_t get_encoder_change();

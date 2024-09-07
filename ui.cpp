@@ -673,7 +673,8 @@ bool ui::store()
   //encoder loops through memories
   uint32_t min = 0;
   uint32_t max = num_chans-1;
-  int32_t select=min;
+  // grab last selected memory
+  int32_t select=last_select;
   char name[17];
 
   bool draw_once = true;
@@ -701,38 +702,32 @@ bool ui::store()
         name[14] = radio_memory[select][9] >> 8;
         name[15] = radio_memory[select][9];
         name[16] = 0;
-
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        // strip trailing spaces
-        for (int i=15; i>=0; i--) {
-          if (name[i] != ' ') break;
-          name[i] = 0;
-        }
-        if (12*strlen(name) > 128) {
-          display_add_xy(0,4);
-          display_print_str(name,1,style_nowrap|style_centered);
-        } else {
-          display_print_str(name,2,style_nowrap|style_centered);
-        }
-
-        display_show();
+      } else {
+        strcpy(name, "BLANK           ");
       }
-      else
-      {
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        display_print_str("BLANK",2,style_nowrap|style_centered);
-        display_show();
+
+
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print_str("Store");
+      display_print_num(" %03i ", select, 1, style_centered);
+      display_print_str("\n", 1);
+      // strip trailing spaces 
+      char ss_name[17];
+      strncpy(ss_name, name, 17);
+      for (int i=15; i>=0; i--) {
+        if (ss_name[i] != ' ') break;
+        ss_name[i] = 0;
       }
+      if (12*strlen(ss_name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(ss_name,1,style_nowrap|style_centered);
+      } else {
+        display_print_str(ss_name,2,style_nowrap|style_centered);
+      }
+
+      display_show();
     }
 
     event_t ev = event_get();
@@ -767,7 +762,6 @@ bool ui::store()
       display_print_str("\n", 1);
 
       //modify the selected channel
-      strcpy(name, "SAVED CHANNEL   ");
       if(!string_entry(name)) return false;
       for(uint8_t lw=0; lw<4; lw++)
       {
@@ -818,8 +812,7 @@ bool ui::recall()
   //encoder loops through memories
   int32_t min = 0;
   int32_t max = num_chans-1;
-  // last selected memory
-  static int32_t last_select=min;
+  // grab last selected memory
   int32_t select=last_select;
 
   int32_t pos_change;
@@ -980,7 +973,7 @@ bool ui::string_entry(char string[]){
     else 
     {
       //change between chars
-      encoder_changed = encoder_control(&position, 0, 17);
+      encoder_changed = encoder_control(&position, 0, 18);
     }
 
     //if encoder changes, or screen hasn't been updated
@@ -1019,7 +1012,14 @@ bool ui::string_entry(char string[]){
 
       ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
       display_linen(6);
-      print_enum_option(" OK #EXIT#", position-16);
+      display_print_str("                ",2,style_nowrap);
+      if (position>=16) {
+        display_linen(6);
+        display_print_str(">",2,style_reverse);
+        display_print_str("<",2,style_reverse|style_right);
+      }
+      display_linen(6);
+      print_enum_option("OK#CLEAR#EXIT#", position-16);
 
       display_show();
     }
@@ -1032,7 +1032,12 @@ bool ui::string_entry(char string[]){
       draw_once = true;
 	    edit_mode = !edit_mode;
 	    if(position==16) return true; //Yes
-	    if(position==17) return false; //No
+	    if(position==18) return false; //No
+      if(position==17) {
+        memset(string, ' ', strlen(string));
+        edit_mode = false;
+        position = 0;
+      }
 	  }
 
     //cancel
@@ -1121,8 +1126,14 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
 		      digit_val /= 10;
 		    }
 
+        //sanity check the 3 frequencies
         //when manually changing to a frequency outside the current band, remove any band limits
         //which changing band limits, force frequency within
+        if (settings[idx_max_frequency] < settings[idx_min_frequency]){
+          // force them to be the same ?
+          settings[idx_max_frequency] = settings[idx_min_frequency];
+        }
+
         switch (which_setting) {
           case idx_frequency:
             if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
