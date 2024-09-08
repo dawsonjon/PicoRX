@@ -261,16 +261,29 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
   ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
-  float min=0;
-  float max=6;
-  float scale = 32.0f/(max-min);
+  float min=log10f(spectrum[0]);
+  float max=log10f(spectrum[0]);
 
+  for (uint16_t x = 0; x < 128; x++)
+  {
+    spectrum[x] = log10f(spectrum[x]);
+    if (spectrum[x] < min)
+    {
+      min = spectrum[x];
+    }
+    if (spectrum[x] > max)
+    {
+      max = spectrum[x];
+    }
+  }
+
+  float scale = 29.0f/(max-min);
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = scale*(log10f(spectrum[x])-min);
+      int16_t y = scale*(spectrum[x]-min);
       if(y < 0) y=0;
-      if(y > 31) y=31;
+      if(y > 29) y=29;
       ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
