@@ -19,7 +19,14 @@ int main()
       t++;
     }
 
-    filt.process_sample(i, q, 0, 32, true, true, false, NULL, NULL);
+    s_filter_control fc;
+    fc.start_bin = 0;
+    fc.stop_bin = 32;
+    fc.upper_sideband = true;
+    fc.lower_sideband = true;
+    fc.capture = false;
+
+    filt.process_sample(i, q, fc, NULL, NULL);
 
     for(uint16_t idx = 0; idx<64; ++idx)
     {
