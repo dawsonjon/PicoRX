@@ -134,11 +134,11 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   // if found, compute length of string, if not, length to end of str
   length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
 
-  if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+  if ( (style & style_centered) && (length*6*scale < 128)) {
     cursor_x = (128- 6*scale*length)/2;
   }
-  if ( (style & style_right) && (length < (128/(6*scale))) ) {
-    cursor_x = (128- 6*scale*length);
+  if ( (style & style_right) && (length*6*scale < 128) ) {
+    cursor_x = (128 - 6*scale*length);
   }
 
   for (size_t i=0; i<strlen(str); i++) {
@@ -150,9 +150,9 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       next_ln = strchr_idx( &str[i+1], '\n');
       length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
 
-      if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+      if ( (style & style_centered) && (length*6*scale < 128) ) {
         cursor_x = (128- 6*scale*length)/2;
-      } else if ( (style & style_right) && (length < (128/(6*scale))) ) {
+      } else if ( (style & style_right) && (length*6*scale < 128) ) {
         cursor_x = (128- 6*scale*length);
       } else {
         cursor_x = 0;
@@ -297,7 +297,7 @@ void ui::print_enum_option(const char options[], uint8_t option){
           if (!splits[num_splits]) break;
   }
 
-  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1]+1) < 128/12) {
+  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1])*12 < 128) {
     display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
