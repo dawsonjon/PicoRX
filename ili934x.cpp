@@ -328,7 +328,7 @@ void ILI934X::blit(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t *blt
     }
 }
 
-void ILI934X::drawChar(uint16_t x, uint16_t y, char chr, uint16_t colour, GFXfont *font)
+void ILI934X::drawChar(uint16_t x, uint16_t y, char chr, uint16_t colour, const GFXfont *font)
 {
     char c = chr - (uint8_t)pgm_read_byte(&font->first);
     GFXglyph *glyph = font->glyph + c;

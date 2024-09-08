@@ -123,7 +123,7 @@ public:
     void drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);
     void clear(uint16_t colour = COLOUR_BLACK);
     void blit(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t *bltBuf);
-    void drawChar(uint16_t x, uint16_t y, char c, uint16_t colour, GFXfont *font);
+    void drawChar(uint16_t x, uint16_t y, char c, uint16_t colour, const GFXfont *font);
     void charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy, GFXfont *font);
     void textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, GFXfont *font);
 

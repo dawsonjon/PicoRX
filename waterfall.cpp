@@ -6,6 +6,7 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include "ili934x.h"
+#include "FreeMono12pt7b.h"
 
 waterfall::waterfall()
 {
@@ -19,7 +20,8 @@ waterfall::waterfall()
     #define PIN_DC   11
     #define PIN_RST  10
     #define SPI_PORT spi1
-    spi_init(SPI_PORT, 40 * 1000 * 1000);
+    //spi_init(SPI_PORT, 62500000);
+    spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
@@ -33,7 +35,11 @@ waterfall::waterfall()
     display->reset();
     display->init();
     display->clear();
-    display->drawLine(32, 119, 287, 119, display->colour565(255,255,255));
+    //display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
+    //display->drawLine(31, 0, 288, 0, display->colour565(255,255,255));
+    //display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
+    //display->drawLine(31, 0, 31, 239, display->colour565(255,255,255));
+    //display->drawLine(288, 0, 288, 239, display->colour565(255,255,255));
 }
 
 waterfall::~waterfall()
@@ -103,25 +109,24 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     return display->colour565(r,g,b);
 }
 
-void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
+void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc, uint16_t MHz, uint16_t kHz, uint16_t Hz)
 {
     const uint16_t waterfall_width = 100u;
     const uint16_t waterfall_x = 32u;
-    const uint16_t waterfall_y = 120u;
+    const uint16_t waterfall_y = 136u;
     const uint16_t num_cols = 256u;
 
     static uint8_t waterfall_count = 0u;
     const uint8_t max_waterfall_count = 1u;
     static uint16_t top_row = 0u;
-    static uint8_t interleave = false;
 
     //draw spectrum scope
     const uint16_t scope_height = 100u;
     const uint16_t scope_x = 32u;
-    const uint16_t scope_y = 18u;
+    const uint16_t scope_y = 33u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
-    for(uint16_t col=interleave; col<num_cols; col+=2)
+    for(uint16_t col=0; col<num_cols; ++col)
     {
       //scale data point
       uint8_t data_point = (scope_height * (uint16_t)spectrum[col])/318;
@@ -149,7 +154,6 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
       }
       display->writeVLine(scope_x+col, scope_y, scope_height, vline);
     }
-    interleave^=1;
 
     //draw waterfall
     if(!waterfall_count--)
@@ -183,5 +187,27 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc)
 
       //scroll waterfall
       top_row = top_row?top_row-1:waterfall_width-1;
+    }
+
+    //update frequency
+    static uint16_t lastMHz = 0;
+    static uint16_t lastkHz = 0;
+    static uint16_t lastHz = 0;
+    if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz)
+    {
+      display->fillRect(32, 5, 18, 256, display->colour565(0, 0, 0));
+      char frequency[20];
+      snprintf(frequency, 20, "%2u.%03u.%03u", MHz, kHz, Hz);
+      uint8_t i=0;
+      uint8_t x=100;
+      while(frequency[i])
+      {
+        display->drawChar(x, 23, frequency[i], display->colour565(255, 255, 255), &FreeMono12pt7b);
+        x+=11;
+        i++;
+      }
+      lastMHz = MHz;
+      lastkHz = kHz;
+      lastHz = Hz;
     }
 }

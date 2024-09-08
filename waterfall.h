@@ -10,7 +10,7 @@ class waterfall
   public:
   waterfall();
   ~waterfall();
-  void new_spectrum(uint8_t spectrum[], s_filter_control &fc);
+  void new_spectrum(uint8_t spectrum[], s_filter_control &fc, uint16_t MHz, uint16_t kHz, uint16_t Hz);
 
   private:
   uint16_t heatmap(uint8_t value, bool lighten = false, bool highlight = false);
