@@ -76,6 +76,8 @@ class ui
 
   // Waterfall
   waterfall waterfall_inst;
+  // last selected memory
+  int32_t last_select=0;
 
   // Encoder 
   void setup_encoder();
@@ -93,21 +95,26 @@ class ui
   // Display
   void setup_display();
   void display_clear(bool colour=0);
-  void display_line1();
-  void display_line2();
+
   void display_linen(uint8_t line);
-  void display_set_xy(uint8_t x, uint8_t y);
-  void display_add_xy(int8_t x, int8_t y);
+  void display_set_xy(uint16_t x, uint16_t y);
+  void display_add_xy(int16_t x, int16_t y);
+  uint16_t display_get_x();
+  uint16_t display_get_y();
+
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
+  void display_clear_str(uint32_t scale, bool colour);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+
+  void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
   int strchr_idx(const char str[], uint8_t c);
 
   ssd1306_t disp;
-  uint8_t cursor_x = 0;   // pixels 0-127
-  uint8_t cursor_y = 0;   // pixels 0-63
+  uint16_t cursor_x = 0;   // pixels 0-127
+  uint16_t cursor_y = 0;   // pixels 0-63
   uint16_t display_timer = 0;
 
   // Status                  
@@ -123,8 +130,8 @@ class ui
   uint32_t enumerate_entry(const char title[], const char options[], uint32_t *value);
   uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
   int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
-  bool frequency_entry();
-  bool string_entry(char string[]);
+  bool frequency_entry(const char title[], uint32_t which_setting);
+  int string_entry(char string[]);
   bool configuration_menu();
   bool recall();
   bool store();

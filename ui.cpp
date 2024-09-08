@@ -65,16 +65,9 @@ void ui::display_clear(bool colour)
   ssd1306_clear(&disp, colour);
 }
 
-void ui::display_line1()
+void ui::display_clear_str(uint32_t scale, bool colour)
 {
-  cursor_y = 0;
-  cursor_x = 0;
-}
-
-void ui::display_line2()
-{
-  cursor_y = 9;
-  cursor_x = 0;
+  ssd1306_draw_square(&disp, 0, cursor_y, 128, 9*scale, colour);
 }
 
 void ui::display_linen(uint8_t line)
@@ -83,16 +76,33 @@ void ui::display_linen(uint8_t line)
   cursor_x = 0;
 }
 
-void ui::display_set_xy(uint8_t x, uint8_t y)
+void ui::display_set_xy(uint16_t x, uint16_t y)
 {
   cursor_x = x;
   cursor_y = y;
 }
 
-void ui::display_add_xy(int8_t x, int8_t y)
+void ui::display_add_xy(int16_t x, int16_t y)
 {
   cursor_x += x;
   cursor_y += y;
+}
+
+uint16_t ui::display_get_x() { return cursor_x; }
+
+uint16_t ui::display_get_y() { return cursor_y; };
+
+void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
+  // always draw top line
+  ssd1306_draw_line(&disp, 0, y, 127, y, colour);
+  // for 2px, just draw another below
+  if (scale == 2) {
+    ssd1306_draw_line(&disp, 0, y+1, 127, y+1, colour);
+  }
+  // for 3px draw top and bottom, middle blank
+  if (scale == 3) {
+    ssd1306_draw_line(&disp, 0, y+2, 127, y+2, colour);
+  }
 }
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
@@ -289,6 +299,8 @@ void ui::print_enum_option(const char options[], uint8_t option){
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
   } else {
+    // default to 1st option if invalid
+    if (option > num_splits) option = 0;
     display_print_str(splits[option], 2, style_centered);
   }
 }
@@ -327,7 +339,7 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      ssd1306_draw_line(&disp, 0, 18, 127, 18, true);
+      display_draw_separator(18,3);
       display_linen(4);
       print_enum_option(options, select);
       display_show();
@@ -335,7 +347,7 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
 
     event_t ev = event_get();
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select;
       return 1;
     }
@@ -367,7 +379,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_draw_separator(40,1);
       display_linen(6);
       print_enum_option(options, select);
       display_show();
@@ -375,7 +387,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 
     event_t ev = event_get();
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select;
       return 1;
     }
@@ -399,7 +411,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_draw_separator(40,1);
       display_linen(6);
       display_print_num(format, select*multiple, 2, style_centered);
       display_show();
@@ -408,7 +420,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select*multiple;
       return 1;
     }
@@ -585,9 +597,7 @@ void ui::autorestore()
 bool ui::upload_memory()
 {
       display_clear();
-      display_print_str("Ready for",2, style_centered);
-      display_print_char('\n', 2);
-      display_print_str("memories",2, style_centered);
+      display_print_str("Ready for\nmemories",2, style_centered);
       display_show();
 
       uint8_t progress_ctr=0;
@@ -668,7 +678,8 @@ bool ui::store()
   //encoder loops through memories
   uint32_t min = 0;
   uint32_t max = num_chans-1;
-  int32_t select=min;
+  // grab last selected memory
+  int32_t select=last_select;
   char name[17];
 
   bool draw_once = true;
@@ -696,38 +707,31 @@ bool ui::store()
         name[14] = radio_memory[select][9] >> 8;
         name[15] = radio_memory[select][9];
         name[16] = 0;
-
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        // strip trailing spaces
-        for (int i=15; i>=0; i--) {
-          if (name[i] != ' ') break;
-          name[i] = 0;
-        }
-        if (12*strlen(name) > 128) {
-          display_add_xy(0,4);
-          display_print_str(name,1,style_nowrap|style_centered);
-        } else {
-          display_print_str(name,2,style_nowrap|style_centered);
-        }
-
-        display_show();
+      } else {
+        strcpy(name, "BLANK           ");
       }
-      else
-      {
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Store");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str("\n", 1);
-        display_print_str("BLANK",2,style_nowrap|style_centered);
-        display_show();
+
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print_str("Store");
+      display_print_num(" %03i ", select, 1, style_centered);
+      display_print_str("\n", 1);
+      // strip trailing spaces 
+      char ss_name[17];
+      strncpy(ss_name, name, 17);
+      for (int i=15; i>=0; i--) {
+        if (ss_name[i] != ' ') break;
+        ss_name[i] = 0;
       }
+      if (12*strlen(ss_name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(ss_name,1,style_nowrap|style_centered);
+      } else {
+        display_print_str(ss_name,2,style_nowrap|style_centered);
+      }
+
+      display_show();
     }
 
     event_t ev = event_get();
@@ -761,9 +765,15 @@ bool ui::store()
       display_print_str(modes[settings[idx_mode]],1,style_right);
       display_print_str("\n", 1);
 
-      //modify the selected channel
-      strcpy(name, "SAVED CHANNEL   ");
-      if(!string_entry(name)) return false;
+      //modify the selected channel name
+      int retval = string_entry(name);
+      if(retval == 0) return false;
+      if(retval == 2) // delete record, mark as inactive
+      {
+              name[12] = 0xffu; name[13] = 0xffu;
+              name[14] = 0xffu; name[15] = 0xffu;
+      }
+      // pack string into uint32 array
       for(uint8_t lw=0; lw<4; lw++)
       {
         sector_copy[channel_offset_in_sector][lw+6] = (name[lw*4+0] << 24 | name[lw*4+1] << 16 | name[lw*4+2] << 8 | name[lw*4+3]);
@@ -813,9 +823,10 @@ bool ui::recall()
   //encoder loops through memories
   int32_t min = 0;
   int32_t max = num_chans-1;
-  // last selected memory
-  static int32_t last_select=min;
+  // grab last selected memory
   int32_t select=last_select;
+  char name[17];
+  bool draw_once = true;
 
   int32_t pos_change;
 
@@ -825,7 +836,6 @@ bool ui::recall()
     stored_settings[i] = settings[i];
   }
 
-  bool draw_once = true;
   while(1){
     pos_change = encoder_control(&select, min, max);
     if( pos_change != 0 || draw_once) {
@@ -849,7 +859,6 @@ bool ui::recall()
       if(radio_memory[select][9] != 0xffffffff)
       {
         //load name from memory
-        char name[17];
         name[0] = radio_memory[select][6] >> 24;
         name[1] = radio_memory[select][6] >> 16;
         name[2] = radio_memory[select][6] >> 8;
@@ -867,61 +876,50 @@ bool ui::recall()
         name[14] = radio_memory[select][9] >> 8;
         name[15] = radio_memory[select][9];
         name[16] = 0;
-
-        // strip trailing spaces
-        for (int i=15; i>=0; i--) {
-          if (name[i] != ' ') break;
-          name[i] = 0;
-        }
-
-        //(temporarily) apply lodaed settings to RX
-        for(uint8_t i=0; i<settings_to_store; i++){
-          settings[i] = radio_memory[select][i];
-        }
-        apply_settings(false);
-        
-        //print selected menu item
-        draw_once = false;
-        display_clear();
-        display_print_str("Recall");
-        display_print_num(" %03i ", select, 1, style_centered);
-        display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
-
-        display_print_str("\n", 1);
-        if (12*strlen(name) > 128) {
-          display_add_xy(0,4);
-          display_print_str(name,1,style_nowrap|style_centered);
-        } else {
-          display_print_str(name,2,style_nowrap|style_centered);
-        }
-
-        //draw frequency
-        display_set_xy(0,27);
-        display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
-        display_print_str("\n",2);
-
-        display_print_str("from: ", 1);
-        display_print_freq(radio_memory[select][idx_min_frequency], 1);
-        display_print_str(" Hz\n",1);
-
-        display_print_str("  To: ", 1);
-        display_print_freq(radio_memory[select][idx_max_frequency], 1);
-        display_print_str(" Hz\n",1);
-
-        display_show();
+      } else {
+        strcpy(name, "BLANK           ");
       }
-      else
-      {
-        // should never get here with the blank check logic above
-        // unless ALL memory is blank
-        draw_once = false;
-        display_clear();
-        display_print_str("Recall");
-        display_line2();
-        display_print_num("%03i ", select);
-        display_print_str("BLANK");
-        display_show();
+      // strip trailing spaces
+      for (int i=15; i>=0; i--) {
+        if (name[i] != ' ') break;
+        name[i] = 0;
       }
+
+      //(temporarily) apply lodaed settings to RX
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = radio_memory[select][i];
+      }
+      apply_settings(false);
+
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print_str("Recall");
+      display_print_num(" %03i ", select, 1, style_centered);
+      display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+
+      display_print_str("\n", 1);
+      if (12*strlen(name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(name,1,style_nowrap|style_centered);
+      } else {
+        display_print_str(name,2,style_nowrap|style_centered);
+      }
+
+      //draw frequency
+      display_set_xy(0,27);
+      display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+      display_print_str("\n",2);
+
+      display_print_str("from: ", 1);
+      display_print_freq(radio_memory[select][idx_min_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      display_print_str("  To: ", 1);
+      display_print_freq(radio_memory[select][idx_max_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      display_show();
     }
 
     event_t ev = event_get();
@@ -951,7 +949,7 @@ bool ui::recall()
 ////////////////////////////////////////////////////////////////////////////////
 // String Entry (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::string_entry(char string[]){
+int ui::string_entry(char string[]){
 
   int32_t position=0;
   int32_t edit_mode = 0;
@@ -959,7 +957,7 @@ bool ui::string_entry(char string[]){
   bool draw_once = true;
   while(1){
 
-    bool encoder_changed;
+    int32_t encoder_changed;
     if(edit_mode){
       //change the value of a digit 
       int32_t val = string[position];
@@ -975,7 +973,7 @@ bool ui::string_entry(char string[]){
     else 
     {
       //change between chars
-      encoder_changed = encoder_control(&position, 0, 17);
+      encoder_changed = encoder_control(&position, 0, 19);
     }
 
     //if encoder changes, or screen hasn't been updated
@@ -983,14 +981,16 @@ bool ui::string_entry(char string[]){
     {
       draw_once = false;
 
-      // poor mans clear
       display_set_xy(0,9);
-      display_print_str("                ",2,style_nowrap);
-      display_set_xy(0,9);
+      display_clear_str(2,false);
 
+      // compute starting point to scroll display
+#define SCREEN_WIDTH 10
+#define BUFFER_WIDTH 16
       int start = 0;
-      if (position > 6) start = (position-6);
-      if (position > 15) start = (15-6);
+      if (position < SCREEN_WIDTH) start = 0;
+      else if (position < BUFFER_WIDTH) start = position-(SCREEN_WIDTH-1);
+      else start = (encoder_changed > 0) ? (BUFFER_WIDTH-SCREEN_WIDTH) : 0;
 
       //write preset name to lcd
       for(int i=start; i<16; i++) {
@@ -1000,10 +1000,24 @@ bool ui::string_entry(char string[]){
           display_print_char(string[i], 2, style_nowrap );
         }
       }
+      // print scroll bar
+#define YP 25
+#define LEN SCREEN_WIDTH*128/BUFFER_WIDTH
+      ssd1306_draw_line(&disp, 0, YP+1, 127, YP+1, false);
+      ssd1306_draw_line(&disp, start*8, YP+1, LEN+start*8, YP+1, true);
+      ssd1306_draw_line(&disp, 0, YP, 0, YP+2, true);
+      ssd1306_draw_line(&disp, 127, YP, 127, YP+2, true);
 
-      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_draw_separator(40,1);
       display_linen(6);
-      print_enum_option(" OK #EXIT#", position-16);
+      display_clear_str(2,false);
+      if (position>=16) {
+        display_set_xy(0, display_get_y());
+        display_print_str(">",2,style_reverse);
+        display_print_str("<",2,style_reverse|style_right);
+      }
+      display_set_xy(0, display_get_y());
+      print_enum_option("OK#CLEAR#DELETE#EXIT#", position-16);
 
       display_show();
     }
@@ -1011,21 +1025,24 @@ bool ui::string_entry(char string[]){
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press)
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
-	    if(position==16) //Yes
-      {
-		    return true;
-	    }
-	    if(position==17) return false; //No
+	    if(position==16) return 1; //Yes
+      if(position==17) {  // clear
+        memset(string, ' ', strlen(string));
+        edit_mode = false;
+        position = 0;
+      }
+	    if(position==18) return 2; //delete
+	    if(position==19) return 0; //No exit
 	  }
 
     //cancel
     if(ev.tag == ev_button_back_press)
     {
-      return false;
+      return 0;
     }
   }
 }
@@ -1033,7 +1050,7 @@ bool ui::string_entry(char string[]){
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(){
+bool ui::frequency_entry(const char title[], uint32_t which_setting){
 
   int32_t digit=0;
   int32_t digits[8];
@@ -1042,7 +1059,7 @@ bool ui::frequency_entry(){
   unsigned frequency;
 
   //convert to binary representation
-  frequency = settings[idx_frequency];
+  frequency = settings[which_setting];
   digit_val = 10000000;
   for(i=0; i<8; i++){
       digits[i] = frequency / digit_val;
@@ -1071,7 +1088,7 @@ bool ui::frequency_entry(){
 
       //write frequency to lcd
       display_clear();
-      display_print_str("Frequency",1);
+      display_print_str(title,1);
       display_set_xy(4,9);
       for(i=0; i<8; i++)
       {
@@ -1082,7 +1099,7 @@ bool ui::frequency_entry(){
         }
         if(i==1||i==4) display_print_char('.', 2 );
       }
-      ssd1306_draw_line(&disp, 0, 40, 127, 40, true);
+      display_draw_separator(40,1);
       display_linen(6);
       print_enum_option(" OK #EXIT#", digit-8);
       display_show();
@@ -1091,7 +1108,7 @@ bool ui::frequency_entry(){
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press)
+    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -1101,18 +1118,40 @@ bool ui::frequency_entry(){
 	      digit_val = 10000000;
 
         //convert back to a binary representation
-        settings[idx_frequency] = 0;
+        settings[which_setting] = 0;
         for(i=0; i<8; i++)
         {
-	        settings[idx_frequency] += (digits[i] * digit_val);
+	        settings[which_setting] += (digits[i] * digit_val);
 		      digit_val /= 10;
 		    }
 
+        //sanity check the 3 frequencies
         //when manually changing to a frequency outside the current band, remove any band limits
-        if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
-        {
-          settings[idx_min_frequency] = 0;
-          settings[idx_max_frequency] = 30000000;
+        //which changing band limits, force frequency within
+        if (settings[idx_max_frequency] < settings[idx_min_frequency]){
+          // force them to be the same ?
+          settings[idx_max_frequency] = settings[idx_min_frequency];
+        }
+
+        switch (which_setting) {
+          case idx_frequency:
+            if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
+            {
+              settings[idx_min_frequency] = 0;
+              settings[idx_max_frequency] = 30000000;
+            }
+          case idx_max_frequency:
+            if(settings[idx_frequency] > settings[idx_max_frequency])
+            {
+              settings[idx_frequency] = settings[idx_max_frequency];
+            }
+            break;
+          case idx_min_frequency:
+            if(settings[idx_frequency] < settings[idx_min_frequency])
+            {
+              settings[idx_frequency] = settings[idx_min_frequency];
+            }
+            break;
         }
 		    return true;
 	    }
@@ -1220,9 +1259,7 @@ bool ui::configuration_menu()
             upload_memory();
           } else if (setting == 2) {
             display_clear();
-            display_print_str("Ready for",2, style_centered);
-            display_print_char('\n', 2);
-            display_print_str("firmware",2, style_centered);
+            display_print_str("Ready for\nfirmware",2, style_centered);
             display_show();
             reset_usb_boot(0,0);
           }
@@ -1262,6 +1299,9 @@ void ui::do_ui(event_t event)
         if (event.tag == ev_button_back_release)
         {
           button_state = idle;
+        } else if (event.tag == ev_button_menu_press)
+        {
+          button_state = very_fast_mode;
         }
         break;
       case down:
@@ -1354,12 +1394,12 @@ void ui::do_ui(event_t event)
 
       //top level menu
       uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
 
       switch(setting)
       {
         case 0 : 
-          rx_settings_changed = frequency_entry();
+          rx_settings_changed = frequency_entry("frequency", idx_frequency);
           break;
 
         case 1:
@@ -1395,15 +1435,23 @@ void ui::do_ui(event_t event)
           break;
 
         case 9 : 
+          rx_settings_changed = frequency_entry("Band Start", idx_min_frequency);
+          break;
+
+        case 10 : 
+          rx_settings_changed = frequency_entry("Band Stop", idx_max_frequency);
+          break;
+
+        case 11 : 
           rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 10 : 
+        case 12 : 
           rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 11 : 
+        case 13 : 
           rx_settings_changed = configuration_menu();
           break;
 

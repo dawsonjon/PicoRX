@@ -17,7 +17,10 @@ void event_init(void)
 void event_send(event_t event)
 {
     bool s = queue_try_add(&core0_evq, &event);
-    if(s) printf("event queue full");
+    if(!s)
+    {
+        printf("Event queue full!\n");
+    }
 }
 
 event_t event_get(void)
