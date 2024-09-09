@@ -150,8 +150,8 @@ inline void ssd1306_flip(ssd1306_t *p, uint8_t flip) {
     }
 }
 
-inline void ssd1306_clear(ssd1306_t *p, bool colour) {
-    memset(p->buffer, 0xff*colour, p->bufsize);
+inline void ssd1306_clear(ssd1306_t *p, uint8_t colour) {
+    memset(p->buffer, 0xff*(colour > 0), p->bufsize);
 }
 
 inline void ssd1306_type(ssd1306_t *p, uint8_t type) {
@@ -163,18 +163,20 @@ inline void ssd1306_type(ssd1306_t *p, uint8_t type) {
 }
 
 
-void ssd1306_draw_pixel(ssd1306_t *p, uint32_t x, uint32_t y, bool colour) {
+void ssd1306_draw_pixel(ssd1306_t *p, uint32_t x, uint32_t y, uint8_t colour) {
     if(x>=p->width || y>=p->height) return;
 
     // each page is 129 bytes long for the oled cmd byte at the start
-    if (colour) {
+    if(colour == 2) {
+        p->buffer[1 + x + (1 + p->width)*(y>>3) ] ^= 0x1<<(y&0x07);
+    } else if (colour) {
         p->buffer[1 + x + (1 + p->width)*(y>>3) ] |= 0x1<<(y&0x07); // y>>3==y/8 && y&0x7==y%8
     } else {
         p->buffer[1 + x + (1 + p->width)*(y>>3) ] &= ~(0x1<<(y&0x07)); // y>>3==y/8 && y&0x7==y%8
     }
 }
 
-void ssd1306_draw_line(ssd1306_t *p, int32_t x1, int32_t y1, int32_t x2, int32_t y2, bool colour) {
+void ssd1306_draw_line(ssd1306_t *p, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t colour) {
     if(x1>x2) {
         swap(&x1, &x2);
         swap(&y1, &y2);
@@ -196,21 +198,21 @@ void ssd1306_draw_line(ssd1306_t *p, int32_t x1, int32_t y1, int32_t x2, int32_t
     }
 }
 
-void ssd1306_draw_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, bool colour) {
+void ssd1306_draw_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint8_t colour) {
     for(uint32_t i=0; i<width; ++i)
         for(uint32_t j=0; j<height; ++j)
             ssd1306_draw_pixel(p, x+i, y+j, colour);
 
 }
 
-void ssd13606_draw_empty_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, bool colour) {
+void ssd13606_draw_empty_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint8_t colour) {
     ssd1306_draw_line(p, x, y, x+width, y, colour);
     ssd1306_draw_line(p, x, y+height, x+width, y+height, colour);
     ssd1306_draw_line(p, x, y, x, y+height, colour);
     ssd1306_draw_line(p, x+width, y, x+width, y+height, colour);
 }
 
-void ssd1306_draw_char_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const uint8_t *font, char c, bool colour) {
+void ssd1306_draw_char_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const uint8_t *font, char c, uint8_t colour) {
     if(c<font[3]||c>font[4])
         return;
 
@@ -232,17 +234,17 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t 
     }
 }
 
-void ssd1306_draw_string_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const uint8_t *font, const char *s, bool colour) {
+void ssd1306_draw_string_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const uint8_t *font, const char *s, uint8_t colour) {
     for(int32_t x_n=x; *s; x_n+=(font[1]+font[2])*scale) {
         ssd1306_draw_char_with_font(p, x_n, y, scale, font, *(s++), colour);
     }
 }
 
-void ssd1306_draw_char(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, char c, bool colour) {
+void ssd1306_draw_char(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, char c, uint8_t colour) {
     ssd1306_draw_char_with_font(p, x, y, scale, font_8x5, c, colour);
 }
 
-void ssd1306_draw_string(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const char *s, bool colour) {
+void ssd1306_draw_string(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, const char *s, uint8_t colour) {
     ssd1306_draw_string_with_font(p, x, y, scale, font_8x5, s, colour);
 }
 
