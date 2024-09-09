@@ -193,6 +193,23 @@ void ui::display_show()
   ssd1306_show(&disp);
 }
 
+static float find_nearest_tick(float dist)
+{
+  const float ticks[] = {10.0f, 5.0f, 2.0f, 1.0f, 0.5f, 0.2f, 0.1f, 0.05f, 0.02f, 0.01f};
+  float min_dist = fabsf(dist - ticks[0]);
+  float min_tick = ticks[0];
+
+  for(size_t i = 1; i < sizeof(ticks) / sizeof(ticks[0]); i++)
+  {
+    if(fabsf(dist - ticks[i]) < min_dist)
+    {
+      min_dist = fabsf(dist - ticks[i]);
+      min_tick = ticks[i];
+    }
+  }
+  return min_tick;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Generic Menu Options
 ////////////////////////////////////////////////////////////////////////////////
@@ -277,7 +294,9 @@ void ui::update_display(rx_status & status, rx & receiver)
     }
   }
 
-  float scale = 29.0f/(max-min);
+  const float range = max - min;
+  const float scale = 29.0f / range;
+
   //plot
   for(uint16_t x=0; x<128; x++)
   {
@@ -285,6 +304,18 @@ void ui::update_display(rx_status & status, rx & receiver)
       if(y < 0) y=0;
       if(y > 29) y=29;
       ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
+  }
+
+  const float tick =  find_nearest_tick(range / 4.0f);
+  const float min_r = roundf(min / tick) * tick;
+
+  for (float s = min_r; s < max; s+= tick)
+  {
+    for (uint8_t x = 0; x < 128; x += 4)
+    {
+      int16_t y = scale * (s - min);
+      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+    }
   }
 
   ssd1306_show(&disp);
