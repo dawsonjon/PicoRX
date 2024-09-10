@@ -1,4 +1,6 @@
 #include <string.h>
+#include <float.h>
+
 #include "pico/multicore.h"
 #include "ui.h"
 #include <hardware/flash.h>
@@ -282,12 +284,12 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
   ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
-  float min=log10f(spectrum[0]);
-  float max=log10f(spectrum[0]);
+  float min=log10f(spectrum[0] + FLT_MIN);
+  float max=log10f(spectrum[0] + FLT_MIN);
 
   for (uint16_t x = 0; x < 128; x++)
   {
-    spectrum[x] = log10f(spectrum[x]);
+    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
     if (spectrum[x] < min)
     {
       min = spectrum[x];
@@ -313,14 +315,15 @@ void ui::update_display(rx_status & status, rx & receiver)
   const float tick =  find_nearest_tick(range / 4.0f);
   const float min_r = roundf(min / tick) * tick;
 
-  if (!isfinite(min_r)) {
-    printf ("min_r is inf");
-  } else {
-    for (float s = min_r; s < max; s+= tick)
-    { 
+  {
+    const int16_t start = roundf(scale * (min_r - min));
+    const int16_t stop = roundf(scale * range);
+    const int16_t step = roundf(scale * tick);
+
+    for (int16_t y = start; y < stop; y += step)
+    {
       for (uint8_t x = 0; x < 128; x += 4)
       {
-        int16_t y = scale * (s - min);
         ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
       }
     }
