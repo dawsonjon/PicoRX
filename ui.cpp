@@ -216,7 +216,6 @@ static float find_nearest_tick(float dist)
 void ui::update_display(rx_status & status, rx & receiver)
 {
 
-
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -225,8 +224,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
   receiver.release();
-
-  char buff [21];
+#define buff_SZ 21
+  char buff [buff_SZ];
   display_clear();
 
   //frequency
@@ -236,20 +235,22 @@ void ui::update_display(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
-  ssd1306_draw_string(&disp, 0, 0, 2, buff, 1);
-  snprintf(buff, 21, ".%03lu", Hz);
-  ssd1306_draw_string(&disp, 72, 0, 1, buff, 1);
+  display_set_xy(0,0);
+  snprintf(buff, buff_SZ, "%2lu.%03lu", MHz, kHz);
+  display_print_str(buff,2);
+  snprintf(buff, buff_SZ, ".%03lu", Hz);
+  display_print_str(buff,1);
 
   //mode
-  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]], 1);
+  display_print_str(modes[settings[idx_mode]],1, style_right);
 
   //step
   static const char steps[][8]  = {
     "   10Hz", "   50Hz", "  100Hz", "   1kHz",
     "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
     "  50kHz", " 100kHz"};
-  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]], 1);
+  display_set_xy(0,8);
+  display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
   static const char smeter[][12]  = {
@@ -261,10 +262,13 @@ void ui::update_display(rx_status & status, rx & receiver)
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
-  snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
-  ssd1306_draw_string(&disp, 0, 24, 1, buff, 1);
-  snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
+  display_set_xy(0,24);
+  display_print_str(smeter[power_s],1);
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+
+  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
+  display_set_xy(0,16);
+  display_print_str(buff, 1, style_right);
 
   //Display spectrum capture
   static float spectrum[128];
@@ -318,7 +322,7 @@ void ui::update_display(rx_status & status, rx & receiver)
     }
   }
 
-  ssd1306_show(&disp);
+  display_show();
 
 }
 

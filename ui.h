@@ -100,7 +100,7 @@ class ui
   uint16_t display_get_y();
 
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
-  void display_clear_str(uint32_t scale, bool colour);
+  void display_clear_str(uint32_t scale, bool colour=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
