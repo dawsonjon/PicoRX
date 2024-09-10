@@ -313,12 +313,16 @@ void ui::update_display(rx_status & status, rx & receiver)
   const float tick =  find_nearest_tick(range / 4.0f);
   const float min_r = roundf(min / tick) * tick;
 
-  for (float s = min_r; s < max; s+= tick)
-  {
-    for (uint8_t x = 0; x < 128; x += 4)
-    {
-      int16_t y = scale * (s - min);
-      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+  if (!isfinite(min_r)) {
+    printf ("min_r is inf");
+  } else {
+    for (float s = min_r; s < max; s+= tick)
+    { 
+      for (uint8_t x = 0; x < 128; x += 4)
+      {
+        int16_t y = scale * (s - min);
+        ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+      }
     }
   }
 
