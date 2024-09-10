@@ -1,4 +1,6 @@
 #include <string.h>
+#include <float.h>
+
 #include "pico/multicore.h"
 #include "ui.h"
 #include <hardware/flash.h>
@@ -216,6 +218,9 @@ static float find_nearest_tick(float dist)
 void ui::update_display(rx_status & status, rx & receiver)
 {
 
+  static float min_avg = log10f(FLT_MIN);
+  static float max_avg = log10f(FLT_MAX);
+
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -282,12 +287,12 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
   ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
 
-  float min=log10f(spectrum[0]);
-  float max=log10f(spectrum[0]);
+  float min=log10f(spectrum[0] + FLT_MIN);
+  float max=log10f(spectrum[0] + FLT_MIN);
 
   for (uint16_t x = 0; x < 128; x++)
   {
-    spectrum[x] = log10f(spectrum[x]);
+    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
     if (spectrum[x] < min)
     {
       min = spectrum[x];
@@ -298,29 +303,32 @@ void ui::update_display(rx_status & status, rx & receiver)
     }
   }
 
-  const float range = max - min;
+  min_avg += (min - min_avg) / 15.0f;
+  max_avg += (max - max_avg) / 15.0f;
+  const float range = max_avg - min_avg;
   const float scale = 29.0f / range;
 
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = scale*(spectrum[x]-min);
+      int16_t y = scale*(spectrum[x]-min_avg);
       if(y < 0) y=0;
       if(y > 29) y=29;
       ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
   const float tick =  find_nearest_tick(range / 4.0f);
-  const float min_r = roundf(min / tick) * tick;
+  const float min_r = roundf(min_avg / tick) * tick;
 
-  if (!isfinite(min_r)) {
-    printf ("min_r is inf");
-  } else {
-    for (float s = min_r; s < max; s+= tick)
-    { 
+  {
+    const int16_t start = roundf(scale * (min_r - min_avg));
+    const int16_t stop = roundf(scale * range);
+    const int16_t step = roundf(scale * tick);
+
+    for (int16_t y = start; y < stop; y += step)
+    {
       for (uint8_t x = 0; x < 128; x += 4)
       {
-        int16_t y = scale * (s - min);
         ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
       }
     }
@@ -379,7 +387,7 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
 {
   int32_t select=*value;
   bool draw_once = true;
-    uint32_t max = 0;
+  uint32_t max = 0;
   for (size_t i=0; i<strlen(options); i++) {
     if (options[i] == '#') max++;
   }
