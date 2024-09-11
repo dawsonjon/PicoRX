@@ -213,14 +213,10 @@ static float find_nearest_tick(float dist)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Generic Menu Options
+// Home page status display
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display(rx_status & status, rx & receiver)
 {
-
-  static float min_avg = log10f(FLT_MIN);
-  static float max_avg = log10f(FLT_MAX);
-
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -250,19 +246,10 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_print_str(modes[settings[idx_mode]],1, style_right);
 
   //step
-  static const char steps[][8]  = {
-    "   10Hz", "   50Hz", "  100Hz", "   1kHz",
-    "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
-    "  50kHz", " 100kHz"};
   display_set_xy(0,8);
   display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
-  static const char smeter[][12]  = {
-    "S0         ", "S1|        ", "S2-|       ", "S3--|      ", 
-    "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
-    "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
-    "S9+30dB---|"};
   int8_t power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
@@ -275,17 +262,65 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
 
+  draw_spectrum(receiver, 32);
+
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display2(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+#define buff_SZ 21
+  char buff [buff_SZ];
+  display_clear();
+
+  //frequency
+  uint32_t remainder, MHz, kHz, Hz;
+  MHz = (uint32_t)settings[idx_frequency]/1000000u;
+  remainder = (uint32_t)settings[idx_frequency]%1000000u; 
+  kHz = remainder/1000u;
+  remainder = remainder%1000u; 
+  Hz = remainder;
+  display_set_xy(0,0);
+  snprintf(buff, buff_SZ, "%2lu.%03lu.%03lu ", MHz, kHz, Hz);
+  display_print_str(buff,1);
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+    //signal strength dBm
+  if ((int)power_dBm > -100) {
+    display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+  } else {
+    display_print_str("-xxdBm", 1, style_right);
+  }
+
+  draw_spectrum(receiver, 8);
+  display_show();
+}
+
+void ui::draw_spectrum(rx & receiver, uint16_t startY)
+{
+  static float min_avg = log10f(FLT_MIN);
+  static float max_avg = log10f(FLT_MAX);
+
   //Display spectrum capture
   static float spectrum[128];
   receiver.get_spectrum(spectrum);
-  ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
-  ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
-  ssd1306_draw_line(&disp, 64,  32, 64,  36, 1);
-  ssd1306_draw_line(&disp, 127, 32, 127, 36, 1);
+  // tick marks at startY
+  ssd1306_draw_line(&disp, 0, startY+2, 127, startY+2, 1);
 
-  ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
-  ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
+  ssd1306_draw_line(&disp, 0,   startY, 0,   startY, 1);
+  ssd1306_draw_line(&disp, 64,  startY, 64,  startY, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+
+  ssd1306_draw_line(&disp, 32, startY+1, 32, startY+3, 1);
+  ssd1306_draw_line(&disp, 96, startY+1, 96, startY+3, 1);
 
   float min=log10f(spectrum[0] + FLT_MIN);
   float max=log10f(spectrum[0] + FLT_MIN);
@@ -306,36 +341,33 @@ void ui::update_display(rx_status & status, rx & receiver)
   min_avg += (min - min_avg) / 15.0f;
   max_avg += (max - max_avg) / 15.0f;
   const float range = max_avg - min_avg;
-  const float scale = 29.0f / range;
+
+#define MAX_HEIGHT 64-startY-3
+  const float scale = (MAX_HEIGHT-0.0f) / range;
 
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = scale*(spectrum[x]-min_avg);
-      if(y < 0) y=0;
-      if(y > 29) y=29;
-      ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
+    int16_t y = scale*(spectrum[x]-min_avg);
+    if(y < 0) y=0;
+    if(y > MAX_HEIGHT) y=MAX_HEIGHT;
+    ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
   const float tick =  find_nearest_tick(range / 4.0f);
   const float min_r = roundf(min_avg / tick) * tick;
 
-  {
-    const int16_t start = roundf(scale * (min_r - min_avg));
-    const int16_t stop = roundf(scale * range);
-    const int16_t step = roundf(scale * tick);
+  const int16_t start = roundf(scale * (min_r - min_avg));
+  const int16_t stop = roundf(scale * range);
+  const int16_t step = roundf(scale * tick);
 
-    for (int16_t y = start; y < stop; y += step)
+  for (int16_t y = start; y < stop; y += step)
+  {
+    for (uint8_t x = 0; x < 128; x += 4)
     {
-      for (uint8_t x = 0; x < 128; x += 4)
-      {
-        ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
-      }
+      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
     }
   }
-
-  display_show();
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1341,6 +1373,8 @@ void ui::do_ui(event_t event)
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
+    static bool maybe_changeview = false;
+    static int view = 0;
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
@@ -1355,6 +1389,7 @@ void ui::do_ui(event_t event)
           timeout = 100;
         } else if (event.tag == ev_button_back_press)
         {
+          maybe_changeview = true;
           button_state = slow_mode;
         }
         break;
@@ -1362,6 +1397,10 @@ void ui::do_ui(event_t event)
         if (event.tag == ev_button_back_release)
         {
           button_state = idle;
+          if (maybe_changeview == true) {
+            view = (view+1) % 2;
+            maybe_changeview = false;
+          }
         } else if (event.tag == ev_button_menu_press)
         {
           button_state = very_fast_mode;
@@ -1403,6 +1442,7 @@ void ui::do_ui(event_t event)
 
     if(encoder_change != 0)
     {
+      maybe_changeview = false;
       rx_settings_changed = true;
 
       frequency_autosave_pending = false;
@@ -1548,7 +1588,11 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
-    update_display(status, receiver);
+    if (view == 1) {
+    update_display2(status, receiver);
+    } else {
+      update_display(status, receiver);
+    }
 
     rx_settings_changed = false;
 
