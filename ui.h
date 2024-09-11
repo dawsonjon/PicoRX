@@ -111,7 +111,7 @@ class ui
   void display_clear_str(uint32_t scale, bool colour=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
-  void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+  void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
@@ -124,8 +124,12 @@ class ui
 
   // Status                  
   float calculate_signal_strength(rx_status &status);
+
   void update_display(rx_status & status, rx & receiver);
   void update_display2(rx_status & status, rx & receiver);
+  void update_display3(rx_status & status, rx & receiver);
+  #define NUM_VIEWS 3
+
   void draw_spectrum(rx & receiver, uint16_t startY);
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;

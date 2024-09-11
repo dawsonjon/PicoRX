@@ -178,7 +178,7 @@ void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uin
   display_print_str(buff, scale, style);
 }
 
-void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
+void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, uint32_t style)
 {
   char buff[16];
   const int32_t MHz = frequency / 1000000;
@@ -186,7 +186,7 @@ void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
   const int32_t kHz = frequency / 1000;
   frequency %= 1000;
   const int32_t Hz = frequency;
-  snprintf(buff, 16, "%2ld,%03ld,%03ld", MHz, kHz, Hz);
+  snprintf(buff, 16, "%2ld%c%03ld%c%03ld", MHz, separator, kHz, separator, Hz);
   display_print_str(buff, scale, style);
 }
 
@@ -276,33 +276,56 @@ void ui::update_display2(rx_status & status, rx & receiver)
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   receiver.release();
-#define buff_SZ 21
-  char buff [buff_SZ];
-  display_clear();
 
-  //frequency
-  uint32_t remainder, MHz, kHz, Hz;
-  MHz = (uint32_t)settings[idx_frequency]/1000000u;
-  remainder = (uint32_t)settings[idx_frequency]%1000000u; 
-  kHz = remainder/1000u;
-  remainder = remainder%1000u; 
-  Hz = remainder;
+  display_clear();
   display_set_xy(0,0);
-  snprintf(buff, buff_SZ, "%2lu.%03lu.%03lu ", MHz, kHz, Hz);
-  display_print_str(buff,1);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
   //mode
   display_print_str(modes[settings[idx_mode]],1);
-    //signal strength dBm
-  if ((int)power_dBm > -100) {
-    display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-  } else {
-    display_print_str("-xxdBm", 1, style_right);
-  }
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 
   draw_spectrum(receiver, 8);
   display_show();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display3(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_clear();
+  display_set_xy(0,0);
+  display_print_freq('.',settings[idx_frequency],2,style_centered);
+
+  display_set_xy(0,24);
+  //mode and step size
+  display_print_str(modes[settings[idx_mode]],2);
+  display_print_str(steps[settings[idx_step]], 2, style_right);
+
+  //signal strength
+  display_set_xy(0,48);
+  int8_t power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
+  display_print_str(smeter[power_s],2);
+
+
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Paints the spectrum from startY to bottom of screen
+////////////////////////////////////////////////////////////////////////////////
 void ui::draw_spectrum(rx & receiver, uint16_t startY)
 {
   static float min_avg = log10f(FLT_MIN);
@@ -1003,15 +1026,15 @@ bool ui::recall()
 
       //draw frequency
       display_set_xy(0,27);
-      display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+      display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
       display_print_str("\n",2);
 
       display_print_str("from: ", 1);
-      display_print_freq(radio_memory[select][idx_min_frequency], 1);
+      display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
       display_print_str("  To: ", 1);
-      display_print_freq(radio_memory[select][idx_max_frequency], 1);
+      display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
 
       display_show();
@@ -1398,7 +1421,7 @@ void ui::do_ui(event_t event)
         {
           button_state = idle;
           if (maybe_changeview == true) {
-            view = (view+1) % 2;
+            view = (view+1) % NUM_VIEWS;
             maybe_changeview = false;
           }
         } else if (event.tag == ev_button_menu_press)
@@ -1588,10 +1611,10 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
-    if (view == 1) {
-    update_display2(status, receiver);
-    } else {
-      update_display(status, receiver);
+    switch (view) {
+      case 1: update_display2(status, receiver); break;
+      case 2: update_display3(status, receiver); break;
+      default: update_display(status, receiver); break;
     }
 
     rx_settings_changed = false;
