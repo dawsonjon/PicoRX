@@ -56,7 +56,7 @@ void ui::setup_display() {
   gpio_pull_up(PIN_DISPLAY_SDA);
   gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
 
 void ui::display_clear(bool colour)
@@ -1398,6 +1398,21 @@ void ui::do_ui(event_t event)
     uint32_t encoder_change = get_encoder_change();
     static bool maybe_changeview = false;
     static int view = 0;
+    static bool splash_done = false;
+
+    if (!splash_done) {
+      splash_done = true;
+      display_clear();
+      ssd1306_bmp_show_image(&disp, crystal, 1086);
+      display_show();
+      busy_wait_ms(500);
+      ssd1306_draw_square(&disp, 0,16,127,28,0);
+      ssd1306_draw_empty_square(&disp, 0,16,127,28,1);
+      display_set_xy(0,20);
+      display_print_str("PicoRX",3,style_centered);
+      display_show();
+      busy_wait_ms(500);
+    }
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;

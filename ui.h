@@ -165,4 +165,5 @@ class ui
 
 };
 
+#include "logo.h"
 #endif
