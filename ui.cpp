@@ -56,7 +56,7 @@ void ui::setup_display() {
   gpio_pull_up(PIN_DISPLAY_SDA);
   gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
 
 void ui::display_clear(bool colour)
@@ -178,7 +178,7 @@ void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uin
   display_print_str(buff, scale, style);
 }
 
-void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
+void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, uint32_t style)
 {
   char buff[16];
   const int32_t MHz = frequency / 1000000;
@@ -186,7 +186,7 @@ void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
   const int32_t kHz = frequency / 1000;
   frequency %= 1000;
   const int32_t Hz = frequency;
-  snprintf(buff, 16, "%2ld,%03ld,%03ld", MHz, kHz, Hz);
+  snprintf(buff, 16, "%2ld%c%03ld%c%03ld", MHz, separator, kHz, separator, Hz);
   display_print_str(buff, scale, style);
 }
 
@@ -213,14 +213,10 @@ static float find_nearest_tick(float dist)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Generic Menu Options
+// Home page status display
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display(rx_status & status, rx & receiver)
 {
-
-  static float min_avg = log10f(FLT_MIN);
-  static float max_avg = log10f(FLT_MAX);
-
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -250,19 +246,10 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_print_str(modes[settings[idx_mode]],1, style_right);
 
   //step
-  static const char steps[][8]  = {
-    "   10Hz", "   50Hz", "  100Hz", "   1kHz",
-    "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
-    "  50kHz", " 100kHz"};
   display_set_xy(0,8);
   display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
-  static const char smeter[][12]  = {
-    "S0         ", "S1|        ", "S2-|       ", "S3--|      ", 
-    "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
-    "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
-    "S9+30dB---|"};
   int8_t power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
@@ -275,17 +262,88 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
 
+  draw_spectrum(receiver, 32);
+
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display2(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_clear();
+  display_set_xy(0,0);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+
+  draw_spectrum(receiver, 8);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display3(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_clear();
+  display_set_xy(0,0);
+  display_print_freq('.',settings[idx_frequency],2,style_centered);
+
+  display_set_xy(0,24);
+  //mode and step size
+  display_print_str(modes[settings[idx_mode]],2);
+  display_print_str(steps[settings[idx_step]], 2, style_right);
+
+  //signal strength
+  display_set_xy(0,48);
+  int8_t power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
+  display_print_str(smeter[power_s],2);
+
+
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Paints the spectrum from startY to bottom of screen
+////////////////////////////////////////////////////////////////////////////////
+void ui::draw_spectrum(rx & receiver, uint16_t startY)
+{
+  static float min_avg = log10f(FLT_MIN);
+  static float max_avg = log10f(FLT_MAX);
+
   //Display spectrum capture
   static float spectrum[128];
   receiver.get_spectrum(spectrum);
-  ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
-  ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
-  ssd1306_draw_line(&disp, 64,  32, 64,  36, 1);
-  ssd1306_draw_line(&disp, 127, 32, 127, 36, 1);
+  // tick marks at startY
+  ssd1306_draw_line(&disp, 0, startY+2, 127, startY+2, 1);
 
-  ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
-  ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
+  ssd1306_draw_line(&disp, 0,   startY, 0,   startY, 1);
+  ssd1306_draw_line(&disp, 64,  startY, 64,  startY, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+
+  ssd1306_draw_line(&disp, 32, startY+1, 32, startY+3, 1);
+  ssd1306_draw_line(&disp, 96, startY+1, 96, startY+3, 1);
 
   float min=log10f(spectrum[0] + FLT_MIN);
   float max=log10f(spectrum[0] + FLT_MIN);
@@ -306,36 +364,33 @@ void ui::update_display(rx_status & status, rx & receiver)
   min_avg += (min - min_avg) / 15.0f;
   max_avg += (max - max_avg) / 15.0f;
   const float range = max_avg - min_avg;
-  const float scale = 29.0f / range;
+
+#define MAX_HEIGHT 64-startY-3
+  const float scale = (MAX_HEIGHT-0.0f) / range;
 
   //plot
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = scale*(spectrum[x]-min_avg);
-      if(y < 0) y=0;
-      if(y > 29) y=29;
-      ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
+    int16_t y = scale*(spectrum[x]-min_avg);
+    if(y < 0) y=0;
+    if(y > MAX_HEIGHT) y=MAX_HEIGHT;
+    ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
   const float tick =  find_nearest_tick(range / 4.0f);
   const float min_r = roundf(min_avg / tick) * tick;
 
-  {
-    const int16_t start = roundf(scale * (min_r - min_avg));
-    const int16_t stop = roundf(scale * range);
-    const int16_t step = roundf(scale * tick);
+  const int16_t start = roundf(scale * (min_r - min_avg));
+  const int16_t stop = roundf(scale * range);
+  const int16_t step = roundf(scale * tick);
 
-    for (int16_t y = start; y < stop; y += step)
+  for (int16_t y = start; y < stop; y += step)
+  {
+    for (uint8_t x = 0; x < 128; x += 4)
     {
-      for (uint8_t x = 0; x < 128; x += 4)
-      {
-        ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
-      }
+      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
     }
   }
-
-  display_show();
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -971,15 +1026,15 @@ bool ui::recall()
 
       //draw frequency
       display_set_xy(0,27);
-      display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+      display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
       display_print_str("\n",2);
 
       display_print_str("from: ", 1);
-      display_print_freq(radio_memory[select][idx_min_frequency], 1);
+      display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
       display_print_str("  To: ", 1);
-      display_print_freq(radio_memory[select][idx_max_frequency], 1);
+      display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
 
       display_show();
@@ -1341,6 +1396,23 @@ void ui::do_ui(event_t event)
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
+    static bool maybe_changeview = false;
+    static int view = 0;
+    static bool splash_done = false;
+
+    if (!splash_done) {
+      splash_done = true;
+      display_clear();
+      ssd1306_bmp_show_image(&disp, crystal, 1086);
+      display_show();
+      busy_wait_ms(500);
+      ssd1306_draw_square(&disp, 0,16,127,28,0);
+      ssd1306_draw_empty_square(&disp, 0,16,127,28,1);
+      display_set_xy(0,20);
+      display_print_str("PicoRX",3,style_centered);
+      display_show();
+      busy_wait_ms(500);
+    }
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
@@ -1355,6 +1427,7 @@ void ui::do_ui(event_t event)
           timeout = 100;
         } else if (event.tag == ev_button_back_press)
         {
+          maybe_changeview = true;
           button_state = slow_mode;
         }
         break;
@@ -1362,6 +1435,10 @@ void ui::do_ui(event_t event)
         if (event.tag == ev_button_back_release)
         {
           button_state = idle;
+          if (maybe_changeview == true) {
+            view = (view+1) % NUM_VIEWS;
+            maybe_changeview = false;
+          }
         } else if (event.tag == ev_button_menu_press)
         {
           button_state = very_fast_mode;
@@ -1403,6 +1480,7 @@ void ui::do_ui(event_t event)
 
     if(encoder_change != 0)
     {
+      maybe_changeview = false;
       rx_settings_changed = true;
 
       frequency_autosave_pending = false;
@@ -1548,7 +1626,11 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
-    update_display(status, receiver);
+    switch (view) {
+      case 1: update_display2(status, receiver); break;
+      case 2: update_display3(status, receiver); break;
+      default: update_display(status, receiver); break;
+    }
 
     rx_settings_changed = false;
 
