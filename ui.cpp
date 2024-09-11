@@ -136,10 +136,10 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   // if found, compute length of string, if not, length to end of str
   length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
 
-  if ( (style & style_centered) && (length*6*scale < 128)) {
+  if (style & style_centered) {
     cursor_x = (128- 6*scale*length)/2;
   }
-  if ( (style & style_right) && (length*6*scale < 128) ) {
+  if (style & style_right) {
     cursor_x = (128 - 6*scale*length);
   }
 
@@ -152,9 +152,9 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       next_ln = strchr_idx( &str[i+1], '\n');
       length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
 
-      if ( (style & style_centered) && (length*6*scale < 128) ) {
+      if (style & style_centered) {
         cursor_x = (128- 6*scale*length)/2;
-      } else if ( (style & style_right) && (length*6*scale < 128) ) {
+      } else if (style & style_right) {
         cursor_x = (128- 6*scale*length);
       } else {
         cursor_x = 0;
@@ -1402,16 +1402,27 @@ void ui::do_ui(event_t event)
 
     if (!splash_done) {
       splash_done = true;
+      for (uint8_t i = 0; i<8; i++) {
+
+        display_clear();
+        ssd1306_bmp_show_image(&disp, crystal, 1086);
+        if (i>0) {
+          int p = 32-(i*8/2);
+          ssd1306_draw_square      (&disp, 64-3*6*i-4-2, p-4-2, 6*6*i+8+4, 8*i+4+4, 0);
+          ssd1306_draw_empty_square(&disp, 64-3*6*i-4, p-4, 6*6*i+8, 8*i+4, 1);
+          display_set_xy(0,p);
+          display_print_str("PicoRX",i,style_centered|style_nowrap);
+          display_show();
+          if (i==3) busy_wait_ms(400);  // dwell on the 3x font
+          busy_wait_ms(50);
+        } else {
+          display_show();
+          busy_wait_ms(500);
+        }
+      }
       display_clear();
-      ssd1306_bmp_show_image(&disp, crystal, 1086);
       display_show();
-      busy_wait_ms(500);
-      ssd1306_draw_square(&disp, 0,16,127,28,0);
-      ssd1306_draw_empty_square(&disp, 0,16,127,28,1);
-      display_set_xy(0,20);
-      display_print_str("PicoRX",3,style_centered);
-      display_show();
-      busy_wait_ms(500);
+      busy_wait_ms(200);
     }
 
     //automatically switch off display after a period of inactivity
