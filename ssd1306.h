@@ -210,7 +210,7 @@ void ssd1306_draw_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, u
 	@param[in] height : height of square
 	@param[in] colour : 1=white, 0=black, 2=invert
 */
-void ssd13606_draw_empty_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint8_t colour);
+void ssd1306_draw_empty_square(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint8_t colour);
 
 /**
 	@brief draw monochrome bitmap with offset
