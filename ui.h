@@ -116,6 +116,7 @@ class ui
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
   int strchr_idx(const char str[], uint8_t c);
+  bool do_splash();
 
   ssd1306_t disp;
   int16_t cursor_x = 0;   // pixels 0-127
