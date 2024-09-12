@@ -58,6 +58,43 @@ inline static void ssd1306_write(ssd1306_t *p, uint8_t val) {
     fancy_write(p->i2c_i, p->address, d, 2, "ssd1306_write");
 }
 
+ void ssd1306_set_start_line(ssd1306_t *p, uint8_t val) {
+    ssd1306_write(p, 0x40+val);
+ }
+
+void ssd1306_scroll_screen(ssd1306_t *p, int16_t x, int16_t y) {
+  // index 0 of each page has a fixed 0x40 header for I2C
+  for (uint32_t i=1; i<=p->width; i++) {
+    // assemble 8 bytes of a column into 64 bit number
+    uint64_t temp=0;
+    for (uint32_t page=0; page < p->pages; page++) {
+      temp |= (uint64_t)p->buffer[page*(p->width+1) + i] << 8*page;
+    }
+    // shift it
+    if (y>0) {
+        temp <<= y;
+    } else if (y<0) {
+        temp >>= -y;
+    }
+    // split it back out
+    // can do some X shifting here too...
+    unsigned int new_x = i + x;
+    if ((new_x >= 1) && (new_x <= p->width)) {
+        for (uint32_t page=0; page < p->pages; page++) {
+            p->buffer[page*(p->width+1) + new_x] = temp & 0xff;
+            temp >>= 8;
+        }
+    } else {
+  // need another loop here to clear incoming parts
+// offset by 1 modulo stuff
+        unsigned int zero_x = ((new_x-1)%128)+1;
+        for (uint32_t page=0; page < p->pages; page++) {
+            p->buffer[page*(p->width+1) + zero_x] = 0;
+        }
+    }
+  }
+}
+
 bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address, i2c_inst_t *i2c_instance) {
     p->width=width;
     p->height=height;

@@ -405,9 +405,16 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display5(rx_status & status, rx & receiver)
 {
-  display_clear();
-  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  static int start_line = 0;
+  if (start_line == 0) {
+    display_clear();
+    ssd1306_bmp_show_image(&disp, crystal, 1086);
+  } else {
+     ssd1306_scroll_screen(&disp, -1, +4);
+  }
   display_show();
+//  ssd1306_set_start_line(&disp, 0x3f-start_line);
+  if (++start_line > 0x3f) start_line=0;
 }
 
 
