@@ -60,7 +60,7 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_centered    (1<<1)
 #define style_right       (1<<2)
 #define style_nowrap      (1<<3)
-//#define style_bold        (1<<2)
+#define style_bordered    (1<<4)
 
 
 class ui
@@ -79,7 +79,7 @@ class ui
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
     "S4---|",      "S5----|",     "S6-----|",    "S7------|",
-    "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|",
+    "S8-------|",  "S9--------|", "S9+10dB---|", "S9+20dB---|",
     "S9+30dB---|"};
   // last selected memory
   int32_t last_select=0;
@@ -102,7 +102,7 @@ class ui
   void display_clear(bool colour=0);
 
   void display_linen(uint8_t line);
-  void display_set_xy(uint16_t x, uint16_t y);
+  void display_set_xy(int16_t x, int16_t y);
   void display_add_xy(int16_t x, int16_t y);
   uint16_t display_get_x();
   uint16_t display_get_y();
@@ -118,8 +118,8 @@ class ui
   int strchr_idx(const char str[], uint8_t c);
 
   ssd1306_t disp;
-  uint16_t cursor_x = 0;   // pixels 0-127
-  uint16_t cursor_y = 0;   // pixels 0-63
+  int16_t cursor_x = 0;   // pixels 0-127
+  int16_t cursor_y = 0;   // pixels 0-63
   uint16_t display_timer = 0;
 
   // Status                  

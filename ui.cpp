@@ -68,7 +68,7 @@ void ui::display_clear(bool colour)
 
 void ui::display_clear_str(uint32_t scale, bool colour)
 {
-  ssd1306_draw_square(&disp, 0, cursor_y, 128, 9*scale, colour);
+  ssd1306_fill_rectangle(&disp, 0, cursor_y, 128, 9*scale, colour);
 }
 
 void ui::display_linen(uint8_t line)
@@ -77,7 +77,7 @@ void ui::display_linen(uint8_t line)
   cursor_x = 0;
 }
 
-void ui::display_set_xy(uint16_t x, uint16_t y)
+void ui::display_set_xy(int16_t x, int16_t y)
 {
   cursor_x = x;
   cursor_y = y;
@@ -108,7 +108,7 @@ void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
     cursor_x = 0;
     cursor_y += 9*scale;
   }
@@ -127,6 +127,11 @@ int ui::strchr_idx(const char str[], uint8_t c) {
 
 void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
 {
+  int16_t box_x1 = INT16_MAX;
+  int16_t box_y1 = INT16_MAX;
+  int16_t box_x2 = INT16_MIN;
+  int16_t box_y2 = INT16_MIN;
+
   bool colour = !(style&style_reverse);
   int next_ln;
   unsigned int length;
@@ -162,12 +167,24 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_y += 9*scale;
       continue;
     }
-    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
       cursor_x = 0;
       cursor_y += 9*scale;
     }
     ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+    if (style&style_bordered) {
+      if (cursor_x < box_x1) box_x1=cursor_x;
+      if (cursor_y < box_y1) box_y1=cursor_y;
+      if ((signed)(cursor_x + 5*scale) > box_x2) box_x2 = (cursor_x + 5*scale);
+      if ((signed)(cursor_y + 8*scale) > box_y2) box_y2 = (cursor_y + 8*scale);
+    }
     cursor_x += 6*scale;
+  }
+  if (style&style_bordered) {
+    // text, black, white, black
+    ssd1306_draw_rectangle(&disp, box_x1-1, box_y1-1, box_x2-box_x1+1, box_y2-box_y1+1, 1-colour);
+    ssd1306_draw_rectangle(&disp, box_x1-2, box_y1-2, box_x2-box_x1+3, box_y2-box_y1+3, colour);
+    ssd1306_draw_rectangle(&disp, box_x1-3, box_y1-3, box_x2-box_x1+5, box_y2-box_y1+5, 1-colour);
   }
 }
 
@@ -1402,19 +1419,15 @@ void ui::do_ui(event_t event)
 
     if (!splash_done) {
       splash_done = true;
-      for (uint8_t i = 0; i<8; i++) {
+      for (uint8_t i = 0; i<20; i++) {
 
         display_clear();
         ssd1306_bmp_show_image(&disp, crystal, 1086);
         if (i>0) {
-          int p = 32-(i*8/2);
-          ssd1306_draw_square      (&disp, 64-3*6*i-4-2, p-4-2, 6*6*i+8+4, 8*i+4+4, 0);
-          ssd1306_draw_empty_square(&disp, 64-3*6*i-4, p-4, 6*6*i+8, 8*i+4, 1);
-          display_set_xy(0,p);
-          display_print_str("PicoRX",i,style_centered|style_nowrap);
+          display_set_xy(0,(64-i*8)/2); // disp height - text height /2
+          display_print_str("PicoRX",i,style_centered|style_nowrap|style_bordered);
           display_show();
-          if (i==3) busy_wait_ms(400);  // dwell on the 3x font
-          busy_wait_ms(50);
+          busy_wait_ms( (i==3) ? 500 : 10 );
         } else {
           display_show();
           busy_wait_ms(500);

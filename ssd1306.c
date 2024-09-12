@@ -199,14 +199,14 @@ void ssd1306_draw_line(ssd1306_t *p, int32_t x1, int32_t y1, int32_t x2, int32_t
     }
 }
 
-void ssd1306_draw_square(ssd1306_t *p, int32_t x, int32_t y, uint32_t width, uint32_t height, uint8_t colour) {
+void ssd1306_fill_rectangle(ssd1306_t *p, int32_t x, int32_t y, uint32_t width, uint32_t height, uint8_t colour) {
     for(int32_t i=0; i<width; ++i)
         for(int32_t j=0; j<height; ++j)
             ssd1306_draw_pixel(p, x+i, y+j, colour);
 
 }
 
-void ssd1306_draw_empty_square(ssd1306_t *p, int32_t x, int32_t y, uint32_t width, uint32_t height, uint8_t colour) {
+void ssd1306_draw_rectangle(ssd1306_t *p, int32_t x, int32_t y, uint32_t width, uint32_t height, uint8_t colour) {
     ssd1306_draw_line(p, x, y, x+width, y, colour);
     ssd1306_draw_line(p, x, y+height, x+width, y+height, colour);
     ssd1306_draw_line(p, x, y, x, y+height, colour);
@@ -217,7 +217,7 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, int32_t x, int32_t y, uint32_t sc
     if(c<font[3]||c>font[4])
         return;
 
-    ssd1306_draw_square( p, x, y, (font[1]+font[2])*scale, font[0]*scale, !colour);
+    ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, !colour);
 
     uint32_t parts_per_line=(font[0]>>3)+((font[0]&7)>0);
     for(uint8_t w=0; w<font[1]; ++w) { // width
@@ -227,7 +227,7 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, int32_t x, int32_t y, uint32_t sc
 
             for(int8_t j=0; j<8; ++j, line>>=1) {
                 if(line & 1)
-                    ssd1306_draw_square(p, x+w*scale, y+((lp<<3)+j)*scale, scale, scale, colour);
+                    ssd1306_fill_rectangle(p, x+w*scale, y+((lp<<3)+j)*scale, scale, scale, colour);
             }
 
             ++pp;
