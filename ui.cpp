@@ -341,6 +341,17 @@ void ui::update_display3(rx_status & status, rx & receiver)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display4(rx_status & status, rx & receiver)
+{
+  display_clear();
+  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  display_show();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
 void ui::draw_spectrum(rx & receiver, uint16_t startY)
@@ -1682,6 +1693,7 @@ void ui::do_ui(event_t event)
       switch (view) {
         case 1: update_display2(status, receiver); break;
         case 2: update_display3(status, receiver); break;
+        case 3: update_display4(status, receiver); break;
         default: update_display(status, receiver); break;
       }
     }

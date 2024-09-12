@@ -129,7 +129,8 @@ class ui
   void update_display(rx_status & status, rx & receiver);
   void update_display2(rx_status & status, rx & receiver);
   void update_display3(rx_status & status, rx & receiver);
-  #define NUM_VIEWS 3
+  void update_display4(rx_status & status, rx & receiver);
+  #define NUM_VIEWS 4
 
   void draw_spectrum(rx & receiver, uint16_t startY);
   bool frequency_autosave_pending = false;
