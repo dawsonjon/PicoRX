@@ -6,8 +6,9 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 
+#define WATERFALL_STARTY (8)
 #define WATERFALL_WIDTH (128)
-#define WATERFALL_HEIGHT (64 - 10)
+#define WATERFALL_HEIGHT (64 - WATERFALL_STARTY - 3)
 #define WATERFALL_MAX_VALUE (64)
 
 static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
@@ -386,6 +387,19 @@ void ui::log_spectrum(float *min, float *max)
   }
 }
 
+void ui::draw_h_tick_marks(uint16_t startY)
+{
+  // tick marks at startY
+  ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
+
+  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+
+  ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
+  ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display
 ////////////////////////////////////////////////////////////////////////////////
@@ -412,15 +426,7 @@ void ui::draw_spectrum(rx & receiver, uint16_t startY)
   receiver.get_spectrum(spectrum);
   log_spectrum(&min, &max);
 
-  // tick marks at startY
-  ssd1306_draw_line(&disp, 0, startY+2, 127, startY+2, 1);
-
-  ssd1306_draw_line(&disp, 0,   startY, 0,   startY, 1);
-  ssd1306_draw_line(&disp, 64,  startY, 64,  startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
-
-  ssd1306_draw_line(&disp, 32, startY+1, 32, startY+3, 1);
-  ssd1306_draw_line(&disp, 96, startY+1, 96, startY+3, 1);
+  draw_h_tick_marks(startY);
 
   min_avg += (min - min_avg) / 15.0f;
   max_avg += (max - max_avg) / 15.0f;
@@ -505,6 +511,8 @@ void ui::draw_waterfall(rx & receiver)
       }
   }
 
+  draw_h_tick_marks(WATERFALL_STARTY);
+
   // Draw the waterfall
   for (size_t x = 0; x < WATERFALL_WIDTH; x++)
   {
@@ -512,7 +520,7 @@ void ui::draw_waterfall(rx & receiver)
     {
       if (waterfall_bmp[WATERFALL_HEIGHT - y - 1][x / 8] & (1UL << (x % 8)))
       {
-        ssd1306_draw_pixel(&disp, x, 9 + y, 1);
+        ssd1306_draw_pixel(&disp, x, WATERFALL_STARTY + 3 + y, 1);
       }
     }
   }

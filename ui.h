@@ -135,6 +135,7 @@ class ui
   #define NUM_VIEWS 5
 
   void log_spectrum(float *min, float *max);
+  void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(rx & receiver, uint16_t startY);
   void draw_waterfall(rx & receiver);
   bool frequency_autosave_pending = false;
