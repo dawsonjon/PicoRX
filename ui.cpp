@@ -357,7 +357,7 @@ void ui::print_enum_option(const char options[], uint8_t option){
           if (!splits[num_splits]) break;
   }
 
-  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1])*12 < 128) {
+  if ( (num_splits==2) && (strlen(splits[0])+strlen(splits[1]))*12 < 128) {
     display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
