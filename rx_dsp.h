@@ -23,7 +23,8 @@ class rx_dsp
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(uint8_t spectrum[], s_filter_control &fc);
+  void get_spectrum(uint8_t spectrum[]);
+  s_filter_control get_filter_config();
 
 
   private:

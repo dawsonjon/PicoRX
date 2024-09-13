@@ -5,14 +5,9 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 
-static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
-                                               (1UL << ev_button_back_press) |
-                                               (1UL << ev_button_push_press);
-
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
 ////////////////////////////////////////////////////////////////////////////////
-
 void ui::setup_encoder()
 {
     gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
@@ -200,7 +195,6 @@ void ui::display_show()
 void ui::update_display(rx_status & status, rx & receiver)
 {
 
-
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -251,10 +245,6 @@ void ui::update_display(rx_status & status, rx & receiver)
   ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
 
   //Display spectrum capture
-  uint8_t spectrum[256];
-  s_filter_control fc;
-  receiver.get_spectrum(spectrum, fc);
-  waterfall_inst.new_spectrum(spectrum, fc, MHz, kHz, Hz);
   ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
 
   ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
@@ -305,65 +295,25 @@ void ui::print_enum_option(const char options[], uint8_t option){
   }
 }
 
-uint32_t ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value)
+bool ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok)
 {
     uint32_t bit = (*value >> bit_position) & 1;
-    uint32_t return_value = enumerate_entry(title, options, &bit);
+    bool done = enumerate_entry(title, options, &bit, ok);
     if(bit)
     {
      *value |= (1 << bit_position);
     } else {
      *value &= ~(1 << bit_position);
     }
-    return return_value;
-
+    return done;
 }
 
 //choose from an enumerate list of settings
-uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *value)
+bool ui::menu_entry(const char title[], const char options[], uint32_t *value, bool &ok)
 {
-  int32_t select=*value;
-  bool draw_once = true;
-    uint32_t max = 0;
-  for (size_t i=0; i<strlen(options); i++) {
-    if (options[i] == '#') max++;
-  }
-  // workaround for accidental last # oissions
-  if (options[strlen(options)-1] != '#') max++;
-  if (max > 0) max--;
+  static int32_t select=*value;
+  static bool draw_once = true;
 
-  while(1){
-    if(encoder_control(&select, 0, max)!=0 || draw_once)
-    {
-      //print selected menu item
-      draw_once = false;
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(18,3);
-      display_linen(4);
-      print_enum_option(options, select);
-      display_show();
-    }
-
-    event_t ev = event_get();
-    //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
-      *value = select;
-      return 1;
-    }
-
-    //cancel
-    if(ev.tag == ev_button_back_press){
-      return 0;
-    }
-  }
-}
-
-//choose from an enumerate list of settings
-uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t *value)
-{
-  int32_t select=*value;
-  bool draw_once = true;
   uint32_t max = 0;
   for (size_t i=0; i<strlen(options); i++) {
     if (options[i] == '#') max++;
@@ -372,38 +322,86 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
   if (options[strlen(options)-1] != '#') max++;
   if (max > 0) max--;
 
-  while(1){
-    if(encoder_control(&select, 0, max)!=0 || draw_once)
-    {
-      //print selected menu item
-      draw_once = false;
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
-      display_linen(6);
-      print_enum_option(options, select);
-      display_show();
-    }
-
-    event_t ev = event_get();
-    //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
-      *value = select;
-      return 1;
-    }
-
-    //cancel
-    if(ev.tag == ev_button_back_press){
-      return 0;
-    }
+  if(encoder_control(&select, 0, max)!=0 || draw_once)
+  {
+    //print selected menu item
+    draw_once = false;
+    display_clear();
+    display_print_str(title, 2, style_centered);
+    display_draw_separator(18,3);
+    display_linen(4);
+    print_enum_option(options, select);
+    display_show();
   }
+
+  //select menu item
+  if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    *value = select;
+    ok = true;
+    draw_once = true;
+    return true;
+  }
+
+  //cancel
+  if(back_button.is_pressed()){
+    ok = false;
+    draw_once = true;
+    return true;
+  }
+
+  return false;
+}
+
+//choose from an enumerate list of settings
+bool ui::enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok)
+{
+  static int32_t select=*value;
+  static bool draw_once = true;
+
+  uint32_t max = 0;
+  for (size_t i=0; i<strlen(options); i++) {
+    if (options[i] == '#') max++;
+  }
+  // workaround for accidental last # oissions
+  if (options[strlen(options)-1] != '#') max++;
+  if (max > 0) max--;
+
+  if(encoder_control(&select, 0, max)!=0 || draw_once)
+  {
+    //print selected menu item
+    draw_once = false;
+    display_clear();
+    display_print_str(title, 2, style_centered);
+    display_draw_separator(40,1);
+    display_linen(6);
+    print_enum_option(options, select);
+    display_show();
+  }
+
+  //select menu item
+  if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    *value = select;
+    ok = true;
+    draw_once = true;
+    return true;
+  }
+
+  //cancel
+  if(back_button.is_pressed()){
+    ok = false;
+    draw_once = true;
+    return true;
+  }
+
+  return false;
+
 }
 
 //select a number in a range
-int16_t ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok)
 {
-  int32_t select=*value/multiple;
-  bool draw_once = true;
+  static int32_t select=*value/multiple;
+  static bool draw_once = true;
   while(1){
     if(encoder_control(&select, min, max)!=0 || draw_once)
     {
@@ -417,17 +415,19 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       display_show();
     }
 
-    event_t ev = event_get();
-
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
+    if(menu_button.is_pressed() || encoder_button.is_pressed()){
       *value = select*multiple;
-      return 1;
+      ok = true;
+      draw_once = true;
+      return true;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
-      return 0;
+    if(back_button.is_pressed()){
+      ok = false;
+      draw_once = true;
+      return true;
     }
   }
 }
@@ -672,73 +672,107 @@ bool ui::upload_memory()
 }
 
 //save current settings to memory
-bool ui::store()
+bool ui::store(bool &ok)
 {
 
   //encoder loops through memories
-  uint32_t min = 0;
-  uint32_t max = num_chans-1;
-  // grab last selected memory
-  int32_t select=last_select;
-  char name[17];
+  const int32_t min = 0;
+  const int32_t max = num_chans-1;
+  static int32_t select=last_select;
+  static char name[17];
 
-  bool draw_once = true;
-  while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
+  enum e_frequency_state{select_channel, enter_name, delete_channel, save_channel};
+  static e_frequency_state state = select_channel;
+
+  if(state == select_channel)
+  {
+    encoder_control(&select, min, max);
+    if(radio_memory[select][9] != 0xffffffffu)
     {
+      //load name from memory
+      name[0] = radio_memory[select][6] >> 24;
+      name[1] = radio_memory[select][6] >> 16;
+      name[2] = radio_memory[select][6] >> 8;
+      name[3] = radio_memory[select][6];
+      name[4] = radio_memory[select][7] >> 24;
+      name[5] = radio_memory[select][7] >> 16;
+      name[6] = radio_memory[select][7] >> 8;
+      name[7] = radio_memory[select][7];
+      name[8] = radio_memory[select][8] >> 24;
+      name[9] = radio_memory[select][8] >> 16;
+      name[10] = radio_memory[select][8] >> 8;
+      name[11] = radio_memory[select][8];
+      name[12] = radio_memory[select][9] >> 24;
+      name[13] = radio_memory[select][9] >> 16;
+      name[14] = radio_memory[select][9] >> 8;
+      name[15] = radio_memory[select][9];
+      name[16] = 0;
+    } else {
+      strcpy(name, "BLANK           ");
+    }
 
-      if(radio_memory[select][9] != 0xffffffffu)
-      {
-        //load name from memory
-        name[0] = radio_memory[select][6] >> 24;
-        name[1] = radio_memory[select][6] >> 16;
-        name[2] = radio_memory[select][6] >> 8;
-        name[3] = radio_memory[select][6];
-        name[4] = radio_memory[select][7] >> 24;
-        name[5] = radio_memory[select][7] >> 16;
-        name[6] = radio_memory[select][7] >> 8;
-        name[7] = radio_memory[select][7];
-        name[8] = radio_memory[select][8] >> 24;
-        name[9] = radio_memory[select][8] >> 16;
-        name[10] = radio_memory[select][8] >> 8;
-        name[11] = radio_memory[select][8];
-        name[12] = radio_memory[select][9] >> 24;
-        name[13] = radio_memory[select][9] >> 16;
-        name[14] = radio_memory[select][9] >> 8;
-        name[15] = radio_memory[select][9];
-        name[16] = 0;
-      } else {
-        strcpy(name, "BLANK           ");
-      }
+    //print selected menu item
+    display_clear();
+    display_print_str("Store");
+    display_print_num(" %03i ", select, 1, style_centered);
+    display_print_str("\n", 1);
 
-      //print selected menu item
-      draw_once = false;
+    // strip trailing spaces 
+    char ss_name[17];
+    strncpy(ss_name, name, 17);
+    for (int i=15; i>=0; i--) {
+      if (ss_name[i] != ' ') break;
+      ss_name[i] = 0;
+    }
+    if (12*strlen(ss_name) > 128) {
+      display_add_xy(0,4);
+      display_print_str(ss_name,1,style_nowrap|style_centered);
+    } else {
+      display_print_str(ss_name,2,style_nowrap|style_centered);
+    }
+    display_show();
+
+    if(menu_button.is_pressed()||encoder_button.is_pressed()) state = enter_name;
+    if(back_button.is_pressed())
+    {
+      state = select_channel;
+      return true;
+    }
+
+  }
+  else if(state == enter_name)
+  {
+      // print the top row
       display_clear();
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
+      display_print_str(modes[settings[idx_mode]],1,style_right);
       display_print_str("\n", 1);
-      // strip trailing spaces 
-      char ss_name[17];
-      strncpy(ss_name, name, 17);
-      for (int i=15; i>=0; i--) {
-        if (ss_name[i] != ' ') break;
-        ss_name[i] = 0;
+
+      //modify the selected channel name
+      bool del = false;
+      if(string_entry(name, ok, del))
+      {
+        if(ok)
+        {
+          if(del) state = delete_channel;
+          else state = save_channel;
+        }
+        else
+        {
+          state = select_channel;
+          return true;
+        }
       }
-      if (12*strlen(ss_name) > 128) {
-        display_add_xy(0,4);
-        display_print_str(ss_name,1,style_nowrap|style_centered);
-      } else {
-        display_print_str(ss_name,2,style_nowrap|style_centered);
-      }
-
-      display_show();
-    }
-
-    event_t ev = event_get();
-
-    //select menu item
-    if(ev.tag == ev_button_menu_press){
-
+  }
+  else if(state == delete_channel)
+  {
+      name[12] = 0xffu; name[13] = 0xffu;
+      name[14] = 0xffu; name[15] = 0xffu;
+      state = save_channel;
+  }
+  else if(state == save_channel)
+  {
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
       const uint32_t first_channel_in_sector = num_channels_per_sector * (select/num_channels_per_sector);
@@ -756,23 +790,7 @@ bool ui::store()
           }
         }
       }
-
-      // print the top row
-      display_clear();
-
-      display_print_str("Store");
-      display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str(modes[settings[idx_mode]],1,style_right);
-      display_print_str("\n", 1);
-
-      //modify the selected channel name
-      int retval = string_entry(name);
-      if(retval == 0) return false;
-      if(retval == 2) // delete record, mark as inactive
-      {
-              name[12] = 0xffu; name[13] = 0xffu;
-              name[14] = 0xffu; name[15] = 0xffu;
-      }
+    
       // pack string into uint32 array
       for(uint8_t lw=0; lw<4; lw++)
       {
@@ -806,207 +824,258 @@ bool ui::store()
       //!!! Normal operation resumed
 
       ssd1306_invert( &disp, 0);
-      return false;
-    }
 
-    //cancel
-    if(ev.tag == ev_button_back_press){
-      return false;
-    }
+      ok = true;
+      state = select_channel;
+      return true;
+
   }
+  return false;
 }
 
 //load a channel from memory
-bool ui::recall()
+bool ui::recall(bool &ok)
 {
 
   //encoder loops through memories
-  int32_t min = 0;
-  int32_t max = num_chans-1;
-  // grab last selected memory
-  int32_t select=last_select;
-  char name[17];
-  bool draw_once = true;
+  const int32_t min = 0;
+  const int32_t max = num_chans-1;
+  static int32_t select = 0;
+  static uint32_t stored_settings[settings_to_store];
+  bool load_and_update_display = false;
 
-  int32_t pos_change;
+  enum e_frequency_state{idle, active};
+  static e_frequency_state state = idle;
 
-  //remember where we were incase we need to cancel
-  uint32_t stored_settings[settings_to_store];
-  for(uint8_t i=0; i<settings_to_store; i++){
-    stored_settings[i] = settings[i];
+  if(state == idle)
+  {
+    //remember where we were incase we need to cancel
+    for(uint8_t i=0; i<settings_to_store; i++){
+      stored_settings[i] = settings[i];
+    }
+
+    //skip blank channels
+    load_and_update_display = true;
+    for(uint16_t i = 0; i<num_chans; i++)
+    {
+      if(radio_memory[select][9] != 0xffffffff) break;
+      select++;
+      if(select > max) select = min;
+    }
+
+    state = active;
   }
+  else if(state == active)
+  {
 
-  while(1){
-    pos_change = encoder_control(&select, min, max);
-    if( pos_change != 0 || draw_once) {
+    int32_t encoder_position = encoder_control(&select, min, max);
+    load_and_update_display = encoder_position != 0;
 
-      if (radio_memory[select][9] == 0xffffffff) {
-        if (pos_change < 0) { // search backwards up to 512 times
-          for (unsigned int i=0; i<num_chans; i++) {
-            if (select < min) select = max;
-            if(radio_memory[--select][9] != 0xffffffff)
-              break;
-          }
-        } else if (pos_change > 0) {  // forwards
-          for (unsigned int i=0; i<num_chans; i++) {
-            if (++select > max) select = min;
-            if(radio_memory[select][9] != 0xffffffff)
-              break;
-          }
-        }
-      }
-
-      if(radio_memory[select][9] != 0xffffffff)
-      {
-        //load name from memory
-        name[0] = radio_memory[select][6] >> 24;
-        name[1] = radio_memory[select][6] >> 16;
-        name[2] = radio_memory[select][6] >> 8;
-        name[3] = radio_memory[select][6];
-        name[4] = radio_memory[select][7] >> 24;
-        name[5] = radio_memory[select][7] >> 16;
-        name[6] = radio_memory[select][7] >> 8;
-        name[7] = radio_memory[select][7];
-        name[8] = radio_memory[select][8] >> 24;
-        name[9] = radio_memory[select][8] >> 16;
-        name[10] = radio_memory[select][8] >> 8;
-        name[11] = radio_memory[select][8];
-        name[12] = radio_memory[select][9] >> 24;
-        name[13] = radio_memory[select][9] >> 16;
-        name[14] = radio_memory[select][9] >> 8;
-        name[15] = radio_memory[select][9];
-        name[16] = 0;
-      } else {
-        strcpy(name, "BLANK           ");
-      }
-      // strip trailing spaces
-      for (int i=15; i>=0; i--) {
-        if (name[i] != ' ') break;
-        name[i] = 0;
-      }
-
-      //(temporarily) apply lodaed settings to RX
-      for(uint8_t i=0; i<settings_to_store; i++){
-        settings[i] = radio_memory[select][i];
-      }
-      apply_settings(false);
-
-      //print selected menu item
-      draw_once = false;
-      display_clear();
-      display_print_str("Recall");
-      display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
-
-      display_print_str("\n", 1);
-      if (12*strlen(name) > 128) {
-        display_add_xy(0,4);
-        display_print_str(name,1,style_nowrap|style_centered);
-      } else {
-        display_print_str(name,2,style_nowrap|style_centered);
-      }
-
-      //draw frequency
-      display_set_xy(0,27);
-      display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
-      display_print_str("\n",2);
-
-      display_print_str("from: ", 1);
-      display_print_freq(radio_memory[select][idx_min_frequency], 1);
-      display_print_str(" Hz\n",1);
-
-      display_print_str("  To: ", 1);
-      display_print_freq(radio_memory[select][idx_max_frequency], 1);
-      display_print_str(" Hz\n",1);
-
-      display_show();
+    //skip blank channels
+    for(uint16_t i = 0; i<num_chans; i++)
+    {
+      if(radio_memory[select][9] != 0xffffffff) break;
+      select += encoder_position>0?1:-1;
+      if(select < min) select = max;
+      if(select > max) select = min;
     }
 
-    event_t ev = event_get();
-
-    if(ev.tag == ev_button_push_press){
-      last_select=min;
-      return 1;
-    }
-
-    if(ev.tag == ev_button_menu_press){
-      last_select=select;
-      return 1;
+    //ok
+    if(encoder_button.is_pressed()||menu_button.is_pressed()){
+      ok=true;
+      state = idle;
+      return true;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(back_button.is_pressed()){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
       }
       apply_settings(false);
-      return 0;
+      ok=false;
+      state = idle;
+      return true;
     }
   }
+
+  if(load_and_update_display)
+  {
+    //draw screen
+    char name[17];
+    if(radio_memory[select][9] != 0xffffffff)
+    {
+      //load name from memory
+      name[0] = radio_memory[select][6] >> 24;
+      name[1] = radio_memory[select][6] >> 16;
+      name[2] = radio_memory[select][6] >> 8;
+      name[3] = radio_memory[select][6];
+      name[4] = radio_memory[select][7] >> 24;
+      name[5] = radio_memory[select][7] >> 16;
+      name[6] = radio_memory[select][7] >> 8;
+      name[7] = radio_memory[select][7];
+      name[8] = radio_memory[select][8] >> 24;
+      name[9] = radio_memory[select][8] >> 16;
+      name[10] = radio_memory[select][8] >> 8;
+      name[11] = radio_memory[select][8];
+      name[12] = radio_memory[select][9] >> 24;
+      name[13] = radio_memory[select][9] >> 16;
+      name[14] = radio_memory[select][9] >> 8;
+      name[15] = radio_memory[select][9];
+      name[16] = 0;
+    } else {
+      strcpy(name, "BLANK           ");
+    }
+
+    // strip trailing spaces
+    for (int i=15; i>=0; i--) {
+      if (name[i] != ' ') break;
+      name[i] = 0;
+    }
+
+    //(temporarily) apply lodaed settings to RX
+    for(uint8_t i=0; i<settings_to_store; i++){
+      settings[i] = radio_memory[select][i];
+    }
+    apply_settings(false);
+
+    //print selected menu item
+    display_clear();
+    display_print_str("Recall");
+    display_print_num(" %03i ", select, 1, style_centered);
+    display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+    display_print_str("\n", 1);
+    if (12*strlen(name) > 128) {
+      display_add_xy(0,4);
+      display_print_str(name,1,style_nowrap|style_centered);
+    } else {
+      display_print_str(name,2,style_nowrap|style_centered);
+    }
+
+    //draw frequency
+    display_set_xy(0,27);
+    display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+    display_print_str("\n",2);
+    display_print_str("from: ", 1);
+    display_print_freq(radio_memory[select][idx_min_frequency], 1);
+    display_print_str(" Hz\n",1);
+    display_print_str("  To: ", 1);
+    display_print_freq(radio_memory[select][idx_max_frequency], 1);
+    display_print_str(" Hz\n",1);
+    display_show();
+  }
+
+  return false; 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // String Entry (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-int ui::string_entry(char string[]){
+int ui::string_entry(char string[], bool &ok, bool &del){
 
-  int32_t position=0;
-  int32_t edit_mode = 0;
+  static int32_t position=0;
+  del = false;
 
-  bool draw_once = true;
-  while(1){
+  enum e_state{idle, select_position, select_char};
+  static e_state state = select_position;
+  int32_t encoder_position = 0;
+  bool draw_display = false;
+  const char letters[] = " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789"; 
+  static int32_t val;
 
-    int32_t encoder_changed;
-    if(edit_mode){
-      //change the value of a digit 
-      int32_t val = string[position];
-      if     ('a' <= string[position] && string[position] <= 'z') val = string[position]-'a'+1;
-      else if('A' <= string[position] && string[position] <= 'Z') val = string[position]-'A'+1;
-      else if('0' <= string[position] && string[position] <= '9') val = string[position]-'0'+27;
-      else if(string[position] == ' ') val = 0;
-      encoder_changed = encoder_control(&val, 0, 36);
-      if     (1 <= val  && val <= 26) string[position] = 'A' + val - 1;
-      else if(27 <= val && val <= 36) string[position] = '0' + val - 27;
-      else string[position] = ' ';
-    } 
-    else 
-    {
+  if(state == idle)
+  {
+    draw_display = true;
+    state = select_position;
+  }
+  else if(state == select_position)
+  {
       //change between chars
-      encoder_changed = encoder_control(&position, 0, 19);
-    }
+      encoder_position = encoder_control(&position, 0, 19);
+      if(encoder_position) draw_display = true;
 
-    //if encoder changes, or screen hasn't been updated
-    if(encoder_changed || draw_once)
-    {
-      draw_once = false;
+      if(menu_button.is_pressed() || encoder_button.is_pressed())
+      {
+        if(position==16)//yes
+        {
+          ok=true;
+          state=idle;
+          return true;
+        }
+        else if(position==17)//clear
+        {
+           memset(string, ' ', strlen(string));
+           position = 0;
+        }
+        else if(position==18)//delete
+        {
+          del=true;
+          ok=true;
+          state=idle;
+          return true;
+        }
+        else if(position==19)//exit
+        {
+          ok=false;
+          state=idle;
+          return true;
+        }
+        else
+        {
+          val = strchr(letters, string[position])-letters;
+          state = select_char;
+        }
+      }
 
+      if(back_button.is_pressed())
+      {
+        ok=false;
+        state=idle;
+        return true;
+      }
+  }
+  else if(state == select_char)
+  {
+      //change value of char
+      encoder_position = encoder_control(&val, 0, 75);
+      if(encoder_position) draw_display = true;
+      string[position]=letters[val];
+      if(menu_button.is_pressed() || encoder_button.is_pressed())
+      {
+        state = select_position;
+      }
+  }
+
+  if(draw_display)
+  {
       display_set_xy(0,9);
       display_clear_str(2,false);
 
       // compute starting point to scroll display
-#define SCREEN_WIDTH 10
-#define BUFFER_WIDTH 16
-      int start = 0;
-      if (position < SCREEN_WIDTH) start = 0;
-      else if (position < BUFFER_WIDTH) start = position-(SCREEN_WIDTH-1);
-      else start = (encoder_changed > 0) ? (BUFFER_WIDTH-SCREEN_WIDTH) : 0;
+      const uint8_t screen_width = 10;
+      const uint8_t buffer_width = 16;
+      uint8_t start = 0;
+      if (position < screen_width) start = 0;
+      else if (position < buffer_width) start = position-(screen_width-1);
+      else start = (encoder_position > 0) ? (buffer_width-screen_width) : 0;
 
       //write preset name to lcd
       for(int i=start; i<16; i++) {
-        if (!edit_mode && (i==position)) {
+        if (state==select_position && (i==position)) {
           display_print_char(string[i], 2, style_nowrap|style_reverse);
         } else {
-          display_print_char(string[i], 2, style_nowrap );
+          display_print_char(string[i], 2, style_nowrap);
         }
       }
+
       // print scroll bar
-#define YP 25
-#define LEN SCREEN_WIDTH*128/BUFFER_WIDTH
-      ssd1306_draw_line(&disp, 0, YP+1, 127, YP+1, false);
-      ssd1306_draw_line(&disp, start*8, YP+1, LEN+start*8, YP+1, true);
-      ssd1306_draw_line(&disp, 0, YP, 0, YP+2, true);
-      ssd1306_draw_line(&disp, 127, YP, 127, YP+2, true);
+      const uint8_t yp = 25;
+      const uint8_t len = screen_width*128/buffer_width;
+      ssd1306_draw_line(&disp, 0, yp+1, 127, yp+1, false);
+      ssd1306_draw_line(&disp, start*8, yp+1, len+start*8, yp+1, true);
+      ssd1306_draw_line(&disp, 0, yp, 0, yp+2, true);
+      ssd1306_draw_line(&disp, 127, yp, 127, yp+2, true);
 
       display_draw_separator(40,1);
       display_linen(6);
@@ -1020,153 +1089,143 @@ int ui::string_entry(char string[]){
       print_enum_option("OK#CLEAR#DELETE#EXIT#", position-16);
 
       display_show();
-    }
-
-    event_t ev = event_get();
-
-    //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
-    {
-      draw_once = true;
-	    edit_mode = !edit_mode;
-	    if(position==16) return 1; //Yes
-      if(position==17) {  // clear
-        memset(string, ' ', strlen(string));
-        edit_mode = false;
-        position = 0;
-      }
-	    if(position==18) return 2; //delete
-	    if(position==19) return 0; //No exit
-	  }
-
-    //cancel
-    if(ev.tag == ev_button_back_press)
-    {
-      return 0;
-    }
   }
+  return false;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(const char title[], uint32_t which_setting){
+bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
 
-  int32_t digit=0;
-  int32_t digits[8];
-  int32_t i, digit_val;
-  int32_t edit_mode = 0;
-  unsigned frequency;
+  static int32_t digit=0;
+  static int32_t digits[8];
+  enum e_frequency_state{idle, digit_select, digit_change};
+  static e_frequency_state state = idle;
 
-  //convert to binary representation
-  frequency = settings[which_setting];
-  digit_val = 10000000;
-  for(i=0; i<8; i++){
-      digits[i] = frequency / digit_val;
-      frequency %= digit_val;
-      digit_val /= 10;
+  if(state == idle)
+  {
+    //convert to BCD representation
+    uint32_t frequency = settings[which_setting];
+    uint32_t digit_val = 10000000;
+    for(uint8_t i=0; i<8; i++){
+        digits[i] = frequency / digit_val;
+        frequency %= digit_val;
+        digit_val /= 10;
+    }
+    state = digit_select;
   }
 
-  bool draw_once = true;
-  while(1){
+  else if(state == digit_select)
+  {
+    //change between digits
+    encoder_control(&digit, 0, 9);
 
-    bool encoder_changed;
-    if(edit_mode){
-      //change the value of a digit 
-      encoder_changed = encoder_control(&digits[digit], 0, 9);
-    } 
-    else 
+    if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
-      //change between digits
-      encoder_changed = encoder_control(&digit, 0, 9);
-    }
-
-    //if encoder changes, or screen hasn't been updated
-    if(encoder_changed || draw_once)
-    {
-      draw_once = false;
-
-      //write frequency to lcd
-      display_clear();
-      display_print_str(title,1);
-      display_set_xy(4,9);
-      for(i=0; i<8; i++)
+      if(digit==8) //Yes, Ok
       {
-        if (!edit_mode && (i==digit)) {
-          display_print_char(digits[i] + '0', 2, style_reverse);
-        } else {
-          display_print_char(digits[i] + '0', 2 );
-        }
-        if(i==1||i==4) display_print_char('.', 2 );
-      }
-      display_draw_separator(40,1);
-      display_linen(6);
-      print_enum_option(" OK #EXIT#", digit-8);
-      display_show();
-    }
-
-    event_t ev = event_get();
-
-    //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
-    {
-      draw_once = true;
-	    edit_mode = !edit_mode;
-      
-	    if(digit==8) //Yes, Ok
-      {
-	      digit_val = 10000000;
 
         //convert back to a binary representation
+        uint32_t digit_val = 10000000;
         settings[which_setting] = 0;
-        for(i=0; i<8; i++)
+        for(uint8_t i=0; i<8; i++)
         {
-	        settings[which_setting] += (digits[i] * digit_val);
-		      digit_val /= 10;
-		    }
+          settings[which_setting] += (digits[i] * digit_val);
+          digit_val /= 10;
+        }
 
-        //sanity check the 3 frequencies
-        //when manually changing to a frequency outside the current band, remove any band limits
-        //which changing band limits, force frequency within
+        //force max frequency to be larger than min frequency
         if (settings[idx_max_frequency] < settings[idx_min_frequency]){
-          // force them to be the same ?
           settings[idx_max_frequency] = settings[idx_min_frequency];
         }
 
         switch (which_setting) {
           case idx_frequency:
+            //when manually changing to a frequency outside the current band, remove any band limits
             if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
             {
               settings[idx_min_frequency] = 0;
               settings[idx_max_frequency] = 30000000;
             }
           case idx_max_frequency:
+            //when changing band limits, force frequency within
             if(settings[idx_frequency] > settings[idx_max_frequency])
             {
               settings[idx_frequency] = settings[idx_max_frequency];
             }
             break;
           case idx_min_frequency:
+            //when changing band limits, force frequency within
             if(settings[idx_frequency] < settings[idx_min_frequency])
             {
               settings[idx_frequency] = settings[idx_min_frequency];
             }
             break;
         }
-		    return true;
-	    }
-	    if(digit==9) return 0; //No
-	  }
 
-    //cancel
-    if(ev.tag == ev_button_back_press)
+        state = idle;
+        ok = true;
+        return true;
+      }
+
+      //No
+      else if(digit==9)
+      {
+        state = idle;
+        ok = false;
+        return true;
+      }
+
+      else
+      {
+        state = digit_change;
+      }
+    }
+
+    if(back_button.is_pressed())
     {
-      return false;
+      state = idle;
+      ok = false;
+      return true;
+    }
+
+  }
+  else if(state == digit_change)
+  {
+    //change the value of a digit 
+    encoder_control(&digits[digit], 0, 9);
+
+    if(menu_button.is_pressed() || encoder_button.is_pressed())
+    {
+      state = digit_select;
     }
   }
+  
+  //Draw Display
+  display_clear();
+  display_print_str(title,1);
+  display_set_xy(4,9);
+  for(uint8_t i=0; i<8; i++)
+  {
+    if (state==digit_select && (i==digit)) {
+      display_print_char(digits[i] + '0', 2, style_reverse);
+    } else {
+      display_print_char(digits[i] + '0', 2 );
+    }
+    if(i==1||i==4) display_print_char('.', 2 );
+  }
+  display_draw_separator(40,1);
+  display_linen(6);
+  print_enum_option(" OK #EXIT#", digit-8);
+  display_show();
+
+  return false;
+
 }
 
-bool ui::display_timeout(bool encoder_change, event_t event)
+bool ui::display_timeout(bool encoder_change)
 {
     uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
     uint16_t display_timeout = timeout_lookup[display_timeout_setting];
@@ -1176,15 +1235,11 @@ bool ui::display_timeout(bool encoder_change, event_t event)
 
     //A button press causes timer to be reset to max value
     //and re-enables the display if it was previously off
-    if(encoder_change || ((1UL << event.tag) & (ev_display_tmout_evset)))
+    if(encoder_change || menu_button.is_pressed() || back_button.is_pressed())
     {
       if(!display_timer)
       {
         ssd1306_poweron(&disp);
-        do
-        {
-          event = event_get();
-        } while (((1UL << event.tag) & (ev_display_tmout_evset)));
         display_timer = display_timeout;
         return false;
       }
@@ -1209,52 +1264,77 @@ bool ui::display_timeout(bool encoder_change, event_t event)
     return false;
 }
 
-bool ui::configuration_menu()
+bool ui::configuration_menu(bool &ok)
 {
-      bool rx_settings_changed=false;
-      uint32_t setting = 0;
-      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &setting)) return 1;
+    enum e_ui_state{select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    
+    static uint32_t setting = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &setting, ok))
+      {
+        if(ok) 
+        {
+          //OK button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+      bool done = false;
       switch(setting)
       {
         case 0: 
           setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
+          done = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting, ok);
           display_timer = timeout_lookup[setting];
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting << flag_display_timeout;
           break;
 
         case 1 : 
-          enumerate_entry("PSU Mode", "FM#PWM#", &regmode);
+          done = enumerate_entry("PSU Mode", "FM#PWM#", &regmode, ok);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
 
         case 2 : 
-          rx_settings_changed = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          done =  bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
           break;
 
         case 3 : 
-          rx_settings_changed = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          done =  bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
           break;
 
-        case 4: 
-          rx_settings_changed = number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+        case 4 : 
+          done =  number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal], ok);
           break;
 
-        case 5: 
-          rx_settings_changed = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+        case 5 : 
+          done = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup], ok);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
         case 6: 
-          rx_settings_changed = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          done = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup], ok);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
         case 7: 
           setting = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting);
+          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting, ok);
           if(setting==1) {
             upload_memory();
           } else if (setting == 2) {
@@ -1265,236 +1345,245 @@ bool ui::configuration_menu()
           }
           break;
       }
-
-      return rx_settings_changed;
+      if(done)
+      {
+        setting = 0;
+        ui_state = select_menu_item;
+        return true;
+      }
+    }
+    return false;
 
 }
+
+bool ui::main_menu(bool & ok)
+{
+
+    enum e_ui_state {select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    static uint32_t setting = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting, ok))
+      {
+        if(ok) 
+        {
+          //ok button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+       bool done = false;
+       switch(setting)
+        {
+          case 0 :  
+            done = frequency_entry("frequency", idx_frequency, ok);
+            break;
+          case 1 : 
+            done = recall(ok);
+            break;
+          case 2 : 
+            done = store(ok); 
+            break;
+          case 3 :  
+            done = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume], ok);
+            break;
+          case 4 :  
+            done = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode], ok);
+            break;
+          case 5 :
+            done = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed], ok);
+            break;
+          case 6 :  
+            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth], ok);
+            break;
+          case 7 :  
+            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch], ok);
+            break;
+          case 8 :  
+            done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
+            break;
+          case 9 :  
+            done = frequency_entry("Band Start", idx_min_frequency, ok);
+            break;
+          case 10 : 
+            done = frequency_entry("Band Stop", idx_max_frequency, ok);
+            break;
+          case 11 : 
+            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
+            settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
+            break;
+          case 12 : 
+            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone], ok);
+            break;
+          case 13 : 
+            done = configuration_menu(ok);
+            break;
+        }
+        if(done)
+        {
+          setting = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+    }
+
+    return false;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-void ui::do_ui(event_t event)
+void ui::do_ui()
 {
-    static bool rx_settings_changed = true;
+
+    bool update_settings = false;
     bool autosave_settings = false;
-    uint32_t encoder_change = get_encoder_change();
-
-    //automatically switch off display after a period of inactivity
-    if(!display_timeout(encoder_change, event)) return;
-
-    //update frequency if encoder changes
-    switch(button_state)
+    enum e_ui_state {idle, menu, recall};
+    static e_ui_state ui_state = idle;
+    static bool frequency_autosave_pending = false;
+    static uint32_t frequency_autosave_time = 0;
+    
+    
+    //gui is idle, just update the display
+    if(ui_state == idle)
     {
-      case idle:
-        if(event.tag == ev_button_menu_press)
-        {
-          button_state = down;
-          timeout = 100;
-        } else if (event.tag == ev_button_back_press)
-        {
-          button_state = slow_mode;
-        }
-        break;
-      case slow_mode:
-        if (event.tag == ev_button_back_release)
-        {
-          button_state = idle;
-        } else if (event.tag == ev_button_menu_press)
-        {
-          button_state = very_fast_mode;
-        }
-        break;
-      case down:
-        if(encoder_change != 0 || (timeout-- == 0))
-        {
-          button_state = fast_mode;
-        }
-        else if(event.tag == ev_button_menu_release)
-        {
-          button_state = menu;
-        }
-        break;
-      case fast_mode:
-        if(event.tag == ev_button_menu_release)
-        {
-          button_state = idle;
-        } else if(event.tag == ev_button_back_press)
-        {
-          button_state = very_fast_mode;
-        }
-        break;
-      case very_fast_mode:
-        if (event.tag == ev_button_back_release)
-        {
-          button_state = fast_mode;
-        }
-        else if (event.tag == ev_button_menu_release)
-        {
-          button_state = slow_mode;
-        }
-        break;
-      case menu:
-        button_state = idle;
-        break;
-    }
 
-    if(encoder_change != 0)
-    {
-      rx_settings_changed = true;
-
-      frequency_autosave_pending = false;
-      frequency_autosave_timer = 10u;
-
-      switch (button_state)
+      //launch menu or recall
+      if(menu_button.is_pressed())
       {
-      case fast_mode:
-        // fast if menu button held
-        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-        break;
-
-      case very_fast_mode:
-        // very fast if both buttons pressed
-        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-        break;
-
-      case slow_mode:
-        // slow if cancel button held
-        settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
-        break;
-
-      default:
-      settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
-        break;
+        ui_state = menu;
+      }
+      else if(encoder_button.is_pressed())
+      {
+        ui_state = recall;
       }
 
-      if (settings[idx_frequency] > settings[idx_max_frequency])
-          settings[idx_frequency] = settings[idx_min_frequency];
+      //adjust frequency when encoder is turned
+      uint32_t encoder_change = get_encoder_change();
+      if(encoder_change != 0)
+      {
 
-      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
-          settings[idx_frequency] = settings[idx_max_frequency];
-      
+        //very fast tuning
+        if(menu_button.is_held() && back_button.is_held())
+        {
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+        }
+        //fast tuning
+        else if(menu_button.is_held())
+        {
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
+        }
+        //slow tuning
+        else if(back_button.is_held())
+        {
+          settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+        }
+        //normal tuning
+        else
+        {
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+        }
+
+        //wrap frequency at band limits
+        if (settings[idx_frequency] > settings[idx_max_frequency])
+            settings[idx_frequency] = settings[idx_min_frequency];
+        if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+            settings[idx_frequency] = settings[idx_max_frequency];
+
+        //update settings now, but don't autosave until later
+        update_settings = true;
+        frequency_autosave_pending = true;
+        frequency_autosave_time = time_us_32();
+
+      }
+      update_display(status, receiver);
     }
 
-    if(frequency_autosave_pending)
+    //menu is active, if menu completes update settings
+    else if(ui_state == menu)
     {
-      if(!frequency_autosave_timer)
+      bool ok = false;
+      if(main_menu(ok))
       {
-        frequency_autosave_pending = false;
-      }
-      else
-      {
-        frequency_autosave_timer--;
+        ui_state = idle;
+        update_settings = ok;
+        autosave_settings = ok;
       }
     }
 
-
-    //if button is pressed enter menu
-    else if(button_state == menu)
+    //push button enters recall menu directly
+    else if(ui_state == recall)
     {
-
-      //top level menu
-      uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
-
-      switch(setting)
+      bool ok = false;
+      if(ui::recall(ok))
       {
-        case 0 : 
-          rx_settings_changed = frequency_entry("frequency", idx_frequency);
-          break;
-
-        case 1:
-          rx_settings_changed = recall();
-          break;
-
-        case 2:
-          store();
-          break;
-
-        case 3 : 
-          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
-          break;
-
-        case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
-          break;
-
-        case 5 :
-          rx_settings_changed = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
-          break;
-
-        case 6 :
-          rx_settings_changed = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
-          break;
-
-        case 7 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
-          break;
-
-        case 8 : 
-          rx_settings_changed = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
-          break;
-
-        case 9 : 
-          rx_settings_changed = frequency_entry("Band Start", idx_min_frequency);
-          break;
-
-        case 10 : 
-          rx_settings_changed = frequency_entry("Band Stop", idx_max_frequency);
-          break;
-
-        case 11 : 
-          rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
-          settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
-          break;
-
-        case 12 : 
-          rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
-          break;
-
-        case 13 : 
-          rx_settings_changed = configuration_menu();
-          break;
-
+        ui_state = idle;
+        update_settings = ok;
+        autosave_settings = ok;
       }
-      autosave_settings = rx_settings_changed;
-    }
-    else if(event.tag == ev_button_push_press)
-    {
-      rx_settings_changed = recall();
-      autosave_settings = rx_settings_changed;
     }
 
-    if(rx_settings_changed)
-    {
-      autosave();
-      autosave_settings = rx_settings_changed;
-    }
+   //automatically switch off display after a period of inactivity
+   //if(!display_timeout(encoder_change, event)) return;
 
-    if(autosave_settings)
-    {
-      receiver.access(true);
-      settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-      settings_to_apply.agc_speed = settings[idx_agc_speed];
-      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-      settings_to_apply.mode = settings[idx_mode];
-      settings_to_apply.volume = settings[idx_volume];
-      settings_to_apply.squelch = settings[idx_squelch];
-      settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-      settings_to_apply.bandwidth = settings[idx_bandwidth];
-      settings_to_apply.gain_cal = settings[idx_gain_cal];
-      receiver.release();
-    }
+   //autosave frequency only after is has been stable for 1 second
+   if(frequency_autosave_pending)
+   {
+     if((time_us_32() - frequency_autosave_time) > 1000000u)
+     {
+       autosave_settings = true;
+       frequency_autosave_pending = false;
+     }
+   }
 
-    if(event.tag == ev_tick) update_display(status, receiver);
-    rx_settings_changed = false;
+   //autosave current settings to flash
+   if(autosave_settings)
+   {
+     autosave();
+   }
+
+   //apply settings to receiver
+   if(update_settings)
+   {
+     receiver.access(true);
+     settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
+     settings_to_apply.agc_speed = settings[idx_agc_speed];
+     settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
+     settings_to_apply.mode = settings[idx_mode];
+     settings_to_apply.volume = settings[idx_volume];
+     settings_to_apply.squelch = settings[idx_squelch];
+     settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
+     settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+     settings_to_apply.bandwidth = settings[idx_bandwidth];
+     settings_to_apply.gain_cal = settings[idx_gain_cal];
+     receiver.release();
+   }
 
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : settings_to_apply(settings_to_apply), status(status), receiver(receiver)
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum) : 
+  menu_button(PIN_MENU), 
+  back_button(PIN_BACK), 
+  encoder_button(PIN_ENCODER_PUSH),
+  settings_to_apply(settings_to_apply),
+  status(status), 
+  receiver(receiver), 
+  spectrum(spectrum)
 {
   setup_display();
   setup_encoder();
-
-  button_state = idle;
 }

@@ -464,12 +464,16 @@ int16_t rx_dsp :: get_signal_strength_dBm()
   return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
-void rx_dsp :: get_spectrum(uint8_t spectrum[], s_filter_control &fc)
+s_filter_control rx_dsp :: get_filter_config()
+{
+  return capture_filter_control;
+}
+
+void rx_dsp :: get_spectrum(uint8_t spectrum[])
 {
 
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
-  fc = capture_filter_control;
 
   //find minimum and maximum values
   const uint16_t lowest_max = 2500u;

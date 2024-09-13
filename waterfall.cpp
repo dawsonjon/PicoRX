@@ -5,6 +5,7 @@
 
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
+#include "fft_filter.h"
 #include "ili934x.h"
 #include "FreeMono12pt7b.h"
 
@@ -109,32 +110,78 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     return display->colour565(r,g,b);
 }
 
-void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc, uint16_t MHz, uint16_t kHz, uint16_t Hz)
+void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[])
 {
-    const uint16_t waterfall_width = 100u;
+
+    const uint16_t waterfall_height = 100u;
     const uint16_t waterfall_x = 32u;
     const uint16_t waterfall_y = 136u;
     const uint16_t num_cols = 256u;
-
-    static uint8_t waterfall_count = 0u;
-    const uint8_t max_waterfall_count = 1u;
-    static uint16_t top_row = 0u;
-
-    //draw spectrum scope
     const uint16_t scope_height = 100u;
     const uint16_t scope_x = 32u;
     const uint16_t scope_y = 33u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
-    for(uint16_t col=0; col<num_cols; ++col)
+    enum FSM_states{
+      update_waterfall,
+      draw_waterfall, 
+      draw_scope, 
+      draw_frequency
+    };
+    static uint16_t top_row = 0u;
+    static uint8_t waterfall_row = 0u;
+    static uint8_t scope_col = 0u;
+    static FSM_states FSM_state = update_waterfall;
+
+    if(FSM_state == update_waterfall)
     {
-      //scale data point
-      uint8_t data_point = (scope_height * (uint16_t)spectrum[col])/318;
+      //scroll waterfall
+      top_row = top_row?top_row-1:waterfall_height-1;
+
+      //add new line to waterfall
+      for(uint16_t col=0; col<num_cols; col++)
+      {
+        waterfall_buffer[top_row][col] = spectrum[col];
+      }
+
+      FSM_state = draw_waterfall;
+
+    } else if(FSM_state == draw_waterfall ){
+    
+      //draw one line of waterfall
+      uint16_t line[num_cols];
+      uint16_t row_address = (top_row+waterfall_row)%waterfall_height;
+      for(uint16_t col=0; col<num_cols; ++col)
+      {
+         const int16_t fbin = col-128;
+         const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
+         const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
+         const bool is_passband = is_usb_col || is_lsb_col;
+
+         uint8_t heat = waterfall_buffer[row_address][col];
+         uint16_t colour=heatmap(heat, is_passband, fbin==0);
+         line[col] = colour;
+      }
+      display->writeHLine(waterfall_x, waterfall_row+waterfall_y, num_cols, line);
+
+      if(waterfall_row == waterfall_height-1)
+      {
+        FSM_state = draw_scope;
+        waterfall_row = 0;
+      } else {
+        ++waterfall_row;
+      }
+
+    } else if(FSM_state == draw_scope) {
+
+      //draw scope one bar at a time
+
+      uint8_t data_point = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/318;
       uint16_t vline[scope_height];
   
-      const int16_t fbin = col-128;
-      const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
-      const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
+      const int16_t fbin = scope_col-128;
+      const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
+      const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
       const bool is_passband = is_usb_col || is_lsb_col;
 
       for(uint8_t row=0; row<scope_height; ++row)
@@ -152,62 +199,47 @@ void waterfall::new_spectrum(uint8_t spectrum[], s_filter_control &fc, uint16_t 
           vline[scope_height - 1 - row] = heatmap(0, is_passband, fbin==0);
         }
       }
-      display->writeVLine(scope_x+col, scope_y, scope_height, vline);
-    }
+      display->writeVLine(scope_x+scope_col, scope_y, scope_height, vline);
 
-    //draw waterfall
-    if(!waterfall_count--)
-    {
-      waterfall_count = max_waterfall_count;
-
-      //add new line to waterfall
-      for(uint16_t col=0; col<num_cols; col++)
+      if(scope_col == num_cols-1)
       {
-        waterfall_buffer[top_row][col] = spectrum[col];
+        //scroll waterfall
+        FSM_state = draw_frequency;
+        scope_col = 0;
+      } else {
+        ++scope_col;
       }
-      
-      //draw waterfall
-      uint16_t line[num_cols];
-      for(uint16_t row=0; row<waterfall_width; row++)
+
+    } else if(FSM_state == draw_frequency) {
+
+      uint32_t remainder, MHz, kHz, Hz;
+      MHz = (uint32_t)settings.tuned_frequency_Hz/1000000u;
+      remainder = (uint32_t)settings.tuned_frequency_Hz%1000000u; 
+      kHz = remainder/1000u;
+      remainder = remainder%1000u; 
+      Hz = remainder;
+
+      //update frequency
+      static uint16_t lastMHz = 0;
+      static uint16_t lastkHz = 0;
+      static uint16_t lastHz = 0;
+      if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz)
       {
-        uint16_t row_address = (top_row+row)%waterfall_width;
-        for(uint16_t col=0; col<num_cols; ++col)
+        //display->fillRect(32, 5, 18, 256, display->colour565(0, 0, 0));
+        char frequency[20];
+        snprintf(frequency, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
+        uint8_t x=100;
+        for(uint8_t i = 0; i<20; ++i)
         {
-           const int16_t fbin = col-128;
-           const bool is_usb_col = (fbin > fc.start_bin) && (fbin < fc.stop_bin) && fc.upper_sideband;
-           const bool is_lsb_col = (-fbin > fc.start_bin) && (-fbin < fc.stop_bin) && fc.lower_sideband;
-           const bool is_passband = is_usb_col || is_lsb_col;
-
-           uint8_t heat = waterfall_buffer[row_address][col];
-           uint16_t colour=heatmap(heat, is_passband, fbin==0);
-           line[col] = colour;
+          display->drawChar(x, 23, frequency[i], display->colour565(255, 255, 255), &FreeMono12pt7b);
+          x+=11;
+          i++;
+          if(frequency[i] == 0) break;
         }
-        display->writeHLine(waterfall_x, row+waterfall_y, num_cols, line);
+        lastMHz = MHz;
+        lastkHz = kHz;
+        lastHz = Hz;
       }
-
-      //scroll waterfall
-      top_row = top_row?top_row-1:waterfall_width-1;
-    }
-
-    //update frequency
-    static uint16_t lastMHz = 0;
-    static uint16_t lastkHz = 0;
-    static uint16_t lastHz = 0;
-    if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz)
-    {
-      display->fillRect(32, 5, 18, 256, display->colour565(0, 0, 0));
-      char frequency[20];
-      snprintf(frequency, 20, "%2u.%03u.%03u", MHz, kHz, Hz);
-      uint8_t i=0;
-      uint8_t x=100;
-      while(frequency[i])
-      {
-        display->drawChar(x, 23, frequency[i], display->colour565(255, 255, 255), &FreeMono12pt7b);
-        x+=11;
-        i++;
-      }
-      lastMHz = MHz;
-      lastkHz = kHz;
-      lastHz = Hz;
+      FSM_state = update_waterfall;
     }
 }

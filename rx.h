@@ -38,6 +38,7 @@ struct rx_status
   uint32_t busy_time;
   uint16_t temp;
   uint16_t battery;
+  s_filter_control filter_config;
 };
 
 class rx
@@ -93,7 +94,7 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
-  void get_spectrum(uint8_t spectrum[], s_filter_control &fc);
+  void get_spectrum(uint8_t spectrum[]);
   rx_settings &settings_to_apply;
   rx_status &status;
   rx_dsp rx_dsp_inst;

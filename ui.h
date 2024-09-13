@@ -12,7 +12,7 @@
 #include "memory.h"
 #include "autosave_memory.h"
 #include "waterfall.h"
-#include "event.h"
+#include "button.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -74,9 +74,6 @@ class ui
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
 
-  // Waterfall
-  waterfall waterfall_inst;
-  // last selected memory
   int32_t last_select=0;
 
   // Encoder 
@@ -89,8 +86,9 @@ class ui
   const PIO pio = pio1;
 
   // Buttons
-  e_button_state button_state;
-  uint8_t timeout;
+  button menu_button;
+  button back_button;
+  button encoder_button;
 
   // Display
   void setup_display();
@@ -124,33 +122,38 @@ class ui
   uint8_t frequency_autosave_timer = 10u;
 
   // Menu                    
+  bool main_menu(bool &ok);
+  bool configuration_menu(bool &ok);
+
+  //menu items
   void print_enum_option(const char options[], uint8_t option);
   void print_menu_option(const char options[], uint8_t option);
-  uint32_t menu_entry(const char title[], const char options[], uint32_t *value);
-  uint32_t enumerate_entry(const char title[], const char options[], uint32_t *value);
-  uint32_t bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value);
-  int16_t number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value);
-  bool frequency_entry(const char title[], uint32_t which_setting);
-  int string_entry(char string[]);
-  bool configuration_menu();
-  bool recall();
-  bool store();
+  bool menu_entry(const char title[], const char options[], uint32_t *value, bool &ok);
+  bool enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok);
+  bool bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok);
+  bool frequency_entry(const char title[], uint32_t which_setting, bool &ok);
+  int string_entry(char string[], bool &ok, bool &del);
+  bool recall(bool &ok);
+  bool store(bool &ok);
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
-  bool display_timeout(bool encoder_change, event_t event);
+  bool display_timeout(bool encoder_change);
+
 
   uint32_t regmode = 1;
 
   rx_settings &settings_to_apply;
   rx_status &status;
   rx &receiver;
+  uint8_t *spectrum;
 
   public:
 
   void autorestore();
-  void do_ui(event_t event);
-  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
+  void do_ui();
+  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum);
 
 };
 

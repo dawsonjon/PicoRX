@@ -156,6 +156,7 @@ void rx::apply_settings()
 
       //update status
       status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
+      status.filter_config = rx_dsp_inst.get_filter_config();
       status.busy_time = busy_time;
       status.battery = battery;
       status.temp = temp;
@@ -164,9 +165,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(uint8_t spectrum[], s_filter_control &fc)
+void rx::get_spectrum(uint8_t spectrum[])
 {
-  rx_dsp_inst.get_spectrum(spectrum, fc);
+  rx_dsp_inst.get_spectrum(spectrum);
 }
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)

@@ -25,8 +25,7 @@ if(PICO_BOARD STREQUAL "pico")
       utils.cpp
       ili934x.cpp
       waterfall.cpp
-      debouncer.c
-      event.c
+      button.cpp
   )
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -66,8 +65,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         utils.cpp
         ili9341.cpp
         waterfall.cpp
-        debouncer.c
-        event.c
+        button.cpp
     )
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -104,8 +102,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         utils.cpp
         ili9341.cpp
         waterfall.cpp
-        debouncer.c
-        event.c
+        button.cpp
     )
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
