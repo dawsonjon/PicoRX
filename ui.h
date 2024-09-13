@@ -63,13 +63,13 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
 
-
 class ui
 {
 
   private:
 
   uint32_t settings[16];
+  float spectrum[128];
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
@@ -131,9 +131,13 @@ class ui
   void update_display2(rx_status & status, rx & receiver);
   void update_display3(rx_status & status, rx & receiver);
   void update_display4(rx_status & status, rx & receiver);
-  #define NUM_VIEWS 4
+  void update_display5(rx_status & status, rx & receiver);
+  #define NUM_VIEWS 5
 
+  void log_spectrum(float *min, float *max);
+  void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(rx & receiver, uint16_t startY);
+  void draw_waterfall(rx & receiver);
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;
 

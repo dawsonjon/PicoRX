@@ -6,6 +6,11 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 
+#define WATERFALL_STARTY (8)
+#define WATERFALL_WIDTH (128)
+#define WATERFALL_HEIGHT (64 - WATERFALL_STARTY - 3)
+#define WATERFALL_MAX_VALUE (64)
+
 static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
                                                (1UL << ev_button_back_press) |
                                                (1UL << ev_button_push_press);
@@ -314,6 +319,30 @@ void ui::update_display2(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display3(rx_status & status, rx & receiver)
 {
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_clear();
+  display_set_xy(0,0);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+
+  draw_waterfall(receiver);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display4(rx_status & status, rx & receiver)
+{
 
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -336,14 +365,45 @@ void ui::update_display3(rx_status & status, rx & receiver)
   if(power_s > 12) power_s = 12;
   display_print_str(smeter[power_s],2);
 
-
   display_show();
+}
+
+void ui::log_spectrum(float *min, float *max)
+{
+  *min=log10f(spectrum[0] + FLT_MIN);
+  *max=log10f(spectrum[0] + FLT_MIN);
+
+  for (uint16_t x = 0; x < 128; x++)
+  {
+    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
+    if (spectrum[x] < *min)
+    {
+      *min = spectrum[x];
+    }
+    if (spectrum[x] > *max)
+    {
+      *max = spectrum[x];
+    }
+  }
+}
+
+void ui::draw_h_tick_marks(uint16_t startY)
+{
+  // tick marks at startY
+  ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
+
+  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+
+  ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
+  ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display4(rx_status & status, rx & receiver)
+void ui::update_display5(rx_status & status, rx & receiver)
 {
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, 1086);
@@ -356,44 +416,23 @@ void ui::update_display4(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::draw_spectrum(rx & receiver, uint16_t startY)
 {
+  float min;
+  float max;
+
   static float min_avg = log10f(FLT_MIN);
   static float max_avg = log10f(FLT_MAX);
 
   //Display spectrum capture
-  static float spectrum[128];
   receiver.get_spectrum(spectrum);
+  log_spectrum(&min, &max);
 
-  // tick marks at startY
-  ssd1306_draw_line(&disp, 0, startY+2, 127, startY+2, 1);
-
-  ssd1306_draw_line(&disp, 0,   startY, 0,   startY, 1);
-  ssd1306_draw_line(&disp, 64,  startY, 64,  startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
-
-  ssd1306_draw_line(&disp, 32, startY+1, 32, startY+3, 1);
-  ssd1306_draw_line(&disp, 96, startY+1, 96, startY+3, 1);
-
-  float min=log10f(spectrum[0] + FLT_MIN);
-  float max=log10f(spectrum[0] + FLT_MIN);
-
-  for (uint16_t x = 0; x < 128; x++)
-  {
-    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
-    if (spectrum[x] < min)
-    {
-      min = spectrum[x];
-    }
-    if (spectrum[x] > max)
-    {
-      max = spectrum[x];
-    }
-  }
+  draw_h_tick_marks(startY);
 
   min_avg += (min - min_avg) / 15.0f;
   max_avg += (max - max_avg) / 15.0f;
   const float range = max_avg - min_avg;
 
-#define MAX_HEIGHT 64-startY-3
+#define MAX_HEIGHT (64-startY-3)
   const float scale = (MAX_HEIGHT-0.0f) / range;
 
   //plot
@@ -417,6 +456,72 @@ void ui::draw_spectrum(rx & receiver, uint16_t startY)
     for (uint8_t x = 0; x < 128; x += 4)
     {
       ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+    }
+  }
+}
+
+void ui::draw_waterfall(rx & receiver)
+{
+  float min;
+  float max;
+
+  static uint8_t waterfall_bmp[WATERFALL_HEIGHT][WATERFALL_WIDTH / 8];
+  static int8_t tmp_line[WATERFALL_WIDTH];
+  static int8_t curr_line[WATERFALL_WIDTH];
+
+  // Move waterfall up (make room for the next line)
+  memmove(waterfall_bmp[0], waterfall_bmp[1], (WATERFALL_WIDTH / 8) * (WATERFALL_HEIGHT - 1));
+
+  receiver.get_spectrum(spectrum);
+  log_spectrum(&min, &max);
+
+  const float scale = ((float)WATERFALL_MAX_VALUE)/(max-min);
+  int16_t err = 0;
+
+  for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
+  {
+      int16_t y = scale*(spectrum[x]-min);
+      if(y < 0) y=0;
+      if(y > WATERFALL_MAX_VALUE) y=WATERFALL_MAX_VALUE - 1;
+      curr_line[x] = y + tmp_line[x];
+      tmp_line[x] = 0;
+  }
+
+  for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
+  {
+      // Simple Floyd-Steinberg dithering
+      if(curr_line[x] > ((WATERFALL_MAX_VALUE + 1) / 2))
+      {
+        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] |= 1UL << (x % 8);
+        err = curr_line[x] - WATERFALL_MAX_VALUE;
+      } else {
+        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] &= ~(1UL << (x % 8));
+        err = curr_line[x] - 0;
+      }
+
+      if(x < (WATERFALL_WIDTH - 1))
+      {
+        curr_line[x + 1] += 7 * err / 16;
+        tmp_line[x + 1] += err / 16;
+      }
+      tmp_line[x] += 5 * err / 16;
+      if(x > 0)
+      {
+        tmp_line[x - 1] += 3 * err / 16;
+      }
+  }
+
+  draw_h_tick_marks(WATERFALL_STARTY);
+
+  // Draw the waterfall
+  for (size_t x = 0; x < WATERFALL_WIDTH; x++)
+  {
+    for (size_t y = 0; y < WATERFALL_HEIGHT; y++)
+    {
+      if (waterfall_bmp[WATERFALL_HEIGHT - y - 1][x / 8] & (1UL << (x % 8)))
+      {
+        ssd1306_draw_pixel(&disp, x, WATERFALL_STARTY + 3 + y, 1);
+      }
     }
   }
 }
@@ -1701,6 +1806,7 @@ void ui::do_ui(event_t event)
         case 1: update_display2(status, receiver); break;
         case 2: update_display3(status, receiver); break;
         case 3: update_display4(status, receiver); break;
+        case 4: update_display5(status, receiver); break;
         default: update_display(status, receiver); break;
       }
     }
