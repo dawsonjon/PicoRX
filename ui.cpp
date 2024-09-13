@@ -1,5 +1,6 @@
 #include <string.h>
 #include <float.h>
+#include <math.h>
 
 #include "pico/multicore.h"
 #include "ui.h"
@@ -405,9 +406,17 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::update_display5(rx_status & status, rx & receiver)
 {
+  static int degrees = 0;
+  static int xm, ym;
+  if (degrees == 0) {
+    xm = rand()%10+1;
+    ym = rand()%10;
+  }
   display_clear();
-  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
+  ssd1306_scroll_screen(&disp, 40*cos(xm*M_PI*degrees/180), 20*sin(ym*M_PI*degrees/180));
   display_show();
+  if ((degrees+=3) >=360) degrees = 0;
 }
 
 

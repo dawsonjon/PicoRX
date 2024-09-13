@@ -75,6 +75,9 @@ typedef struct {
 	uint8_t disp_col_offset; /**< 0 for ssd1306, 2 for sh1106 */
 } ssd1306_t;
 
+ void ssd1306_set_start_line(ssd1306_t *p, uint8_t val);
+ void ssd1306_scroll_screen(ssd1306_t *p, int16_t x, int16_t y);
+
 /**
 *	@brief initialize display
 *
