@@ -412,7 +412,7 @@ void ui::print_enum_option(const char options[], uint8_t option){
           if (!splits[num_splits]) break;
   }
 
-  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1])*12 < 128) {
+  if ( (num_splits==2) && (strlen(splits[0])+strlen(splits[1]))*12 < 128) {
     display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
@@ -566,6 +566,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
+  settings_to_apply.oled_contrast = settings[idx_oled_contrast];
   receiver.release();
 }
 
@@ -708,6 +709,7 @@ void ui::autorestore()
   display_timer = timeout_lookup[display_timeout_setting];
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
+  ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
 
 }
 
@@ -1331,7 +1333,7 @@ bool ui::configuration_menu()
 {
       bool rx_settings_changed=false;
       uint32_t setting = 0;
-      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &setting)) return 1;
+      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
         case 0: 
@@ -1370,7 +1372,12 @@ bool ui::configuration_menu()
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
-        case 7: 
+        case 7:
+          rx_settings_changed = number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
+          ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+          break;
+
+        case 8: 
           setting = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting);
           if(setting==1) {
