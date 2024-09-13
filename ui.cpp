@@ -68,7 +68,7 @@ void ui::display_clear(bool colour)
 
 void ui::display_clear_str(uint32_t scale, bool colour)
 {
-  ssd1306_draw_square(&disp, 0, cursor_y, 128, 9*scale, colour);
+  ssd1306_fill_rectangle(&disp, 0, cursor_y, 128, 9*scale, colour);
 }
 
 void ui::display_linen(uint8_t line)
@@ -77,7 +77,7 @@ void ui::display_linen(uint8_t line)
   cursor_x = 0;
 }
 
-void ui::display_set_xy(uint16_t x, uint16_t y)
+void ui::display_set_xy(int16_t x, int16_t y)
 {
   cursor_x = x;
   cursor_y = y;
@@ -108,7 +108,7 @@ void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
     cursor_x = 0;
     cursor_y += 9*scale;
   }
@@ -127,6 +127,11 @@ int ui::strchr_idx(const char str[], uint8_t c) {
 
 void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
 {
+  int16_t box_x1 = INT16_MAX;
+  int16_t box_y1 = INT16_MAX;
+  int16_t box_x2 = INT16_MIN;
+  int16_t box_y2 = INT16_MIN;
+
   bool colour = !(style&style_reverse);
   int next_ln;
   unsigned int length;
@@ -136,10 +141,10 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   // if found, compute length of string, if not, length to end of str
   length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
 
-  if ( (style & style_centered) && (length*6*scale < 128)) {
+  if (style & style_centered) {
     cursor_x = (128- 6*scale*length)/2;
   }
-  if ( (style & style_right) && (length*6*scale < 128) ) {
+  if (style & style_right) {
     cursor_x = (128 - 6*scale*length);
   }
 
@@ -152,9 +157,9 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       next_ln = strchr_idx( &str[i+1], '\n');
       length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
 
-      if ( (style & style_centered) && (length*6*scale < 128) ) {
+      if (style & style_centered) {
         cursor_x = (128- 6*scale*length)/2;
-      } else if ( (style & style_right) && (length*6*scale < 128) ) {
+      } else if (style & style_right) {
         cursor_x = (128- 6*scale*length);
       } else {
         cursor_x = 0;
@@ -162,12 +167,24 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_y += 9*scale;
       continue;
     }
-    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
       cursor_x = 0;
       cursor_y += 9*scale;
     }
     ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+    if (style&style_bordered) {
+      if (cursor_x < box_x1) box_x1=cursor_x;
+      if (cursor_y < box_y1) box_y1=cursor_y;
+      if ((signed)(cursor_x + 5*scale) > box_x2) box_x2 = (cursor_x + 5*scale);
+      if ((signed)(cursor_y + 8*scale) > box_y2) box_y2 = (cursor_y + 8*scale);
+    }
     cursor_x += 6*scale;
+  }
+  if (style&style_bordered) {
+    // text, black, white, black
+    ssd1306_draw_rectangle(&disp, box_x1-1, box_y1-1, box_x2-box_x1+1, box_y2-box_y1+1, 1-colour);
+    ssd1306_draw_rectangle(&disp, box_x1-2, box_y1-2, box_x2-box_x1+3, box_y2-box_y1+3, colour);
+    ssd1306_draw_rectangle(&disp, box_x1-3, box_y1-3, box_x2-box_x1+5, box_y2-box_y1+5, 1-colour);
   }
 }
 
@@ -322,6 +339,17 @@ void ui::update_display3(rx_status & status, rx & receiver)
 
   display_show();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display
+////////////////////////////////////////////////////////////////////////////////
+void ui::update_display4(rx_status & status, rx & receiver)
+{
+  display_clear();
+  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  display_show();
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
@@ -1389,6 +1417,50 @@ bool ui::configuration_menu()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// This is the startup animation
+////////////////////////////////////////////////////////////////////////////////
+bool ui::do_splash()
+{
+  static int step=0;
+  if (step++ >= 20) {  // we're done
+    step = 0;
+    return true;
+  }
+
+  display_clear();
+  ssd1306_bmp_show_image(&disp, crystal, 1086);
+
+  int i=-1;
+#if 0
+// zoom in
+       if (step <= 5) i=0;        // image for 3 tenths
+  else if (step <= 7) i=step-5;
+  else if (step <= 12) i=3;
+  else if (step <= 18) i=step-7;
+
+#else
+// zoom out
+       if (step <= 6) i=10-step;
+  else if (step <= 11) i=3;
+  else if (step <= 13) i=14-step;
+  else if (step <= 18) i=0;
+
+#endif
+
+  if (i==0) {
+    // do nothing, leave the bitmap
+  } else if (i>0) {
+    display_set_xy(0,(64-i*8)/2); // disp height - text height /2
+    display_print_str("PicoRX",i,style_centered|style_nowrap|style_bordered);
+  } else if (i==-1) {
+    display_clear();
+  }
+  display_show();
+  return false;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
 void ui::do_ui(event_t event)
@@ -1401,17 +1473,8 @@ void ui::do_ui(event_t event)
     static bool splash_done = false;
 
     if (!splash_done) {
-      splash_done = true;
-      display_clear();
-      ssd1306_bmp_show_image(&disp, crystal, 1086);
-      display_show();
-      busy_wait_ms(500);
-      ssd1306_draw_square(&disp, 0,16,127,28,0);
-      ssd1306_draw_empty_square(&disp, 0,16,127,28,1);
-      display_set_xy(0,20);
-      display_print_str("PicoRX",3,style_centered);
-      display_show();
-      busy_wait_ms(500);
+      splash_done = do_splash();
+      if ((button_state != idle) || (encoder_change)) splash_done=true;
     }
 
     //automatically switch off display after a period of inactivity
@@ -1626,14 +1689,15 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
-    switch (view) {
-      case 1: update_display2(status, receiver); break;
-      case 2: update_display3(status, receiver); break;
-      default: update_display(status, receiver); break;
+    if (splash_done) {
+      switch (view) {
+        case 1: update_display2(status, receiver); break;
+        case 2: update_display3(status, receiver); break;
+        case 3: update_display4(status, receiver); break;
+        default: update_display(status, receiver); break;
+      }
     }
-
     rx_settings_changed = false;
-
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : settings_to_apply(settings_to_apply), status(status), receiver(receiver)
