@@ -7,9 +7,7 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 
-#define WATERFALL_STARTY (8)
 #define WATERFALL_WIDTH (128)
-#define WATERFALL_HEIGHT (64 - WATERFALL_STARTY - 3)
 #define WATERFALL_MAX_VALUE (64)
 
 static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
@@ -283,7 +281,7 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
 
-  draw_spectrum(receiver, 32);
+  draw_spectrum(32, receiver);
 
   display_show();
 }
@@ -293,23 +291,9 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver)
 {
-
-  receiver.access(false);
-  const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
-
   display_clear();
-  display_set_xy(0,0);
-  display_print_freq(',', settings[idx_frequency],1);
-  display_add_xy(4,0);
-
-  //mode
-  display_print_str(modes[settings[idx_mode]],1);
-
-  //signal strength dBm
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  draw_spectrum(receiver, 8);
+  draw_slim_status(0, status, receiver);
+  draw_spectrum(8, receiver);
   display_show();
 }
 
@@ -318,22 +302,10 @@ void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & rece
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver)
 {
-  receiver.access(false);
-  const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
+  if (view_changed) display_clear();
 
-  display_clear();
-  display_set_xy(0,0);
-  display_print_freq(',', settings[idx_frequency],1);
-  display_add_xy(4,0);
-
-  //mode
-  display_print_str(modes[settings[idx_mode]],1);
-
-  //signal strength dBm
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  draw_waterfall(receiver);
+  draw_waterfall(8, receiver);
+  draw_slim_status(0, status, receiver);
   display_show();
 }
 
@@ -363,6 +335,24 @@ void ui::renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver
   display_print_str(smeter[power_s],2);
 
   display_show();
+}
+
+// Draw a slim 8 pixel status line
+void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
+{
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_set_xy(0,y);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 }
 
 int ui::dBm_to_S(float power_dBm) {
@@ -432,7 +422,7 @@ void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(rx & receiver, uint16_t startY)
+void ui::draw_spectrum(uint16_t startY, rx & receiver)
 {
   float min;
   float max;
@@ -478,17 +468,16 @@ void ui::draw_spectrum(rx & receiver, uint16_t startY)
   }
 }
 
-void ui::draw_waterfall(rx & receiver)
+void ui::draw_waterfall(uint16_t starty, rx & receiver)
 {
   float min;
   float max;
 
-  static uint8_t waterfall_bmp[WATERFALL_HEIGHT][WATERFALL_WIDTH / 8];
   static int8_t tmp_line[WATERFALL_WIDTH];
   static int8_t curr_line[WATERFALL_WIDTH];
 
-  // Move waterfall up (make room for the next line)
-  memmove(waterfall_bmp[0], waterfall_bmp[1], (WATERFALL_WIDTH / 8) * (WATERFALL_HEIGHT - 1));
+  // Move waterfall down to  make room for the new line
+  ssd1306_scroll_screen(&disp, 0, 1);
 
   receiver.get_spectrum(spectrum);
   log_spectrum(&min, &max);
@@ -510,10 +499,10 @@ void ui::draw_waterfall(rx & receiver)
       // Simple Floyd-Steinberg dithering
       if(curr_line[x] > ((WATERFALL_MAX_VALUE + 1) / 2))
       {
-        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] |= 1UL << (x % 8);
+        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
         err = curr_line[x] - WATERFALL_MAX_VALUE;
       } else {
-        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] &= ~(1UL << (x % 8));
+        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
         err = curr_line[x] - 0;
       }
 
@@ -529,19 +518,8 @@ void ui::draw_waterfall(rx & receiver)
       }
   }
 
-  draw_h_tick_marks(WATERFALL_STARTY);
+  draw_h_tick_marks(starty);
 
-  // Draw the waterfall
-  for (size_t x = 0; x < WATERFALL_WIDTH; x++)
-  {
-    for (size_t y = 0; y < WATERFALL_HEIGHT; y++)
-    {
-      if (waterfall_bmp[WATERFALL_HEIGHT - y - 1][x / 8] & (1UL << (x % 8)))
-      {
-        ssd1306_draw_pixel(&disp, x, WATERFALL_STARTY + 3 + y, 1);
-      }
-    }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

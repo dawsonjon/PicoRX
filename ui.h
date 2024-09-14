@@ -137,8 +137,10 @@ class ui
   int dBm_to_S(float power_dBm);
   void log_spectrum(float *min, float *max);
   void draw_h_tick_marks(uint16_t startY);
-  void draw_spectrum(rx & receiver, uint16_t startY);
-  void draw_waterfall(rx & receiver);
+  void draw_spectrum(uint16_t startY, rx & receiver);
+  void draw_waterfall(uint16_t startY, rx & receiver);
+  void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
+
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;
 
