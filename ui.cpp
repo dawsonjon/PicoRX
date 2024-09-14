@@ -273,10 +273,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
-  int8_t power_s = floorf((power_dBm-S0)/6.0f);
-  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
-  if(power_s < 0) power_s = 0;
-  if(power_s > 12) power_s = 12;
+  int8_t power_s = dBm_to_S(power_dBm);
+
   display_set_xy(0,24);
   display_print_str(smeter[power_s],1);
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
@@ -360,13 +358,19 @@ void ui::update_display4(rx_status & status, rx & receiver)
 
   //signal strength
   display_set_xy(0,48);
-  int8_t power_s = floorf((power_dBm-S0)/6.0f);
-  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
-  if(power_s < 0) power_s = 0;
-  if(power_s > 12) power_s = 12;
+  int8_t power_s = dBm_to_S(power_dBm);
+
   display_print_str(smeter[power_s],2);
 
   display_show();
+}
+
+int ui::dBm_to_S(float power_dBm) {
+  int power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
+  return (power_s);
 }
 
 void ui::log_spectrum(float *min, float *max)
@@ -1091,6 +1095,9 @@ bool ui::recall()
   bool draw_once = true;
 
   int32_t pos_change;
+  float power_dBm;
+  float last_power_dBm = FLT_MAX;
+  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1099,6 +1106,17 @@ bool ui::recall()
   }
 
   while(1){
+    // grab power
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    if (power_dBm != last_power_dBm) {
+      //signal strength as an int 0..12
+      power_s = dBm_to_S(power_dBm);
+      draw_once = true;
+      last_power_dBm = power_dBm;
+    }
+
     pos_change = encoder_control(&select, min, max);
     if( pos_change != 0 || draw_once) {
 
@@ -1173,14 +1191,22 @@ bool ui::recall()
       display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
       display_print_str("\n",2);
 
+//      ssd1306_fill_rectangle(&disp, 0, display_get_y()-3, power_s*127/12, 2, 1);
+
       display_print_str("from: ", 1);
       display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
+
+//      ssd1306_draw_line(&disp, 0, display_get_y()-2, power_s*127/12, display_get_y()-2, 1);
 
       display_print_str("  To: ", 1);
       display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
 
+//      ssd1306_draw_line(&disp, 0, 63, power_s*127/12, 63, 1);
+      ssd1306_fill_rectangle(&disp, 0, 62, power_s*127/12, 2, 1);
+
+      ssd1306_fill_rectangle(&disp, 0, 0, power_s*127/12, 8, 2);
       display_show();
     }
 

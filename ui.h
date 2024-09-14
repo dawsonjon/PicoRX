@@ -134,6 +134,7 @@ class ui
   void update_display5(rx_status & status, rx & receiver);
   #define NUM_VIEWS 5
 
+  int dBm_to_S(float power_dBm);
   void log_spectrum(float *min, float *max);
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(rx & receiver, uint16_t startY);
