@@ -7,9 +7,7 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 
-#define WATERFALL_STARTY (8)
 #define WATERFALL_WIDTH (128)
-#define WATERFALL_HEIGHT (64 - WATERFALL_STARTY - 3)
 #define WATERFALL_MAX_VALUE (64)
 
 static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
@@ -236,9 +234,9 @@ static float find_nearest_tick(float dist)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display (original)
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display(rx_status & status, rx & receiver)
+void ui::renderpage_original(bool view_changed, rx_status & status, rx & receiver)
 {
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -273,10 +271,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
-  int8_t power_s = floorf((power_dBm-S0)/6.0f);
-  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
-  if(power_s < 0) power_s = 0;
-  if(power_s > 12) power_s = 12;
+  int8_t power_s = dBm_to_S(power_dBm);
+
   display_set_xy(0,24);
   display_print_str(smeter[power_s],1);
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
@@ -285,64 +281,38 @@ void ui::update_display(rx_status & status, rx & receiver)
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
 
-  draw_spectrum(receiver, 32);
+  draw_spectrum(32, receiver);
 
   display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display2(rx_status & status, rx & receiver)
+void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver)
 {
-
-  receiver.access(false);
-  const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
-
   display_clear();
-  display_set_xy(0,0);
-  display_print_freq(',', settings[idx_frequency],1);
-  display_add_xy(4,0);
-
-  //mode
-  display_print_str(modes[settings[idx_mode]],1);
-
-  //signal strength dBm
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  draw_spectrum(receiver, 8);
+  draw_slim_status(0, status, receiver);
+  draw_spectrum(8, receiver);
   display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with big waterfall
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display3(rx_status & status, rx & receiver)
+void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver)
 {
-  receiver.access(false);
-  const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
+  if (view_changed) display_clear();
 
-  display_clear();
-  display_set_xy(0,0);
-  display_print_freq(',', settings[idx_frequency],1);
-  display_add_xy(4,0);
-
-  //mode
-  display_print_str(modes[settings[idx_mode]],1);
-
-  //signal strength dBm
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  draw_waterfall(receiver);
+  draw_waterfall(8, receiver);
+  draw_slim_status(0, status, receiver);
   display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with big simple text
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display4(rx_status & status, rx & receiver)
+void ui::renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver)
 {
 
   receiver.access(false);
@@ -360,13 +330,37 @@ void ui::update_display4(rx_status & status, rx & receiver)
 
   //signal strength
   display_set_xy(0,48);
-  int8_t power_s = floorf((power_dBm-S0)/6.0f);
-  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
-  if(power_s < 0) power_s = 0;
-  if(power_s > 12) power_s = 12;
+  int8_t power_s = dBm_to_S(power_dBm);
+
   display_print_str(smeter[power_s],2);
 
   display_show();
+}
+
+// Draw a slim 8 pixel status line
+void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
+{
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_set_xy(0,y);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+}
+
+int ui::dBm_to_S(float power_dBm) {
+  int power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
+  return (power_s);
 }
 
 void ui::log_spectrum(float *min, float *max)
@@ -404,13 +398,18 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display5(rx_status & status, rx & receiver)
+void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
 {
   static int degrees = 0;
   static int xm, ym;
+
   if (degrees == 0) {
     xm = rand()%10+1;
     ym = rand()%10;
+  }
+  if (view_changed) {
+    xm = ym = 5;
+    degrees = 0;
   }
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
@@ -423,7 +422,7 @@ void ui::update_display5(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(rx & receiver, uint16_t startY)
+void ui::draw_spectrum(uint16_t startY, rx & receiver)
 {
   float min;
   float max;
@@ -469,17 +468,16 @@ void ui::draw_spectrum(rx & receiver, uint16_t startY)
   }
 }
 
-void ui::draw_waterfall(rx & receiver)
+void ui::draw_waterfall(uint16_t starty, rx & receiver)
 {
   float min;
   float max;
 
-  static uint8_t waterfall_bmp[WATERFALL_HEIGHT][WATERFALL_WIDTH / 8];
   static int8_t tmp_line[WATERFALL_WIDTH];
   static int8_t curr_line[WATERFALL_WIDTH];
 
-  // Move waterfall up (make room for the next line)
-  memmove(waterfall_bmp[0], waterfall_bmp[1], (WATERFALL_WIDTH / 8) * (WATERFALL_HEIGHT - 1));
+  // Move waterfall down to  make room for the new line
+  ssd1306_scroll_screen(&disp, 0, 1);
 
   receiver.get_spectrum(spectrum);
   log_spectrum(&min, &max);
@@ -501,10 +499,10 @@ void ui::draw_waterfall(rx & receiver)
       // Simple Floyd-Steinberg dithering
       if(curr_line[x] > ((WATERFALL_MAX_VALUE + 1) / 2))
       {
-        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] |= 1UL << (x % 8);
+        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
         err = curr_line[x] - WATERFALL_MAX_VALUE;
       } else {
-        waterfall_bmp[WATERFALL_HEIGHT - 1][x / 8] &= ~(1UL << (x % 8));
+        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
         err = curr_line[x] - 0;
       }
 
@@ -520,19 +518,8 @@ void ui::draw_waterfall(rx & receiver)
       }
   }
 
-  draw_h_tick_marks(WATERFALL_STARTY);
+  draw_h_tick_marks(starty);
 
-  // Draw the waterfall
-  for (size_t x = 0; x < WATERFALL_WIDTH; x++)
-  {
-    for (size_t y = 0; y < WATERFALL_HEIGHT; y++)
-    {
-      if (waterfall_bmp[WATERFALL_HEIGHT - y - 1][x / 8] & (1UL << (x % 8)))
-      {
-        ssd1306_draw_pixel(&disp, x, WATERFALL_STARTY + 3 + y, 1);
-      }
-    }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -934,7 +921,7 @@ bool ui::upload_memory()
 }
 
 //save current settings to memory
-bool ui::store()
+bool ui::memory_store()
 {
 
   //encoder loops through memories
@@ -1079,7 +1066,7 @@ bool ui::store()
 }
 
 //load a channel from memory
-bool ui::recall()
+bool ui::memory_recall()
 {
 
   //encoder loops through memories
@@ -1091,6 +1078,9 @@ bool ui::recall()
   bool draw_once = true;
 
   int32_t pos_change;
+  float power_dBm;
+  float last_power_dBm = FLT_MAX;
+  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1099,6 +1089,17 @@ bool ui::recall()
   }
 
   while(1){
+    // grab power
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    if (power_dBm != last_power_dBm) {
+      //signal strength as an int 0..12
+      power_s = dBm_to_S(power_dBm);
+      draw_once = true;
+      last_power_dBm = power_dBm;
+    }
+
     pos_change = encoder_control(&select, min, max);
     if( pos_change != 0 || draw_once) {
 
@@ -1158,28 +1159,39 @@ bool ui::recall()
       display_clear();
       display_print_str("Recall");
       display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+
+      const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+      display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
+      display_print_str(mode_ptr,1);
 
       display_print_str("\n", 1);
       if (12*strlen(name) > 128) {
         display_add_xy(0,4);
-        display_print_str(name,1,style_nowrap|style_centered);
+        display_print_str(name,1,style_nowrap);
       } else {
-        display_print_str(name,2,style_nowrap|style_centered);
+        display_print_str(name,2,style_nowrap);
       }
 
       //draw frequency
       display_set_xy(0,27);
-      display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
+      display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      display_print_str("from: ", 1);
+      display_print_str("from:  ", 1);
       display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
-      display_print_str("  To: ", 1);
+      display_print_str("  To:  ", 1);
       display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
+
+      int bar_len = power_s*62/12;
+// framed
+//      ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
+//      ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
+
+//solid
+      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
 
       display_show();
     }
@@ -1590,7 +1602,8 @@ void ui::do_ui(event_t event)
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
     static bool maybe_changeview = false;
-    static int view = 0;
+    static int current_view = 0;
+    static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
 
     if (!splash_done) {
@@ -1620,7 +1633,8 @@ void ui::do_ui(event_t event)
         {
           button_state = idle;
           if (maybe_changeview == true) {
-            view = (view+1) % NUM_VIEWS;
+            current_view = (current_view+1) % NUM_VIEWS;
+            view_changed = true;
             maybe_changeview = false;
           }
         } else if (event.tag == ev_button_menu_press)
@@ -1716,6 +1730,7 @@ void ui::do_ui(event_t event)
     //if button is pressed enter menu
     else if(button_state == menu)
     {
+      view_changed = true;
 
       //top level menu
       uint32_t setting = 0;
@@ -1728,11 +1743,11 @@ void ui::do_ui(event_t event)
           break;
 
         case 1:
-          rx_settings_changed = recall();
+          rx_settings_changed = memory_recall();
           break;
 
         case 2:
-          store();
+          memory_store();
           break;
 
         case 3 : 
@@ -1785,7 +1800,8 @@ void ui::do_ui(event_t event)
     }
     else if(event.tag == ev_button_push_press)
     {
-      rx_settings_changed = recall();
+      view_changed = true;
+      rx_settings_changed = memory_recall();
       autosave_settings = rx_settings_changed;
     }
 
@@ -1811,13 +1827,14 @@ void ui::do_ui(event_t event)
       receiver.release();
     }
     if (splash_done) {
-      switch (view) {
-        case 1: update_display2(status, receiver); break;
-        case 2: update_display3(status, receiver); break;
-        case 3: update_display4(status, receiver); break;
-        case 4: update_display5(status, receiver); break;
-        default: update_display(status, receiver); break;
+      switch (current_view) {
+        case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
+        case 2: renderpage_waterfall(view_changed, status, receiver); break;
+        case 3: renderpage_bigtext(view_changed, status, receiver); break;
+        case 4: renderpage_fun(view_changed, status, receiver); break;
+        default: renderpage_original(view_changed, status, receiver); break;
       }
+      view_changed = false;
     }
     rx_settings_changed = false;
 }
