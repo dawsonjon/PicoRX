@@ -1810,11 +1810,11 @@ bool ui::top_menu(rx_settings & settings_to_apply)
 
         case 1:
           // we quit menu if they selected something
-          if (recall()) return true;
+          if (memory_recall()) return true;
           break;
 
         case 2:
-          store();
+          memory_store();
           break;
 
         case 3 : 
