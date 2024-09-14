@@ -1473,14 +1473,21 @@ bool ui::display_timeout(bool encoder_change, event_t event)
 
 bool ui::configuration_menu()
 {
-      bool rx_settings_changed=false;
-      uint32_t setting = 0;
+  bool rx_settings_changed=false;
+  uint32_t setting = 0;
+
+  while (1) {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+
       if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
         case 0: 
           setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
+          rx_settings_changed |= enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
           display_timer = timeout_lookup[setting];
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting << flag_display_timeout;
@@ -1493,29 +1500,29 @@ bool ui::configuration_menu()
           break;
 
         case 2 : 
-          rx_settings_changed = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
         case 3 : 
-          rx_settings_changed = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
         case 4: 
-          rx_settings_changed = number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          rx_settings_changed |= number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
           break;
 
         case 5: 
-          rx_settings_changed = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
         case 6: 
-          rx_settings_changed = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
         case 7:
-          rx_settings_changed = number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
+          rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
           ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
           break;
 
@@ -1532,8 +1539,9 @@ bool ui::configuration_menu()
           }
           break;
       }
+  }
 
-      return rx_settings_changed;
+  return rx_settings_changed;
 
 }
 
