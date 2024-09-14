@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gfxfont.h"
 #include "hardware/spi.h"
+#include "hardware/dma.h"
 
 #define _RDDSDR 0x0f    // Read Display Self-Diagnostic Result
 #define _SLPOUT 0x11    // Sleep Out
@@ -86,7 +87,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define COLOUR_PURPLE 0x8010
 #define COLOUR_TEAL 0x0410
 #define COLOUR_SILVER 0xC618
-#define COLOUR_GRAY 0x8410
+#define COLOUR_GRAY 0x1084
 #define COLOUR_RED 0xF800
 #define COLOUR_LIME 0x07E0
 #define COLOUR_YELLOW 0xFFE0
@@ -120,18 +121,16 @@ public:
     void writeVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t line[]);
     void fillRect(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t colour);
     void drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
-    void drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);
     void clear(uint16_t colour = COLOUR_BLACK);
-    void blit(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t *bltBuf);
-    void drawChar(uint16_t x, uint16_t y, char c, uint16_t colour, const GFXfont *font);
-    void charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy, GFXfont *font);
-    void textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, GFXfont *font);
-
+    void drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint16_t fg, uint16_t bg);
+    void drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg);
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
 private:
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);
     void _data(uint8_t *data, size_t dataLen = 0);
     void _writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data = NULL, size_t dataLen = 0);
+    uint32_t dma_tx;
+    dma_channel_config dma_config;
     
 private:
     spi_inst_t *_spi = NULL;

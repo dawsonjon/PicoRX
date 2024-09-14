@@ -24,13 +24,13 @@ void button :: update_state()
   }
   else if(button_state == down)
   {
-    if((time_us_32() - time_pressed) > (1000 * 1000))
+    if((time_us_32() - time_pressed) > (500 * 1000))
     {
       button_state = held;
     }
     else if(gpio_get(gpio_num)) //off
     {
-      if((time_us_32() - time_pressed) > (100 * 1000))
+      if((time_us_32() - time_pressed) > (50 * 1000))
       {
         button_state = pressed;
       }

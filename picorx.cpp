@@ -28,12 +28,9 @@ int main()
 {
   stdio_init_all();
   multicore_launch_core1(core1_main);
-
-  sleep_us(5000000);
   user_interface.autorestore();
 
   uint32_t last_ui_update = 0;
-
   while(1)
   {
     //schedule tasks

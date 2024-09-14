@@ -71,7 +71,7 @@ class ui
 
   uint32_t settings[16];
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
-  const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
+  const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
 
   int32_t last_select=0;
@@ -113,7 +113,8 @@ class ui
   ssd1306_t disp;
   uint16_t cursor_x = 0;   // pixels 0-127
   uint16_t cursor_y = 0;   // pixels 0-63
-  uint16_t display_timer = 0;
+  uint32_t display_time = 0;
+  uint32_t display_timeout_max = 0;
 
   // Status                  
   float calculate_signal_strength(rx_status &status);

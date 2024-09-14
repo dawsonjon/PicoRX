@@ -7,7 +7,8 @@
 #include "hardware/spi.h"
 #include "fft_filter.h"
 #include "ili934x.h"
-#include "FreeMono12pt7b.h"
+#include "font_Ubuntu_16x12.h"
+#include "font_Ubuntu_8x6.h"
 
 waterfall::waterfall()
 {
@@ -36,11 +37,36 @@ waterfall::waterfall()
     display->reset();
     display->init();
     display->clear();
-    //display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
-    //display->drawLine(31, 0, 288, 0, display->colour565(255,255,255));
-    //display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
-    //display->drawLine(31, 0, 31, 239, display->colour565(255,255,255));
-    //display->drawLine(288, 0, 288, 239, display->colour565(255,255,255));
+
+    //draw borders
+
+    //Horizontal
+    display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
+    display->drawLine(31, 122, 288, 122, display->colour565(255,255,255));
+    display->drawLine(31, 20,   288, 20, display->colour565(255,255,255));
+    display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
+
+    //Vertical
+    display->drawLine(31,  20, 31,  122, display->colour565(255,255,255));
+    display->drawLine(288, 20, 288, 122, display->colour565(255,255,255));
+    display->drawLine(31,  135, 31,  239, display->colour565(255,255,255));
+    display->drawLine(288, 135, 288, 239, display->colour565(255,255,255));
+
+    //5kHz ticks
+    for(uint16_t fbin=0; fbin<256; ++fbin)
+    {
+      if((fbin-128)%41==0)
+      {
+        display->drawLine(32+fbin, 122, 32+fbin, 123, COLOUR_WHITE);
+      }
+    }
+    display->drawString(29,  127, font_Ubuntu_8x6, "-15", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(70,  127, font_Ubuntu_8x6, "-10", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(111, 127, font_Ubuntu_8x6, "-5", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(154, 127, font_Ubuntu_8x6, "-0", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(199, 127, font_Ubuntu_8x6, "5", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(238, 127, font_Ubuntu_8x6, "10", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(279, 127, font_Ubuntu_8x6, "15", COLOUR_WHITE, COLOUR_BLACK);
 }
 
 waterfall::~waterfall()
@@ -54,9 +80,9 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     uint8_t fraction = ((uint16_t)value*6)&0xff;
 
     //blend colour e.g. for cursor
-    uint8_t blend_r = 14;
-    uint8_t blend_g = 158;
-    uint8_t blend_b = 53;
+    uint8_t blend_r = 0;
+    uint8_t blend_g = 255;
+    uint8_t blend_b = 0;
 
     uint8_t r=0, g=0, b=0;
     switch(section)
@@ -119,7 +145,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     const uint16_t num_cols = 256u;
     const uint16_t scope_height = 100u;
     const uint16_t scope_x = 32u;
-    const uint16_t scope_y = 33u;
+    const uint16_t scope_y = 21u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
     enum FSM_states{
@@ -183,9 +209,12 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
       const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
       const bool is_passband = is_usb_col || is_lsb_col;
+      const bool col_is_tick = (fbin%41 == 0) && fbin;
+
 
       for(uint8_t row=0; row<scope_height; ++row)
       {
+        const bool row_is_tick = row%40 == 0;
         if(row < data_point)
         {
           vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband);
@@ -196,7 +225,10 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
         }
         else
         {
-          vline[scope_height - 1 - row] = heatmap(0, is_passband, fbin==0);
+          uint16_t colour = heatmap(0, is_passband, fbin==0);
+          colour = col_is_tick?COLOUR_GRAY:colour;
+          colour = row_is_tick?COLOUR_GRAY:colour;
+          vline[scope_height - 1 - row] = colour;
         }
       }
       display->writeVLine(scope_x+scope_col, scope_y, scope_height, vline);
@@ -212,6 +244,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
     } else if(FSM_state == draw_frequency) {
 
+      //extract frequency from status
       uint32_t remainder, MHz, kHz, Hz;
       MHz = (uint32_t)settings.tuned_frequency_Hz/1000000u;
       remainder = (uint32_t)settings.tuned_frequency_Hz%1000000u; 
@@ -219,23 +252,15 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       remainder = remainder%1000u; 
       Hz = remainder;
 
-      //update frequency
-      static uint16_t lastMHz = 0;
-      static uint16_t lastkHz = 0;
-      static uint16_t lastHz = 0;
+      //update frequency if changed
+      static uint32_t lastMHz = 0;
+      static uint32_t lastkHz = 0;
+      static uint32_t lastHz = 0;
       if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz)
       {
-        //display->fillRect(32, 5, 18, 256, display->colour565(0, 0, 0));
-        char frequency[20];
-        snprintf(frequency, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
-        uint8_t x=100;
-        for(uint8_t i = 0; i<20; ++i)
-        {
-          display->drawChar(x, 23, frequency[i], display->colour565(255, 255, 255), &FreeMono12pt7b);
-          x+=11;
-          i++;
-          if(frequency[i] == 0) break;
-        }
+        char buffer[20];
+        snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
+        display->drawString(100, 0, font_Ubuntu_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
         lastMHz = MHz;
         lastkHz = kHz;
         lastHz = Hz;

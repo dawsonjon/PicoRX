@@ -587,7 +587,8 @@ void ui::autorestore()
 
   apply_settings(false);
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-  display_timer = timeout_lookup[display_timeout_setting];
+  display_timeout_max = timeout_lookup[display_timeout_setting];
+  display_time = time_us_32();
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
 
@@ -1225,56 +1226,56 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
 
 }
 
-bool ui::display_timeout(bool encoder_change)
-{
-    uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-    uint16_t display_timeout = timeout_lookup[display_timeout_setting];
+//bool ui::display_timeout(bool encoder_change)
+//{
+    //uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+    //uint16_t display_timeout = timeout_lookup[display_timeout_setting];
 
     //A timeout value of zero means never time out
-    if(!display_timeout) return true;
+    //if(!display_timeout) return true;
 
     //A button press causes timer to be reset to max value
     //and re-enables the display if it was previously off
-    if(encoder_change || menu_button.is_pressed() || back_button.is_pressed())
-    {
-      if(!display_timer)
-      {
-        ssd1306_poweron(&disp);
-        display_timer = display_timeout;
-        return false;
-      }
-      display_timer = display_timeout;
-      return true;
-    }
+    //if(encoder_change || menu_button.is_pressed() || back_button.is_pressed())
+    //{
+      //if(!display_timer)
+      //{
+        //ssd1306_poweron(&disp);
+        //display_timer = display_timeout;
+        //return false;
+      //}
+      //display_timer = display_timeout;
+      //return true;
+    //}
 
     //if display is on, decrement the timer, once every 100ms
-    if(display_timer)
-    {
-      --display_timer;
+    //if(display_timer)
+    //{
+      //--display_timer;
       //if a timeout occurs turn display off
-      if(!display_timer)
-      {
-         ssd1306_poweroff(&disp);
-         return false;
-      }
-      return true;
-    }
+      //if(!display_timer)
+      //{
+         //ssd1306_poweroff(&disp);
+         //return false;
+      //}
+      //return true;
+    //}
 
     //at this point timer must be expired and display is off
-    return false;
-}
+    //return false;
+//}
 
 bool ui::configuration_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};
     static e_ui_state ui_state = select_menu_item;
     
-    static uint32_t setting = 0;
+    static uint32_t menu_selection = 0;
 
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &setting, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1294,14 +1295,16 @@ bool ui::configuration_menu(bool &ok)
     else if(ui_state == menu_item_active)
     {
       bool done = false;
-      switch(setting)
+      static uint32_t setting_word;
+      switch(menu_selection)
       {
         case 0: 
-          setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          done = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting, ok);
-          display_timer = timeout_lookup[setting];
+          setting_word = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+          done = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting_word, ok);
           settings[idx_hw_setup] &=  ~mask_display_timeout;
-          settings[idx_hw_setup] |=  setting << flag_display_timeout;
+          settings[idx_hw_setup] |=  setting_word << flag_display_timeout;
+          display_time = time_us_32();
+          display_timeout_max = timeout_lookup[setting_word];
           break;
 
         case 1 : 
@@ -1333,11 +1336,11 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 7: 
-          setting = 0;
-          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting, ok);
-          if(setting==1) {
+          setting_word = 0;
+          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
+          if(setting_word==1) {
             upload_memory();
-          } else if (setting == 2) {
+          } else if (setting_word==2) {
             display_clear();
             display_print_str("Ready for\nfirmware",2, style_centered);
             display_show();
@@ -1347,7 +1350,7 @@ bool ui::configuration_menu(bool &ok)
       }
       if(done)
       {
-        setting = 0;
+        menu_selection = 0;
         ui_state = select_menu_item;
         return true;
       }
@@ -1361,12 +1364,12 @@ bool ui::main_menu(bool & ok)
 
     enum e_ui_state {select_menu_item, menu_item_active};
     static e_ui_state ui_state = select_menu_item;
-    static uint32_t setting = 0;
+    static uint32_t menu_selection = 0;
 
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1386,7 +1389,7 @@ bool ui::main_menu(bool & ok)
     else if(ui_state == menu_item_active)
     {
        bool done = false;
-       switch(setting)
+       switch(menu_selection)
         {
           case 0 :  
             done = frequency_entry("frequency", idx_frequency, ok);
@@ -1434,7 +1437,7 @@ bool ui::main_menu(bool & ok)
         }
         if(done)
         {
-          setting = 0;
+          menu_selection = 0;
           ui_state = select_menu_item;
           return true;
         }
@@ -1452,7 +1455,7 @@ void ui::do_ui()
 
     bool update_settings = false;
     bool autosave_settings = false;
-    enum e_ui_state {idle, menu, recall};
+    enum e_ui_state {idle, menu, recall, sleep};
     static e_ui_state ui_state = idle;
     static bool frequency_autosave_pending = false;
     static uint32_t frequency_autosave_time = 0;
@@ -1466,37 +1469,32 @@ void ui::do_ui()
       if(menu_button.is_pressed())
       {
         ui_state = menu;
+        display_time = time_us_32();
       }
       else if(encoder_button.is_pressed())
       {
         ui_state = recall;
+        display_time = time_us_32();
       }
 
       //adjust frequency when encoder is turned
       uint32_t encoder_change = get_encoder_change();
       if(encoder_change != 0)
       {
+        display_time = time_us_32();
 
         //very fast tuning
         if(menu_button.is_held() && back_button.is_held())
-        {
           settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-        }
         //fast tuning
         else if(menu_button.is_held())
-        {
           settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-        }
         //slow tuning
         else if(back_button.is_held())
-        {
           settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
-        }
         //normal tuning
         else
-        {
           settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
-        }
 
         //wrap frequency at band limits
         if (settings[idx_frequency] > settings[idx_max_frequency])
@@ -1536,9 +1534,22 @@ void ui::do_ui()
         autosave_settings = ok;
       }
     }
+    else if(ui_state == sleep)
+    {
+      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
+      {
+        display_time = time_us_32();
+        ssd1306_poweron(&disp);
+        ui_state = idle;
+      }
+    }
 
    //automatically switch off display after a period of inactivity
-   //if(!display_timeout(encoder_change, event)) return;
+   if(display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
+   {
+     ui_state = sleep;
+     ssd1306_poweroff(&disp);
+   }
 
    //autosave frequency only after is has been stable for 1 second
    if(frequency_autosave_pending)
@@ -1552,9 +1563,7 @@ void ui::do_ui()
 
    //autosave current settings to flash
    if(autosave_settings)
-   {
      autosave();
-   }
 
    //apply settings to receiver
    if(update_settings)

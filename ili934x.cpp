@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdio.h"
 #include "ili934x.h"
 #include "hardware/gpio.h"
+#include "hardware/dma.h"
 #include "pico/stdlib.h"
 #include <cstring>
 
@@ -62,12 +63,19 @@ ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t 
     _init_width = _width = width;
     _init_height = _height = height;
     _init_rotation = _rotation = rotation;
+
+    dma_tx = dma_claim_unused_channel(true);
+    dma_config = dma_channel_get_default_config(dma_tx);
+    channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
+    channel_config_set_dreq(&dma_config, spi_get_dreq(_spi, true));
+    channel_config_set_read_increment(&dma_config, true);
+    channel_config_set_write_increment(&dma_config, false);
 }
 
 void ILI934X::reset()
 {
     gpio_put(_rst, 0);
-    sleep_us(30);
+    sleep_us(100);
     gpio_put(_rst, 1);
 }
 
@@ -258,180 +266,46 @@ void ILI934X::drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint1
     }
 }
 
-void ILI934X::drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color)
-{
-    int16_t f = 1 - r;
-    int16_t ddF_x = 1;
-    int16_t ddF_y = -2 * r;
-    int16_t x = 0;
-    int16_t y = r;
+void ILI934X::drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint16_t fg, uint16_t bg) {
 
-    setPixel(x0, y0 + r, color);
-    setPixel(x0, y0 - r, color);
-    setPixel(x0 + r, y0, color);
-    setPixel(x0 - r, y0, color);
+    const uint8_t font_height = font[0];
+    const uint8_t font_width  = font[1];
+    const uint8_t font_space  = font[2];
+    const uint8_t first_char  = font[3];
+    const uint8_t last_char   = font[4];
+    const uint16_t bytes_per_char = font_width*font_height/8;
 
-    while (x < y)
+    if(c<first_char||c>last_char) return;
+
+    fillRect(x, y, font_height, font_width+font_space, bg);
+
+    uint16_t font_index = ((c-first_char)*bytes_per_char) + 5u;
+    uint8_t data = font[font_index++];
+    uint8_t bits_left = 8;
+
+    for(uint8_t xx = 0; xx<font_width; ++xx)
     {
-        if (f >= 0)
-        {
-            y--;
-            ddF_y += 2;
-            f += ddF_y;
+      for(uint8_t yy = 0; yy<font_height; ++yy)
+      {
+        if(data & 0x01){
+          setPixel(x+xx, y+yy, fg);
         }
-        x++;
-        ddF_x += 2;
-        f += ddF_x;
-
-        setPixel(x0 + x, y0 + y, color);
-        setPixel(x0 - x, y0 + y, color);
-        setPixel(x0 + x, y0 - y, color);
-        setPixel(x0 - x, y0 - y, color);
-        setPixel(x0 + y, y0 + x, color);
-        setPixel(x0 - y, y0 + x, color);
-        setPixel(x0 + y, y0 - x, color);
-        setPixel(x0 - y, y0 - x, color);
+        data >>= 1;
+        bits_left--;
+        if(bits_left == 0)
+        {
+          data = font[font_index++];
+          bits_left = 8;
+        }
+      }
     }
 }
 
-void ILI934X::blit(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t *bltBuf)
-{
-    uint16_t _w = MIN(_width - x, MAX(1, w));
-    uint16_t _h = MIN(_height - y, MAX(1, h));
-
-    uint16_t remaining = (uint16_t)((w * h) % _MAX_CHUNK_SIZE);
-    uint16_t written = 0;
-
-    uint16_t buffer[_MAX_CHUNK_SIZE];
-
-    for (uint16_t iy = 0; iy < _h; iy++)
-    {
-        for (uint16_t ix = 0; ix < _w; ix++)
-        {
-            uint16_t idx = ix + iy * w - written;
-            if (idx >= _MAX_CHUNK_SIZE)
-            {
-                _data((uint8_t *)buffer, _MAX_CHUNK_SIZE * 2);
-                written += _MAX_CHUNK_SIZE;
-                idx -= _MAX_CHUNK_SIZE;
-            }
-
-            buffer[idx] = bltBuf[ix + iy * w]; // get pixel from blt buffer
-        }
-    }
-
-    remaining = w * h - written;
-
-    if (remaining > 0)
-    {
-        _data((uint8_t *)buffer, remaining * 2);
-    }
-}
-
-void ILI934X::drawChar(uint16_t x, uint16_t y, char chr, uint16_t colour, const GFXfont *font)
-{
-    char c = chr - (uint8_t)pgm_read_byte(&font->first);
-    GFXglyph *glyph = font->glyph + c;
-    uint8_t *bitmap = font->bitmap;
-    uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
-    uint8_t w = pgm_read_byte(&glyph->width), h = pgm_read_byte(&glyph->height);
-    int8_t xo = pgm_read_byte(&glyph->xOffset),
-           yo = pgm_read_byte(&glyph->yOffset);
-    uint8_t xx, yy, bits = 0, bit = 0;
-
-    for (yy = 0; yy < h; yy++)
-    {
-        for (xx = 0; xx < w; xx++)
-        {
-            if (!(bit++ & 7))
-            {
-                bits = pgm_read_byte(&bitmap[bo++]);
-            }
-            if (bits & 0x80)
-            {
-                setPixel(x + xo + xx, y + yo + yy, colour);
-            }
-            bits <<= 1;
-        }
-    }
-}
-
-void ILI934X::charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy, GFXfont *font)
-{
-    bool wrap = false; // temp no wrap for now
-    if (c == '\n')     // Newline?
-    {
-        *x = 0; // Reset x to zero, advance y by one line
-        *y += 1 * (uint8_t)pgm_read_byte(&font->yAdvance);
-    }
-    else if (c != '\r') // Not a carriage return; is normal char
-    {
-        uint8_t first = pgm_read_byte(&font->first),
-                last = pgm_read_byte(&font->last);
-        if ((c >= first) && (c <= last)) // Char present in this font?
-        {
-            GFXglyph *glyph = font->glyph + (c - first);
-            uint8_t gw = pgm_read_byte(&glyph->width),
-                    gh = pgm_read_byte(&glyph->height),
-                    xa = pgm_read_byte(&glyph->xAdvance);
-            int8_t xo = pgm_read_byte(&glyph->xOffset),
-                   yo = pgm_read_byte(&glyph->yOffset);
-
-            if (wrap && ((*x + (((int16_t)xo + gw) * 1)) > _width))
-            {
-                *x = 0; // Reset x to zero, advance y by one line
-                *y += 1 * (uint8_t)pgm_read_byte(&font->yAdvance);
-            }
-            int16_t tsx = (int16_t)1, tsy = (int16_t)1,
-                    x1 = *x + xo * tsx, y1 = *y + yo * tsy, x2 = x1 + gw * tsx - 1,
-                    y2 = y1 + gh * tsy - 1;
-            if (x1 < *minx)
-            {
-                *minx = x1;
-            }
-            if (y1 < *miny)
-            {
-                *miny = y1;
-            }
-            if (x2 > *maxx)
-            {
-                *maxx = x2;
-            }
-            if (y2 > *maxy)
-            {
-                *maxy = y2;
-            }
-            *x += xa * tsx;
-        }
-    }
-}
-
-void ILI934X::textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, GFXfont *font)
-{
-    uint8_t c;                                                  // Current character
-    int16_t minx = 0x7FFF, miny = 0x7FFF, maxx = -1, maxy = -1; // Bound rect
-    // Bound rect is intentionally initialized inverted, so 1st char sets it
-
-    *x1 = x; // Initial position is value passed in
-    *y1 = y;
-    *w = *h = 0; // Initial size is zero
-
-    while ((c = *str++))
-    {
-        // charBounds() modifies x/y to advance for each character,
-        // and min/max x/y are updated to incrementally build bounding rect.
-        charBounds(c, &x, &y, &minx, &miny, &maxx, &maxy, font);
-    }
-
-    if (maxx >= minx)
-    {                         // If legit string bounds were found...
-        *x1 = minx;           // Update x1 to least X coord,
-        *w = maxx - minx + 1; // And w to bound rect width
-    }
-    if (maxy >= miny)
-    { // Same for height
-        *y1 = miny;
-        *h = maxy - miny + 1;
+void ILI934X::drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg) {
+    const uint8_t font_width  = font[1];
+    const uint8_t font_space  = font[2];
+    for(int32_t x_n=x; *s; x_n+=(font_width+font_space)) {
+        drawChar(x_n, y, font, *(s++), fg, bg);
     }
 }
 
@@ -467,12 +341,24 @@ void ILI934X::_write(uint8_t cmd, uint8_t *data, size_t dataLen)
 
 void ILI934X::_data(uint8_t *data, size_t dataLen)
 {
+
     gpio_put(_dc, 1);
     gpio_put(_cs, 0);
 
-    spi_write_blocking(_spi, data, dataLen);
+    while (!spi_is_writable(_spi))
+    {
+        sleep_us(1);
+    }
+    //dma_channel_configure(dma_tx, &dma_config,
+    //                      &spi_get_hw(_spi)->dr,
+    //                      data,
+    //                      dataLen,
+    //                      true);
 
+    spi_write_blocking(_spi, data, dataLen);
+    //dma_channel_wait_for_finish_blocking(dma_tx);
     gpio_put(_cs, 1);
+
 }
 
 void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data, size_t dataLen)
