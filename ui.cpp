@@ -236,9 +236,9 @@ static float find_nearest_tick(float dist)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display (original)
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display(rx_status & status, rx & receiver)
+void ui::renderpage_original(bool view_changed, rx_status & status, rx & receiver)
 {
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -289,9 +289,9 @@ void ui::update_display(rx_status & status, rx & receiver)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display2(rx_status & status, rx & receiver)
+void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver)
 {
 
   receiver.access(false);
@@ -314,9 +314,9 @@ void ui::update_display2(rx_status & status, rx & receiver)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with big waterfall
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display3(rx_status & status, rx & receiver)
+void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver)
 {
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -338,9 +338,9 @@ void ui::update_display3(rx_status & status, rx & receiver)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Home page status display
+// Home page status display with big simple text
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display4(rx_status & status, rx & receiver)
+void ui::renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver)
 {
 
   receiver.access(false);
@@ -408,13 +408,18 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display
 ////////////////////////////////////////////////////////////////////////////////
-void ui::update_display5(rx_status & status, rx & receiver)
+void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
 {
   static int degrees = 0;
   static int xm, ym;
+
   if (degrees == 0) {
     xm = rand()%10+1;
     ym = rand()%10;
+  }
+  if (view_changed) {
+    xm = ym = 5;
+    degrees = 0;
   }
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
@@ -938,7 +943,7 @@ bool ui::upload_memory()
 }
 
 //save current settings to memory
-bool ui::store()
+bool ui::memory_store()
 {
 
   //encoder loops through memories
@@ -1083,7 +1088,7 @@ bool ui::store()
 }
 
 //load a channel from memory
-bool ui::recall()
+bool ui::memory_recall()
 {
 
   //encoder loops through memories
@@ -1616,7 +1621,8 @@ void ui::do_ui(event_t event)
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
     static bool maybe_changeview = false;
-    static int view = 0;
+    static int current_view = 0;
+    static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
 
     if (!splash_done) {
@@ -1646,7 +1652,8 @@ void ui::do_ui(event_t event)
         {
           button_state = idle;
           if (maybe_changeview == true) {
-            view = (view+1) % NUM_VIEWS;
+            current_view = (current_view+1) % NUM_VIEWS;
+            view_changed = true;
             maybe_changeview = false;
           }
         } else if (event.tag == ev_button_menu_press)
@@ -1742,6 +1749,7 @@ void ui::do_ui(event_t event)
     //if button is pressed enter menu
     else if(button_state == menu)
     {
+      view_changed = true;
 
       //top level menu
       uint32_t setting = 0;
@@ -1754,11 +1762,11 @@ void ui::do_ui(event_t event)
           break;
 
         case 1:
-          rx_settings_changed = recall();
+          rx_settings_changed = memory_recall();
           break;
 
         case 2:
-          store();
+          memory_store();
           break;
 
         case 3 : 
@@ -1811,7 +1819,8 @@ void ui::do_ui(event_t event)
     }
     else if(event.tag == ev_button_push_press)
     {
-      rx_settings_changed = recall();
+      view_changed = true;
+      rx_settings_changed = memory_recall();
       autosave_settings = rx_settings_changed;
     }
 
@@ -1837,13 +1846,14 @@ void ui::do_ui(event_t event)
       receiver.release();
     }
     if (splash_done) {
-      switch (view) {
-        case 1: update_display2(status, receiver); break;
-        case 2: update_display3(status, receiver); break;
-        case 3: update_display4(status, receiver); break;
-        case 4: update_display5(status, receiver); break;
-        default: update_display(status, receiver); break;
+      switch (current_view) {
+        case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
+        case 2: renderpage_waterfall(view_changed, status, receiver); break;
+        case 3: renderpage_bigtext(view_changed, status, receiver); break;
+        case 4: renderpage_fun(view_changed, status, receiver); break;
+        default: renderpage_original(view_changed, status, receiver); break;
       }
+      view_changed = false;
     }
     rx_settings_changed = false;
 }

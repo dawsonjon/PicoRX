@@ -127,11 +127,11 @@ class ui
   // Status                  
   float calculate_signal_strength(rx_status &status);
 
-  void update_display(rx_status & status, rx & receiver);
-  void update_display2(rx_status & status, rx & receiver);
-  void update_display3(rx_status & status, rx & receiver);
-  void update_display4(rx_status & status, rx & receiver);
-  void update_display5(rx_status & status, rx & receiver);
+  void renderpage_original(bool view_changed, rx_status & status, rx & receiver);
+  void renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver);
+  void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
+  void renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver);
+  void renderpage_fun(bool view_changed, rx_status & status, rx & receiver);
   #define NUM_VIEWS 5
 
   int dBm_to_S(float power_dBm);
@@ -152,8 +152,8 @@ class ui
   bool frequency_entry(const char title[], uint32_t which_setting);
   int string_entry(char string[]);
   bool configuration_menu();
-  bool recall();
-  bool store();
+  bool memory_recall();
+  bool memory_store();
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
