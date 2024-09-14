@@ -1181,37 +1181,40 @@ bool ui::memory_recall()
       display_clear();
       display_print_str("Recall");
       display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+
+      const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+      display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
+      display_print_str(mode_ptr,1);
 
       display_print_str("\n", 1);
       if (12*strlen(name) > 128) {
         display_add_xy(0,4);
-        display_print_str(name,1,style_nowrap|style_centered);
+        display_print_str(name,1,style_nowrap);
       } else {
-        display_print_str(name,2,style_nowrap|style_centered);
+        display_print_str(name,2,style_nowrap);
       }
 
       //draw frequency
       display_set_xy(0,27);
-      display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
+      display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-//      ssd1306_fill_rectangle(&disp, 0, display_get_y()-3, power_s*127/12, 2, 1);
-
-      display_print_str("from: ", 1);
+      display_print_str("from:  ", 1);
       display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
-//      ssd1306_draw_line(&disp, 0, display_get_y()-2, power_s*127/12, display_get_y()-2, 1);
-
-      display_print_str("  To: ", 1);
+      display_print_str("  To:  ", 1);
       display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
 
-//      ssd1306_draw_line(&disp, 0, 63, power_s*127/12, 63, 1);
-      ssd1306_fill_rectangle(&disp, 0, 62, power_s*127/12, 2, 1);
+      int bar_len = power_s*62/12;
+// framed
+//      ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
+//      ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
 
-      ssd1306_fill_rectangle(&disp, 0, 0, power_s*127/12, 8, 2);
+//solid
+      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+
       display_show();
     }
 
