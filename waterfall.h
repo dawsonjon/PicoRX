@@ -10,7 +10,7 @@ class waterfall
   public:
   waterfall();
   ~waterfall();
-  void update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[]);
+  void update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10);
 
   private:
   uint16_t heatmap(uint8_t value, bool lighten = false, bool highlight = false);

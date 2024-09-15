@@ -12,10 +12,11 @@
 #define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
 
 uint8_t spectrum[256];
+uint8_t dB10=10;
 static rx_settings settings_to_apply;
 static rx_status status;
 static rx receiver(settings_to_apply, status);
-static ui user_interface(settings_to_apply, status,  receiver, spectrum);
+static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10);
 waterfall waterfall_inst;
 
 void core1_main()
@@ -38,8 +39,8 @@ int main()
     {
       last_ui_update = time_us_32();
       user_interface.do_ui();
-      receiver.get_spectrum(spectrum);
+      receiver.get_spectrum(spectrum, dB10);
     }
-    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum);
+    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
   }
 }

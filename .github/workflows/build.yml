@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches:    
-      - build
+      - master
 jobs:
   build:
     strategy:

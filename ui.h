@@ -37,8 +37,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_gain_cal 10
 #define idx_bandwidth 11
 #define idx_rx_features 12
+#define idx_oled_contrast 13  // values 0..15 get * 17 for set_contrast(0.255)
 
-//flags for HW settings
+// bit flags for HW settings in idx_hw_setup
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
@@ -46,7 +47,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_display_timeout 4
 #define mask_display_timeout (0x7 << flag_display_timeout)
 
-//flags for receiver features
+//flags for receiver features idx_rx_features
 #define flag_enable_auto_notch 0
 
 // define wait macros
@@ -61,8 +62,7 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_centered    (1<<1)
 #define style_right       (1<<2)
 #define style_nowrap      (1<<3)
-//#define style_bold        (1<<2)
-
+#define style_bordered    (1<<4)
 
 class ui
 {
@@ -73,8 +73,15 @@ class ui
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
-
-  int32_t last_select=0;
+  const char steps[10][8]  = {
+    "10Hz", "50Hz", "100Hz", "1kHz",
+    "5kHz", "10kHz", "12.5kHz", "25kHz",
+    "50kHz", "100kHz"};
+  const char smeter[13][12]  = {
+    "S0",          "S1|",         "S2-|",        "S3--|",
+    "S4---|",      "S5----|",     "S6-----|",    "S7------|",
+    "S8-------|",  "S9--------|", "S9+10dB---|", "S9+20dB---|",
+    "S9+30dB---|"};
 
   // Encoder 
   void setup_encoder();
@@ -95,20 +102,21 @@ class ui
   void display_clear(bool colour=0);
 
   void display_linen(uint8_t line);
-  void display_set_xy(uint16_t x, uint16_t y);
+  void display_set_xy(int16_t x, int16_t y);
   void display_add_xy(int16_t x, int16_t y);
   uint16_t display_get_x();
   uint16_t display_get_y();
 
   void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
-  void display_clear_str(uint32_t scale, bool colour);
+  void display_clear_str(uint32_t scale, bool colour=0);
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
-  void display_print_freq(uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+  void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
   int strchr_idx(const char str[], uint8_t c);
+  bool do_splash();
 
   ssd1306_t disp;
   uint16_t cursor_x = 0;   // pixels 0-127
@@ -118,7 +126,20 @@ class ui
 
   // Status                  
   float calculate_signal_strength(rx_status &status);
-  void update_display(rx_status & status, rx & receiver);
+
+  void renderpage_original(rx_status & status, rx & receiver);
+  void renderpage_bigspectrum(rx_status & status, rx & receiver);
+  void renderpage_waterfall(rx_status & status, rx & receiver);
+  void renderpage_bigtext(rx_status & status, rx & receiver);
+  void renderpage_fun(rx_status & status, rx & receiver);
+
+  int dBm_to_S(float power_dBm);
+  void log_spectrum(float *min, float *max);
+  void draw_h_tick_marks(uint16_t startY);
+  void draw_spectrum(uint16_t startY);
+  void draw_waterfall(uint16_t startY);
+  void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
+
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;
 
@@ -135,8 +156,8 @@ class ui
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok);
   bool frequency_entry(const char title[], uint32_t which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);
-  bool recall(bool &ok);
-  bool store(bool &ok);
+  bool memory_recall(bool &ok);
+  bool memory_store(bool &ok);
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
@@ -149,13 +170,15 @@ class ui
   rx_status &status;
   rx &receiver;
   uint8_t *spectrum;
+  uint8_t &dB10;
 
   public:
 
   void autorestore();
   void do_ui();
-  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum);
+  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10);
 
 };
 
+#include "logo.h"
 #endif

@@ -1,9 +1,15 @@
 #include <string.h>
+#include <float.h>
+#include <math.h>
+
 #include "pico/multicore.h"
 #include "ui.h"
 #include "fft_filter.h"
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
+
+#define WATERFALL_WIDTH (128)
+#define WATERFALL_MAX_VALUE (64)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
@@ -50,7 +56,7 @@ void ui::setup_display() {
   gpio_pull_up(PIN_DISPLAY_SDA);
   gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1); 
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
 
 void ui::display_clear(bool colour)
@@ -62,7 +68,7 @@ void ui::display_clear(bool colour)
 
 void ui::display_clear_str(uint32_t scale, bool colour)
 {
-  ssd1306_draw_square(&disp, 0, cursor_y, 128, 9*scale, colour);
+  ssd1306_fill_rectangle(&disp, 0, cursor_y, 128, 9*scale, colour);
 }
 
 void ui::display_linen(uint8_t line)
@@ -71,7 +77,7 @@ void ui::display_linen(uint8_t line)
   cursor_x = 0;
 }
 
-void ui::display_set_xy(uint16_t x, uint16_t y)
+void ui::display_set_xy(int16_t x, int16_t y)
 {
   cursor_x = x;
   cursor_y = y;
@@ -84,8 +90,7 @@ void ui::display_add_xy(int16_t x, int16_t y)
 }
 
 uint16_t ui::display_get_x() { return cursor_x; }
-
-uint16_t ui::display_get_y() { return cursor_y; };
+uint16_t ui::display_get_y() { return cursor_y; }
 
 void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
   // always draw top line
@@ -102,7 +107,7 @@ void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
     cursor_x = 0;
     cursor_y += 9*scale;
   }
@@ -121,6 +126,11 @@ int ui::strchr_idx(const char str[], uint8_t c) {
 
 void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
 {
+  int16_t box_x1 = INT16_MAX;
+  int16_t box_y1 = INT16_MAX;
+  int16_t box_x2 = INT16_MIN;
+  int16_t box_y2 = INT16_MIN;
+
   bool colour = !(style&style_reverse);
   int next_ln;
   unsigned int length;
@@ -130,11 +140,11 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   // if found, compute length of string, if not, length to end of str
   length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
 
-  if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+  if (style & style_centered) {
     cursor_x = (128- 6*scale*length)/2;
   }
-  if ( (style & style_right) && (length < (128/(6*scale))) ) {
-    cursor_x = (128- 6*scale*length);
+  if (style & style_right) {
+    cursor_x = (128 - 6*scale*length);
   }
 
   for (size_t i=0; i<strlen(str); i++) {
@@ -146,9 +156,9 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       next_ln = strchr_idx( &str[i+1], '\n');
       length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
 
-      if ( (style & style_centered) && (length < (128/(6*scale))) ) {
+      if (style & style_centered) {
         cursor_x = (128- 6*scale*length)/2;
-      } else if ( (style & style_right) && (length < (128/(6*scale))) ) {
+      } else if (style & style_right) {
         cursor_x = (128- 6*scale*length);
       } else {
         cursor_x = 0;
@@ -156,12 +166,24 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_y += 9*scale;
       continue;
     }
-    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*scale)) {
+    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
       cursor_x = 0;
       cursor_y += 9*scale;
     }
     ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+    if (style&style_bordered) {
+      if (cursor_x < box_x1) box_x1=cursor_x;
+      if (cursor_y < box_y1) box_y1=cursor_y;
+      if ((signed)(cursor_x + 5*scale) > box_x2) box_x2 = (cursor_x + 5*scale);
+      if ((signed)(cursor_y + 8*scale) > box_y2) box_y2 = (cursor_y + 8*scale);
+    }
     cursor_x += 6*scale;
+  }
+  if (style&style_bordered) {
+    // text, black, white, black
+    ssd1306_draw_rectangle(&disp, box_x1-1, box_y1-1, box_x2-box_x1+1, box_y2-box_y1+1, 1-colour);
+    ssd1306_draw_rectangle(&disp, box_x1-2, box_y1-2, box_x2-box_x1+3, box_y2-box_y1+3, colour);
+    ssd1306_draw_rectangle(&disp, box_x1-3, box_y1-3, box_x2-box_x1+5, box_y2-box_y1+5, 1-colour);
   }
 }
 
@@ -172,7 +194,7 @@ void ui::display_print_num(const char format[], int16_t num, uint32_t scale, uin
   display_print_str(buff, scale, style);
 }
 
-void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
+void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, uint32_t style)
 {
   char buff[16];
   const int32_t MHz = frequency / 1000000;
@@ -180,7 +202,7 @@ void ui::display_print_freq(uint32_t frequency, uint32_t scale, uint32_t style)
   const int32_t kHz = frequency / 1000;
   frequency %= 1000;
   const int32_t Hz = frequency;
-  snprintf(buff, 16, "%2ld,%03ld,%03ld", MHz, kHz, Hz);
+  snprintf(buff, 16, "%2ld%c%03ld%c%03ld", MHz, separator, kHz, separator, Hz);
   display_print_str(buff, scale, style);
 }
 
@@ -189,12 +211,28 @@ void ui::display_show()
   ssd1306_show(&disp);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Generic Menu Options
-////////////////////////////////////////////////////////////////////////////////
-void ui::update_display(rx_status & status, rx & receiver)
-{
+//static float find_nearest_tick(float dist)
+//{
+//  const float ticks[] = {10.0f, 5.0f, 2.0f, 1.0f, 0.5f, 0.2f, 0.1f, 0.05f, 0.02f, 0.01f};
+//  float min_dist = fabsf(dist - ticks[0]);
+//  float min_tick = ticks[0];
+//
+//  for(size_t i = 1; i < sizeof(ticks) / sizeof(ticks[0]); i++)
+//  {
+//    if(fabsf(dist - ticks[i]) < min_dist)
+//    {
+//      min_dist = fabsf(dist - ticks[i]);
+//      min_tick = ticks[i];
+//    }
+//  }
+//  return min_tick;
+//}
 
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display (original)
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_original(rx_status & status, rx & receiver)
+{
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -204,7 +242,8 @@ void ui::update_display(rx_status & status, rx & receiver)
   const float busy_time = ((float)status.busy_time*1e-6f);
   receiver.release();
 
-  char buff [21];
+  const uint8_t buffer_size = 21;
+  char buff [buffer_size];
   display_clear();
 
   //frequency
@@ -214,54 +253,210 @@ void ui::update_display(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  snprintf(buff, 21, "%2lu.%03lu", MHz, kHz);
-  ssd1306_draw_string(&disp, 0, 0, 2, buff, 1);
-  snprintf(buff, 21, ".%03lu", Hz);
-  ssd1306_draw_string(&disp, 72, 0, 1, buff, 1);
+  display_set_xy(0,0);
+  snprintf(buff, buffer_size, "%2lu.%03lu", MHz, kHz);
+  display_print_str(buff,2);
+  snprintf(buff, buffer_size, ".%03lu", Hz);
+  display_print_str(buff,1);
 
   //mode
-  ssd1306_draw_string(&disp, 102, 0, 1, modes[settings[idx_mode]], 1);
+  display_print_str(modes[settings[idx_mode]],1, style_right);
 
   //step
-  static const char steps[][8]  = {
-    "   10Hz", "   50Hz", "  100Hz", "   1kHz",
-    "   5kHz", "  10kHz", "12.5kHz", "  25kHz", 
-    "  50kHz", " 100kHz"};
-  ssd1306_draw_string(&disp, 78, 8, 1, steps[settings[idx_step]], 1);
+  display_set_xy(0,8);
+  display_print_str(steps[settings[idx_step]],1, style_right);
 
   //signal strength/cpu
-  static const char smeter[][12]  = {
-    "S0         ", "S1|        ", "S2-|       ", "S3--|      ", 
-    "S4---|     ", "S5----|    ", "S6-----|   ", "S7------|  ", 
-    "S8-------| ", "S9--------|", "S9+10dB---|", "S9+20dB---|", 
-    "S9+30dB---|"};
-  int8_t power_s = floorf((power_dBm-S0)/6.0f);
+  int8_t power_s = dBm_to_S(power_dBm);
+
+  display_set_xy(0,24);
+  display_print_str(smeter[power_s],1);
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+
+  snprintf(buff, buffer_size, "%2.1fV %2.0f%cC %3.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
+  display_set_xy(0,16);
+  display_print_str(buff, 1, style_right);
+
+  draw_spectrum(32);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display with bigger spectrum view
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
+{
+  display_clear();
+  draw_slim_status(0, status, receiver);
+  draw_spectrum(8);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display with big waterfall
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_waterfall(rx_status & status, rx & receiver)
+{
+  display_clear();
+  draw_slim_status(0, status, receiver);
+  draw_waterfall(8);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display with big simple text
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_bigtext(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_clear();
+  display_set_xy(0,0);
+  display_print_freq('.', settings[idx_frequency],2,style_centered);
+
+  display_set_xy(0,24);
+  //mode and step size
+  display_print_str(modes[settings[idx_mode]],2);
+  display_print_str(steps[settings[idx_step]], 2, style_right);
+
+  //signal strength
+  display_set_xy(0,48);
+  int8_t power_s = dBm_to_S(power_dBm);
+
+  display_print_str(smeter[power_s],2);
+
+  display_show();
+}
+
+void ui::renderpage_fun(rx_status & status, rx & receiver)
+{
+  static int degrees = 0;
+  static int xm, ym;
+
+  if (degrees == 0) {
+    xm = rand()%10+1;
+    ym = rand()%10;
+  }
+  display_clear();
+  ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
+  ssd1306_scroll_screen(&disp, 40*cos(xm*M_PI*degrees/180), 20*sin(ym*M_PI*degrees/180));
+  display_show();
+  if ((degrees+=3) >=360) degrees = 0;
+}
+
+// Draw a slim 8 pixel status line
+void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
+{
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  display_set_xy(0,y);
+  display_print_freq(',', settings[idx_frequency],1);
+  display_add_xy(4,0);
+
+  //mode
+  display_print_str(modes[settings[idx_mode]],1);
+
+  //signal strength dBm
+  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+}
+
+int ui::dBm_to_S(float power_dBm) {
+  int power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
-  snprintf(buff, 21, "%s  % 4.0fdBm", smeter[power_s], power_dBm);
-  ssd1306_draw_string(&disp, 0, 24, 1, buff, 1);
-  snprintf(buff, 21, "       %2.1fV %2.0f%cC %2.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
-  ssd1306_draw_string(&disp, 0, 16, 1, buff, 1);
+  return (power_s);
+}
 
+void ui::draw_h_tick_marks(uint16_t startY)
+{
+  // tick marks at startY
+  ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
+
+  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+
+  ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
+  ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Paints the spectrum from startY to bottom of screen
+////////////////////////////////////////////////////////////////////////////////
+void ui::draw_spectrum(uint16_t startY)
+{
   //Display spectrum capture
-  ssd1306_draw_line(&disp, 0, 34, 127, 34, 1);
-
-  ssd1306_draw_line(&disp, 0,   32, 0,   36, 1);
-  ssd1306_draw_line(&disp, 64,  32, 64,  36, 1);
-  ssd1306_draw_line(&disp, 127, 32, 127, 36, 1);
-
-  ssd1306_draw_line(&disp, 32, 33, 32, 35, 1);
-  ssd1306_draw_line(&disp, 96, 33, 96, 35, 1);
+  draw_h_tick_marks(startY);
 
   //plot
+  const uint8_t max_height = (64-startY-3);
+  const uint8_t scale = 256/max_height;
   for(uint16_t x=0; x<128; x++)
   {
-      int16_t y = spectrum[x*2]/10;
-      ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
+    int16_t y = spectrum[x*2]/scale;
+    ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
   }
 
-  ssd1306_show(&disp);
+
+  for (int16_t y = 0; y < max_height; y += ((uint16_t)4*dB10/scale))
+  {
+    for (uint8_t x = 0; x < 128; x += 4)
+    {
+      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+    }
+  }
+}
+
+void ui::draw_waterfall(uint16_t starty)
+{
+  static int8_t tmp_line[WATERFALL_WIDTH];
+  static int8_t curr_line[WATERFALL_WIDTH];
+
+  // Move waterfall down to  make room for the new line
+  ssd1306_scroll_screen(&disp, 0, 1);
+
+  int16_t err = 0;
+
+  for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
+  {
+      int16_t y = spectrum[2*x];
+      curr_line[x] = y + tmp_line[x];
+      tmp_line[x] = 0;
+  }
+
+  for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
+  {
+      // Simple Floyd-Steinberg dithering
+      if(curr_line[x] > 127)
+      {
+        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
+        err = curr_line[x] - 255;
+      } else {
+        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
+        err = curr_line[x] - 0;
+      }
+
+      if(x < (WATERFALL_WIDTH - 1))
+      {
+        curr_line[x + 1] += 7 * err / 16;
+        tmp_line[x + 1] += err / 16;
+      }
+      tmp_line[x] += 5 * err / 16;
+      if(x > 0)
+      {
+        tmp_line[x - 1] += 3 * err / 16;
+      }
+  }
+
+  draw_h_tick_marks(starty);
 
 }
 
@@ -284,7 +479,7 @@ void ui::print_enum_option(const char options[], uint8_t option){
           if (!splits[num_splits]) break;
   }
 
-  if ( (num_splits==2) && strlen(splits[0])+strlen(splits[1]+1) < 128/12) {
+  if ( (num_splits==2) && (strlen(splits[0])+strlen(splits[1]))*12 < 128) {
     display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
     display_print_str(" ");
     display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
@@ -448,6 +643,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
+  settings_to_apply.oled_contrast = settings[idx_oled_contrast];
   receiver.release();
 }
 
@@ -591,6 +787,7 @@ void ui::autorestore()
   display_time = time_us_32();
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
+  ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
 
 }
 
@@ -673,13 +870,13 @@ bool ui::upload_memory()
 }
 
 //save current settings to memory
-bool ui::store(bool &ok)
+bool ui::memory_store(bool &ok)
 {
 
   //encoder loops through memories
   const int32_t min = 0;
   const int32_t max = num_chans-1;
-  static int32_t select=last_select;
+  static int32_t select = 0;
   static char name[17];
 
   enum e_frequency_state{select_channel, enter_name, delete_channel, save_channel};
@@ -835,7 +1032,7 @@ bool ui::store(bool &ok)
 }
 
 //load a channel from memory
-bool ui::recall(bool &ok)
+bool ui::memory_recall(bool &ok)
 {
 
   //encoder loops through memories
@@ -956,13 +1153,13 @@ bool ui::recall(bool &ok)
 
     //draw frequency
     display_set_xy(0,27);
-    display_print_freq(radio_memory[select][idx_frequency], 2, style_centered);
+    display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
     display_print_str("\n",2);
     display_print_str("from: ", 1);
-    display_print_freq(radio_memory[select][idx_min_frequency], 1);
+    display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
     display_print_str(" Hz\n",1);
     display_print_str("  To: ", 1);
-    display_print_freq(radio_memory[select][idx_max_frequency], 1);
+    display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
     display_print_str(" Hz\n",1);
     display_show();
   }
@@ -1275,7 +1472,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1335,9 +1532,14 @@ bool ui::configuration_menu(bool &ok)
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
-        case 7: 
+        case 7:
+          done = number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast], ok);
+          ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+          break;
+
+        case 8: 
           setting_word = 0;
-          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
+          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
           if(setting_word==1) {
             upload_memory();
           } else if (setting_word==2) {
@@ -1395,10 +1597,10 @@ bool ui::main_menu(bool & ok)
             done = frequency_entry("frequency", idx_frequency, ok);
             break;
           case 1 : 
-            done = recall(ok);
+            done = memory_recall(ok);
             break;
           case 2 : 
-            done = store(ok); 
+            done = memory_store(ok); 
             break;
           case 3 :  
             done = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume], ok);
@@ -1448,6 +1650,50 @@ bool ui::main_menu(bool & ok)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// This is the startup animation
+////////////////////////////////////////////////////////////////////////////////
+bool ui::do_splash()
+{
+  static int step=0;
+  if (step++ >= 20) {  // we're done
+    step = 0;
+    return true;
+  }
+
+  display_clear();
+  ssd1306_bmp_show_image(&disp, crystal, 1086);
+
+  int i=-1;
+#if 0
+// zoom in
+       if (step <= 5) i=0;        // image for 3 tenths
+  else if (step <= 7) i=step-5;
+  else if (step <= 12) i=3;
+  else if (step <= 18) i=step-7;
+
+#else
+// zoom out
+       if (step <= 6) i=10-step;
+  else if (step <= 11) i=3;
+  else if (step <= 13) i=14-step;
+  else if (step <= 18) i=0;
+
+#endif
+
+  if (i==0) {
+    // do nothing, leave the bitmap
+  } else if (i>0) {
+    display_set_xy(0,(64-i*8)/2); // disp height - text height /2
+    display_print_str("PicoRX",i,style_centered|style_nowrap|style_bordered);
+  } else if (i==-1) {
+    display_clear();
+  }
+  display_show();
+  return false;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
 void ui::do_ui()
@@ -1455,14 +1701,25 @@ void ui::do_ui()
 
     bool update_settings = false;
     bool autosave_settings = false;
-    enum e_ui_state {idle, menu, recall, sleep};
-    static e_ui_state ui_state = idle;
+    enum e_ui_state {splash, idle, menu, recall, sleep};
+    static e_ui_state ui_state = splash;
     static bool frequency_autosave_pending = false;
     static uint32_t frequency_autosave_time = 0;
+    static uint8_t display_option = 0;
+    const uint8_t num_display_options = 5;
     
     
     //gui is idle, just update the display
-    if(ui_state == idle)
+    if(ui_state == splash)
+    {
+      if(do_splash())
+        ui_state = idle;
+      if(menu_button.is_pressed()||encoder_button.is_pressed()||back_button.is_pressed())
+        ui_state = idle;
+    }
+
+    //gui is idle, just update the display
+    else if(ui_state == idle)
     {
 
       //launch menu or recall
@@ -1475,6 +1732,11 @@ void ui::do_ui()
       {
         ui_state = recall;
         display_time = time_us_32();
+      }
+      else if(back_button.is_pressed())
+      {
+        display_option++;
+        if(display_option==num_display_options) display_option=0u;
       }
 
       //adjust frequency when encoder is turned
@@ -1508,7 +1770,15 @@ void ui::do_ui()
         frequency_autosave_time = time_us_32();
 
       }
-      update_display(status, receiver);
+      
+      switch(display_option)
+      {
+        case 0: renderpage_original(status, receiver);break;
+        case 1: renderpage_bigspectrum(status, receiver);break;
+        case 2: renderpage_waterfall(status, receiver);break;
+        case 3: renderpage_bigtext(status, receiver);break;
+        case 4: renderpage_fun(status, receiver);break;
+      }
     }
 
     //menu is active, if menu completes update settings
@@ -1527,7 +1797,7 @@ void ui::do_ui()
     else if(ui_state == recall)
     {
       bool ok = false;
-      if(ui::recall(ok))
+      if(ui::memory_recall(ok))
       {
         ui_state = idle;
         update_settings = ok;
@@ -1584,15 +1854,17 @@ void ui::do_ui()
 
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum) : 
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10) : 
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
   settings_to_apply(settings_to_apply),
   status(status), 
   receiver(receiver), 
-  spectrum(spectrum)
+  spectrum(spectrum),
+  dB10(dB10)
 {
   setup_display();
   setup_encoder();
 }
+

@@ -27,6 +27,7 @@ struct rx_settings
   uint8_t bandwidth;
   uint16_t cw_sidetone_Hz;
   uint16_t gain_cal;
+  uint8_t oled_contrast;
   bool suspend;
   bool swap_iq;
   bool enable_auto_notch;
@@ -94,7 +95,7 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
-  void get_spectrum(uint8_t spectrum[]);
+  void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
   rx_settings &settings_to_apply;
   rx_status &status;
   rx_dsp rx_dsp_inst;

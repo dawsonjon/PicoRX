@@ -39,7 +39,7 @@ Pi Pico Rx is currently at the experimental prototyping stage, but it does work.
 Getting the Code
 ----------------
 
-You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonjon/PicoRX/raw/master/build/picorx.uf2). If you want to build from the C++ source files, follow these instructions.
+You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonjon/PicoRX/actions?query=is%3Acompleted). If you want to build from the C++ source files, follow these instructions.
 
 ```
   sudo apt install git

@@ -165,9 +165,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(uint8_t spectrum[])
+void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10)
 {
-  rx_dsp_inst.get_spectrum(spectrum);
+  rx_dsp_inst.get_spectrum(spectrum, dB10);
 }
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)

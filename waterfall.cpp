@@ -136,7 +136,7 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     return display->colour565(r,g,b);
 }
 
-void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[])
+void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10)
 {
 
     const uint16_t waterfall_height = 100u;
@@ -202,7 +202,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
       //draw scope one bar at a time
 
-      uint8_t data_point = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/318;
+      uint8_t data_point = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
       uint16_t vline[scope_height];
   
       const int16_t fbin = scope_col-128;
@@ -214,7 +214,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
       for(uint8_t row=0; row<scope_height; ++row)
       {
-        const bool row_is_tick = row%40 == 0;
+        const bool row_is_tick = (row%(4*scope_height*dB10/270)) == 0;
         if(row < data_point)
         {
           vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband);

@@ -469,7 +469,7 @@ s_filter_control rx_dsp :: get_filter_config()
   return capture_filter_control;
 }
 
-void rx_dsp :: get_spectrum(uint8_t spectrum[])
+void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
 {
 
   //FFT and magnitude
@@ -488,8 +488,8 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[])
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  max=max - (max >> 3) + (new_max >> 3);
-  min=min - (min >> 3) + (new_min >> 3);
+  max=max - (max >> 1) + (new_max >> 1);
+  min=min - (min >> 1) + (new_min >> 1);
   const float logmin = log10f(min);
   const float logmax = log10f(std::max(max, lowest_max));
 
@@ -522,5 +522,8 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[])
     f++;
   }
   sem_release(&spectrum_semaphore);
+
+  //number steps representing 10dB
+  dB10 = 256/(2*logf(max/min));
 
 }
