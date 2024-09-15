@@ -1100,7 +1100,7 @@ bool ui::memory_recall()
 
       get_memory_name(name, select, true);
 
-      //(temporarily) apply lodaed settings to RX
+      //(temporarily) apply loaded settings to RX
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = radio_memory[select][i];
       }
