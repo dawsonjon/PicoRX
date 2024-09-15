@@ -1128,7 +1128,7 @@ bool ui::memory_recall()
       display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      display_print_str("from:  ", 1);
+      display_print_str("From:  ", 1);
       display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
@@ -1167,7 +1167,7 @@ bool ui::memory_recall()
   }
 }
 
-//load a channel from memory
+// Scan across the stored memories
 bool ui::memory_scan()
 {
 
@@ -1320,6 +1320,142 @@ bool ui::memory_scan()
     }
   }
 }
+
+// Scan across the frequency band
+bool ui::frequency_scan()
+{
+  bool draw_once = true;
+
+  int scan_speed = 0;
+  uint32_t last_time = 0;
+  uint32_t now_time = 0;
+
+  int32_t pos_change = 0;
+  float power_dBm;
+  float last_power_dBm = FLT_MAX;
+  int8_t power_s = 0;
+
+  //remember where we were incase we need to cancel
+  uint32_t stored_settings[settings_to_store];
+  for(uint8_t i=0; i<settings_to_store; i++){
+    stored_settings[i] = settings[i];
+  }
+
+  while(1){
+    // grab power
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    if (power_dBm != last_power_dBm) {
+      //signal strength as an int 0..12
+      power_s = dBm_to_S(power_dBm);
+      draw_once = true;
+      last_power_dBm = power_dBm;
+    }
+
+    pos_change = get_encoder_change();
+    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+
+    now_time = to_ms_since_boot(get_absolute_time());
+    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+      last_time = now_time;
+      pos_change = scan_speed/abs(scan_speed);
+
+      //update frequency 
+      settings[idx_frequency] += pos_change * step_sizes[settings[idx_step]];
+
+      if (settings[idx_frequency] > settings[idx_max_frequency])
+          settings[idx_frequency] = settings[idx_min_frequency];
+
+      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+    }
+
+    //render the page
+    if (pos_change != 0 || draw_once) {
+      draw_once = false;
+      display_clear();
+      display_print_str("Scanner");
+
+      const char *p = steps[settings[idx_step]];
+      uint16_t x_center = (display_get_x()+120-24)/2;
+      display_set_xy(x_center - 6*strlen(p)/2, 0);
+      display_print_str(p ,1 );
+
+      // print mode
+      const char* mode_ptr = modes[settings[idx_mode]];
+      display_set_xy(120-6*strlen(mode_ptr), display_get_y());
+      display_print_str(mode_ptr);
+      display_print_str("\n");
+
+      //frequency
+      display_print_freq('.', settings[idx_frequency],2);
+      display_print_str("\n",2);
+
+      display_print_str("From:  ", 1);
+      display_print_freq(',', settings[idx_min_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      display_print_str("  To:  ", 1);
+      display_print_freq(',', settings[idx_max_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      //draw scanning speed
+      display_set_xy(0,48);
+      display_print_str("Speed",2);
+      uint16_t xpos = 84; // single char centred
+      uint16_t ypos = display_get_y();
+
+      if (scan_speed >= 1 ) {
+        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PLAY, 1);
+        if (scan_speed >= 2 ) {
+          for ( int i=1; i<scan_speed; i++) {
+            ssd1306_draw_char(&disp, xpos+6*i, ypos, 2, '>', 2);
+          }
+        }
+      }
+      if (scan_speed == 0 ) {
+        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PAUSE, 2);
+      }
+      if (scan_speed <= -1 ) {
+        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_REVPLAY, 1);
+        if (scan_speed <= -2 ) {
+          for ( int i = -1; i>scan_speed; i--) {
+            ssd1306_draw_char(&disp, xpos-2 + 6*i, ypos, 2, '<', 2);
+          }
+        }
+      }
+
+      // draw vertical signal strength
+      int bar_len = power_s*62/12;
+      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+
+      display_show();
+    }
+
+    event_t ev = event_get();
+
+    if(ev.tag == ev_button_push_press){
+      scan_speed=0;
+    }
+
+    if(ev.tag == ev_button_menu_press){
+      return 1;
+    }
+
+    //cancel
+    if(ev.tag == ev_button_back_press){
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
+      }
+      apply_settings(false);
+      return 0;
+    }
+  }
+}
+
 
 int ui::get_memory_name(char* name, int select, bool strip_spaces)
 {
@@ -1694,6 +1830,34 @@ bool ui::configuration_menu()
 
 }
 
+bool ui::scanner_menu()
+{
+  bool rx_settings_changed=false;
+  uint32_t setting = 0;
+
+  while (1) {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+
+      if(!menu_entry("Scan", "Memories#Frequency\nRamge#", &setting)) return 1;
+      switch(setting)
+      {
+        case 0: 
+          rx_settings_changed |= memory_scan();
+          break;
+
+        case 1 : 
+          rx_settings_changed |= frequency_scan();
+          break;
+      }
+  }
+
+  return rx_settings_changed;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the startup animation
 ////////////////////////////////////////////////////////////////////////////////
@@ -1996,8 +2160,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 13 : 
-          rx_settings_changed |= memory_scan();
-//TODO    rx_settings_changed |= scanner_menu();
+          rx_settings_changed |= scanner_menu();
           break;
 
         case 14 : 
