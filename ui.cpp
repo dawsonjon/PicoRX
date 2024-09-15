@@ -1485,14 +1485,21 @@ bool ui::display_timeout(bool encoder_change, event_t event)
 
 bool ui::configuration_menu()
 {
-      bool rx_settings_changed=false;
-      uint32_t setting = 0;
+  bool rx_settings_changed=false;
+  uint32_t setting = 0;
+
+  while (1) {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+
       if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
         case 0: 
           setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
+          rx_settings_changed |= enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
           display_timer = timeout_lookup[setting];
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting << flag_display_timeout;
@@ -1505,29 +1512,29 @@ bool ui::configuration_menu()
           break;
 
         case 2 : 
-          rx_settings_changed = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
         case 3 : 
-          rx_settings_changed = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
         case 4: 
-          rx_settings_changed = number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          rx_settings_changed |= number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
           break;
 
         case 5: 
-          rx_settings_changed = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
         case 6: 
-          rx_settings_changed = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
+          rx_settings_changed |= bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
         case 7:
-          rx_settings_changed = number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
+          rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
           ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
           break;
 
@@ -1544,8 +1551,9 @@ bool ui::configuration_menu()
           }
           break;
       }
+  }
 
-      return rx_settings_changed;
+  return rx_settings_changed;
 
 }
 
@@ -1614,7 +1622,8 @@ void ui::do_ui(event_t event)
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
 
-    //update frequency if encoder changes
+    // compute the complex button interactions on the home page
+    // that will later be used for live freq changes and home page selection
     switch(button_state)
     {
       case idle:
@@ -1676,6 +1685,7 @@ void ui::do_ui(event_t event)
         break;
     }
 
+    //update frequency if encoder changes
     if(encoder_change != 0)
     {
       maybe_changeview = false;
@@ -1731,71 +1741,7 @@ void ui::do_ui(event_t event)
     else if(button_state == menu)
     {
       view_changed = true;
-
-      //top level menu
-      uint32_t setting = 0;
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) return;
-
-      switch(setting)
-      {
-        case 0 : 
-          rx_settings_changed = frequency_entry("frequency", idx_frequency);
-          break;
-
-        case 1:
-          rx_settings_changed = memory_recall();
-          break;
-
-        case 2:
-          memory_store();
-          break;
-
-        case 3 : 
-          rx_settings_changed = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
-          break;
-
-        case 4 : 
-          rx_settings_changed = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
-          break;
-
-        case 5 :
-          rx_settings_changed = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
-          break;
-
-        case 6 :
-          rx_settings_changed = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
-          break;
-
-        case 7 :
-          rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
-          break;
-
-        case 8 : 
-          rx_settings_changed = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
-          break;
-
-        case 9 : 
-          rx_settings_changed = frequency_entry("Band Start", idx_min_frequency);
-          break;
-
-        case 10 : 
-          rx_settings_changed = frequency_entry("Band Stop", idx_max_frequency);
-          break;
-
-        case 11 : 
-          rx_settings_changed = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
-          settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
-          break;
-
-        case 12 : 
-          rx_settings_changed = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
-          break;
-
-        case 13 : 
-          rx_settings_changed = configuration_menu();
-          break;
-
-      }
+      rx_settings_changed = top_menu(settings_to_apply);
       autosave_settings = rx_settings_changed;
     }
     else if(event.tag == ev_button_push_press)
@@ -1826,6 +1772,8 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       receiver.release();
     }
+
+
     if (splash_done) {
       switch (current_view) {
         case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
@@ -1837,6 +1785,85 @@ void ui::do_ui(event_t event)
       view_changed = false;
     }
     rx_settings_changed = false;
+}
+
+// top level menu selection and launch
+bool ui::top_menu(rx_settings & settings_to_apply)
+{
+  bool rx_settings_changed = false;
+  uint32_t setting = 0;
+
+  while (1)
+  {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) 
+        return false;
+
+      switch(setting)
+      {
+        case 0 : 
+          rx_settings_changed |= frequency_entry("frequency", idx_frequency);
+          break;
+
+        case 1:
+          // we quit menu if they selected something
+          if (memory_recall()) return true;
+          break;
+
+        case 2:
+          memory_store();
+          break;
+
+        case 3 : 
+          rx_settings_changed |= number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+          break;
+
+        case 4 : 
+          rx_settings_changed |= enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
+          break;
+
+        case 5 :
+          rx_settings_changed |= enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
+          break;
+
+        case 6 :
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+          break;
+
+        case 7 :
+          rx_settings_changed |= enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+          break;
+
+        case 8 : 
+          rx_settings_changed |= bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
+          break;
+
+        case 9 : 
+          rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
+          break;
+
+        case 10 : 
+          rx_settings_changed |= frequency_entry("Band Stop", idx_max_frequency);
+          break;
+
+        case 11 : 
+          rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
+          settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
+          break;
+
+        case 12 : 
+          rx_settings_changed |= number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
+          break;
+
+        case 13 : 
+          rx_settings_changed |= configuration_menu();
+          break;
+      }
+  }
+  return rx_settings_changed;
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : settings_to_apply(settings_to_apply), status(status), receiver(receiver)
