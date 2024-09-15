@@ -155,7 +155,8 @@ class ui
   int string_entry(char string[]);
   bool top_menu(rx_settings & settings_to_apply);
   bool configuration_menu();
-  bool memory_recall(bool do_scanning);
+  bool memory_recall();
+  bool memory_scan();
   bool memory_store();
   int get_memory_name(char* name, int select, bool strip_spaces);
 

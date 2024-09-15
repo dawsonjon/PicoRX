@@ -270,7 +270,11 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, int32_t x, int32_t y, uint32_t sc
     if(c<font[3]||c>font[4])
         return;
 
-    ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, !colour);
+    if (colour == 1) {
+        ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 0);
+    } else if (colour == 0) {
+        ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 1);
+    }
 
     uint32_t parts_per_line=(font[0]>>3)+((font[0]&7)>0);
     for(uint8_t w=0; w<font[1]; ++w) { // width
