@@ -7,8 +7,8 @@
 #include "hardware/spi.h"
 #include "fft_filter.h"
 #include "ili934x.h"
-#include "font_Ubuntu_16x12.h"
-#include "font_Ubuntu_8x6.h"
+#include "font_16x12.h"
+#include "font_8x5.h"
 
 waterfall::waterfall()
 {
@@ -60,13 +60,13 @@ waterfall::waterfall()
         display->drawLine(32+fbin, 122, 32+fbin, 123, COLOUR_WHITE);
       }
     }
-    display->drawString(29,  127, font_Ubuntu_8x6, "-15", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(70,  127, font_Ubuntu_8x6, "-10", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(111, 127, font_Ubuntu_8x6, "-5", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(154, 127, font_Ubuntu_8x6, "-0", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(199, 127, font_Ubuntu_8x6, "5", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(238, 127, font_Ubuntu_8x6, "10", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(279, 127, font_Ubuntu_8x6, "15", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(29,  127, font_8x5, "-15", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(70,  127, font_8x5, "-10", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(111, 127, font_8x5, "-5", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(154, 127, font_8x5, "-0", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(199, 127, font_8x5, "5", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(238, 127, font_8x5, "10", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(279, 127, font_8x5, "15", COLOUR_WHITE, COLOUR_BLACK);
 }
 
 waterfall::~waterfall()
@@ -260,7 +260,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       {
         char buffer[20];
         snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
-        display->drawString(100, 0, font_Ubuntu_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        display->drawString(100, 0, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
         lastMHz = MHz;
         lastkHz = kHz;
         lastHz = Hz;

@@ -112,7 +112,13 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_y += 9*scale;
   }
 
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, x, !(style&style_reverse) );
+  if(scale==1){
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, x, !(style&style_reverse));
+  } else {
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, x, !(style&style_reverse));
+  }
+
+  //ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, x, !(style&style_reverse) );
   cursor_x += (6*scale);
 }
 
@@ -170,7 +176,13 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_x = 0;
       cursor_y += 9*scale;
     }
-    ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+
+    if(scale==1){
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, str[i], colour);
+    } else {
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, str[i], colour);
+    }
+
     if (style&style_bordered) {
       if (cursor_x < box_x1) box_x1=cursor_x;
       if (cursor_y < box_y1) box_y1=cursor_y;

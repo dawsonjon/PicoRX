@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import imageio
 import sys
 
-def draw_character(width, height, x, y, character, of):
+def draw_character(width, height, x, y, character, font, of):
 
   #create an image of each glyph using cairo
   surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
@@ -20,7 +20,7 @@ def draw_character(width, height, x, y, character, of):
   ctx.set_font_size(height)
   matrix = cairo.Matrix(xx=width, yy=height)
   ctx.set_font_matrix(matrix)
-  ctx.select_font_face("Ubuntu",
+  ctx.select_font_face(font,
                      cairo.FONT_SLANT_NORMAL,
                      cairo.FONT_WEIGHT_NORMAL)
   fo = cairo.FontOptions()
@@ -72,12 +72,14 @@ const uint8_t %s[] =
     of.write("%u, %u, %u, %u, %u,\n"%(height, width-1, 1, first_char, last_char))
     characters = "".join([chr(i) for i in range(first_char, last_char+1)])
     for character in characters:
-      draw_character(width, height, x, y, character, of)
+      draw_character(width, height, x, y, character, font, of)
     of.write(
 """};
 #endif
 """)
 
-generate_font(16, 12, 1, 13, 32, 127, "Ubuntu")
-generate_font(8, 6, 1, 6, 32, 127, "Ubuntu")
+#generate_font(16, 12, 1, 13, 32, 127, "Chilanka")
+#generate_font(16, 12, 1, 13, 32, 127, "Dhurjati")
+generate_font(16, 12, 1, 13, 32, 127, "Liberation-Mono")
+#generate_font(8, 6, 1, 6, 32, 127, "Ubuntu")
 
