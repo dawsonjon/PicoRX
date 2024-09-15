@@ -1809,7 +1809,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
         break;
       }
       if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) 
-        return false;
+        return rx_settings_changed;
 
       switch(setting)
       {
