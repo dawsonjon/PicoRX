@@ -1076,6 +1076,7 @@ bool ui::memory_recall()
   int32_t select=last_select;
   char name[17];
   bool draw_once = true;
+  bool power_change = true;
 
   int32_t pos_change;
   float power_dBm;
@@ -1096,7 +1097,7 @@ bool ui::memory_recall()
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
       power_s = dBm_to_S(power_dBm);
-      draw_once = true;
+      power_change = true;
       last_power_dBm = power_dBm;
     }
 
@@ -1155,7 +1156,6 @@ bool ui::memory_recall()
       apply_settings(false);
 
       //print selected menu item
-      draw_once = false;
       display_clear();
       display_print_str("Recall");
       display_print_num(" %03i ", select, 1, style_centered);
@@ -1184,15 +1184,24 @@ bool ui::memory_recall()
       display_print_str("  To:  ", 1);
       display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
       display_print_str(" Hz\n",1);
+    }
 
-      int bar_len = power_s*62/12;
-// framed
-//      ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
-//      ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
+    if (power_change)
+    {
+      int bar_len = power_s * 62 / 12;
+      // framed
+      // ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
+      // ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
 
-//solid
-      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+      // solid
+      ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
+      ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    }
 
+    if ((pos_change != 0) || draw_once || power_change)
+    {
+      draw_once = false;
+      power_change = false;
       display_show();
     }
 
