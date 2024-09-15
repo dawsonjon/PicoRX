@@ -1103,7 +1103,7 @@ bool ui::memory_recall()
 
     pos_change = encoder_control(&select, min, max);
     if( pos_change != 0 || draw_once) {
-
+      power_change = true;
       if (radio_memory[select][9] == 0xffffffff) {
         if (pos_change < 0) { // search backwards up to 512 times
           for (unsigned int i=0; i<num_chans; i++) {
