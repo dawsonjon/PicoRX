@@ -1892,7 +1892,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 4 : 
-          rx_settings_changed |= enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
+          rx_settings_changed |= enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
           break;
 
         case 5 :
