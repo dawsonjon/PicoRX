@@ -395,9 +395,9 @@ void ui::draw_h_tick_marks(uint16_t startY)
   // tick marks at startY
   ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
 
-  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
-  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+  ssd1306_draw_line(&disp, 0, startY, 0, startY + 4, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY + 4, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY + 4, 1);
 
   ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
