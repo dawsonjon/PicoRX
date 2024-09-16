@@ -47,6 +47,6 @@ void initialise_luts()
   float scaling_factor = (1 << 15) - 1;
   for(uint16_t idx=0; idx<2048; idx++)
   {
-    sin_table[idx] = sin(2.0*M_PI*idx/2048.0) * scaling_factor;
+    sin_table[idx] = roundf(sinf(2.0*M_PI*idx/2048.0) * scaling_factor);
   }
 }
