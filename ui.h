@@ -132,6 +132,7 @@ class ui
   void renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver);
+  void renderpage_smeter(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_fun(bool view_changed, rx_status & status, rx & receiver);
   #define NUM_VIEWS 5
 

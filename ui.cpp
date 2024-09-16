@@ -403,6 +403,51 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
+{
+  display_clear();
+
+  uint16_t x;
+  uint16_t y;
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  int S = dBm_to_S( power_dBm );
+  // arc
+  for (int degrees=54; degrees<=126; degrees++) {
+      x = 64 + 108*cos(M_PI*degrees/180);
+      y = (21 + 108) - 108*sin(M_PI*degrees/180);
+      ssd1306_draw_pixel(&disp, x, y, 1);
+  }
+  // tick marks
+  for (int degrees=54; degrees<=126; degrees+=6) {
+    for (int8_t l = -4; l <= +4; l++){
+      ssd1306_draw_pixel(&disp,
+          64 +         (108+l)*cos(M_PI*degrees/180),
+          (21 + 108) - (108+l)*sin(M_PI*degrees/180),
+          1);
+    }
+  }
+
+  int degrees = 126 - 6*S;
+  for (int r=50; r<108; r++) {
+    x = 64 + r*cos(M_PI*degrees/180);
+    y = (21 + 108) - r*sin(M_PI*degrees/180);
+    ssd1306_draw_pixel(&disp, x, y, 1);
+  }
+  // x = 64 + 108*cos(M_PI*degrees/180);
+  // y = (21 + 108) - 108*sin(M_PI*degrees/180);
+  // ssd1306_draw_line(&disp, 64, 129, x, y, 1);
+
+  display_set_xy(64-36, 60-16);
+  display_print_str("SIGNAL", 2);
+
+  ssd1306_draw_rectangle(&disp, 0,0,127,63,1);
+
+  display_show();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display
 ////////////////////////////////////////////////////////////////////////////////
@@ -425,7 +470,6 @@ void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
   display_show();
   if ((degrees+=3) >=360) degrees = 0;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
@@ -1796,7 +1840,8 @@ void ui::do_ui(event_t event)
         case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
         case 2: renderpage_waterfall(view_changed, status, receiver); break;
         case 3: renderpage_bigtext(view_changed, status, receiver); break;
-        case 4: renderpage_fun(view_changed, status, receiver); break;
+//        case 4: renderpage_fun(view_changed, status, receiver); break;
+        case 4: renderpage_smeter(view_changed, status, receiver); break;
         default: renderpage_original(view_changed, status, receiver); break;
       }
       view_changed = false;
