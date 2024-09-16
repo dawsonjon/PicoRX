@@ -210,13 +210,13 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     else if(mode == AMSYNC)
     {
       // VCO
-      const int32_t out_i = sin_table[(phi_locked + 512u) & 0x7ffu];
-      const int32_t out_q = sin_table[phi_locked & 0x7ffu];
+      const int32_t vco_i = sin_table[(phi_locked + 512u) & 0x7ffu];
+      const int32_t vco_q = sin_table[phi_locked & 0x7ffu];
 
       // Phase Detector
-      const int16_t tmp_i = (i * out_i + q * out_q) >> 15;
-      const int16_t tmp_q = (-i * out_q + q * out_i) >> 15;
-      int16_t err = -rectangular_2_phase(tmp_i, tmp_q);
+      const int16_t synced_i = (i * vco_i + q * vco_q) >> 15;
+      const int16_t synced_q = (-i * vco_q + q * vco_i) >> 15;
+      int16_t err = -rectangular_2_phase(synced_i, synced_q);
       err /= 16;
 
       // Loop filter
@@ -245,13 +245,10 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
         phi_locked += 2048;
       }
 
-      // Actual demod - complex-to-real
-      const int16_t amplitude = (-i * out_q + q * out_i) >> 15;
-
       // measure DC using first order IIR low-pass filter
-      audio_dc = amplitude + (audio_dc - (audio_dc >> 5));
+      audio_dc = synced_q + (audio_dc - (audio_dc >> 5));
       // subtract DC component
-      return amplitude - (audio_dc >> 5);
+      return synced_q - (audio_dc >> 5);
     }
     else if(mode == FM)
     {
