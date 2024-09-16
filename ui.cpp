@@ -117,10 +117,10 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_y += 9*scale;
   }
 
-  if(scale==1){
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, x, !(style&style_reverse));
-  } else {
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, x, !(style&style_reverse));
+  if (scale & 0x01) { // odd numbers use 8x6 chars
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+  } else { // even, use 16x12
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
   }
   cursor_x += (6*scale);
 }
@@ -179,10 +179,10 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_x = 0;
       cursor_y += 9*scale;
     }
-    if(scale==1){
-      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, str[i], colour);
-    } else {
-      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, str[i], colour);
+    if (scale & 0x01) { // odd numbers use 8x6 chars
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, str[i], colour);
+    } else { // even, use 16x12
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, str[i], colour);
     }
     if (style&style_bordered) {
       if (cursor_x < box_x1) box_x1=cursor_x;
@@ -312,6 +312,7 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
 {
   if (view_changed) display_clear();
 
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8, receiver);
   draw_slim_status(0, status, receiver);
   display_show();
@@ -395,9 +396,9 @@ void ui::draw_h_tick_marks(uint16_t startY)
   // tick marks at startY
   ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
 
-  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
-  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+  ssd1306_draw_line(&disp, 0, startY, 0, startY + 4, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY + 4, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY + 4, 1);
 
   ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
@@ -1637,7 +1638,7 @@ bool ui::do_splash()
   }
 
   display_clear();
-  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
 
   int i=-1;
 #if 0
@@ -1868,7 +1869,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
