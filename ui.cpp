@@ -413,7 +413,6 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   const float power_dBm = status.signal_strength_dBm;
   receiver.release();
 
-  int S = dBm_to_S( power_dBm );
   // arc
   for (int degrees=54; degrees<=126; degrees++) {
       x = 64 + 108*cos(M_PI*degrees/180);
@@ -430,7 +429,18 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
     }
   }
 
-  int degrees = 126 - 6*S;
+  display_set_xy(2,2);
+  display_print_num("%4d", (int)power_dBm,1);
+  display_set_xy(64-36, 60-16);
+  display_print_str("SIGNAL", 2);
+
+  // int S = dBm_to_S( power_dBm );
+  // int degrees = 126 - 6*S;
+  uint16_t degrees = (power_dBm+127) * 72/84;
+  degrees = 126 - degrees;
+  if (degrees < 54) degrees = 54;
+  if (degrees > 126) degrees = 126;
+
   for (int r=50; r<108; r++) {
     x = 64 + r*cos(M_PI*degrees/180);
     y = (21 + 108) - r*sin(M_PI*degrees/180);
@@ -439,9 +449,6 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   // x = 64 + 108*cos(M_PI*degrees/180);
   // y = (21 + 108) - 108*sin(M_PI*degrees/180);
   // ssd1306_draw_line(&disp, 64, 129, x, y, 1);
-
-  display_set_xy(64-36, 60-16);
-  display_print_str("SIGNAL", 2);
 
   ssd1306_draw_rectangle(&disp, 0,0,127,63,1);
 
