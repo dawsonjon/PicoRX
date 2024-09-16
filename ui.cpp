@@ -312,6 +312,7 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
 {
   if (view_changed) display_clear();
 
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8, receiver);
   draw_slim_status(0, status, receiver);
   display_show();
