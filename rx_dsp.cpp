@@ -69,8 +69,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         } 
         #endif 
 
-
-
         real[decimated_index] = i;
         imag[decimated_index] = q;
         ++decimated_index;
@@ -118,7 +116,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
-    //dc = (dc - (dc >> 1)) + ((sample_accumulator/adc_block_size) >> 1);
     dc = sample_accumulator/adc_block_size;
 
     return audio_index;

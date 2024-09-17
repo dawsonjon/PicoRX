@@ -2,9 +2,11 @@
 #include "pico/stdlib.h"
 #include "hardware/clocks.h"
 #include <string.h>
+#include <algorithm>
 
 #include "rx.h"
 #include "nco.h"
+#include "utils.h"
 
 
 //buffers and dma for ADC
@@ -73,14 +75,78 @@ void rx::release()
   sem_release(&settings_semaphore);
 }
 
+void rx::pwm_ramp_down()
+{
+  //generated a raised cosine slope to move between VCC/2 and 0
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = (1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  }
+}
+
+//void rx::pwm_ramp_down()
+//{
+//  uint32_t level = pwm_max<<17;
+//  while((level>>17) > 0)
+//  {
+//    level = (level - (level >> 17)); 
+//    pwm_set_gpio_level(16, level>>18);
+//  }
+//}
+
+void rx::pwm_ramp_up()
+{
+  //generated a raised cosine slope to move between VCC/2 and 0
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = -(1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  }
+}
+
+//void rx::pwm_ramp_up()
+//{
+  //uint32_t level = 0;
+  //while((level>>17) < pwm_max-1)
+  //{
+    //level = (level - (level >> 17)) + pwm_max; 
+    //pwm_set_gpio_level(16, level>>18);
+  //}
+//}
+
+void rx::update_status()
+{
+   //update status
+   status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
+   status.busy_time = busy_time;
+   status.battery = battery;
+   status.temp = temp;
+   sem_release(&settings_semaphore);
+}
 
 void rx::apply_settings()
 {
    if(sem_try_acquire(&settings_semaphore))
    {
-
-      suspend = settings_to_apply.suspend;
-
       if(settings_changed)
       {
         //apply frequency
@@ -151,13 +217,8 @@ void rx::apply_settings()
 
         //apply swap iq
         rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
-      }
 
-      //update status
-      status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
-      status.busy_time = busy_time;
-      status.battery = battery;
-      status.temp = temp;
+      }
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
@@ -288,6 +349,9 @@ void rx::run()
 {
     while(true)
     {
+      apply_settings();
+      pwm_ramp_up();
+
       //read other adc channels when streaming is not running
       uint32_t timeout = 1000;
       read_batt_temp();
@@ -308,10 +372,10 @@ void rx::run()
       while(true)
       {
           //exchange data with UI (runing in core 0)
-          apply_settings();
+          update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend)
+          if(timeout-- == 0 || suspend || settings_changed)
           {
 
             dma_channel_cleanup(adc_dma_ping);
@@ -339,7 +403,10 @@ void rx::run()
       //suspended state
       while(true)
       {
-          apply_settings();
+          //slowly ramp down PWM to avoid pops
+          pwm_ramp_down();
+
+          //wait here if receiver is suspended
           if(!suspend)
           {
             break;
