@@ -134,7 +134,7 @@ class ui
   void renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_smeter(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_fun(bool view_changed, rx_status & status, rx & receiver);
-  #define NUM_VIEWS 5
+  #define NUM_VIEWS 6
 
   int dBm_to_S(float power_dBm);
   void log_spectrum(float *min, float *max);
@@ -144,8 +144,9 @@ class ui
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_analogmeter(    uint16_t startx, uint16_t starty, 
                               int16_t width, int16_t height,
-                              const char* label, int numticks,
-                              float needle_pct);
+                              float  needle_pct, int numticks = 0,
+                              const char* legend = 0, const char labels[][5] = NULL
+                              );
 
 
   bool frequency_autosave_pending = false;

@@ -404,20 +404,24 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+// draw a classic analog meter movement.
+// Cant do more than the top half circle
+// cant do zero height (a linear movement)
 void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
                               int16_t width, int16_t height,
-                              const char* label, int numticks,
-                              float  needle_pct)
-{
+                              float  needle_pct, int numticks,
+                              const char* legend, const char labels[][5]
+                              ) {
+
   #define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  static int ARC_H = height;  // pixels high
-  static int ARC_W = width;  // pixels wide
+  static int segment_h = height;  // pixels high
+  static int segment_w2 = width/2;  // pixels wide
   // compute the radius
-  static float ARC_R = (pow(ARC_W/2, 2) + pow(ARC_H,2)) / 2 / ARC_H;
-  // arcsin(ARC_W/2/ARC_R) = 36 for 120,96
-  static float HALFDEG_RANGE = asin(ARC_W/2/ARC_R)*180.0 / M_PI;
+  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+
+  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
 
   #define DEG_MIN (90-HALFDEG_RANGE)
   #define DEG_MAX (90+HALFDEG_RANGE)
@@ -426,26 +430,40 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   // draw arc
   for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
       ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + ARC_R*cos(M_PI*degrees/180),
-          (starty + ARC_R) - ARC_R*sin(M_PI*degrees/180),
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          (starty + radius) - radius*sin(M_PI*degrees/180),
+          1);
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          1+(starty + radius) - radius*sin(M_PI*degrees/180),
           1);
   }
 
   // tick marks
   if (numticks) {
-    for (float degrees=DEG_MIN; degrees<=DEG_MAX; degrees+=(float)(DEG_RANGE/numticks)) {
+    int i=0;
+    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
       for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
         ssd1306_draw_pixel(&disp,
-            (startx+width/2) + (ARC_R+l)*cos(M_PI*degrees/180),
-            (starty + ARC_R) - (ARC_R+l)*sin(M_PI*degrees/180),
+            (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
+            (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
             1);
       }
+      // tick labels
+      if ( (labels) &&  (strlen(labels[i])) ) {
+        display_set_xy(
+            (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
+            (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
+            );
+        display_print_str(labels[i]);
+      }
+      i++;
     }
   }
 
-  if (strlen(label)) {
-    display_set_xy(startx + width/2 - 12*strlen(label)/2, 60-16);
-    display_print_str(label, 2);
+  if (strlen(legend)) {
+    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+    display_print_str(legend, 2);
   }
 
   // draw the needle
@@ -453,23 +471,26 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   degrees = DEG_MAX - degrees;
   if (degrees < DEG_MIN) degrees = DEG_MIN;
   if (degrees > DEG_MAX) degrees = DEG_MAX;
-  // can skip invisible part of needle => ARC_R-50
+  // can skip invisible part of needle => radius-50
   // draw_line is crap at angled lines so plot pixels
-  int startr = starty+ARC_R-64; // 64 is display height
-  for (int r=startr; r<ARC_R; r++) {
+  int startr = starty+radius-64; // 64 is display height
+  for (int r=startr; r<radius; r++) {
     ssd1306_draw_pixel(&disp, 
         (startx+width/2) + r*cos(M_PI*degrees/180),
-        (starty + ARC_R) - r*sin(M_PI*degrees/180),
+        (starty + radius) - r*sin(M_PI*degrees/180),
         1);
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display - S meter
+////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 {
 
   #define NUM_DBM 3
   static int dBm_ptr = 0;
-  static float dBm_avg[NUM_DBM] = {0.0f};
+  static float dBm_avg[NUM_DBM] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
 
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -480,8 +501,10 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 
   float avg_power_dBm = 0.0;
   for (uint8_t i=0; i<NUM_DBM; i++) {
+    printf ("%f ", dBm_avg[i]);
     avg_power_dBm += dBm_avg[i];
   } 
+  printf ("\n");
   avg_power_dBm /= NUM_DBM;
 
   display_clear();
@@ -492,10 +515,17 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   // 84 dB of swing range
   uint16_t percent = (avg_power_dBm+127) * 100/84;
 
-//  draw_analogmeter( 0, 0, 120, 21, "dBm", 12, percent);
-  draw_analogmeter( 14, 31, 100, 20, "dBm", 12, percent);
+const char labels[13][5] = {
+    "",    "1",    "",    "3",
+    "",    "5",    "",    "7",
+    "",    "9",    "",    "+12",
+    ""
+};
 
-  ssd1306_draw_rectangle(&disp, 0,8,127,55,1);
+//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
+  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+
+  ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
 
   display_show();
 }
@@ -1892,8 +1922,8 @@ void ui::do_ui(event_t event)
         case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
         case 2: renderpage_waterfall(view_changed, status, receiver); break;
         case 3: renderpage_bigtext(view_changed, status, receiver); break;
-//        case 4: renderpage_fun(view_changed, status, receiver); break;
         case 4: renderpage_smeter(view_changed, status, receiver); break;
+        case 5: renderpage_fun(view_changed, status, receiver); break;
         default: renderpage_original(view_changed, status, receiver); break;
       }
       view_changed = false;
