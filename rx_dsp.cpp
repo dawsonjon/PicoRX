@@ -189,15 +189,16 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
-#define AMSYNC_ALPHA (8450)
-#define AMSYNC_BETA (9062)
-#define AMSYNC_F_MIN (-2636)
-#define AMSYNC_F_MAX (2636)
+#define AMSYNC_ALPHA (4225)
+#define AMSYNC_BETA (4531)
+#define AMSYNC_F_MIN (-419)
+#define AMSYNC_F_MAX (419)
+#define AMSYNC_FIX_MAX (32767)
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
 {
-   static int16_t phi_locked = 0;
-   static int16_t freq_locked = 0;
+   static int32_t phi_locked = 0;
+   static int32_t freq_locked = 0;
 
     if(mode == AM)
     {
@@ -209,15 +210,25 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     }
     else if(mode == AMSYNC)
     {
+      size_t idx;
+
+      if (phi_locked < 0)
+      {
+        idx = AMSYNC_FIX_MAX + 1 + phi_locked;
+      }
+      else
+      {
+        idx = phi_locked;
+      }
+
       // VCO
-      const int32_t vco_i = sin_table[(phi_locked + 512u) & 0x7ffu];
-      const int32_t vco_q = sin_table[phi_locked & 0x7ffu];
+      const int16_t vco_i = sin_table[((idx >> 4) + 512u) & 0x7ffu];
+      const int16_t vco_q = sin_table[(idx >> 4) & 0x7ffu];
 
       // Phase Detector
       const int16_t synced_i = (i * vco_i + q * vco_q) >> 15;
       const int16_t synced_q = (-i * vco_q + q * vco_i) >> 15;
       int16_t err = -rectangular_2_phase(synced_i, synced_q);
-      err /= 16;
 
       // Loop filter
       freq_locked += (((int32_t)AMSYNC_BETA * err) >> 15);
@@ -235,14 +246,14 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
       }
 
       // Wrap phi
-      if (phi_locked > 2048)
+      if (phi_locked > AMSYNC_FIX_MAX)
       {
-        phi_locked -= 2048;
+        phi_locked -= AMSYNC_FIX_MAX + 1;
       }
 
-      if (phi_locked < -2048)
+      if (phi_locked < -AMSYNC_FIX_MAX)
       {
-        phi_locked += 2048;
+        phi_locked += AMSYNC_FIX_MAX + 1;
       }
 
       // measure DC using first order IIR low-pass filter

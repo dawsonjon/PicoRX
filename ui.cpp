@@ -395,7 +395,131 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+// draw a classic analog meter movement.
+// Cant do more than the top half circle
+// cant do zero height (a linear movement)
+void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
+                              int16_t width, int16_t height,
+                              float  needle_pct, int numticks,
+                              const char* legend, const char labels[][5]
+                              ) {
 
+  #define TICK_LEN 3
+
+  // I hope you like high school trig and geometry...
+  static int segment_h = height;  // pixels high
+  static int segment_w2 = width/2;  // pixels wide
+  // compute the radius
+  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+
+  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
+
+  #define DEG_MIN (90-HALFDEG_RANGE)
+  #define DEG_MAX (90+HALFDEG_RANGE)
+  #define DEG_RANGE (HALFDEG_RANGE*2)
+
+  // draw arc
+  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          (starty + radius) - radius*sin(M_PI*degrees/180),
+          1);
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          1+(starty + radius) - radius*sin(M_PI*degrees/180),
+          1);
+  }
+
+  // tick marks
+  if (numticks) {
+    int i=0;
+    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
+      for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
+        ssd1306_draw_pixel(&disp,
+            (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
+            (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
+            1);
+      }
+      // tick labels
+      if ( (labels) &&  (strlen(labels[i])) ) {
+        display_set_xy(
+            (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
+            (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
+            );
+        display_print_str(labels[i]);
+      }
+      i++;
+    }
+  }
+
+  if (strlen(legend)) {
+    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+    display_print_str(legend, 2);
+  }
+
+  // draw the needle
+  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
+  degrees = DEG_MAX - degrees;
+  if (degrees < DEG_MIN) degrees = DEG_MIN;
+  if (degrees > DEG_MAX) degrees = DEG_MAX;
+  // can skip invisible part of needle => radius-50
+  // draw_line is crap at angled lines so plot pixels
+  int startr = starty+radius-64; // 64 is display height
+  for (int r=startr; r<radius; r++) {
+    ssd1306_draw_pixel(&disp, 
+        (startx+width/2) + r*cos(M_PI*degrees/180),
+        (starty + radius) - r*sin(M_PI*degrees/180),
+        1);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display - S meter
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
+{
+
+  #define NUM_DBM 3
+  static int dBm_ptr = 0;
+  static float dBm_avg[NUM_DBM] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  dBm_avg[dBm_ptr++] = power_dBm;
+  if (dBm_ptr >= NUM_DBM) dBm_ptr = 0;
+
+  float avg_power_dBm = 0.0;
+  for (uint8_t i=0; i<NUM_DBM; i++) {
+    printf ("%f ", dBm_avg[i]);
+    avg_power_dBm += dBm_avg[i];
+  } 
+  printf ("\n");
+  avg_power_dBm /= NUM_DBM;
+
+  display_clear();
+
+  draw_slim_status(0, status, receiver);
+  // -127dBm is needle to left
+  // 100 percent needle swing
+  // 84 dB of swing range
+  uint16_t percent = (avg_power_dBm+127) * 100/84;
+
+const char labels[13][5] = {
+    "",    "1",    "",    "3",
+    "",    "5",    "",    "7",
+    "",    "9",    "",    "+12",
+    ""
+};
+
+//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
+  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+
+  ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
+
+  display_show();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
@@ -1715,7 +1839,7 @@ void ui::do_ui()
     static bool frequency_autosave_pending = false;
     static uint32_t frequency_autosave_time = 0;
     static uint8_t display_option = 0;
-    const uint8_t num_display_options = 5;
+    const uint8_t num_display_options = 6;
     bool view_changed = false;
     
     
@@ -1788,7 +1912,8 @@ void ui::do_ui()
         case 1: renderpage_bigspectrum(status, receiver);break;
         case 2: renderpage_waterfall(view_changed, status, receiver);break;
         case 3: renderpage_bigtext(status, receiver);break;
-        case 4: renderpage_fun(status, receiver);break;
+        case 4: renderpage_smeter(view_changed, status, receiver); break;
+        case 5: renderpage_fun(status, receiver);break;
       }
     }
 
@@ -1815,6 +1940,8 @@ void ui::do_ui()
         autosave_settings = ok;
       }
     }
+
+    //if display times out enter sleep mode
     else if(ui_state == sleep)
     {
       if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
@@ -1825,43 +1952,43 @@ void ui::do_ui()
       }
     }
 
-   //automatically switch off display after a period of inactivity
-   if(display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
-   {
-     ui_state = sleep;
-     ssd1306_poweroff(&disp);
-   }
+    //automatically switch off display after a period of inactivity
+    if(display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
+    {
+      ui_state = sleep;
+      ssd1306_poweroff(&disp);
+    }
 
-   //autosave frequency only after is has been stable for 1 second
-   if(frequency_autosave_pending)
-   {
-     if((time_us_32() - frequency_autosave_time) > 1000000u)
-     {
-       autosave_settings = true;
-       frequency_autosave_pending = false;
-     }
-   }
+    //autosave frequency only after is has been stable for 1 second
+    if(frequency_autosave_pending)
+    {
+      if((time_us_32() - frequency_autosave_time) > 1000000u)
+      {
+        autosave_settings = true;
+        frequency_autosave_pending = false;
+      }
+    }
 
-   //autosave current settings to flash
-   if(autosave_settings)
-     autosave();
-
-   //apply settings to receiver
-   if(update_settings)
-   {
-     receiver.access(true);
-     settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-     settings_to_apply.agc_speed = settings[idx_agc_speed];
-     settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-     settings_to_apply.mode = settings[idx_mode];
-     settings_to_apply.volume = settings[idx_volume];
-     settings_to_apply.squelch = settings[idx_squelch];
-     settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-     settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-     settings_to_apply.bandwidth = settings[idx_bandwidth];
-     settings_to_apply.gain_cal = settings[idx_gain_cal];
-     receiver.release();
-   }
+    //autosave current settings to flash
+    if(autosave_settings)
+      autosave();
+ 
+    //apply settings to receiver
+    if(update_settings)
+    {
+      receiver.access(true);
+      settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
+      settings_to_apply.agc_speed = settings[idx_agc_speed];
+      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
+      settings_to_apply.mode = settings[idx_mode];
+      settings_to_apply.volume = settings[idx_volume];
+      settings_to_apply.squelch = settings[idx_squelch];
+      settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
+      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
+      settings_to_apply.bandwidth = settings[idx_bandwidth];
+      settings_to_apply.gain_cal = settings[idx_gain_cal];
+      receiver.release();
+    }
 
 }
 
