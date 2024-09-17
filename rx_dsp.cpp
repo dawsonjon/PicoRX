@@ -186,9 +186,16 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
+#define AMSYNC_ALPHA (8450)
+#define AMSYNC_BETA (9062)
+#define AMSYNC_F_MIN (-2636)
+#define AMSYNC_F_MAX (2636)
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
 {
+   static int16_t phi_locked = 0;
+   static int16_t freq_locked = 0;
+
     if(mode == AM)
     {
         int16_t amplitude = rectangular_2_magnitude(i, q);
@@ -196,6 +203,49 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
         audio_dc = amplitude+(audio_dc - (audio_dc >> 5));
         //subtract DC component
         return amplitude - (audio_dc >> 5);
+    }
+    else if(mode == AMSYNC)
+    {
+      // VCO
+      const int32_t vco_i = sin_table[(phi_locked + 512u) & 0x7ffu];
+      const int32_t vco_q = sin_table[phi_locked & 0x7ffu];
+
+      // Phase Detector
+      const int16_t synced_i = (i * vco_i + q * vco_q) >> 15;
+      const int16_t synced_q = (-i * vco_q + q * vco_i) >> 15;
+      int16_t err = -rectangular_2_phase(synced_i, synced_q);
+      err /= 16;
+
+      // Loop filter
+      freq_locked += (((int32_t)AMSYNC_BETA * err) >> 15);
+      phi_locked += freq_locked + (((int32_t)AMSYNC_ALPHA * err) >> 15);
+
+      // Clamp frequency
+      if (freq_locked > AMSYNC_F_MAX)
+      {
+        freq_locked = AMSYNC_F_MAX;
+      }
+
+      if (freq_locked < AMSYNC_F_MIN)
+      {
+        freq_locked = AMSYNC_F_MIN;
+      }
+
+      // Wrap phi
+      if (phi_locked > 2048)
+      {
+        phi_locked -= 2048;
+      }
+
+      if (phi_locked < -2048)
+      {
+        phi_locked += 2048;
+      }
+
+      // measure DC using first order IIR low-pass filter
+      audio_dc = synced_q + (audio_dc - (audio_dc >> 5));
+      // subtract DC component
+      return synced_q - (audio_dc >> 5);
     }
     else if(mode == FM)
     {
@@ -375,14 +425,14 @@ void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
 {
   mode = val;
-  //                           AM LSB USB NFM CW
-  uint8_t start_bins[5]   =  {  0,  3,  3,  0, 0};
+  //                           AM AMS LSB USB NFM CW
+  uint8_t start_bins[6]   =  {  0,  0,  3,  3,  0, 0};
 
-  uint8_t stop_bins[5][5] = {{ 19, 16, 16, 31, 0},  //very narrow
-                             { 22, 19, 19, 34, 1},  //narrow
-                             { 25, 22, 22, 37, 2},  //normal
-                             { 28, 25, 25, 40, 3},  //wide
-                             { 31, 28, 28, 43, 4}}; //very wide
+  uint8_t stop_bins[5][6] = {{ 19, 19, 16, 16, 31, 0},  //very narrow
+                             { 22, 22, 19, 19, 34, 1},  //narrow
+                             { 25, 25, 22, 22, 37, 2},  //normal
+                             { 28, 28, 25, 25, 40, 3},  //wide
+                             { 31, 31, 28, 28, 43, 4}}; //very wide
 
   filter_control.lower_sideband = (mode != USB);
   filter_control.upper_sideband = (mode != LSB);

@@ -8,10 +8,11 @@ const uint8_t  adc_bits = 12u;
 const uint16_t adc_max=1<<(adc_bits-1);
 const uint16_t adc_block_size = 2048u;
 const uint8_t  AM = 0u;
-const uint8_t  LSB = 1u;
-const uint8_t  USB = 2u;
-const uint8_t  FM = 3u;
-const uint8_t  CW = 4u;
+const uint8_t  AMSYNC = 1u;
+const uint8_t  LSB = 2u;
+const uint8_t  USB = 3u;
+const uint8_t  FM = 4u;
+const uint8_t  CW = 5u;
 
 const uint16_t decimation_rate = 32u; //cic decimation
 const uint16_t cic_decimation_rate = decimation_rate/2u;
