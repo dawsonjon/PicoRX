@@ -94,19 +94,9 @@ void rx::pwm_ramp_down()
   }
 }
 
-//void rx::pwm_ramp_down()
-//{
-//  uint32_t level = pwm_max<<17;
-//  while((level>>17) > 0)
-//  {
-//    level = (level - (level >> 17)); 
-//    pwm_set_gpio_level(16, level>>18);
-//  }
-//}
-
 void rx::pwm_ramp_up()
 {
-  //generated a raised cosine slope to move between VCC/2 and 0
+  //generated a raised cosine slope to move between 0 and VCC/2
   uint32_t frequency_Hz = 1u;
   uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
   uint32_t phase = -(1u<<30u); //90 degrees
@@ -122,16 +112,6 @@ void rx::pwm_ramp_up()
     pwm_set_gpio_level(16, level);
   }
 }
-
-//void rx::pwm_ramp_up()
-//{
-  //uint32_t level = 0;
-  //while((level>>17) < pwm_max-1)
-  //{
-    //level = (level - (level >> 17)) + pwm_max; 
-    //pwm_set_gpio_level(16, level>>18);
-  //}
-//}
 
 void rx::update_status()
 {
