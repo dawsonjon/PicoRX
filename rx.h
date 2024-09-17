@@ -46,6 +46,10 @@ class rx
 {
   private:
 
+  void pwm_ramp_down();
+  void pwm_ramp_up();
+  void update_status();
+
   //receiver configuration
   double tuned_frequency_Hz;
   double nco_frequency_Hz;

@@ -90,7 +90,6 @@ class rx_dsp
   uint8_t decay_factor;
   uint16_t hang_time;
   uint16_t hang_timer;
-  const bool agc_enabled = true;
   int32_t max_hold;
   uint32_t pwm_scale;
 

@@ -112,10 +112,10 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_y += 9*scale;
   }
 
-  if(scale==1){
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, x, !(style&style_reverse));
-  } else {
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, x, !(style&style_reverse));
+  if (scale & 0x01) { // odd numbers use 8x6 chars
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+  } else { // even, use 16x12
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
   }
   cursor_x += (6*scale);
 }
@@ -174,10 +174,10 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_x = 0;
       cursor_y += 9*scale;
     }
-    if(scale==1){
-      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_8x5, str[i], colour);
-    } else {
-      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, 1, font_16x12, str[i], colour);
+    if (scale & 0x01) { // odd numbers use 8x6 chars
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, str[i], colour);
+    } else { // even, use 16x12
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, str[i], colour);
     }
     if (style&style_bordered) {
       if (cursor_x < box_x1) box_x1=cursor_x;
@@ -303,11 +303,12 @@ void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with big waterfall
 ////////////////////////////////////////////////////////////////////////////////
-void ui::renderpage_waterfall(rx_status & status, rx & receiver)
+void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver)
 {
-  display_clear();
-  draw_slim_status(0, status, receiver);
+  if (view_changed) display_clear();
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8);
+  draw_slim_status(0, status, receiver);
   display_show();
 }
 
@@ -386,9 +387,9 @@ void ui::draw_h_tick_marks(uint16_t startY)
   // tick marks at startY
   ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
 
-  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
-  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+  ssd1306_draw_line(&disp, 0, startY, 0, startY + 4, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY + 4, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY + 4, 1);
 
   ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
@@ -435,7 +436,7 @@ void ui::draw_waterfall(uint16_t starty)
 
   for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
   {
-      int16_t y = spectrum[2*x];
+      int16_t y = spectrum[2*x]>>2;//scale from 8 to 6 bits
       curr_line[x] = y + tmp_line[x];
       tmp_line[x] = 0;
   }
@@ -443,12 +444,12 @@ void ui::draw_waterfall(uint16_t starty)
   for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
   {
       // Simple Floyd-Steinberg dithering
-      if(curr_line[x] > 127)
+      if(curr_line[x] > 32)
       {
-        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
-        err = curr_line[x] - 255;
+        ssd1306_draw_pixel(&disp, x, starty + 5, 1);
+        err = curr_line[x] - 64;
       } else {
-        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
+        ssd1306_draw_pixel(&disp, x, starty + 5, 0);
         err = curr_line[x] - 0;
       }
 
@@ -1614,7 +1615,7 @@ bool ui::main_menu(bool & ok)
             done = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume], ok);
             break;
           case 4 :  
-            done = enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode], ok);
+            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode], ok);
             break;
           case 5 :
             done = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed], ok);
@@ -1669,7 +1670,7 @@ bool ui::do_splash()
   }
 
   display_clear();
-  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
 
   int i=-1;
 #if 0
@@ -1715,6 +1716,7 @@ void ui::do_ui()
     static uint32_t frequency_autosave_time = 0;
     static uint8_t display_option = 0;
     const uint8_t num_display_options = 5;
+    bool view_changed = false;
     
     
     //gui is idle, just update the display
@@ -1744,6 +1746,7 @@ void ui::do_ui()
       else if(back_button.is_pressed())
       {
         display_option++;
+        view_changed = true;
         if(display_option==num_display_options) display_option=0u;
       }
 
@@ -1783,7 +1786,7 @@ void ui::do_ui()
       {
         case 0: renderpage_original(status, receiver);break;
         case 1: renderpage_bigspectrum(status, receiver);break;
-        case 2: renderpage_waterfall(status, receiver);break;
+        case 2: renderpage_waterfall(view_changed, status, receiver);break;
         case 3: renderpage_bigtext(status, receiver);break;
         case 4: renderpage_fun(status, receiver);break;
       }

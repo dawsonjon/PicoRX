@@ -14,10 +14,11 @@ import struct
 
 modes = {
   "AM" :0,
-  "LSB":1,
-  "USB":2,
-  "NFM":3,
-  "CW" :4
+  "AMS":1,
+  "LSB":2,
+  "USB":3,
+  "NFM":4,
+  "CW" :5
 }
 agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3}
 steps = {

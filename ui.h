@@ -73,7 +73,7 @@ class ui
   uint32_t settings[16];
   const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
-  const char modes[5][4]  = {" AM", "LSB", "USB", " FM", " CW"};
+  const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
   const char steps[10][8]  = {
     "10Hz", "50Hz", "100Hz", "1kHz",
     "5kHz", "10kHz", "12.5kHz", "25kHz",
@@ -130,7 +130,7 @@ class ui
 
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
-  void renderpage_waterfall(rx_status & status, rx & receiver);
+  void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_bigtext(rx_status & status, rx & receiver);
   void renderpage_fun(rx_status & status, rx & receiver);
 
