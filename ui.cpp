@@ -219,23 +219,6 @@ void ui::display_show()
   ssd1306_show(&disp);
 }
 
-//static float find_nearest_tick(float dist)
-//{
-//  const float ticks[] = {10.0f, 5.0f, 2.0f, 1.0f, 0.5f, 0.2f, 0.1f, 0.05f, 0.02f, 0.01f};
-//  float min_dist = fabsf(dist - ticks[0]);
-//  float min_tick = ticks[0];
-//
-//  for(size_t i = 1; i < sizeof(ticks) / sizeof(ticks[0]); i++)
-//  {
-//    if(fabsf(dist - ticks[i]) < min_dist)
-//    {
-//      min_dist = fabsf(dist - ticks[i]);
-//      min_tick = ticks[i];
-//    }
-//  }
-//  return min_tick;
-//}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display (original)
 ////////////////////////////////////////////////////////////////////////////////
@@ -506,18 +489,15 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   // 84 dB of swing range
   uint16_t percent = (avg_power_dBm+127) * 100/84;
 
-const char labels[13][5] = {
-    "",    "1",    "",    "3",
-    "",    "5",    "",    "7",
-    "",    "9",    "",    "+12",
-    ""
-};
+  const char labels[13][5] = {
+      "",    "1",    "",    "3",
+      "",    "5",    "",    "7",
+      "",    "9",    "",    "+12",
+      ""
+  };
 
-//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
   draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
-
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
-
   display_show();
 }
 
@@ -570,10 +550,10 @@ void ui::draw_waterfall(uint16_t starty)
       // Simple Floyd-Steinberg dithering
       if(curr_line[x] > 32)
       {
-        ssd1306_draw_pixel(&disp, x, starty + 5, 1);
+        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
         err = curr_line[x] - 64;
       } else {
-        ssd1306_draw_pixel(&disp, x, starty + 5, 0);
+        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
         err = curr_line[x] - 0;
       }
 
@@ -1063,7 +1043,8 @@ bool ui::memory_store(bool &ok)
     }
     display_show();
 
-    if(menu_button.is_pressed()||encoder_button.is_pressed()) state = enter_name;
+    if(menu_button.is_pressed()||encoder_button.is_pressed()) 
+      state = enter_name;
     if(back_button.is_pressed())
     {
       state = select_channel;
@@ -1275,7 +1256,9 @@ bool ui::memory_recall(bool &ok)
     display_clear();
     display_print_str("Recall");
     display_print_num(" %03i ", select, 1, style_centered);
-    display_print_str(modes[radio_memory[select][idx_mode]],1,style_right);
+    const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+    display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
+    display_print_str(mode_ptr,1);
     display_print_str("\n", 1);
     if (12*strlen(name) > 128) {
       display_add_xy(0,4);
@@ -1286,7 +1269,7 @@ bool ui::memory_recall(bool &ok)
 
     //draw frequency
     display_set_xy(0,27);
-    display_print_freq('.', radio_memory[select][idx_frequency], 2, style_centered);
+    display_print_freq('.', radio_memory[select][idx_frequency], 2);
     display_print_str("\n",2);
     display_print_str("from: ", 1);
     display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
@@ -1296,6 +1279,21 @@ bool ui::memory_recall(bool &ok)
     display_print_str(" Hz\n",1);
     display_show();
   }
+
+  //draw power meter
+  receiver.access(false);
+  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
+  receiver.release();
+  static int8_t last_power_s = 255;
+  if(power_s != last_power_s)
+  {
+    printf("updating power meter");
+    int bar_len = power_s * 62 / 12;
+    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
+    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    display_show();
+  }
+
 
   return false; 
 }
