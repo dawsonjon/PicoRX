@@ -142,6 +142,11 @@ class ui
   void draw_spectrum(uint16_t startY, rx & receiver);
   void draw_waterfall(uint16_t startY, rx & receiver);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
+  void draw_analogmeter(    uint16_t startx, uint16_t starty, 
+                              int16_t width, int16_t height,
+                              const char* label, int numticks,
+                              float needle_pct);
+
 
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;

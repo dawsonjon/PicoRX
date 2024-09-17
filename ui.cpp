@@ -404,59 +404,72 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
-/* void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
+void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
                               int16_t width, int16_t height,
-                              char* label, int numticks,
-                              uint16_t needle_deg)
+                              const char* label, int numticks,
+                              float  needle_pct)
 {
-  static int ARC_H = 21;  // pixels high
-  static int ARC_W = 120;  // pixels wide
-  static float ARC_R = 100.0;
-  static float HALFDEG_RANGE = 36.0;
-
-  if (view_changed) {
-    ARC_W = rand()%90 + 30;
-    // compute the radius
-    ARC_R = (pow(ARC_W/2, 2) + pow(ARC_H,2)) / 2 / ARC_H;
-    // arcsin(ARC_W/2/ARC_R) = 36 for 120,96
-    HALFDEG_RANGE = asin(ARC_W/2/ARC_R)*180.0 / M_PI;
-  }
-
-}
- */
-void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
-{
-
-  uint16_t x;
-  uint16_t y;
-  #define NUM_DBM 3
-  static int dBm_ptr = 0;
-  static float dBm_avg[NUM_DBM] = {0.0f};
+  #define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  static int ARC_H = 21;  // pixels high
-  static int ARC_W = 120;  // pixels wide
+  static int ARC_H = height;  // pixels high
+  static int ARC_W = width;  // pixels wide
   // compute the radius
   static float ARC_R = (pow(ARC_W/2, 2) + pow(ARC_H,2)) / 2 / ARC_H;
   // arcsin(ARC_W/2/ARC_R) = 36 for 120,96
   static float HALFDEG_RANGE = asin(ARC_W/2/ARC_R)*180.0 / M_PI;
 
-#if 0
-  // I hope you like high school trig and geometry...
-  #define ARC_H 21  // pixels high
-  #define ARC_W 128  // pixels wide
-  // compute the radius (108 for 128,21)
-  #define ARC_R (((ARC_W/2*ARC_W/2) + (ARC_H*ARC_H)) / 2 / ARC_H)
-  // 2 * arcsin(ARC_W/2/ARC_R) = 36 for 128,108
-  #define HALFDEG_RANGE 36
-#else
-#endif
-
   #define DEG_MIN (90-HALFDEG_RANGE)
   #define DEG_MAX (90+HALFDEG_RANGE)
   #define DEG_RANGE (HALFDEG_RANGE*2)
 
-//  printf ("ARC_R %f\n", ARC_R);
+  // draw arc
+  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + ARC_R*cos(M_PI*degrees/180),
+          (starty + ARC_R) - ARC_R*sin(M_PI*degrees/180),
+          1);
+  }
+
+  // tick marks
+  if (numticks) {
+    for (float degrees=DEG_MIN; degrees<=DEG_MAX; degrees+=(float)(DEG_RANGE/numticks)) {
+      for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
+        ssd1306_draw_pixel(&disp,
+            (startx+width/2) + (ARC_R+l)*cos(M_PI*degrees/180),
+            (starty + ARC_R) - (ARC_R+l)*sin(M_PI*degrees/180),
+            1);
+      }
+    }
+  }
+
+  if (strlen(label)) {
+    display_set_xy(startx + width/2 - 12*strlen(label)/2, 60-16);
+    display_print_str(label, 2);
+  }
+
+  // draw the needle
+  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
+  degrees = DEG_MAX - degrees;
+  if (degrees < DEG_MIN) degrees = DEG_MIN;
+  if (degrees > DEG_MAX) degrees = DEG_MAX;
+  // can skip invisible part of needle => ARC_R-50
+  // draw_line is crap at angled lines so plot pixels
+  int startr = starty+ARC_R-64; // 64 is display height
+  for (int r=startr; r<ARC_R; r++) {
+    ssd1306_draw_pixel(&disp, 
+        (startx+width/2) + r*cos(M_PI*degrees/180),
+        (starty + ARC_R) - r*sin(M_PI*degrees/180),
+        1);
+  }
+}
+
+void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
+{
+
+  #define NUM_DBM 3
+  static int dBm_ptr = 0;
+  static float dBm_avg[NUM_DBM] = {0.0f};
 
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
@@ -473,43 +486,14 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 
   display_clear();
 
-  // arc
-  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
-      x = 64 + ARC_R*cos(M_PI*degrees/180);
-      y = (ARC_H + ARC_R) - ARC_R*sin(M_PI*degrees/180);
-      ssd1306_draw_pixel(&disp, x, y, 1);
-  }
-  // tick marks
-  for (float degrees=DEG_MIN; degrees<=DEG_MAX; degrees+=(float)(DEG_RANGE/12)) {
-    for (int8_t l = -4; l <= +4; l++){
-      ssd1306_draw_pixel(&disp,
-          64 +         (ARC_R+l)*cos(M_PI*degrees/180),
-          (ARC_H + ARC_R) - (ARC_R+l)*sin(M_PI*degrees/180),
-          1);
-    }
-  }
-
   draw_slim_status(0, status, receiver);
-
-  display_set_xy(0, 60-16);
-  display_print_str("SIGNAL", 2, style_centered);
-
-  // draw the needle
   // -127dBm is needle to left
-  // 72 degrees of needle swing
+  // 100 percent needle swing
   // 84 dB of swing range
-  uint16_t degrees = (avg_power_dBm+127) * DEG_RANGE/84;
-  degrees = DEG_MAX - degrees;
-  if (degrees < DEG_MIN) degrees = DEG_MIN;
-  if (degrees > DEG_MAX) degrees = DEG_MAX;
+  uint16_t percent = (avg_power_dBm+127) * 100/84;
 
-// can skip invisible part of needle => ARC_R-50
-// draw_line is crap at angled lines so plot pixels
-  for (int r=ARC_R-50; r<ARC_R; r++) {
-    x = 64 + r*cos(M_PI*degrees/180);
-    y = (ARC_H + ARC_R) - r*sin(M_PI*degrees/180);
-    ssd1306_draw_pixel(&disp, x, y, 1);
-  }
+//  draw_analogmeter( 0, 0, 120, 21, "dBm", 12, percent);
+  draw_analogmeter( 14, 31, 100, 20, "dBm", 12, percent);
 
   ssd1306_draw_rectangle(&disp, 0,8,127,55,1);
 
