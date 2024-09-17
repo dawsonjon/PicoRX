@@ -404,54 +404,114 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+/* void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
+                              int16_t width, int16_t height,
+                              char* label, int numticks,
+                              uint16_t needle_deg)
+{
+  static int ARC_H = 21;  // pixels high
+  static int ARC_W = 120;  // pixels wide
+  static float ARC_R = 100.0;
+  static float HALFDEG_RANGE = 36.0;
+
+  if (view_changed) {
+    ARC_W = rand()%90 + 30;
+    // compute the radius
+    ARC_R = (pow(ARC_W/2, 2) + pow(ARC_H,2)) / 2 / ARC_H;
+    // arcsin(ARC_W/2/ARC_R) = 36 for 120,96
+    HALFDEG_RANGE = asin(ARC_W/2/ARC_R)*180.0 / M_PI;
+  }
+
+}
+ */
 void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 {
-  display_clear();
 
   uint16_t x;
   uint16_t y;
+  #define NUM_DBM 3
+  static int dBm_ptr = 0;
+  static float dBm_avg[NUM_DBM] = {0.0f};
+
+  // I hope you like high school trig and geometry...
+  static int ARC_H = 21;  // pixels high
+  static int ARC_W = 120;  // pixels wide
+  // compute the radius
+  static float ARC_R = (pow(ARC_W/2, 2) + pow(ARC_H,2)) / 2 / ARC_H;
+  // arcsin(ARC_W/2/ARC_R) = 36 for 120,96
+  static float HALFDEG_RANGE = asin(ARC_W/2/ARC_R)*180.0 / M_PI;
+
+#if 0
+  // I hope you like high school trig and geometry...
+  #define ARC_H 21  // pixels high
+  #define ARC_W 128  // pixels wide
+  // compute the radius (108 for 128,21)
+  #define ARC_R (((ARC_W/2*ARC_W/2) + (ARC_H*ARC_H)) / 2 / ARC_H)
+  // 2 * arcsin(ARC_W/2/ARC_R) = 36 for 128,108
+  #define HALFDEG_RANGE 36
+#else
+#endif
+
+  #define DEG_MIN (90-HALFDEG_RANGE)
+  #define DEG_MAX (90+HALFDEG_RANGE)
+  #define DEG_RANGE (HALFDEG_RANGE*2)
+
+//  printf ("ARC_R %f\n", ARC_R);
+
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   receiver.release();
 
+  dBm_avg[dBm_ptr++] = power_dBm;
+  if (dBm_ptr >= NUM_DBM) dBm_ptr = 0;
+
+  float avg_power_dBm = 0.0;
+  for (uint8_t i=0; i<NUM_DBM; i++) {
+    avg_power_dBm += dBm_avg[i];
+  } 
+  avg_power_dBm /= NUM_DBM;
+
+  display_clear();
+
   // arc
-  for (int degrees=54; degrees<=126; degrees++) {
-      x = 64 + 108*cos(M_PI*degrees/180);
-      y = (21 + 108) - 108*sin(M_PI*degrees/180);
+  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
+      x = 64 + ARC_R*cos(M_PI*degrees/180);
+      y = (ARC_H + ARC_R) - ARC_R*sin(M_PI*degrees/180);
       ssd1306_draw_pixel(&disp, x, y, 1);
   }
   // tick marks
-  for (int degrees=54; degrees<=126; degrees+=6) {
+  for (float degrees=DEG_MIN; degrees<=DEG_MAX; degrees+=(float)(DEG_RANGE/12)) {
     for (int8_t l = -4; l <= +4; l++){
       ssd1306_draw_pixel(&disp,
-          64 +         (108+l)*cos(M_PI*degrees/180),
-          (21 + 108) - (108+l)*sin(M_PI*degrees/180),
+          64 +         (ARC_R+l)*cos(M_PI*degrees/180),
+          (ARC_H + ARC_R) - (ARC_R+l)*sin(M_PI*degrees/180),
           1);
     }
   }
 
-  display_set_xy(2,2);
-  display_print_num("%4d", (int)power_dBm,1);
-  display_set_xy(64-36, 60-16);
-  display_print_str("SIGNAL", 2);
+  draw_slim_status(0, status, receiver);
 
-  // int S = dBm_to_S( power_dBm );
-  // int degrees = 126 - 6*S;
-  uint16_t degrees = (power_dBm+127) * 72/84;
-  degrees = 126 - degrees;
-  if (degrees < 54) degrees = 54;
-  if (degrees > 126) degrees = 126;
+  display_set_xy(0, 60-16);
+  display_print_str("SIGNAL", 2, style_centered);
 
-  for (int r=50; r<108; r++) {
+  // draw the needle
+  // -127dBm is needle to left
+  // 72 degrees of needle swing
+  // 84 dB of swing range
+  uint16_t degrees = (avg_power_dBm+127) * DEG_RANGE/84;
+  degrees = DEG_MAX - degrees;
+  if (degrees < DEG_MIN) degrees = DEG_MIN;
+  if (degrees > DEG_MAX) degrees = DEG_MAX;
+
+// can skip invisible part of needle => ARC_R-50
+// draw_line is crap at angled lines so plot pixels
+  for (int r=ARC_R-50; r<ARC_R; r++) {
     x = 64 + r*cos(M_PI*degrees/180);
-    y = (21 + 108) - r*sin(M_PI*degrees/180);
+    y = (ARC_H + ARC_R) - r*sin(M_PI*degrees/180);
     ssd1306_draw_pixel(&disp, x, y, 1);
   }
-  // x = 64 + 108*cos(M_PI*degrees/180);
-  // y = (21 + 108) - 108*sin(M_PI*degrees/180);
-  // ssd1306_draw_line(&disp, 64, 129, x, y, 1);
 
-  ssd1306_draw_rectangle(&disp, 0,0,127,63,1);
+  ssd1306_draw_rectangle(&disp, 0,8,127,55,1);
 
   display_show();
 }
