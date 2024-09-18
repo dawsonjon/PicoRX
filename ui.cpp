@@ -1417,31 +1417,10 @@ bool ui::memory_scan()
       display_print_str("\n",2);
 
       display_print_str("Speed",2);
-      display_set_xy(84,display_get_y());
-      if (scan_speed >= 1 ) {
-        display_print_char(CHAR_PLAY, 2);
-        if (scan_speed >= 2 ) {
-          for ( int i=1; i<scan_speed; i++) {
-            display_add_xy(-6,0);
-            display_print_char('>', 2, style_xor);
-          }
-        }
-      }
-      if (scan_speed == 0 ) {
-        display_print_char(CHAR_PAUSE, 2);
-      }
-      if (scan_speed <= -1 ) {
-        display_print_char(CHAR_REVPLAY, 2);
-        if (scan_speed <= -2 ) {
-          for ( int i = -1; i>scan_speed; i--) {
-            display_add_xy(-18,0);
-            display_print_char('<', 2, style_xor);
-          }
-        }
-      }
+      display_print_speed(91, display_get_y(), 2, scan_speed);
 
+      // draw vertical signal strength
       int bar_len = power_s*62/12;
-
       ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
 
       display_show();
@@ -1466,6 +1445,36 @@ bool ui::memory_scan()
       }
       apply_settings(false);
       return 0;
+    }
+  }
+}
+
+// print pause, play, reverse play with extra > or < based on speed
+// x is the midpoint of the graphic/central character
+void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
+{
+  display_set_xy(x-3*scale,y);
+  if (speed >= 1 ) {
+    display_print_char(CHAR_PLAY, scale);
+    if (speed >= 2 ) {
+      for ( int i=1; i<speed; i++) {
+        display_add_xy(-3*scale,0);
+        display_print_char('>', scale, style_xor);
+      }
+    }
+  }
+  if (speed == 0 ) {
+    display_print_char(CHAR_PAUSE, scale);
+  }
+  if (speed <= -1 ) {
+    if (scale==1) display_add_xy(1,0);  // workaround font differences
+    display_print_char(CHAR_REVPLAY, scale);
+    if (scale==1) display_add_xy(-1,0);  // workaround font differences
+    if (speed <= -2 ) {
+      for ( int i = -1; i>speed; i--) {
+        display_add_xy(-9*scale,0);
+        display_print_char('<', scale, style_xor);
+      }
     }
   }
 }
@@ -1553,28 +1562,7 @@ bool ui::frequency_scan()
       //draw scanning speed
       display_set_xy(0,48);
       display_print_str("Speed",2);
-      uint16_t xpos = 84; // single char centred
-      uint16_t ypos = display_get_y();
-
-      if (scan_speed >= 1 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PLAY, 1);
-        if (scan_speed >= 2 ) {
-          for ( int i=1; i<scan_speed; i++) {
-            ssd1306_draw_char(&disp, xpos+6*i, ypos, 2, '>', 2);
-          }
-        }
-      }
-      if (scan_speed == 0 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PAUSE, 2);
-      }
-      if (scan_speed <= -1 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_REVPLAY, 1);
-        if (scan_speed <= -2 ) {
-          for ( int i = -1; i>scan_speed; i--) {
-            ssd1306_draw_char(&disp, xpos-2 + 6*i, ypos, 2, '<', 2);
-          }
-        }
-      }
+      display_print_speed(91, display_get_y(), 1, scan_speed);
 
       // draw vertical signal strength
       int bar_len = power_s*62/12;
