@@ -63,6 +63,7 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_right       (1<<2)
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
+#define style_xor         (1<<5)
 
 class ui
 {

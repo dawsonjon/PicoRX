@@ -116,11 +116,13 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_x = 0;
     cursor_y += 9*scale;
   }
-
+  int colour = 1;
+  if (style & style_reverse) colour=0;
+  if (style & style_xor) colour=2;
   if (scale & 0x01) { // odd numbers use 8x6 chars
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, colour);
   } else { // even, use 16x12
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, colour);
   }
   cursor_x += (6*scale);
 }
@@ -1415,25 +1417,25 @@ bool ui::memory_scan()
       display_print_str("\n",2);
 
       display_print_str("Speed",2);
-      uint16_t xpos = 84; // single char centred
-      uint16_t ypos = display_get_y();
-      
+      display_set_xy(84,display_get_y());
       if (scan_speed >= 1 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PLAY, 1);
+        display_print_char(CHAR_PLAY, 2);
         if (scan_speed >= 2 ) {
           for ( int i=1; i<scan_speed; i++) {
-            ssd1306_draw_char(&disp, xpos+6*i, ypos, 2, '>', 2);
+            display_add_xy(-6,0);
+            display_print_char('>', 2, style_xor);
           }
         }
       }
       if (scan_speed == 0 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_PAUSE, 2);
+        display_print_char(CHAR_PAUSE, 2);
       }
       if (scan_speed <= -1 ) {
-        ssd1306_draw_char(&disp, xpos, ypos, 2, CHAR_REVPLAY, 1);
+        display_print_char(CHAR_REVPLAY, 2);
         if (scan_speed <= -2 ) {
           for ( int i = -1; i>scan_speed; i--) {
-            ssd1306_draw_char(&disp, xpos-2 + 6*i, ypos, 2, '<', 2);
+            display_add_xy(-18,0);
+            display_print_char('<', 2, style_xor);
           }
         }
       }
