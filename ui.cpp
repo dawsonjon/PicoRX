@@ -405,7 +405,7 @@ void ui::draw_h_tick_marks(uint16_t startY)
 }
 
 // draw a classic analog meter movement.
-// Cant do more than the top half circle
+// a circle sector from the top down up to and including the full circle
 // cant do zero height (a linear movement)
 void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
                               int16_t width, int16_t height,
@@ -416,33 +416,45 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   #define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  static int segment_h = height;  // pixels high
-  static int segment_w2 = width/2;  // pixels wide
+  int segment_h = height;  // pixels high
+  int segment_w2 = width/2;  // pixels wide
   // compute the radius
-  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+  float radius;
+  float halfdeg_range;
+  float deg_min, deg_max, deg_range;
 
-  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
+  if (height == 0) return;
 
-  #define DEG_MIN (90-HALFDEG_RANGE)
-  #define DEG_MAX (90+HALFDEG_RANGE)
-  #define DEG_RANGE (HALFDEG_RANGE*2)
+  if (height <= segment_w2) {
+    radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+    halfdeg_range = asinf(segment_w2/radius)*180.0 / M_PI;
+    deg_min = (90-halfdeg_range);
+    deg_max = (90+halfdeg_range);
+    deg_range = (deg_max-deg_min);
+  } else {  // (height > segment_w2)
+    radius = segment_w2;
+    halfdeg_range = acosf((segment_h-radius)/radius)*180.0 / M_PI;
+    deg_min = (-90 +halfdeg_range);
+    deg_max = (270 -halfdeg_range);
+    deg_range = (deg_max-deg_min);
+  }
 
   // draw arc
-  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
+  for (int degrees=deg_min; degrees<=deg_max; degrees++) {
       ssd1306_draw_pixel(&disp, 
           (startx+width/2) + radius*cos(M_PI*degrees/180),
           (starty + radius) - radius*sin(M_PI*degrees/180),
           1);
       ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + radius*cos(M_PI*degrees/180),
-          1+(starty + radius) - radius*sin(M_PI*degrees/180),
+          (startx+width/2) + (1+radius)*cos(M_PI*degrees/180),
+          (starty + radius) - (1+radius)*sin(M_PI*degrees/180),
           1);
   }
 
   // tick marks
   if (numticks) {
     int i=0;
-    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
+    for (float degrees=deg_max; degrees>=deg_min; degrees-=(float)(deg_range/(numticks-1))) {
       for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
         ssd1306_draw_pixel(&disp,
             (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
@@ -462,18 +474,26 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   }
 
   if (strlen(legend)) {
-    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+    if (height == width) { // a circle
+      display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h/2-8);
+    } else {
+      display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+    }
     display_print_str(legend, 2);
   }
 
   // draw the needle
-  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
-  degrees = DEG_MAX - degrees;
-  if (degrees < DEG_MIN) degrees = DEG_MIN;
-  if (degrees > DEG_MAX) degrees = DEG_MAX;
+  float degrees = needle_pct * deg_range/100.0;
+  degrees = deg_max - degrees;
+  if (degrees < deg_min) degrees = deg_min;
+  if (degrees > deg_max) degrees = deg_max;
   // can skip invisible part of needle => radius-50
   // draw_line is crap at angled lines so plot pixels
-  int startr = starty+radius-64; // 64 is display height
+  int startr=0;
+  if (starty+radius > 64){
+    startr = starty+radius-64; // 64 is display height
+  }
+
   for (int r=startr; r<radius; r++) {
     ssd1306_draw_pixel(&disp, 
         (startx+width/2) + r*cos(M_PI*degrees/180),
@@ -501,10 +521,8 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 
   float avg_power_dBm = 0.0;
   for (uint8_t i=0; i<NUM_DBM; i++) {
-    printf ("%f ", dBm_avg[i]);
     avg_power_dBm += dBm_avg[i];
   } 
-  printf ("\n");
   avg_power_dBm /= NUM_DBM;
 
   display_clear();
@@ -522,8 +540,9 @@ const char labels[13][5] = {
     ""
 };
 
-//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
-  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+//  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+//  draw_analogmeter( 20, 8, 60, 60, percent, 13, "S", labels );
+  draw_analogmeter( 9, 33, 110, 1, percent, 13, "S", labels );
 
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
 
