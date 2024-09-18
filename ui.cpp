@@ -1562,7 +1562,7 @@ bool ui::frequency_scan()
       //draw scanning speed
       display_set_xy(0,48);
       display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 1, scan_speed);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
 
       // draw vertical signal strength
       int bar_len = power_s*62/12;
