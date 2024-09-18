@@ -117,7 +117,11 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_y += 9*scale;
   }
 
-  ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, x, !(style&style_reverse) );
+  if (scale & 0x01) { // odd numbers use 8x6 chars
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+  } else { // even, use 16x12
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
+  }
   cursor_x += (6*scale);
 }
 
@@ -175,7 +179,11 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
       cursor_x = 0;
       cursor_y += 9*scale;
     }
-    ssd1306_draw_char(&disp, cursor_x, cursor_y, scale, str[i], colour );
+    if (scale & 0x01) { // odd numbers use 8x6 chars
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, str[i], colour);
+    } else { // even, use 16x12
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, str[i], colour);
+    }
     if (style&style_bordered) {
       if (cursor_x < box_x1) box_x1=cursor_x;
       if (cursor_y < box_y1) box_y1=cursor_y;
@@ -304,6 +312,7 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
 {
   if (view_changed) display_clear();
 
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8, receiver);
   draw_slim_status(0, status, receiver);
   display_show();
@@ -387,12 +396,138 @@ void ui::draw_h_tick_marks(uint16_t startY)
   // tick marks at startY
   ssd1306_draw_line(&disp, 0, startY + 2, 127, startY + 2, 1);
 
-  ssd1306_draw_line(&disp, 0, startY, 0, startY, 1);
-  ssd1306_draw_line(&disp, 64, startY, 64, startY, 1);
-  ssd1306_draw_line(&disp, 127, startY, 127, startY, 1);
+  ssd1306_draw_line(&disp, 0, startY, 0, startY + 4, 1);
+  ssd1306_draw_line(&disp, 64, startY, 64, startY + 4, 1);
+  ssd1306_draw_line(&disp, 127, startY, 127, startY + 4, 1);
 
   ssd1306_draw_line(&disp, 32, startY + 1, 32, startY + 3, 1);
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
+}
+
+// draw a classic analog meter movement.
+// Cant do more than the top half circle
+// cant do zero height (a linear movement)
+void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
+                              int16_t width, int16_t height,
+                              float  needle_pct, int numticks,
+                              const char* legend, const char labels[][5]
+                              ) {
+
+  #define TICK_LEN 3
+
+  // I hope you like high school trig and geometry...
+  static int segment_h = height;  // pixels high
+  static int segment_w2 = width/2;  // pixels wide
+  // compute the radius
+  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+
+  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
+
+  #define DEG_MIN (90-HALFDEG_RANGE)
+  #define DEG_MAX (90+HALFDEG_RANGE)
+  #define DEG_RANGE (HALFDEG_RANGE*2)
+
+  // draw arc
+  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          (starty + radius) - radius*sin(M_PI*degrees/180),
+          1);
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + radius*cos(M_PI*degrees/180),
+          1+(starty + radius) - radius*sin(M_PI*degrees/180),
+          1);
+  }
+
+  // tick marks
+  if (numticks) {
+    int i=0;
+    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
+      for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
+        ssd1306_draw_pixel(&disp,
+            (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
+            (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
+            1);
+      }
+      // tick labels
+      if ( (labels) &&  (strlen(labels[i])) ) {
+        display_set_xy(
+            (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
+            (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
+            );
+        display_print_str(labels[i]);
+      }
+      i++;
+    }
+  }
+
+  if (strlen(legend)) {
+    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+    display_print_str(legend, 2);
+  }
+
+  // draw the needle
+  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
+  degrees = DEG_MAX - degrees;
+  if (degrees < DEG_MIN) degrees = DEG_MIN;
+  if (degrees > DEG_MAX) degrees = DEG_MAX;
+  // can skip invisible part of needle => radius-50
+  // draw_line is crap at angled lines so plot pixels
+  int startr = starty+radius-64; // 64 is display height
+  for (int r=startr; r<radius; r++) {
+    ssd1306_draw_pixel(&disp, 
+        (startx+width/2) + r*cos(M_PI*degrees/180),
+        (starty + radius) - r*sin(M_PI*degrees/180),
+        1);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display - S meter
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
+{
+
+  #define NUM_DBM 3
+  static int dBm_ptr = 0;
+  static float dBm_avg[NUM_DBM] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+
+  receiver.access(false);
+  const float power_dBm = status.signal_strength_dBm;
+  receiver.release();
+
+  dBm_avg[dBm_ptr++] = power_dBm;
+  if (dBm_ptr >= NUM_DBM) dBm_ptr = 0;
+
+  float avg_power_dBm = 0.0;
+  for (uint8_t i=0; i<NUM_DBM; i++) {
+    printf ("%f ", dBm_avg[i]);
+    avg_power_dBm += dBm_avg[i];
+  } 
+  printf ("\n");
+  avg_power_dBm /= NUM_DBM;
+
+  display_clear();
+
+  draw_slim_status(0, status, receiver);
+  // -127dBm is needle to left
+  // 100 percent needle swing
+  // 84 dB of swing range
+  uint16_t percent = (avg_power_dBm+127) * 100/84;
+
+const char labels[13][5] = {
+    "",    "1",    "",    "3",
+    "",    "5",    "",    "7",
+    "",    "9",    "",    "+12",
+    ""
+};
+
+//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
+  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+
+  ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
+
+  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -417,7 +552,6 @@ void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
   display_show();
   if ((degrees+=3) >=360) degrees = 0;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
@@ -1081,7 +1215,7 @@ bool ui::memory_recall()
     pos_change = encoder_control(&select, min, max);;
 
     if( pos_change != 0 || draw_once) {
-
+      power_change = true;
       if (radio_memory[select][9] == 0xffffffff) {
         if (pos_change < 0) { // search backwards up to 512 times
           for (unsigned int i=0; i<num_chans; i++) {
@@ -1883,7 +2017,7 @@ bool ui::do_splash()
   }
 
   display_clear();
-  ssd1306_bmp_show_image(&disp, crystal, 1086);
+  ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
 
   int i=-1;
 #if 0
@@ -2093,7 +2227,8 @@ void ui::do_ui(event_t event)
         case 1: renderpage_bigspectrum(view_changed, status, receiver); break;
         case 2: renderpage_waterfall(view_changed, status, receiver); break;
         case 3: renderpage_bigtext(view_changed, status, receiver); break;
-        case 4: renderpage_fun(view_changed, status, receiver); break;
+        case 4: renderpage_smeter(view_changed, status, receiver); break;
+        case 5: renderpage_fun(view_changed, status, receiver); break;
         default: renderpage_original(view_changed, status, receiver); break;
       }
       view_changed = false;
@@ -2113,7 +2248,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#HW Config#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2136,7 +2271,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 4 : 
-          rx_settings_changed |= enumerate_entry("Mode", "AM#LSB#USB#FM#CW#", &settings[idx_mode]);
+          rx_settings_changed |= enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
           break;
 
         case 5 :

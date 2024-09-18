@@ -31,7 +31,7 @@ SOFTWARE.
 #include <stdio.h>
 
 #include "ssd1306.h"
-#include "font.h"
+#include "font_8x5.h"
 
 inline static void swap(int32_t *a, int32_t *b) {
     int32_t *t=a;
@@ -270,11 +270,11 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, int32_t x, int32_t y, uint32_t sc
     if(c<font[3]||c>font[4])
         return;
 
-    if (colour == 1) {
-        ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 0);
-    } else if (colour == 0) {
-        ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 1);
-    }
+if (colour == 1)
+    ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 0);
+if (colour == 0)
+    ssd1306_fill_rectangle( p, x, y, (font[1]+font[2])*scale, font[0]*scale, 1);
+if (colour == 2) {} // do nothing to allow OR/XORing
 
     uint32_t parts_per_line=(font[0]>>3)+((font[0]&7)>0);
     for(uint8_t w=0; w<font[1]; ++w) { // width

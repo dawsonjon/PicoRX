@@ -2,9 +2,11 @@
 #include "pico/stdlib.h"
 #include "hardware/clocks.h"
 #include <string.h>
+#include <algorithm>
 
 #include "rx.h"
 #include "nco.h"
+#include "utils.h"
 
 
 //buffers and dma for ADC
@@ -73,91 +75,133 @@ void rx::release()
   sem_release(&settings_semaphore);
 }
 
+void rx::pwm_ramp_down()
+{
+  //generated a raised cosine slope to move between VCC/2 and 0
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = (1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  }
+}
+
+void rx::pwm_ramp_up()
+{
+  //generated a raised cosine slope to move between 0 and VCC/2
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = -(1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  }
+}
+
+void rx::update_status()
+{
+   if(sem_try_acquire(&settings_semaphore))
+   {
+     suspend = settings_to_apply.suspend;
+
+     //update status
+     status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
+     status.busy_time = busy_time;
+     status.battery = battery;
+     status.temp = temp;
+     sem_release(&settings_semaphore);
+   }
+}
 
 void rx::apply_settings()
 {
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      suspend = settings_to_apply.suspend;
+      //apply frequency
+      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+      uint32_t system_clock_rate;
+      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
+      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
-      if(settings_changed)
+      if(tuned_frequency_Hz > 16.0e6)
       {
-        //apply frequency
-        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-        uint32_t system_clock_rate;
-        nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
-        offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
-
-        if(tuned_frequency_Hz > 16.0e6)
-        {
-          gpio_put(2, 0);
-          gpio_put(3, 0);
-          gpio_put(4, 0);
-        }
-        else if(tuned_frequency_Hz > 8.0e6)
-        {
-          gpio_put(2, 1);
-          gpio_put(3, 0);
-          gpio_put(4, 0);
-        }
-        else if(tuned_frequency_Hz > 4.0e6)
-        {
-          gpio_put(2, 0);
-          gpio_put(3, 1);
-          gpio_put(4, 0);
-        }
-        else if(tuned_frequency_Hz > 2.0e6)
-        {
-          gpio_put(2, 1);
-          gpio_put(3, 1);
-          gpio_put(4, 0);
-        }
-        else
-        {
-          gpio_put(2, 0);
-          gpio_put(3, 0);
-          gpio_put(4, 1);
-        }
-
-        //apply pwm_max
-        pwm_max = (system_clock_rate/audio_sample_rate)-1;
-        rx_dsp_inst.set_pwm_max(pwm_max);
-        pwm_set_wrap(audio_pwm_slice_num, pwm_max); 
-
-        //apply frequency offset
-        rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
-
-        //apply CW sidetone
-        rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
-
-        //apply gain calibration
-        rx_dsp_inst.set_gain_cal_dB(settings_to_apply.gain_cal);
-
-        //apply AGC speed
-        rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
-
-        //apply Automatic Notch Filter
-        rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
-
-        //apply mode
-        rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
-
-        //apply volume
-        rx_dsp_inst.set_volume(settings_to_apply.volume);
-
-        //apply squelch
-        rx_dsp_inst.set_squelch(settings_to_apply.squelch);
-
-        //apply swap iq
-        rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
+        gpio_put(2, 0);
+        gpio_put(3, 0);
+        gpio_put(4, 0);
+      }
+      else if(tuned_frequency_Hz > 8.0e6)
+      {
+        gpio_put(2, 1);
+        gpio_put(3, 0);
+        gpio_put(4, 0);
+      }
+      else if(tuned_frequency_Hz > 4.0e6)
+      {
+        gpio_put(2, 0);
+        gpio_put(3, 1);
+        gpio_put(4, 0);
+      }
+      else if(tuned_frequency_Hz > 2.0e6)
+      {
+        gpio_put(2, 1);
+        gpio_put(3, 1);
+        gpio_put(4, 0);
+      }
+      else
+      {
+        gpio_put(2, 0);
+        gpio_put(3, 0);
+        gpio_put(4, 1);
       }
 
-      //update status
-      status.signal_strength_dBm = rx_dsp_inst.get_signal_strength_dBm();
-      status.busy_time = busy_time;
-      status.battery = battery;
-      status.temp = temp;
+      //apply pwm_max
+      pwm_max = (system_clock_rate/audio_sample_rate)-1;
+      rx_dsp_inst.set_pwm_max(pwm_max);
+      pwm_set_wrap(audio_pwm_slice_num, pwm_max); 
+
+      //apply frequency offset
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+
+      //apply CW sidetone
+      rx_dsp_inst.set_cw_sidetone_Hz(settings_to_apply.cw_sidetone_Hz);
+
+      //apply gain calibration
+      rx_dsp_inst.set_gain_cal_dB(settings_to_apply.gain_cal);
+
+      //apply AGC speed
+      rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+
+      //apply Automatic Notch Filter
+      rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
+
+      //apply mode
+      rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
+
+      //apply volume
+      rx_dsp_inst.set_volume(settings_to_apply.volume);
+
+      //apply squelch
+      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+
+      //apply swap iq
+      rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
+
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
@@ -288,6 +332,9 @@ void rx::run()
 {
     while(true)
     {
+      apply_settings();
+      pwm_ramp_up();
+
       //read other adc channels when streaming is not running
       uint32_t timeout = 1000;
       read_batt_temp();
@@ -308,10 +355,10 @@ void rx::run()
       while(true)
       {
           //exchange data with UI (runing in core 0)
-          apply_settings();
+          update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend)
+          if(timeout-- == 0 || suspend || settings_changed)
           {
 
             dma_channel_cleanup(adc_dma_ping);
@@ -323,6 +370,9 @@ void rx::run()
             adc_fifo_drain();
             adc_set_round_robin(0);
             adc_fifo_setup(false, false, 1, false, false);
+
+            //slowly ramp down PWM to avoid pops
+            pwm_ramp_down();
 
             break;
           }
@@ -339,7 +389,9 @@ void rx::run()
       //suspended state
       while(true)
       {
-          apply_settings();
+          update_status();
+
+          //wait here if receiver is suspended
           if(!suspend)
           {
             break;
