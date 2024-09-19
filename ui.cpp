@@ -886,6 +886,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
   settings_to_apply.oled_contrast = settings[idx_oled_contrast];
+  settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
   receiver.release();
 }
 
@@ -1969,6 +1970,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
+      settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
       receiver.release();
     }
 
@@ -1999,7 +2001,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2041,24 +2043,33 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           rx_settings_changed |= bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
           break;
 
-        case 9 : 
+        case 9 :
+        {
+          uint32_t v = settings[idx_rx_features] >> enum_deemphasis & 3;
+          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
+          settings[idx_rx_features] &= ~(3 << enum_deemphasis);
+          settings[idx_rx_features] |= v << enum_deemphasis;
+        }
+        break;
+
+        case 10 : 
           rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
           break;
 
-        case 10 : 
+        case 11 : 
           rx_settings_changed |= frequency_entry("Band Stop", idx_max_frequency);
           break;
 
-        case 11 : 
+        case 12 : 
           rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 12 : 
+        case 13 : 
           rx_settings_changed |= number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 13 : 
+        case 14 : 
           rx_settings_changed |= configuration_menu();
           break;
       }

@@ -48,7 +48,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_display_timeout (0x7 << flag_display_timeout)
 
 //flags for receiver features idx_rx_features
-#define flag_enable_auto_notch 0
+#define flag_enable_auto_notch (0)
+#define enum_deemphasis (1)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

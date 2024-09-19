@@ -25,6 +25,7 @@ struct rx_settings
   uint8_t volume;
   uint8_t squelch;
   uint8_t bandwidth;
+  uint8_t deemphasis;
   uint16_t cw_sidetone_Hz;
   uint16_t gain_cal;
   uint8_t oled_contrast;

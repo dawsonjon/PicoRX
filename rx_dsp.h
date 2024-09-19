@@ -20,6 +20,7 @@ class rx_dsp
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
+  void set_deemphasis(uint8_t deemphasis);
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
@@ -33,6 +34,7 @@ class rx_dsp
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   bool cw_decimate(int16_t &i, int16_t &q);
+  int16_t apply_deemphasis(int16_t x);
 
   //capture samples for spectral analysis
   int16_t capture_i[256];
@@ -77,6 +79,9 @@ class rx_dsp
   int32_t audio_dc=0;
   uint8_t ssb_phase=0;
   int16_t last_phase=0;
+
+  // de-emphasis
+  uint8_t deemphasis=0;
 
   //volume control
   int16_t gain_numerator=0;
