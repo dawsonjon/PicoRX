@@ -334,8 +334,11 @@ void rx::run()
 {
     while(true)
     {
-      apply_settings();
-      pwm_ramp_up();
+      if (settings_changed)
+      {
+        apply_settings();
+        pwm_ramp_up();
+      }
 
       //read other adc channels when streaming is not running
       uint32_t timeout = 1000;
@@ -373,8 +376,11 @@ void rx::run()
             adc_set_round_robin(0);
             adc_fifo_setup(false, false, 1, false, false);
 
-            //slowly ramp down PWM to avoid pops
-            pwm_ramp_down();
+            if (settings_changed)
+            {
+              // slowly ramp down PWM to avoid pops
+              pwm_ramp_down();
+            }
 
             break;
           }
