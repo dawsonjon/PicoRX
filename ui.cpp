@@ -1586,6 +1586,9 @@ bool ui::frequency_scan()
 
       if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
           settings[idx_frequency] = settings[idx_max_frequency];
+
+      apply_settings(false);
+
     }
 
     //render the page
