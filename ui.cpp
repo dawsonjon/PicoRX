@@ -1554,45 +1554,6 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
 
 }
 
-//bool ui::display_timeout(bool encoder_change)
-//{
-    //uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-    //uint16_t display_timeout = timeout_lookup[display_timeout_setting];
-
-    //A timeout value of zero means never time out
-    //if(!display_timeout) return true;
-
-    //A button press causes timer to be reset to max value
-    //and re-enables the display if it was previously off
-    //if(encoder_change || menu_button.is_pressed() || back_button.is_pressed())
-    //{
-      //if(!display_timer)
-      //{
-        //ssd1306_poweron(&disp);
-        //display_timer = display_timeout;
-        //return false;
-      //}
-      //display_timer = display_timeout;
-      //return true;
-    //}
-
-    //if display is on, decrement the timer, once every 100ms
-    //if(display_timer)
-    //{
-      //--display_timer;
-      //if a timeout occurs turn display off
-      //if(!display_timer)
-      //{
-         //ssd1306_poweroff(&disp);
-         //return false;
-      //}
-      //return true;
-    //}
-
-    //at this point timer must be expired and display is off
-    //return false;
-//}
-
 bool ui::configuration_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};

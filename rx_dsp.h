@@ -33,7 +33,6 @@ class rx_dsp
   bool decimate(int16_t &i, int16_t &q);
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
-  bool cw_decimate(int16_t &i, int16_t &q);
 
   //capture samples for spectral analysis
   int16_t capture[256];

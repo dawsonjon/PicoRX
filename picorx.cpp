@@ -11,7 +11,7 @@
 
 #define UI_REFRESH_HZ (10UL)
 #define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
-#define CAT_REFRESH_US (1000UL)
+#define CAT_REFRESH_US (10000UL)
 
 uint8_t spectrum[256];
 uint8_t dB10=10;

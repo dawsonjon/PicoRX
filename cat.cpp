@@ -8,7 +8,6 @@
 void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint32_t settings[])
 {
 
-    //if (!uart_is_readable()) return;
     bool settings_changed = false;
     char cmd[256];
     int32_t retval = stdio_get_until(cmd, sizeof(cmd), make_timeout_time_us(1000));
@@ -27,7 +26,6 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             {
               settings[idx_frequency]=frequency_Hz;
               settings_changed = true;
-              //stdio_puts_raw("OK;");
             }
             else
             {
@@ -47,7 +45,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             power_scaled = std::max((float)0, power_scaled);
             printf("SM%04X;", (uint16_t)power_scaled);
         } else {
-            stdio_puts_raw("NG;");
+            stdio_puts_raw("?;");
         }
 
     } else if (strncmp(cmd, "MD", 2) == 0) {
@@ -59,31 +57,27 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
         } else if (cmd[2] == '1') {
             settings_changed = true;
             settings[idx_mode] = MODE_LSB;
-            //stdio_puts_raw("OK;");
         } else if (cmd[2] == '2') {
             settings_changed = true;
             settings[idx_mode] = MODE_USB;
-            //stdio_puts_raw("OK;");
         } else if (cmd[2] == '3') {
             settings_changed = true;
             settings[idx_mode] = MODE_CW;
-            //stdio_puts_raw("OK;");
         } else if (cmd[2] == '4') {
             settings_changed = true;
             settings[idx_mode] = MODE_FM;
-            //stdio_puts_raw("OK;");
         } else if (cmd[2] == '5') {
             settings_changed = true;
             settings[idx_mode] = MODE_AM;
-            //stdio_puts_raw("OK;");
-        } else {
-            //stdio_puts_raw("OK;");
         }
 
     } else if (strncmp(cmd, "IF", 2) == 0) {
+
         if (cmd[2] == ';') {
             printf("IF%011lu00000+0000000000%c0000000;", settings[idx_frequency], mode_translation[settings[idx_mode]]);
         }
+
+    //fake TX for now
     } else if (strncmp(cmd, "ID", 2) == 0) {
         if (cmd[2] == ';') {
             printf("ID020;");
@@ -128,8 +122,6 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
         if (cmd[2] == ';') {
             printf("FL0;");
         }
-
-    //fake TX for now
     } else if (strncmp(cmd, "TX", 2) == 0) {
         static uint8_t tx_status = 0;
 
