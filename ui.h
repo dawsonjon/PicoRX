@@ -38,7 +38,6 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_bandwidth 11
 #define idx_rx_features 12
 #define idx_oled_contrast 13  // values 0..15 get * 17 for set_contrast(0.255)
-#define idx_deemphasis 14
 
 // bit flags for HW settings in idx_hw_setup
 #define flag_reverse_encoder 0
@@ -50,6 +49,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 
 //flags for receiver features idx_rx_features
 #define flag_enable_auto_notch (0)
+#define enum_deemphasis (1)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

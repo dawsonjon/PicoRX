@@ -830,7 +830,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
   settings_to_apply.oled_contrast = settings[idx_oled_contrast];
-  settings_to_apply.deemphasis = settings[idx_deemphasis];
+  settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
   receiver.release();
 }
 
@@ -1914,7 +1914,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
-      settings_to_apply.deemphasis = settings[idx_deemphasis];
+      settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
       receiver.release();
     }
 
@@ -1988,12 +1988,13 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 9 :
-          if(settings[idx_deemphasis] == 0xFFFFFFFF)
-          {
-            settings[idx_deemphasis] = 0;
-          }
-          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings[idx_deemphasis]);
-          break;
+        {
+          uint32_t v = settings[idx_rx_features] >> enum_deemphasis & 3;
+          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
+          settings[idx_rx_features] &= ~(3 << enum_deemphasis);
+          settings[idx_rx_features] |= v << enum_deemphasis;
+        }
+        break;
 
         case 10 : 
           rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
