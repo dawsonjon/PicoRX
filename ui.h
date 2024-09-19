@@ -48,7 +48,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_display_timeout (0x7 << flag_display_timeout)
 
 //flags for receiver features idx_rx_features
-#define flag_enable_auto_notch 0
+#define flag_enable_auto_notch (0)
+#define enum_deemphasis (1)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -145,7 +146,7 @@ class ui
   void draw_waterfall(uint16_t startY, rx & receiver);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_analogmeter(    uint16_t startx, uint16_t starty, 
-                              int16_t width, int16_t height,
+                              uint16_t width, int16_t height,
                               float  needle_pct, int numticks = 0,
                               const char* legend = 0, const char labels[][5] = NULL
                               );

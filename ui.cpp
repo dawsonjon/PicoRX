@@ -406,11 +406,13 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 // draw a classic analog meter movement.
-// Cant do more than the top half circle
-// cant do zero height (a linear movement)
+////////////////////////////////////////////////////////////////////////////////
+// height positive : a circle sector from the top down up to and including the full circle
+// height positive : draw a linear movement meter like all the cheap CBs in the 80s
 void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
-                              int16_t width, int16_t height,
+                              uint16_t width, int16_t height,
                               float  needle_pct, int numticks,
                               const char* legend, const char labels[][5]
                               ) {
@@ -418,69 +420,122 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   #define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  static int segment_h = height;  // pixels high
-  static int segment_w2 = width/2;  // pixels wide
+  int segment_h = height;  // pixels high
+  int segment_w2 = width/2;  // pixels wide
   // compute the radius
-  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+  float radius;
+  float halfdeg_range;
+  float deg_min, deg_max, deg_range;
 
-  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
+  // pointless and crashed with DIV0
+  if (height == 0) return;
 
-  #define DEG_MIN (90-HALFDEG_RANGE)
-  #define DEG_MAX (90+HALFDEG_RANGE)
-  #define DEG_RANGE (HALFDEG_RANGE*2)
-
-  // draw arc
-  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
-      ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + radius*cos(M_PI*degrees/180),
-          (starty + radius) - radius*sin(M_PI*degrees/180),
-          1);
-      ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + radius*cos(M_PI*degrees/180),
-          1+(starty + radius) - radius*sin(M_PI*degrees/180),
-          1);
-  }
-
-  // tick marks
-  if (numticks) {
-    int i=0;
-    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
-      for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
-        ssd1306_draw_pixel(&disp,
-            (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
-            (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
-            1);
-      }
-      // tick labels
-      if ( (labels) &&  (strlen(labels[i])) ) {
-        display_set_xy(
-            (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
-            (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
-            );
-        display_print_str(labels[i]);
-      }
-      i++;
+  if (height > 0) { // positive height, angular meter
+    if (height <= segment_w2) {
+      radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+      halfdeg_range = asinf(segment_w2/radius)*180.0 / M_PI;
+      deg_min = (90-halfdeg_range);
+      deg_max = (90+halfdeg_range);
+      deg_range = (deg_max-deg_min);
+    } else {  // (height > segment_w2)
+      radius = segment_w2;
+      halfdeg_range = acosf((segment_h-radius)/radius)*180.0 / M_PI;
+      deg_min = (-90 +halfdeg_range);
+      deg_max = (270 -halfdeg_range);
+      deg_range = (deg_max-deg_min);
     }
-  }
 
-  if (strlen(legend)) {
-    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
-    display_print_str(legend, 2);
-  }
+    // draw arc
+    for (int degrees=deg_min; degrees<=deg_max; degrees++) {
+        ssd1306_draw_pixel(&disp, 
+            (startx+width/2) + radius*cos(M_PI*degrees/180),
+            (starty + radius) - radius*sin(M_PI*degrees/180),
+            1);
+        ssd1306_draw_pixel(&disp, 
+            (startx+width/2) + (1+radius)*cos(M_PI*degrees/180),
+            (starty + radius) - (1+radius)*sin(M_PI*degrees/180),
+            1);
+    }
 
-  // draw the needle
-  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
-  degrees = DEG_MAX - degrees;
-  if (degrees < DEG_MIN) degrees = DEG_MIN;
-  if (degrees > DEG_MAX) degrees = DEG_MAX;
-  // can skip invisible part of needle => radius-50
-  // draw_line is crap at angled lines so plot pixels
-  int startr = starty+radius-64; // 64 is display height
-  for (int r=startr; r<radius; r++) {
-    ssd1306_draw_pixel(&disp, 
-        (startx+width/2) + r*cos(M_PI*degrees/180),
-        (starty + radius) - r*sin(M_PI*degrees/180),
-        1);
+    // tick marks
+    if (numticks) {
+      int i=0;
+      for (float degrees=deg_max; degrees>=deg_min; degrees-=(float)(deg_range/(numticks-1))) {
+        for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
+          ssd1306_draw_pixel(&disp,
+              (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
+              (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
+              1);
+        }
+        // tick labels
+        if ( (labels) &&  (strlen(labels[i])) ) {
+          display_set_xy(
+              (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
+              (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
+              );
+          display_print_str(labels[i]);
+        }
+        i++;
+      }
+    }
+
+    // draw legend
+    if (strlen(legend)) {
+      if (height == width) { // a circle
+        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h/2-8);
+      } else {
+        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+      }
+      display_print_str(legend, 2);
+    }
+
+    // draw the needle
+    float degrees = needle_pct * deg_range/100.0;
+    degrees = deg_max - degrees;
+    if (degrees < deg_min) degrees = deg_min;
+    if (degrees > deg_max) degrees = deg_max;
+    // can skip invisible part of needle => radius-50
+    // draw_line is crap at angled lines so plot pixels
+    int startr=0;
+    if (starty+radius > 64){
+      startr = starty+radius-64; // 64 is display height
+    }
+    for (int r=startr; r<radius; r++) {
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + r*cos(M_PI*degrees/180),
+          (starty + radius) - r*sin(M_PI*degrees/180),
+          1);
+    }
+  } 
+  else 
+  {   // draw a CB style rectangular needle movement
+    height *= -1;
+    // draw straight arc
+    ssd1306_draw_line(&disp, startx, starty+height/2-1, startx+width, starty+height/2-1, 1);
+    ssd1306_draw_line(&disp, startx, starty+height/2, startx+width, starty+height/2, 1);
+
+    // tick marks
+    if (numticks) {
+      for (int i=0; i < numticks; i++) {
+        int x = startx + i*width/(numticks-1);
+        ssd1306_draw_line(&disp, x, starty+(height/2)-TICK_LEN-1, x, starty+(height/2)+TICK_LEN, 1);
+        // tick labels
+        if ( (labels) && strlen(labels[i]) ) {
+          display_set_xy( x - (3*strlen(labels[i])-1), starty+(height/2)-TICK_LEN-10);
+          display_print_str(labels[i]);
+        }
+      }
+    }
+
+    // draw the needle
+    int x = startx + width*needle_pct/100;
+    ssd1306_draw_line(&disp, x, starty, x, starty+height, 1);
+
+    // draw legend
+    if (strlen(legend)) {
+      display_set_xy(startx + width/2 - 6*strlen(legend)/2, starty+(height/2)+TICK_LEN+3);
+      display_print_str(legend, 1);
+    }  
   }
 }
 
@@ -503,10 +558,8 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 
   float avg_power_dBm = 0.0;
   for (uint8_t i=0; i<NUM_DBM; i++) {
-    printf ("%f ", dBm_avg[i]);
     avg_power_dBm += dBm_avg[i];
   } 
-  printf ("\n");
   avg_power_dBm /= NUM_DBM;
 
   display_clear();
@@ -524,8 +577,11 @@ const char labels[13][5] = {
     ""
 };
 
-//  draw_analogmeter( 4, 31, 120, 21, percent, 13, "S", labels );
+  // angular meter movement
   draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+
+  // rectangular meter movement
+//  draw_analogmeter( 12, 19, 104, -31, percent, 13, "Signal", labels );
 
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
 
@@ -832,6 +888,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
   settings_to_apply.oled_contrast = settings[idx_oled_contrast];
+  settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
   receiver.release();
 }
 
@@ -2210,6 +2267,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
+      settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
       receiver.release();
     }
 
@@ -2240,7 +2298,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2282,28 +2340,37 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           rx_settings_changed |= bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
           break;
 
-        case 9 : 
+        case 9 :
+        {
+          uint32_t v = settings[idx_rx_features] >> enum_deemphasis & 3;
+          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
+          settings[idx_rx_features] &= ~(3 << enum_deemphasis);
+          settings[idx_rx_features] |= v << enum_deemphasis;
+        }
+        break;
+
+        case 10 : 
           rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
           break;
 
-        case 10 : 
+        case 11 : 
           rx_settings_changed |= frequency_entry("Band Stop", idx_max_frequency);
           break;
 
-        case 11 : 
+        case 12 : 
           rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 12 : 
+        case 13 : 
           rx_settings_changed |= number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 13 : 
+        case 14 : 
           rx_settings_changed |= scanner_menu();
           break;
 
-        case 14 : 
+        case 15 : 
           rx_settings_changed |= configuration_menu();
           break;
       }
