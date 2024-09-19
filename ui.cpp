@@ -1430,6 +1430,7 @@ bool ui::memory_scan()
 
     if(ev.tag == ev_button_push_press){
       scan_speed=0;
+      draw_once=1;
     }
 
     if(ev.tag == ev_button_menu_press){
@@ -1575,6 +1576,7 @@ bool ui::frequency_scan()
 
     if(ev.tag == ev_button_push_press){
       scan_speed=0;
+      draw_once=1;
     }
 
     if(ev.tag == ev_button_menu_press){
