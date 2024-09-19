@@ -23,6 +23,13 @@ const uint8_t PIN_ENCODER_PUSH = 5;
 const uint8_t PIN_DISPLAY_SDA = 18;
 const uint8_t PIN_DISPLAY_SCL = 19;
 
+#define MODE_AM 0
+#define MODE_AMS 1
+#define MODE_LSB 2
+#define MODE_USB 3
+#define MODE_FM 4
+#define MODE_CW 5
+
 // settings that get stored in eeprom
 #define settings_to_store 6
 #define idx_frequency 0
@@ -65,13 +72,14 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
 
+const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
+
 class ui
 {
 
   private:
 
   uint32_t settings[16];
-  const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
   const char steps[10][8]  = {
@@ -182,6 +190,7 @@ class ui
 
   public:
 
+  uint32_t * get_settings(){return &settings[0];};
   void autorestore();
   void do_ui();
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10);

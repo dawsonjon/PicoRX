@@ -7,9 +7,11 @@
 #include "rx.h"
 #include "ui.h"
 #include "waterfall.h"
+#include "cat.h"
 
 #define UI_REFRESH_HZ (10UL)
 #define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
+#define CAT_REFRESH_US (1000UL)
 
 uint8_t spectrum[256];
 uint8_t dB10=10;
@@ -32,6 +34,7 @@ int main()
   user_interface.autorestore();
 
   uint32_t last_ui_update = 0;
+  uint32_t last_cat_update = 0;
   while(1)
   {
     //schedule tasks
@@ -41,6 +44,16 @@ int main()
       user_interface.do_ui();
       receiver.get_spectrum(spectrum, dB10);
     }
-    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
+
+    else if(time_us_32() - last_cat_update > CAT_REFRESH_US)
+    {
+      process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
+    }
+
+    else
+    {
+      waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
+    }
+
   }
 }
