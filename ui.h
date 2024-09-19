@@ -64,6 +64,7 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_right       (1<<2)
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
+#define style_xor         (1<<5)
 
 class ui
 {
@@ -72,12 +73,12 @@ class ui
 
   uint32_t settings[16];
   float spectrum[128];
-  const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
+  const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
-  const char steps[10][8]  = {
+  const char steps[11][8]  = {
     "10Hz", "50Hz", "100Hz", "1kHz",
-    "5kHz", "10kHz", "12.5kHz", "25kHz",
+    "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz",
     "50kHz", "100kHz"};
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
@@ -115,6 +116,7 @@ class ui
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+  void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
@@ -164,8 +166,13 @@ class ui
   int string_entry(char string[]);
   bool top_menu(rx_settings & settings_to_apply);
   bool configuration_menu();
+  bool scanner_menu();
+  bool frequency_scan();
   bool memory_recall();
+  bool memory_scan();
   bool memory_store();
+  int get_memory_name(char* name, int select, bool strip_spaces);
+
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);

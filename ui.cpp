@@ -116,11 +116,13 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_x = 0;
     cursor_y += 9*scale;
   }
-
+  int colour = 1;
+  if (style & style_reverse) colour=0;
+  if (style & style_xor) colour=2;
   if (scale & 0x01) { // odd numbers use 8x6 chars
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, colour);
   } else { // even, use 16x12
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, colour);
   }
   cursor_x += (6*scale);
 }
@@ -1127,30 +1129,7 @@ bool ui::memory_store()
     if(encoder_control(&select, min, max)!=0 || draw_once)
     {
 
-      if(radio_memory[select][9] != 0xffffffffu)
-      {
-        //load name from memory
-        name[0] = radio_memory[select][6] >> 24;
-        name[1] = radio_memory[select][6] >> 16;
-        name[2] = radio_memory[select][6] >> 8;
-        name[3] = radio_memory[select][6];
-        name[4] = radio_memory[select][7] >> 24;
-        name[5] = radio_memory[select][7] >> 16;
-        name[6] = radio_memory[select][7] >> 8;
-        name[7] = radio_memory[select][7];
-        name[8] = radio_memory[select][8] >> 24;
-        name[9] = radio_memory[select][8] >> 16;
-        name[10] = radio_memory[select][8] >> 8;
-        name[11] = radio_memory[select][8];
-        name[12] = radio_memory[select][9] >> 24;
-        name[13] = radio_memory[select][9] >> 16;
-        name[14] = radio_memory[select][9] >> 8;
-        name[15] = radio_memory[select][9];
-        name[16] = 0;
-      } else {
-        strcpy(name, "BLANK           ");
-      }
-
+      get_memory_name(name, select, false);
       //print selected menu item
       draw_once = false;
       display_clear();
@@ -1269,7 +1248,7 @@ bool ui::memory_recall()
   bool draw_once = true;
   bool power_change = true;
 
-  int32_t pos_change;
+  int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
   int8_t power_s = 0;
@@ -1292,14 +1271,15 @@ bool ui::memory_recall()
       last_power_dBm = power_dBm;
     }
 
-    pos_change = encoder_control(&select, min, max);
+    pos_change = encoder_control(&select, min, max);;
+
     if( pos_change != 0 || draw_once) {
       power_change = true;
       if (radio_memory[select][9] == 0xffffffff) {
         if (pos_change < 0) { // search backwards up to 512 times
           for (unsigned int i=0; i<num_chans; i++) {
-            if (select < min) select = max;
-            if(radio_memory[--select][9] != 0xffffffff)
+            if (--select < min) select = max;
+            if(radio_memory[select][9] != 0xffffffff)
               break;
           }
         } else if (pos_change > 0) {  // forwards
@@ -1311,34 +1291,7 @@ bool ui::memory_recall()
         }
       }
 
-      if(radio_memory[select][9] != 0xffffffff)
-      {
-        //load name from memory
-        name[0] = radio_memory[select][6] >> 24;
-        name[1] = radio_memory[select][6] >> 16;
-        name[2] = radio_memory[select][6] >> 8;
-        name[3] = radio_memory[select][6];
-        name[4] = radio_memory[select][7] >> 24;
-        name[5] = radio_memory[select][7] >> 16;
-        name[6] = radio_memory[select][7] >> 8;
-        name[7] = radio_memory[select][7];
-        name[8] = radio_memory[select][8] >> 24;
-        name[9] = radio_memory[select][8] >> 16;
-        name[10] = radio_memory[select][8] >> 8;
-        name[11] = radio_memory[select][8];
-        name[12] = radio_memory[select][9] >> 24;
-        name[13] = radio_memory[select][9] >> 16;
-        name[14] = radio_memory[select][9] >> 8;
-        name[15] = radio_memory[select][9];
-        name[16] = 0;
-      } else {
-        strcpy(name, "BLANK           ");
-      }
-      // strip trailing spaces
-      for (int i=15; i>=0; i--) {
-        if (name[i] != ' ') break;
-        name[i] = 0;
-      }
+      get_memory_name(name, select, true);
 
       //(temporarily) apply loaded settings to RX
       for(uint8_t i=0; i<settings_to_store; i++){
@@ -1368,7 +1321,7 @@ bool ui::memory_recall()
       display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      display_print_str("from:  ", 1);
+      display_print_str("From:  ", 1);
       display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
       display_print_str(" Hz\n",1);
 
@@ -1418,6 +1371,325 @@ bool ui::memory_recall()
       return 0;
     }
   }
+}
+
+// Scan across the stored memories
+bool ui::memory_scan()
+{
+
+  //encoder loops through memories
+  int32_t min = 0;
+  int32_t max = num_chans-1;
+  // grab last selected memory
+  int32_t select=last_select;
+  char name[17];
+  bool draw_once = true;
+
+  int scan_speed = 0;
+  uint32_t last_time = 0;
+  uint32_t now_time = 0;
+
+  int32_t pos_change = 0;
+  float power_dBm;
+  float last_power_dBm = FLT_MAX;
+  int8_t power_s = 0;
+
+  //remember where we were incase we need to cancel
+  uint32_t stored_settings[settings_to_store];
+  for(uint8_t i=0; i<settings_to_store; i++){
+    stored_settings[i] = settings[i];
+  }
+
+  while(1){
+    // grab power
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    if (power_dBm != last_power_dBm) {
+      //signal strength as an int 0..12
+      power_s = dBm_to_S(power_dBm);
+      draw_once = true;
+      last_power_dBm = power_dBm;
+    }
+
+    pos_change = get_encoder_change();
+    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+
+    now_time = to_ms_since_boot(get_absolute_time());
+    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+      last_time = now_time;
+      pos_change = scan_speed;
+      if (pos_change > 0) if (++select > max) select = min;
+      if (pos_change < 0) if (--select < min) select = max;
+    }
+
+    if( pos_change != 0 || draw_once) {
+
+      if (radio_memory[select][9] == 0xffffffff) {
+        if (pos_change < 0) { // search backwards up to 512 times
+          for (unsigned int i=0; i<num_chans; i++) {
+            if (--select < min) select = max;
+            if(radio_memory[select][9] != 0xffffffff)
+              break;
+          }
+        } else if (pos_change > 0) {  // forwards
+          for (unsigned int i=0; i<num_chans; i++) {
+            if (++select > max) select = min;
+            if(radio_memory[select][9] != 0xffffffff)
+              break;
+          }
+        }
+      }
+
+      get_memory_name(name, select, true);
+
+      //(temporarily) apply lodaed settings to RX
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = radio_memory[select][i];
+      }
+      apply_settings(false);
+
+      //print selected menu item
+      draw_once = false;
+      display_clear();
+      display_print_str("Scanner");
+      display_print_num(" %03i ", select, 1, style_centered);
+
+      const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+      display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
+      display_print_str(mode_ptr,1);
+
+      display_print_str("\n", 1);
+      if (12*strlen(name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(name,1,style_nowrap);
+      } else {
+        display_print_str(name,2,style_nowrap);
+      }
+
+      //draw frequency
+      display_set_xy(0,27);
+      display_print_freq('.', radio_memory[select][idx_frequency], 2);
+      display_print_str("\n",2);
+
+      display_print_str("Speed",2);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
+
+      // draw vertical signal strength
+      int bar_len = power_s*62/12;
+      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+
+      display_show();
+    }
+
+    event_t ev = event_get();
+
+    if(ev.tag == ev_button_push_press){
+      scan_speed=0;
+      draw_once=1;
+    }
+
+    if(ev.tag == ev_button_menu_press){
+      last_select=select;
+      return 1;
+    }
+
+    //cancel
+    if(ev.tag == ev_button_back_press){
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
+      }
+      apply_settings(false);
+      return 0;
+    }
+  }
+}
+
+// print pause, play, reverse play with extra > or < based on speed
+// x is the midpoint of the graphic/central character
+void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
+{
+  display_set_xy(x-3*scale,y);
+  if (speed >= 1 ) {
+    display_print_char(CHAR_PLAY, scale);
+    if (speed >= 2 ) {
+      for ( int i=1; i<speed; i++) {
+        display_add_xy(-3*scale,0);
+        display_print_char('>', scale, style_xor);
+      }
+    }
+  }
+  if (speed == 0 ) {
+    display_print_char(CHAR_PAUSE, scale);
+  }
+  if (speed <= -1 ) {
+    if (scale==1) display_add_xy(1,0);  // workaround font differences
+    display_print_char(CHAR_REVPLAY, scale);
+    if (scale==1) display_add_xy(-1,0);  // workaround font differences
+    if (speed <= -2 ) {
+      for ( int i = -1; i>speed; i--) {
+        display_add_xy(-9*scale,0);
+        display_print_char('<', scale, style_xor);
+      }
+    }
+  }
+}
+
+// Scan across the frequency band
+bool ui::frequency_scan()
+{
+  bool draw_once = true;
+
+  int scan_speed = 0;
+  uint32_t last_time = 0;
+  uint32_t now_time = 0;
+
+  int32_t pos_change = 0;
+  float power_dBm;
+  float last_power_dBm = FLT_MAX;
+  int8_t power_s = 0;
+
+  //remember where we were incase we need to cancel
+  uint32_t stored_settings[settings_to_store];
+  for(uint8_t i=0; i<settings_to_store; i++){
+    stored_settings[i] = settings[i];
+  }
+
+  while(1){
+    // grab power
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    if (power_dBm != last_power_dBm) {
+      //signal strength as an int 0..12
+      power_s = dBm_to_S(power_dBm);
+      draw_once = true;
+      last_power_dBm = power_dBm;
+    }
+
+    pos_change = get_encoder_change();
+    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+
+    now_time = to_ms_since_boot(get_absolute_time());
+    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+      last_time = now_time;
+      pos_change = scan_speed/abs(scan_speed);
+
+      //update frequency 
+      settings[idx_frequency] += pos_change * step_sizes[settings[idx_step]];
+
+      if (settings[idx_frequency] > settings[idx_max_frequency])
+          settings[idx_frequency] = settings[idx_min_frequency];
+
+      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+
+      apply_settings(false);
+
+    }
+
+    //render the page
+    if (pos_change != 0 || draw_once) {
+      draw_once = false;
+      display_clear();
+      display_print_str("Scanner");
+
+      const char *p = steps[settings[idx_step]];
+      uint16_t x_center = (display_get_x()+120-24)/2;
+      display_set_xy(x_center - 6*strlen(p)/2, 0);
+      display_print_str(p ,1 );
+
+      // print mode
+      const char* mode_ptr = modes[settings[idx_mode]];
+      display_set_xy(120-6*strlen(mode_ptr), display_get_y());
+      display_print_str(mode_ptr);
+      display_print_str("\n");
+
+      //frequency
+      display_print_freq('.', settings[idx_frequency],2);
+      display_print_str("\n",2);
+
+      display_print_str("From:  ", 1);
+      display_print_freq(',', settings[idx_min_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      display_print_str("  To:  ", 1);
+      display_print_freq(',', settings[idx_max_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      //draw scanning speed
+      display_set_xy(0,48);
+      display_print_str("Speed",2);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
+
+      // draw vertical signal strength
+      int bar_len = power_s*62/12;
+      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+
+      display_show();
+    }
+
+    event_t ev = event_get();
+
+    if(ev.tag == ev_button_push_press){
+      scan_speed=0;
+      draw_once=1;
+    }
+
+    if(ev.tag == ev_button_menu_press){
+      return 1;
+    }
+
+    //cancel
+    if(ev.tag == ev_button_back_press){
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
+      }
+      apply_settings(false);
+      return 0;
+    }
+  }
+}
+
+
+int ui::get_memory_name(char* name, int select, bool strip_spaces)
+{
+      if(radio_memory[select][9] != 0xffffffff)
+      {
+        //load name from memory
+        name[0] = radio_memory[select][6] >> 24;
+        name[1] = radio_memory[select][6] >> 16;
+        name[2] = radio_memory[select][6] >> 8;
+        name[3] = radio_memory[select][6];
+        name[4] = radio_memory[select][7] >> 24;
+        name[5] = radio_memory[select][7] >> 16;
+        name[6] = radio_memory[select][7] >> 8;
+        name[7] = radio_memory[select][7];
+        name[8] = radio_memory[select][8] >> 24;
+        name[9] = radio_memory[select][8] >> 16;
+        name[10] = radio_memory[select][8] >> 8;
+        name[11] = radio_memory[select][8];
+        name[12] = radio_memory[select][9] >> 24;
+        name[13] = radio_memory[select][9] >> 16;
+        name[14] = radio_memory[select][9] >> 8;
+        name[15] = radio_memory[select][9];
+        name[16] = 0;
+      } else {
+        strcpy(name, "BLANK           ");
+      }
+
+      // strip trailing spaces
+      if (strip_spaces) {
+        for (int i=15; i>=0; i--) {
+          if (name[i] != ' ') break;
+          name[i] = 0;
+        }
+      }
+      return (strlen(name));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1757,6 +2029,34 @@ bool ui::configuration_menu()
 
 }
 
+bool ui::scanner_menu()
+{
+  bool rx_settings_changed=false;
+  uint32_t setting = 0;
+
+  while (1) {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+
+      if(!menu_entry("Scan", "Memories#Frequency\nRamge#", &setting)) return 1;
+      switch(setting)
+      {
+        case 0: 
+          rx_settings_changed |= memory_scan();
+          break;
+
+        case 1 : 
+          rx_settings_changed |= frequency_scan();
+          break;
+      }
+  }
+
+  return rx_settings_changed;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the startup animation
 ////////////////////////////////////////////////////////////////////////////////
@@ -2001,7 +2301,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2061,7 +2361,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 12 : 
-          rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
+          rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
@@ -2070,6 +2370,10 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 14 : 
+          rx_settings_changed |= scanner_menu();
+          break;
+
+        case 15 : 
           rx_settings_changed |= configuration_menu();
           break;
       }
