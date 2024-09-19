@@ -73,12 +73,12 @@ class ui
 
   uint32_t settings[16];
   float spectrum[128];
-  const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
+  const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
   const uint16_t timeout_lookup[8] = {0, 50, 100, 150, 300, 600, 1200, 2400};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
-  const char steps[10][8]  = {
+  const char steps[11][8]  = {
     "10Hz", "50Hz", "100Hz", "1kHz",
-    "5kHz", "10kHz", "12.5kHz", "25kHz",
+    "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz",
     "50kHz", "100kHz"};
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
