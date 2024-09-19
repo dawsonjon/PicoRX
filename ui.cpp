@@ -2040,7 +2040,7 @@ bool ui::scanner_menu()
         break;
       }
 
-      if(!menu_entry("Scan", "Memories#Frequency\nRamge#", &setting)) return 1;
+      if(!menu_entry("Scan", "Memories#Frequency\nRange#", &setting)) return 1;
       switch(setting)
       {
         case 0: 
