@@ -54,9 +54,11 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_oled_type 3
 #define flag_display_timeout 4  // bits 4-6
 #define mask_display_timeout (0x7 << flag_display_timeout)
-#define flag_display_contrast 7   // bits 7-10 stored
+#define flag_display_contrast 7   // bits 7-10
 #define mask_display_contrast (0xf << flag_display_contrast)
-// #define flag_nextfree 11
+#define flag_tft_settings 11   // bits 11-13
+#define mask_tft_settings (0x7 << flag_tft_settings)
+// #define flag_nextfree 14
 // 32bit number, 31 is last flag bit
 
 //flags for receiver features idx_rx_features
@@ -200,13 +202,14 @@ class ui
   rx &receiver;
   uint8_t *spectrum;
   uint8_t &dB10;
+  waterfall &waterfall_inst;
 
   public:
 
   uint32_t * get_settings(){return &settings[0];};
   void autorestore();
   void do_ui();
-  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10);
+  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst);
 
 };
 

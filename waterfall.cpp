@@ -74,6 +74,34 @@ waterfall::~waterfall()
     delete display;
 }
 
+void waterfall::configure_display(uint8_t settings)
+{
+    if(settings == 0)
+    {
+      enabled = false;
+    } 
+    else if(settings == 1)
+    {
+      enabled = true;
+      display->setRotation(MIRRORED90DEG);
+    }
+    else if(settings == 2)
+    {
+      enabled = true;
+      display->setRotation(MIRRORED270DEG);
+    }
+    else if(settings == 3)
+    {
+      enabled = true;
+      display->setRotation(R90DEG);
+    }
+    else if(settings == 4)
+    {
+      enabled = true;
+      display->setRotation(R270DEG);
+    }
+}
+
 uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
 {
     uint8_t section = ((uint16_t)value*6)>>8;
@@ -138,6 +166,8 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
 
 void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10)
 {
+
+    if(!enabled) return;
 
     const uint16_t waterfall_height = 100u;
     const uint16_t waterfall_x = 32u;

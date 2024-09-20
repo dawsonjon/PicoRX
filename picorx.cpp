@@ -18,8 +18,8 @@ uint8_t dB10=10;
 static rx_settings settings_to_apply;
 static rx_status status;
 static rx receiver(settings_to_apply, status);
-static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10);
 waterfall waterfall_inst;
+static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10, waterfall_inst);
 
 void core1_main()
 {

@@ -676,42 +676,53 @@ bool ui::bit_entry(const char title[], const char options[], uint8_t bit_positio
 //choose from an enumerate list of settings
 bool ui::menu_entry(const char title[], const char options[], uint32_t *value, bool &ok)
 {
-  static int32_t select=*value;
-  static bool draw_once = true;
+  enum e_state{idle, active};
+  static e_state state = idle;
+  static int32_t select = 0;
+  bool draw_display = false;
 
-  uint32_t max = 0;
-  for (size_t i=0; i<strlen(options); i++) {
-    if (options[i] == '#') max++;
-  }
-  // workaround for accidental last # oissions
-  if (options[strlen(options)-1] != '#') max++;
-  if (max > 0) max--;
-
-  if(encoder_control(&select, 0, max)!=0 || draw_once)
+  if(state == idle)
   {
-    //print selected menu item
-    draw_once = false;
-    display_clear();
-    display_print_str(title, 2, style_centered);
-    display_draw_separator(18,3);
-    display_linen(4);
-    print_enum_option(options, select);
-    display_show();
+    draw_display = true;
+    select = *value;
+    state = active;
+  }
+  else if(state == active)
+  {
+    uint32_t max = 0;
+    for (size_t i=0; i<strlen(options); i++) {
+      if (options[i] == '#') max++;
+    }
+    // workaround for accidental last # omissions
+    if (options[strlen(options)-1] != '#') max++;
+    if (max > 0) max--;
+
+    draw_display = encoder_control(&select, 0, max)!=0;
+
+    //select menu item
+    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+      *value = select;
+      ok = true;
+      state = idle;
+      return true;
+    }
+
+    //cancel
+    if(back_button.is_pressed()){
+      ok = false;
+      state = idle;
+      return true;
+    }
   }
 
-  //select menu item
-  if(menu_button.is_pressed() || encoder_button.is_pressed()){
-    *value = select;
-    ok = true;
-    draw_once = true;
-    return true;
-  }
-
-  //cancel
-  if(back_button.is_pressed()){
-    ok = false;
-    draw_once = true;
-    return true;
+  if(draw_display)
+  {
+      display_clear();
+      display_print_str(title, 2, style_centered);
+      display_draw_separator(18,3);
+      display_linen(4);
+      print_enum_option(options, select);
+      display_show();
   }
 
   return false;
@@ -720,81 +731,103 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
 //choose from an enumerate list of settings
 bool ui::enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok)
 {
-  static int32_t select=*value;
-  static bool draw_once = true;
+  enum e_state{idle, active};
+  static e_state state = idle;
+  static int32_t select = 0;
+  bool draw_display = false;
 
-  uint32_t max = 0;
-  for (size_t i=0; i<strlen(options); i++) {
-    if (options[i] == '#') max++;
-  }
-  // workaround for accidental last # oissions
-  if (options[strlen(options)-1] != '#') max++;
-  if (max > 0) max--;
-
-  if(encoder_control(&select, 0, max)!=0 || draw_once)
+  if(state == idle)
   {
-    //print selected menu item
-    draw_once = false;
-    display_clear();
-    display_print_str(title, 2, style_centered);
-    display_draw_separator(40,1);
-    display_linen(6);
-    print_enum_option(options, select);
-    display_show();
+    draw_display = true;
+    select = *value;
+    state = active;
   }
-
-  //select menu item
-  if(menu_button.is_pressed() || encoder_button.is_pressed()){
-    *value = select;
-    ok = true;
-    draw_once = true;
-    return true;
-  }
-
-  //cancel
-  if(back_button.is_pressed()){
-    ok = false;
-    draw_once = true;
-    return true;
-  }
-
-  return false;
-
-}
-
-//select a number in a range
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok)
-{
-  static int32_t select=*value/multiple;
-  static bool draw_once = true;
-  while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
-    {
-      //print selected menu item
-      draw_once = false;
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
-      display_linen(6);
-      display_print_num(format, select*multiple, 2, style_centered);
-      display_show();
+  else if(state == active)
+  {
+    uint32_t max = 0;
+    for (size_t i=0; i<strlen(options); i++) {
+      if (options[i] == '#') max++;
     }
+    // workaround for accidental last # oissions
+    if (options[strlen(options)-1] != '#') max++;
+    if (max > 0) max--;
+
+    draw_display = encoder_control(&select, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
-      *value = select*multiple;
+      *value = select;
       ok = true;
-      draw_once = true;
+      state = idle;
       return true;
     }
 
     //cancel
     if(back_button.is_pressed()){
       ok = false;
-      draw_once = true;
+      state = idle;
       return true;
     }
   }
+
+  if(draw_display)
+  {
+      display_clear();
+      display_print_str(title, 2, style_centered);
+      display_draw_separator(40,1);
+      display_linen(6);
+      print_enum_option(options, select);
+      display_show();
+  }
+
+  return false;
+}
+
+//select a number in a range
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok)
+{
+  enum e_state{idle, active};
+  static e_state state = idle;
+  static int32_t select = 0;
+  bool draw_display = false;
+
+  if(state == idle)
+  {
+    draw_display = true;
+    select=*value/multiple;
+    state = active;
+  }
+  else if(state == active)
+  {
+    draw_display = encoder_control(&select, min, max)!=0;
+
+    //select menu item
+    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+      *value = select*multiple;
+      ok = true;
+      state = idle;
+      return true;
+    }
+
+    //cancel
+    if(back_button.is_pressed()){
+      ok = false;
+      state = idle;
+      return true;
+    }
+  }
+
+  if(draw_display)
+  {
+      display_clear();
+      display_print_str(title, 2, style_centered);
+      display_draw_separator(40,1);
+      display_linen(6);
+      display_print_num(format, select*multiple, 2, style_centered);
+      display_show();
+  }
+
+  return false;
 }
 
 //Apply settings
@@ -958,6 +991,7 @@ void ui::autorestore()
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
   ssd1306_contrast(&disp, 17 * ((settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
+  waterfall_inst.configure_display((settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings);
 
 }
 
@@ -1055,14 +1089,35 @@ bool ui::memory_store(bool &ok)
   if(state == select_channel)
   {
       encoder_control(&select, min, max);
-      get_memory_name(name, select, false);
+      get_memory_name(name, select, true);
 
       display_clear();
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str(modes[settings[idx_mode]],1,style_right);
       display_print_str("\n", 1);
+      if (12*strlen(name) > 128) {
+        display_add_xy(0,4);
+        display_print_str(name,1,style_nowrap|style_centered);
+      } else {
+        display_print_str(name,2,style_nowrap|style_centered);
+      }
+      display_show();
 
+      if(encoder_button.is_pressed()||menu_button.is_pressed()){
+        get_memory_name(name, select, false);
+        state = enter_name;
+      }
+
+      //cancel
+      if(back_button.is_pressed()){
+        ok=false;
+        state = select_channel;
+        return true;
+      }
+
+  } 
+  else if(state == enter_name)
+  {
       //modify the selected channel name
       bool del = false;
       if(string_entry(name, ok, del))
@@ -1137,7 +1192,7 @@ bool ui::memory_store(bool &ok)
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       //!!! Normal operation resumed
 
-      ssd1306_invert( &disp, 0);
+      //ssd1306_invert( &disp, 0);
 
       ok = true;
       state = select_channel;
@@ -1261,7 +1316,6 @@ bool ui::memory_recall(bool &ok)
   static int8_t last_power_s = 255;
   if(power_s != last_power_s)
   {
-    printf("updating power meter");
     int bar_len = power_s * 62 / 12;
     ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
     ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
@@ -1611,7 +1665,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   del = false;
 
   enum e_state{idle, select_position, select_char};
-  static e_state state = select_position;
+  static e_state state = idle;
   int32_t encoder_position = 0;
   bool draw_display = false;
   const char letters[] = " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789"; 
@@ -1717,9 +1771,9 @@ int ui::string_entry(char string[], bool &ok, bool &del){
         display_set_xy(0, display_get_y());
         display_print_str(">",2,style_reverse);
         display_print_str("<",2,style_reverse|style_right);
+        print_enum_option("OK#CLEAR#DELETE#EXIT#", position-16);
       }
       display_set_xy(0, display_get_y());
-      print_enum_option("OK#CLEAR#DELETE#EXIT#", position-16);
 
       display_show();
   }
@@ -1868,7 +1922,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1879,6 +1933,8 @@ bool ui::configuration_menu(bool &ok)
         else
         {
           //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
           return true;
         }
       }
@@ -1936,7 +1992,15 @@ bool ui::configuration_menu(bool &ok)
           settings[idx_hw_setup] |= setting_word << flag_display_contrast;
           break;
 
-        case 8: 
+        case 8:
+          setting_word = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#", &setting_word, ok);
+          settings[idx_hw_setup] &= ~mask_tft_settings;
+          settings[idx_hw_setup] |= setting_word << flag_tft_settings;
+          waterfall_inst.configure_display(setting_word);
+          break;
+
+        case 9: 
           setting_word = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
           if(setting_word==1) {
@@ -1981,6 +2045,8 @@ bool ui::main_menu(bool & ok)
         else
         {
           //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
           return true;
         }
       }
@@ -2079,6 +2145,8 @@ bool ui::scanner_menu(bool &ok)
         else
         {
           //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
           return true;
         }
       }
@@ -2321,7 +2389,7 @@ void ui::do_ui()
 
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10) : 
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
@@ -2329,7 +2397,8 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   status(status), 
   receiver(receiver), 
   spectrum(spectrum),
-  dB10(dB10)
+  dB10(dB10),
+  waterfall_inst(waterfall_inst)
 {
   setup_display();
   setup_encoder();
