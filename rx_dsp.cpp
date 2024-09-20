@@ -7,6 +7,24 @@
 #include <algorithm>
 #include "pico/stdlib.h"
 
+static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
+
+int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
+{
+  if(deemphasis == 0)
+    return x;
+
+  static int16_t x1 = 0;
+  static int16_t y1 = 0;
+
+  size_t i = deemphasis - 1;
+
+  int16_t y = ((x * deemph_taps[i][0]) >> 15) + ((x1 * deemph_taps[i][1]) >> 15) - ((y1 * deemph_taps[0][2]) >> 15);
+  x1 = x;
+  y1 = y;
+  return y;
+}
+
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
 
@@ -95,6 +113,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //Demodulate to give audio sample
       int32_t audio = demodulate(i, q);
+
+      audio = apply_deemphasis(audio);
 
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
@@ -383,6 +403,11 @@ rx_dsp :: rx_dsp()
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
+}
+
+void rx_dsp :: set_deemphasis(uint8_t deemph)
+{
+  deemphasis = deemph;
 }
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)

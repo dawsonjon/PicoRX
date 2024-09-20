@@ -196,6 +196,8 @@ void rx::apply_settings()
       //apply volume
       rx_dsp_inst.set_volume(settings_to_apply.volume);
 
+      rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
+
       //apply squelch
       rx_dsp_inst.set_squelch(settings_to_apply.squelch);
 

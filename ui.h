@@ -14,6 +14,7 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
+#include "logo.h"
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -56,7 +57,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_display_timeout (0x7 << flag_display_timeout)
 
 //flags for receiver features idx_rx_features
-#define flag_enable_auto_notch 0
+#define flag_enable_auto_notch (0)
+#define flag_deemphasis (1)
+#define mask_deemphasis (0x3 << flag_deemphasis)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -71,6 +74,7 @@ enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
 #define style_right       (1<<2)
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
+#define style_xor         (1<<5)
 
 const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
 
@@ -81,10 +85,11 @@ class ui
 
   uint32_t settings[16];
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
+  const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
-  const char steps[10][8]  = {
+  const char steps[11][8]  = {
     "10Hz", "50Hz", "100Hz", "1kHz",
-    "5kHz", "10kHz", "12.5kHz", "25kHz",
+    "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz",
     "50kHz", "100kHz"};
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
@@ -121,6 +126,7 @@ class ui
   void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+  void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
@@ -150,10 +156,11 @@ class ui
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_analogmeter(    uint16_t startx, uint16_t starty, 
-                              int16_t width, int16_t height,
+                              uint16_t width, int16_t height,
                               float  needle_pct, int numticks = 0,
                               const char* legend = 0, const char labels[][5] = NULL
                               );
+  bool frequency_scan(bool &ok);
 
 
   bool frequency_autosave_pending = false;
@@ -162,6 +169,7 @@ class ui
   // Menu                    
   bool main_menu(bool &ok);
   bool configuration_menu(bool &ok);
+  bool scanner_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);
@@ -174,14 +182,15 @@ class ui
   int string_entry(char string[], bool &ok, bool &del);
   bool memory_recall(bool &ok);
   bool memory_store(bool &ok);
+  bool memory_scan(bool &ok);
+
+  int get_memory_name(char* name, int select, bool strip_spaces);
   bool upload_memory();
   void autosave();
   void apply_settings(bool suspend);
   bool display_timeout(bool encoder_change);
 
-
   uint32_t regmode = 1;
-
   rx_settings &settings_to_apply;
   rx_status &status;
   rx &receiver;
@@ -197,5 +206,4 @@ class ui
 
 };
 
-#include "logo.h"
 #endif

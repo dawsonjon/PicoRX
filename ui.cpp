@@ -111,11 +111,13 @@ void ui::display_print_char(char x, uint32_t scale, uint32_t style)
     cursor_x = 0;
     cursor_y += 9*scale;
   }
-
+  int colour = 1;
+  if (style & style_reverse) colour=0;
+  if (style & style_xor) colour=2;
   if (scale & 0x01) { // odd numbers use 8x6 chars
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, colour);
   } else { // even, use 16x12
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, !(style&style_reverse));
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, colour);
   }
   cursor_x += (6*scale);
 }
@@ -378,11 +380,13 @@ void ui::draw_h_tick_marks(uint16_t startY)
   ssd1306_draw_line(&disp, 96, startY + 1, 96, startY + 3, 1);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 // draw a classic analog meter movement.
-// Cant do more than the top half circle
-// cant do zero height (a linear movement)
+////////////////////////////////////////////////////////////////////////////////
+// height positive : a circle sector from the top down up to and including the full circle
+// height positive : draw a linear movement meter like all the cheap CBs in the 80s
 void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
-                              int16_t width, int16_t height,
+                              uint16_t width, int16_t height,
                               float  needle_pct, int numticks,
                               const char* legend, const char labels[][5]
                               ) {
@@ -390,69 +394,122 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
   #define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  static int segment_h = height;  // pixels high
-  static int segment_w2 = width/2;  // pixels wide
+  int segment_h = height;  // pixels high
+  int segment_w2 = width/2;  // pixels wide
   // compute the radius
-  static float radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+  float radius;
+  float halfdeg_range;
+  float deg_min, deg_max, deg_range;
 
-  static float HALFDEG_RANGE = asin(segment_w2/radius)*180.0 / M_PI;
+  // pointless and crashed with DIV0
+  if (height == 0) return;
 
-  #define DEG_MIN (90-HALFDEG_RANGE)
-  #define DEG_MAX (90+HALFDEG_RANGE)
-  #define DEG_RANGE (HALFDEG_RANGE*2)
-
-  // draw arc
-  for (int degrees=DEG_MIN; degrees<=DEG_MAX; degrees++) {
-      ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + radius*cos(M_PI*degrees/180),
-          (starty + radius) - radius*sin(M_PI*degrees/180),
-          1);
-      ssd1306_draw_pixel(&disp, 
-          (startx+width/2) + radius*cos(M_PI*degrees/180),
-          1+(starty + radius) - radius*sin(M_PI*degrees/180),
-          1);
-  }
-
-  // tick marks
-  if (numticks) {
-    int i=0;
-    for (float degrees=DEG_MAX; degrees>=DEG_MIN; degrees-=(float)(DEG_RANGE/(numticks-1))) {
-      for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
-        ssd1306_draw_pixel(&disp,
-            (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
-            (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
-            1);
-      }
-      // tick labels
-      if ( (labels) &&  (strlen(labels[i])) ) {
-        display_set_xy(
-            (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
-            (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
-            );
-        display_print_str(labels[i]);
-      }
-      i++;
+  if (height > 0) { // positive height, angular meter
+    if (height <= segment_w2) {
+      radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
+      halfdeg_range = asinf(segment_w2/radius)*180.0 / M_PI;
+      deg_min = (90-halfdeg_range);
+      deg_max = (90+halfdeg_range);
+      deg_range = (deg_max-deg_min);
+    } else {  // (height > segment_w2)
+      radius = segment_w2;
+      halfdeg_range = acosf((segment_h-radius)/radius)*180.0 / M_PI;
+      deg_min = (-90 +halfdeg_range);
+      deg_max = (270 -halfdeg_range);
+      deg_range = (deg_max-deg_min);
     }
-  }
 
-  if (strlen(legend)) {
-    display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
-    display_print_str(legend, 2);
-  }
+    // draw arc
+    for (int degrees=deg_min; degrees<=deg_max; degrees++) {
+        ssd1306_draw_pixel(&disp, 
+            (startx+width/2) + radius*cos(M_PI*degrees/180),
+            (starty + radius) - radius*sin(M_PI*degrees/180),
+            1);
+        ssd1306_draw_pixel(&disp, 
+            (startx+width/2) + (1+radius)*cos(M_PI*degrees/180),
+            (starty + radius) - (1+radius)*sin(M_PI*degrees/180),
+            1);
+    }
 
-  // draw the needle
-  uint16_t degrees = needle_pct * DEG_RANGE/100.0;
-  degrees = DEG_MAX - degrees;
-  if (degrees < DEG_MIN) degrees = DEG_MIN;
-  if (degrees > DEG_MAX) degrees = DEG_MAX;
-  // can skip invisible part of needle => radius-50
-  // draw_line is crap at angled lines so plot pixels
-  int startr = starty+radius-64; // 64 is display height
-  for (int r=startr; r<radius; r++) {
-    ssd1306_draw_pixel(&disp, 
-        (startx+width/2) + r*cos(M_PI*degrees/180),
-        (starty + radius) - r*sin(M_PI*degrees/180),
-        1);
+    // tick marks
+    if (numticks) {
+      int i=0;
+      for (float degrees=deg_max; degrees>=deg_min; degrees-=(float)(deg_range/(numticks-1))) {
+        for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
+          ssd1306_draw_pixel(&disp,
+              (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
+              (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
+              1);
+        }
+        // tick labels
+        if ( (labels) &&  (strlen(labels[i])) ) {
+          display_set_xy(
+              (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
+              (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
+              );
+          display_print_str(labels[i]);
+        }
+        i++;
+      }
+    }
+
+    // draw legend
+    if (strlen(legend)) {
+      if (height == width) { // a circle
+        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h/2-8);
+      } else {
+        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+      }
+      display_print_str(legend, 2);
+    }
+
+    // draw the needle
+    float degrees = needle_pct * deg_range/100.0;
+    degrees = deg_max - degrees;
+    if (degrees < deg_min) degrees = deg_min;
+    if (degrees > deg_max) degrees = deg_max;
+    // can skip invisible part of needle => radius-50
+    // draw_line is crap at angled lines so plot pixels
+    int startr=0;
+    if (starty+radius > 64){
+      startr = starty+radius-64; // 64 is display height
+    }
+    for (int r=startr; r<radius; r++) {
+      ssd1306_draw_pixel(&disp, 
+          (startx+width/2) + r*cos(M_PI*degrees/180),
+          (starty + radius) - r*sin(M_PI*degrees/180),
+          1);
+    }
+  } 
+  else 
+  {   // draw a CB style rectangular needle movement
+    height *= -1;
+    // draw straight arc
+    ssd1306_draw_line(&disp, startx, starty+height/2-1, startx+width, starty+height/2-1, 1);
+    ssd1306_draw_line(&disp, startx, starty+height/2, startx+width, starty+height/2, 1);
+
+    // tick marks
+    if (numticks) {
+      for (int i=0; i < numticks; i++) {
+        int x = startx + i*width/(numticks-1);
+        ssd1306_draw_line(&disp, x, starty+(height/2)-TICK_LEN-1, x, starty+(height/2)+TICK_LEN, 1);
+        // tick labels
+        if ( (labels) && strlen(labels[i]) ) {
+          display_set_xy( x - (3*strlen(labels[i])-1), starty+(height/2)-TICK_LEN-10);
+          display_print_str(labels[i]);
+        }
+      }
+    }
+
+    // draw the needle
+    int x = startx + width*needle_pct/100;
+    ssd1306_draw_line(&disp, x, starty, x, starty+height, 1);
+
+    // draw legend
+    if (strlen(legend)) {
+      display_set_xy(startx + width/2 - 6*strlen(legend)/2, starty+(height/2)+TICK_LEN+3);
+      display_print_str(legend, 1);
+    }  
   }
 }
 
@@ -475,10 +532,8 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 
   float avg_power_dBm = 0.0;
   for (uint8_t i=0; i<NUM_DBM; i++) {
-    printf ("%f ", dBm_avg[i]);
     avg_power_dBm += dBm_avg[i];
   } 
-  printf ("\n");
   avg_power_dBm /= NUM_DBM;
 
   display_clear();
@@ -496,7 +551,9 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
       ""
   };
 
+  // angular meter movement
   draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
   display_show();
 }
@@ -756,7 +813,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
-  settings_to_apply.oled_contrast = settings[idx_oled_contrast];
+  settings_to_apply.deemphasis = settings[idx_rx_features] >> flag_deemphasis & 3;
   receiver.release();
 }
 
@@ -997,64 +1054,9 @@ bool ui::memory_store(bool &ok)
 
   if(state == select_channel)
   {
-    encoder_control(&select, min, max);
-    if(radio_memory[select][9] != 0xffffffffu)
-    {
-      //load name from memory
-      name[0] = radio_memory[select][6] >> 24;
-      name[1] = radio_memory[select][6] >> 16;
-      name[2] = radio_memory[select][6] >> 8;
-      name[3] = radio_memory[select][6];
-      name[4] = radio_memory[select][7] >> 24;
-      name[5] = radio_memory[select][7] >> 16;
-      name[6] = radio_memory[select][7] >> 8;
-      name[7] = radio_memory[select][7];
-      name[8] = radio_memory[select][8] >> 24;
-      name[9] = radio_memory[select][8] >> 16;
-      name[10] = radio_memory[select][8] >> 8;
-      name[11] = radio_memory[select][8];
-      name[12] = radio_memory[select][9] >> 24;
-      name[13] = radio_memory[select][9] >> 16;
-      name[14] = radio_memory[select][9] >> 8;
-      name[15] = radio_memory[select][9];
-      name[16] = 0;
-    } else {
-      strcpy(name, "BLANK           ");
-    }
+      encoder_control(&select, min, max);
+      get_memory_name(name, select, false);
 
-    //print selected menu item
-    display_clear();
-    display_print_str("Store");
-    display_print_num(" %03i ", select, 1, style_centered);
-    display_print_str("\n", 1);
-
-    // strip trailing spaces 
-    char ss_name[17];
-    strncpy(ss_name, name, 17);
-    for (int i=15; i>=0; i--) {
-      if (ss_name[i] != ' ') break;
-      ss_name[i] = 0;
-    }
-    if (12*strlen(ss_name) > 128) {
-      display_add_xy(0,4);
-      display_print_str(ss_name,1,style_nowrap|style_centered);
-    } else {
-      display_print_str(ss_name,2,style_nowrap|style_centered);
-    }
-    display_show();
-
-    if(menu_button.is_pressed()||encoder_button.is_pressed()) 
-      state = enter_name;
-    if(back_button.is_pressed())
-    {
-      state = select_channel;
-      return true;
-    }
-
-  }
-  else if(state == enter_name)
-  {
-      // print the top row
       display_clear();
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
@@ -1216,35 +1218,7 @@ bool ui::memory_recall(bool &ok)
   {
     //draw screen
     char name[17];
-    if(radio_memory[select][9] != 0xffffffff)
-    {
-      //load name from memory
-      name[0] = radio_memory[select][6] >> 24;
-      name[1] = radio_memory[select][6] >> 16;
-      name[2] = radio_memory[select][6] >> 8;
-      name[3] = radio_memory[select][6];
-      name[4] = radio_memory[select][7] >> 24;
-      name[5] = radio_memory[select][7] >> 16;
-      name[6] = radio_memory[select][7] >> 8;
-      name[7] = radio_memory[select][7];
-      name[8] = radio_memory[select][8] >> 24;
-      name[9] = radio_memory[select][8] >> 16;
-      name[10] = radio_memory[select][8] >> 8;
-      name[11] = radio_memory[select][8];
-      name[12] = radio_memory[select][9] >> 24;
-      name[13] = radio_memory[select][9] >> 16;
-      name[14] = radio_memory[select][9] >> 8;
-      name[15] = radio_memory[select][9];
-      name[16] = 0;
-    } else {
-      strcpy(name, "BLANK           ");
-    }
-
-    // strip trailing spaces
-    for (int i=15; i>=0; i--) {
-      if (name[i] != ' ') break;
-      name[i] = 0;
-    }
+    get_memory_name(name, select, true);
 
     //(temporarily) apply lodaed settings to RX
     for(uint8_t i=0; i<settings_to_store; i++){
@@ -1296,6 +1270,336 @@ bool ui::memory_recall(bool &ok)
 
 
   return false; 
+}
+
+// Scan across the stored memories
+bool ui::memory_scan(bool &ok)
+{
+
+  //encoder loops through memories
+  const int32_t min = 0;
+  const int32_t max = num_chans-1;
+  static int32_t select = 0;
+  static uint32_t stored_settings[settings_to_store];
+  bool load_and_update_display = false;
+
+  enum e_frequency_state{idle, active};
+  static e_frequency_state state = idle;
+
+  static int32_t scan_speed = 0;
+
+  if(state == idle)
+  {
+
+    //remember where we were incase we need to cancel
+    for(uint8_t i=0; i<settings_to_store; i++){
+      stored_settings[i] = settings[i];
+    }
+
+    //skip blank channels
+    load_and_update_display = true;
+    for(uint16_t i = 0; i<num_chans; i++)
+    {
+      if(radio_memory[select][9] != 0xffffffff) break;
+      select++;
+      if(select > max) select = min;
+    }
+
+    scan_speed = 0;
+    state = active;
+  }
+  else if(state == active)
+  {
+
+    int32_t pos_change = encoder_control(&select, min, max);
+
+    static int8_t direction=0;
+    if ( pos_change > 0 ){
+      direction = 1;
+      if(++scan_speed>4) scan_speed=4;
+      load_and_update_display = true;
+    }
+    if ( pos_change < 0 ){
+      direction = -1;
+      if(--scan_speed<-4) scan_speed=-4;
+      load_and_update_display = true;
+    }
+
+    static uint32_t last_time = 0u;
+    uint32_t now_time = to_ms_since_boot(get_absolute_time());
+    if (scan_speed && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
+      last_time = now_time;
+      select += direction;
+      if (++select > max) select = min;
+      if (--select < min) select = max;
+      load_and_update_display = true;
+    }
+
+    //skip blank channels
+    for(uint16_t i = 0; i<num_chans; i++)
+    {
+      if(radio_memory[select][9] != 0xffffffff) break;
+      if(select < min) select = max;
+      if(select > max) select = min;
+    }
+
+    //ok
+    if(encoder_button.is_pressed()||menu_button.is_pressed()){
+      ok=true;
+      state = idle;
+      return true;
+    }
+
+    //cancel
+    if(back_button.is_pressed()){
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
+      }
+      apply_settings(false);
+      ok=false;
+      state = idle;
+      return true;
+    }
+  }
+
+  if(load_and_update_display)
+  {
+    char name[17];
+    get_memory_name(name, select, true);
+
+    //(temporarily) apply lodaed settings to RX
+    for(uint8_t i=0; i<settings_to_store; i++){
+      settings[i] = radio_memory[select][i];
+    }
+    apply_settings(false);
+
+    //draw screen
+    display_clear();
+    display_print_str("Scanner");
+    display_print_num(" %03i ", select, 1, style_centered);
+
+    const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+    display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
+    display_print_str(mode_ptr,1);
+
+    display_print_str("\n", 1);
+    if (12*strlen(name) > 128) {
+      display_add_xy(0,4);
+      display_print_str(name,1,style_nowrap);
+    } else {
+      display_print_str(name,2,style_nowrap);
+    }
+
+    //draw frequency
+    display_set_xy(0,27);
+    display_print_freq('.', radio_memory[select][idx_frequency], 2);
+    display_print_str("\n",2);
+
+    display_print_str("Speed",2);
+    display_print_speed(91, display_get_y(), 2, scan_speed);
+  }
+
+  //draw power meter
+  receiver.access(false);
+  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
+  receiver.release();
+  static int8_t last_power_s = 255;
+  if(power_s != last_power_s)
+  {
+    int bar_len = power_s * 62 / 12;
+    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
+    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    display_show();
+  }
+
+
+  return false; 
+
+}
+
+// print pause, play, reverse play with extra > or < based on speed
+// x is the midpoint of the graphic/central character
+void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
+{
+  display_set_xy(x-3*scale,y);
+  if (speed >= 1 ) {
+    display_print_char(CHAR_PLAY, scale);
+    if (speed >= 2 ) {
+      for ( int i=1; i<speed; i++) {
+        display_add_xy(-3*scale,0);
+        display_print_char('>', scale, style_xor);
+      }
+    }
+  }
+  if (speed == 0 ) {
+    display_print_char(CHAR_PAUSE, scale);
+  }
+  if (speed <= -1 ) {
+    if (scale==1) display_add_xy(1,0);  // workaround font differences
+    display_print_char(CHAR_REVPLAY, scale);
+    if (scale==1) display_add_xy(-1,0);  // workaround font differences
+    if (speed <= -2 ) {
+      for ( int i = -1; i>speed; i--) {
+        display_add_xy(-9*scale,0);
+        display_print_char('<', scale, style_xor);
+      }
+    }
+  }
+}
+
+// Scan across the frequency band
+bool ui::frequency_scan(bool &ok)
+{
+
+  bool load_and_update_display = false;
+  enum e_frequency_state{idle, active};
+  static e_frequency_state state = idle;
+  static int32_t scan_speed = 0;
+  const int32_t min = 0;
+  const int32_t max = num_chans-1;
+  static int32_t select = 0;
+
+  if(state == idle)
+  {
+    load_and_update_display = true;
+    scan_speed = 0;
+    state = active;
+  }
+  else if(state == active)
+  {
+
+    int32_t pos_change = encoder_control(&select, min, max);
+    load_and_update_display = pos_change != 0;
+
+    static int8_t direction = 1;
+    if ( pos_change > 0 ){
+       if(++scan_speed>4) scan_speed=4;
+       direction = 1;
+    }
+    if ( pos_change < 0 ){
+       if(--scan_speed<-4) scan_speed=-4;
+       direction = -1;
+    }
+
+    uint32_t now_time = to_ms_since_boot(get_absolute_time());
+    static uint32_t last_time = 0u;
+    if (scan_speed && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
+      last_time = now_time;
+
+      //update frequency 
+      settings[idx_frequency] += direction * step_sizes[settings[idx_step]];
+
+      if (settings[idx_frequency] > settings[idx_max_frequency])
+          settings[idx_frequency] = settings[idx_min_frequency];
+
+      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+
+      apply_settings(false);
+      load_and_update_display = true;
+    }
+
+    //ok
+    if(encoder_button.is_pressed()||menu_button.is_pressed()){
+      ok=true;
+      state = idle;
+      return true;
+    }
+
+    //cancel
+    if(back_button.is_pressed()){
+      ok=false;
+      state = idle;
+      return true;
+    }
+  }
+
+  if(load_and_update_display)
+  {
+      display_clear();
+      display_print_str("Scanner");
+
+      const char *p = steps[settings[idx_step]];
+      uint16_t x_center = (display_get_x()+120-24)/2;
+      display_set_xy(x_center - 6*strlen(p)/2, 0);
+      display_print_str(p ,1 );
+
+      // print mode
+      const char* mode_ptr = modes[settings[idx_mode]];
+      display_set_xy(120-6*strlen(mode_ptr), display_get_y());
+      display_print_str(mode_ptr);
+      display_print_str("\n");
+
+      //frequency
+      display_print_freq('.', settings[idx_frequency],2);
+      display_print_str("\n",2);
+
+      display_print_str("From:  ", 1);
+      display_print_freq(',', settings[idx_min_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      display_print_str("  To:  ", 1);
+      display_print_freq(',', settings[idx_max_frequency], 1);
+      display_print_str(" Hz\n",1);
+
+      //draw scanning speed
+      display_set_xy(0,48);
+      display_print_str("Speed",2);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
+  }
+
+  //draw power meter
+  receiver.access(false);
+  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
+  receiver.release();
+  static int8_t last_power_s = 255;
+  if(power_s != last_power_s)
+  {
+    int bar_len = power_s * 62 / 12;
+    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
+    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    display_show();
+  }
+
+  return false;
+}
+
+
+int ui::get_memory_name(char* name, int select, bool strip_spaces)
+{
+      if(radio_memory[select][9] != 0xffffffff)
+      {
+        //load name from memory
+        name[0] = radio_memory[select][6] >> 24;
+        name[1] = radio_memory[select][6] >> 16;
+        name[2] = radio_memory[select][6] >> 8;
+        name[3] = radio_memory[select][6];
+        name[4] = radio_memory[select][7] >> 24;
+        name[5] = radio_memory[select][7] >> 16;
+        name[6] = radio_memory[select][7] >> 8;
+        name[7] = radio_memory[select][7];
+        name[8] = radio_memory[select][8] >> 24;
+        name[9] = radio_memory[select][8] >> 16;
+        name[10] = radio_memory[select][8] >> 8;
+        name[11] = radio_memory[select][8];
+        name[12] = radio_memory[select][9] >> 24;
+        name[13] = radio_memory[select][9] >> 16;
+        name[14] = radio_memory[select][9] >> 8;
+        name[15] = radio_memory[select][9];
+        name[16] = 0;
+      } else {
+        strcpy(name, "BLANK           ");
+      }
+
+      // strip trailing spaces
+      if (strip_spaces) {
+        for (int i=15; i>=0; i--) {
+          if (name[i] != ' ') break;
+          name[i] = 0;
+        }
+      }
+      return (strlen(name));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1663,7 +1967,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1712,20 +2016,31 @@ bool ui::main_menu(bool & ok)
           case 8 :  
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
-          case 9 :  
+          case 9 :
+            {
+              uint32_t v = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+              done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v, ok);
+              settings[idx_rx_features] &= ~(mask_deemphasis);
+              settings[idx_rx_features] |= (v << flag_deemphasis);
+            }
+            break;
+          case 10 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 10 : 
+          case 11 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 11 : 
+          case 12 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 12 : 
+          case 13 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone], ok);
             break;
-          case 13 : 
+          case 14 : 
+            done = scanner_menu(ok);
+            break;
+          case 15 : 
             done = configuration_menu(ok);
             break;
         }
@@ -1740,6 +2055,55 @@ bool ui::main_menu(bool & ok)
     return false;
 }
 
+
+bool ui::scanner_menu(bool &ok)
+{
+    enum e_ui_state {select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Scan", "Memories#Frequency\nRange#", &menu_selection, ok))
+      {
+        if(ok) 
+        {
+          //ok button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+       bool done = false;
+       switch(menu_selection)
+        {
+          case 0 :  
+            done = memory_scan(ok);
+            break;
+          case 1 : 
+            done = frequency_scan(ok);
+            break;
+        }
+        if(done)
+        {
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+    }
+
+    return false;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // This is the startup animation
@@ -1946,6 +2310,7 @@ void ui::do_ui()
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
+      settings_to_apply.deemphasis = settings[idx_rx_features] >> flag_deemphasis & 3;
       receiver.release();
     }
 
