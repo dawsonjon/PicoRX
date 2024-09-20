@@ -28,7 +28,6 @@ struct rx_settings
   uint8_t deemphasis;
   uint16_t cw_sidetone_Hz;
   uint16_t gain_cal;
-  uint8_t oled_contrast;
   bool suspend;
   bool swap_iq;
   bool enable_auto_notch;
