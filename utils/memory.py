@@ -27,11 +27,12 @@ steps = {
     "100Hz": 2,
     "1kHz": 3,
     "5kHz": 4,
-    "10kHz": 5,
-    "12.5kHz": 6,
-    "25kHz": 7,
-    "50kHz": 8,
-    "100kHz": 9,
+    "9kHz": 5,
+    "10kHz": 6,
+    "12.5kHz": 7,
+    "25kHz": 8,
+    "50kHz": 9,
+    "100kHz": 10,
 }
 
 def pack(string):
@@ -86,7 +87,7 @@ static const uint32_t __in_flash() __attribute__((aligned(4096))) radio_memory[%
 
 mem = Memory()
 mem.add("All Bands       ", 198000,   0,        30000000, "AM", "VERY SLOW", "1kHz")
-mem.add("MW Broadcast    ", 1413000,  531000,   1602000,  "AM", "VERY SLOW", "1kHz")
+mem.add("MW Broadcast    ", 1413000,  531000,   1602000,  "AM", "VERY SLOW", "9kHz")
 mem.add("LW Broadcast    ", 198000,   153000,   279000,   "AM", "VERY SLOW", "1kHz")
 mem.add("SW 120m         ", 2300000,  2300000,  2495000,  "AM", "VERY SLOW", "1kHz")
 mem.add("SW 90m          ", 3200000,  3200000,  3400000,  "AM", "VERY SLOW", "1kHz")

@@ -887,8 +887,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
-  settings_to_apply.oled_contrast = settings[idx_oled_contrast];
-  settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
+  settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   receiver.release();
 }
 
@@ -1031,7 +1030,7 @@ void ui::autorestore()
   display_timer = timeout_lookup[display_timeout_setting];
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
-  ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+  ssd1306_contrast(&disp, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
 
 }
 
@@ -1639,10 +1638,20 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
+#if 1
     if(ev.tag == ev_button_menu_press){
       return 1;
     }
 
+#else
+    if(ev.tag == ev_button_menu_press){
+        bool rx_settings_changed = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
+        if (rx_settings_changed) {
+          apply_settings(false);
+          draw_once=1;
+        }
+    }
+#endif
     //cancel
     if(ev.tag == ev_button_back_press){
       //put things back how they were to start with
@@ -1969,12 +1978,14 @@ bool ui::configuration_menu()
       if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
-        case 0: 
-          setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          rx_settings_changed |= enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting);
-          display_timer = timeout_lookup[setting];
+        case 0:
+          {
+          uint32_t val = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+          rx_settings_changed |= enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &val);
+          display_timer = timeout_lookup[val];
           settings[idx_hw_setup] &=  ~mask_display_timeout;
-          settings[idx_hw_setup] |=  setting << flag_display_timeout;
+          settings[idx_hw_setup] |=  val << flag_display_timeout;
+          }
           break;
 
         case 1 : 
@@ -2006,8 +2017,13 @@ bool ui::configuration_menu()
           break;
 
         case 7:
-          rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast]);
-          ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+          {
+          uint32_t val = 0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
+          rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &val);
+          ssd1306_contrast(&disp, 17 * val);
+          settings[idx_hw_setup] &= ~mask_display_contrast;
+          settings[idx_hw_setup] |= (((val^0xf) << flag_display_contrast) & mask_display_contrast);
+          }
           break;
 
         case 8: 
@@ -2270,7 +2286,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
-      settings_to_apply.deemphasis = settings[idx_rx_features] >> enum_deemphasis & 3;
+      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       receiver.release();
     }
 
@@ -2345,10 +2361,10 @@ bool ui::top_menu(rx_settings & settings_to_apply)
 
         case 9 :
         {
-          uint32_t v = settings[idx_rx_features] >> enum_deemphasis & 3;
+          uint32_t v = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
           rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
-          settings[idx_rx_features] &= ~(3 << enum_deemphasis);
-          settings[idx_rx_features] |= v << enum_deemphasis;
+          settings[idx_rx_features] &= ~(mask_deemphasis);
+          settings[idx_rx_features] |= ( (v << flag_deemphasis) & mask_deemphasis);
         }
         break;
 
