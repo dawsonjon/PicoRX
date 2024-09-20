@@ -12,14 +12,19 @@ import struct
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
 #define idx_gain_cal 10
+#define idx_bandwidth 11
+#define idx_rx_features 12
+#define idx_oled_contrast 13  // values 0..15 get * 17 for set_contrast(0.255)
+
 
 
 modes = {
   "AM" :0,
-  "LSB":1,
-  "USB":2,
-  "NFM":3,
-  "CW" :4,
+  "AMS" :1,
+  "LSB":2,
+  "USB":3,
+  "NFM":4,
+  "CW" :5,
   255:0xffffffff
 }
 agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3, 255:0xfffffff}
@@ -30,11 +35,12 @@ steps = {
     "100Hz": 2,
     "1kHz": 3,
     "5kHz": 4,
-    "10kHz": 5,
-    "12.5kHz": 6,
-    "25kHz": 7,
-    "50kHz": 8,
-    "100kHz": 9,
+    "9kHz": 5,
+    "10kHz": 6,
+    "12.5kHz": 7,
+    "25kHz": 8,
+    "50kHz": 9,
+    "100kHz": 10,
   255:0xffffffff
 }
 
@@ -58,10 +64,10 @@ class Memory:
         squelch,                             #6
         volume,                              #7
         int(cw_sidetone),                    #8
-        0x00000000,                          #9
+        0x00000780,                          #9	hw_setup
         int(gain_cal),                       #a
         filter_bandwidths[filter_bandwidth], #b
-        0x00000000,                          #c
+        0x00000000,                          #c rx_features
         0xffffffff,                          #d
         0xffffffff,                          #e
         0xffffffff,                          #f

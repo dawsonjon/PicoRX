@@ -813,7 +813,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
-  settings_to_apply.deemphasis = settings[idx_rx_features] >> flag_deemphasis & 3;
+  settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   receiver.release();
 }
 
@@ -957,7 +957,7 @@ void ui::autorestore()
   display_time = time_us_32();
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
-  ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+  ssd1306_contrast(&disp, 17 * ((settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
 
 }
 
@@ -1929,8 +1929,11 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 7:
-          done = number_entry("Display\nContrast", "%i", 0, 15, 1, &settings[idx_oled_contrast], ok);
-          ssd1306_contrast(&disp, 17 * settings[idx_oled_contrast]);
+          setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
+          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, &setting_word, ok);
+          ssd1306_contrast(&disp, 17 * setting_word);
+          settings[idx_hw_setup] &= ~mask_display_contrast;
+          settings[idx_hw_setup] |= setting_word << flag_display_contrast;
           break;
 
         case 8: 
@@ -2249,6 +2252,7 @@ void ui::do_ui()
         ui_state = idle;
         update_settings = ok;
         autosave_settings = ok;
+        display_time = time_us_32();
       }
     }
 
@@ -2261,6 +2265,7 @@ void ui::do_ui()
         ui_state = idle;
         update_settings = ok;
         autosave_settings = ok;
+        display_time = time_us_32();
       }
     }
 
@@ -2276,7 +2281,7 @@ void ui::do_ui()
     }
 
     //automatically switch off display after a period of inactivity
-    if(display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
+    if(ui_state == idle && display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
     {
       ui_state = sleep;
       ssd1306_poweroff(&disp);
@@ -2302,7 +2307,7 @@ void ui::do_ui()
       receiver.access(true);
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
       settings_to_apply.agc_speed = settings[idx_agc_speed];
-      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
+      settings_to_apply.enable_auto_notch = (settings[idx_rx_features] & mask_enable_auto_notch) >> flag_enable_auto_notch;
       settings_to_apply.mode = settings[idx_mode];
       settings_to_apply.volume = settings[idx_volume];
       settings_to_apply.squelch = settings[idx_squelch];
@@ -2310,7 +2315,7 @@ void ui::do_ui()
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
-      settings_to_apply.deemphasis = settings[idx_rx_features] >> flag_deemphasis & 3;
+      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       receiver.release();
     }
 

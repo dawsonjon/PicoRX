@@ -46,18 +46,22 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_gain_cal 10
 #define idx_bandwidth 11
 #define idx_rx_features 12
-#define idx_oled_contrast 13  // values 0..15 get * 17 for set_contrast(0.255)
 
 // bit flags for HW settings in idx_hw_setup
 #define flag_reverse_encoder 0
 #define flag_swap_iq 1
 #define flag_flip_oled 2
 #define flag_oled_type 3
-#define flag_display_timeout 4
+#define flag_display_timeout 4  // bits 4-6
 #define mask_display_timeout (0x7 << flag_display_timeout)
+#define flag_display_contrast 7   // bits 7-10 stored
+#define mask_display_contrast (0xf << flag_display_contrast)
+// #define flag_nextfree 11
+// 32bit number, 31 is last flag bit
 
 //flags for receiver features idx_rx_features
 #define flag_enable_auto_notch (0)
+#define mask_enable_auto_notch (0x1 << flag_enable_auto_notch)
 #define flag_deemphasis (1)
 #define mask_deemphasis (0x3 << flag_deemphasis)
 
