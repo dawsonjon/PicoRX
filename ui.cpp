@@ -1545,6 +1545,9 @@ bool ui::frequency_scan()
   uint32_t last_time = 0;
   uint32_t now_time = 0;
 
+  uint32_t menu_press_time = 0;
+  uint32_t back_press_time = 0;
+
   int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
@@ -1557,6 +1560,8 @@ bool ui::frequency_scan()
   }
 
   while(1){
+    now_time = to_ms_since_boot(get_absolute_time());
+
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
@@ -1572,7 +1577,6 @@ bool ui::frequency_scan()
     if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
     if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
 
-    now_time = to_ms_since_boot(get_absolute_time());
     if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
       last_time = now_time;
       pos_change = scan_speed/abs(scan_speed);
@@ -1638,28 +1642,44 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-#if 1
     if(ev.tag == ev_button_menu_press){
-      return 1;
+      menu_press_time = to_ms_since_boot(get_absolute_time());
     }
 
-#else
-    if(ev.tag == ev_button_menu_press){
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+      if ((now_time - menu_press_time) > 1000) {
         bool rx_settings_changed = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
         if (rx_settings_changed) {
           apply_settings(false);
-          draw_once=1;
         }
+        menu_press_time = 0;
+        draw_once=1;
+      } else {
+        return 1;
+      }
     }
-#endif
+
     //cancel
     if(ev.tag == ev_button_back_press){
-      //put things back how they were to start with
-      for(uint8_t i=0; i<settings_to_store; i++){
-        settings[i] = stored_settings[i];
+      back_press_time = to_ms_since_boot(get_absolute_time());
+    }
+
+    if( (back_press_time) && (ev.tag == ev_button_back_release) ) {
+      if ((now_time - back_press_time) > 1000) {
+        bool rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+        if (rx_settings_changed) {
+          apply_settings(false);
+        }
+        back_press_time = 0;
+        draw_once=1;
+      } else {
+        //put things back how they were to start with
+        for(uint8_t i=0; i<settings_to_store; i++){
+          settings[i] = stored_settings[i];
+        }
+        apply_settings(false);
+        return 0;
       }
-      apply_settings(false);
-      return 0;
     }
   }
 }
