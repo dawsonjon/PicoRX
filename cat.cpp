@@ -7,11 +7,65 @@
 
 void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint32_t settings[])
 {
+    const uint16_t buffer_length = 64;
+    static char buf[buffer_length];
+    static uint16_t read_idx = 0;
+    static uint16_t write_idx = 0;
+    static uint16_t items_in_buffer = 0;
+
+    //write any new data into circular buffer
+    {
+      const uint16_t bytes_to_end = buffer_length-write_idx-1;
+      if(bytes_to_end > 0)
+      {
+        int32_t retval = stdio_get_until(buf+write_idx, bytes_to_end, make_timeout_time_us(100));
+        if(retval != PICO_ERROR_TIMEOUT)
+        {
+          items_in_buffer += retval;
+          write_idx += retval;
+          if(write_idx > buffer_length) write_idx -= buffer_length;
+        }
+      }
+      else
+      {
+        int32_t retval = stdio_get_until(buf, sizeof(buf)-items_in_buffer, make_timeout_time_us(100));
+        if(retval != PICO_ERROR_TIMEOUT)
+        {
+          items_in_buffer += retval;
+          write_idx += retval;
+          if(write_idx > buffer_length) write_idx -= buffer_length;
+        }
+      }
+    }
+
+
+    //copy command from circular buffer to command buffer
+    static char cmd[buffer_length];
+    const uint16_t bytes_to_read = items_in_buffer;
+    const uint16_t bytes_to_end = std::min(bytes_to_read, (uint16_t)(buffer_length-1u-read_idx));
+    const uint16_t bytes_remaining = bytes_to_read - bytes_to_end;
+    memcpy(cmd, buf+read_idx, bytes_to_end);
+    memcpy(cmd+bytes_to_end, buf, bytes_remaining);
+
+    //read command from circular_buffer
+    char *command_end = (char*)memchr(cmd, ';', items_in_buffer);
+    if(command_end == NULL) {
+      //buffer full discard
+      if(items_in_buffer == buffer_length){
+        items_in_buffer = 0;
+        read_idx = 0;
+        write_idx = 0;
+      }
+      return;
+    }
+
+    //remove the command from circular buffer
+    uint32_t command_length = command_end - cmd + 1;
+    read_idx += command_length;
+    if(read_idx > buffer_length) read_idx -= buffer_length;
+    items_in_buffer -= command_length;
 
     bool settings_changed = false;
-    char cmd[256];
-    int32_t retval = stdio_get_until(cmd, sizeof(cmd), make_timeout_time_us(1000));
-    if(retval == PICO_ERROR_TIMEOUT) return;
     const char mode_translation[] = "551243";
 
     if (strncmp(cmd, "FA", 2) == 0) {
@@ -72,7 +126,6 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
         }
 
     } else if (strncmp(cmd, "IF", 2) == 0) {
-
         if (cmd[2] == ';') {
             printf("IF%011lu00000+0000000000%c0000000;", settings[idx_frequency], mode_translation[settings[idx_mode]]);
         }
@@ -132,11 +185,9 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
         } else if (cmd[2] == '1') {
             // Switch to TX mode
             tx_status = 1;
-            //stdio_puts_raw("OK;");
         } else if (cmd[2] == '0') {
             // Switch to RX mode
             tx_status = 0;
-            //stdio_puts_raw("OK;");
         } else {
             // Invalid TX command format
             stdio_puts_raw("?;");

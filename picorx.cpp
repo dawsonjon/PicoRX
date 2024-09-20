@@ -50,10 +50,8 @@ int main()
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    else
-    {
-      waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
-    }
+    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
+
 
   }
 }
