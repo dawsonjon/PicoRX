@@ -1550,7 +1550,6 @@ bool ui::frequency_scan()
   uint32_t now_time = 0;
 
   uint32_t menu_press_time = 0;
-  uint32_t back_press_time = 0;
 
   int32_t pos_change = 0;
 
@@ -1665,38 +1664,26 @@ bool ui::frequency_scan()
 
     if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
       if ((now_time - menu_press_time) > 1000) {
-        bool rx_settings_changed = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
+        return 1;
+      } else {
+        bool rx_settings_changed = scanner_radio_menu();
+
         if (rx_settings_changed) {
           apply_settings(false);
         }
         menu_press_time = 0;
         draw_once=1;
-      } else {
-        return 1;
       }
     }
 
     //cancel
     if(ev.tag == ev_button_back_press){
-      back_press_time = to_ms_since_boot(get_absolute_time());
-    }
-
-    if( (back_press_time) && (ev.tag == ev_button_back_release) ) {
-      if ((now_time - back_press_time) > 1000) {
-        bool rx_settings_changed = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
-        if (rx_settings_changed) {
-          apply_settings(false);
-        }
-        back_press_time = 0;
-        draw_once=1;
-      } else {
-        //put things back how they were to start with
-        for(uint8_t i=0; i<settings_to_store; i++){
-          settings[i] = stored_settings[i];
-        }
-        apply_settings(false);
-        return 0;
+      //put things back how they were to start with
+      for(uint8_t i=0; i<settings_to_store; i++){
+        settings[i] = stored_settings[i];
       }
+      apply_settings(false);
+      return 0;
     }
   }
 }
@@ -2081,6 +2068,67 @@ bool ui::configuration_menu()
   return rx_settings_changed;
 
 }
+
+// top level menu selection and launch
+bool ui::scanner_radio_menu()
+{
+  bool rx_settings_changed = false;
+  uint32_t setting = 0;
+
+  while (1)
+  {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+      if(!menu_entry("Radio Menu", "Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-emph.#Frequency\nStep#", &setting)) 
+        return rx_settings_changed;
+
+      switch(setting)
+      {
+
+        case 0 : 
+          rx_settings_changed |= number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+          break;
+
+        case 1 : 
+          rx_settings_changed |= enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
+          break;
+
+        case 2 :
+          rx_settings_changed |= enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
+          break;
+
+        case 3 :
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+          break;
+
+        case 4 :
+          rx_settings_changed |= enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+          break;
+
+        case 5 : 
+          rx_settings_changed |= bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
+          break;
+
+        case 6 :
+        {
+          uint32_t v = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
+          settings[idx_rx_features] &= ~(mask_deemphasis);
+          settings[idx_rx_features] |= ( (v << flag_deemphasis) & mask_deemphasis);
+        }
+        break;
+
+        case 7 : 
+          rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
+          settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
+          break;
+      }
+  }
+  return rx_settings_changed;
+}
+
 
 bool ui::scanner_menu()
 {

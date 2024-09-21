@@ -173,6 +173,7 @@ class ui
   bool top_menu(rx_settings & settings_to_apply);
   bool configuration_menu();
   bool scanner_menu();
+  bool scanner_radio_menu();
   bool frequency_scan();
   bool memory_recall();
   bool memory_scan();
