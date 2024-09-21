@@ -28,6 +28,13 @@ struct rx_settings
   uint8_t deemphasis;
   uint16_t cw_sidetone_Hz;
   uint16_t gain_cal;
+  uint8_t band_1_limit;
+  uint8_t band_2_limit;
+  uint8_t band_3_limit;
+  uint8_t band_4_limit;
+  uint8_t band_5_limit;
+  uint8_t band_6_limit;
+  uint8_t band_7_limit;
   bool suspend;
   bool swap_iq;
   bool enable_auto_notch;

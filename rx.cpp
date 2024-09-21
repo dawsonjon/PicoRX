@@ -139,34 +139,52 @@ void rx::apply_settings()
       nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
-      if(tuned_frequency_Hz > 16.0e6)
+      if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
         gpio_put(2, 0);
         gpio_put(3, 0);
         gpio_put(4, 0);
       }
-      else if(tuned_frequency_Hz > 8.0e6)
+      else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
         gpio_put(2, 1);
         gpio_put(3, 0);
         gpio_put(4, 0);
       }
-      else if(tuned_frequency_Hz > 4.0e6)
+      else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
         gpio_put(2, 0);
         gpio_put(3, 1);
         gpio_put(4, 0);
       }
-      else if(tuned_frequency_Hz > 2.0e6)
+      else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
         gpio_put(2, 1);
         gpio_put(3, 1);
         gpio_put(4, 0);
+      }
+      else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
+      {
+        gpio_put(2, 0);
+        gpio_put(3, 0);
+        gpio_put(4, 1);
+      }
+      else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
+      {
+        gpio_put(2, 1);
+        gpio_put(3, 0);
+        gpio_put(4, 1);
+      }
+      else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
+      {
+        gpio_put(2, 0);
+        gpio_put(3, 1);
+        gpio_put(4, 1);
       }
       else
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
+        gpio_put(2, 1);
+        gpio_put(3, 1);
         gpio_put(4, 1);
       }
 

@@ -63,13 +63,13 @@ class Memory:
         int(min_frequency)&0xffffffff,       #5
         squelch,                             #6
         volume,                              #7
-        int(cw_sidetone),                    #8
+        int(cw_sidetone*100),                #8 (100Hz steps)
         0x00000780,                          #9	hw_setup
         int(gain_cal),                       #a
         filter_bandwidths[filter_bandwidth], #b
         0x00000000,                          #c rx_features
-        0xffffffff,                          #d
-        0xffffffff,                          #e
+        0x10080402,                          #d band limits 1 (125kHz steps)
+        0x00804020,                          #e band limits 2 (125kHz steps)
         0xffffffff,                          #f
       ]
       self.memory.append(data)
@@ -90,5 +90,5 @@ const uint32_t __in_flash() __attribute__((aligned(4096))) autosave_memory[%s][%
         outf.write(buffer)
 
 mem = Memory()
-mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0, 62, "NORMAL")
+mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 10, 5, 0, 62, "NORMAL")
 mem.generate_c_header()

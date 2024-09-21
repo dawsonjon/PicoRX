@@ -46,6 +46,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_gain_cal 10
 #define idx_bandwidth 11
 #define idx_rx_features 12
+#define idx_band1 13
+#define idx_band2 14
 
 // bit flags for HW settings in idx_hw_setup
 #define flag_reverse_encoder 0
@@ -176,6 +178,7 @@ class ui
   bool main_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool scanner_menu(bool &ok);
+  bool bands_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);
