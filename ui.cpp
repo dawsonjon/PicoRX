@@ -1395,7 +1395,11 @@ bool ui::memory_scan()
   uint32_t last_time = 0;
   uint32_t now_time = 0;
 
+  uint32_t menu_press_time = 0;
+
   int32_t pos_change = 0;
+
+  bool squelch_state=false;   // false is muted/silent
   float power_dBm;
   float last_power_dBm = FLT_MAX;
 
@@ -1406,9 +1410,12 @@ bool ui::memory_scan()
   }
 
   while(1){
+    now_time = to_ms_since_boot(get_absolute_time());
+    
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
+    squelch_state = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
@@ -1416,12 +1423,17 @@ bool ui::memory_scan()
       last_power_dBm = power_dBm;
     }
 
-    pos_change = get_encoder_change();
-    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
-    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
 
-    now_time = to_ms_since_boot(get_absolute_time());
-    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+    pos_change = get_encoder_change();
+    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
+      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    } else {
+       if (pos_change) can_scan = true; // we can cos you asked
+    }
+ 
+    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
       last_time = now_time;
       pos_change = scan_speed;
       if (pos_change > 0) if (++select > max) select = min;
@@ -1477,8 +1489,16 @@ bool ui::memory_scan()
       display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 2, scan_speed);
+      if (can_scan) {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+      }
 
       // draw vertical signal strength
       draw_vertical_dBm( 124, power_dBm);
@@ -1494,9 +1514,22 @@ bool ui::memory_scan()
     }
 
     if(ev.tag == ev_button_menu_press){
-      last_select=select;
-      return 1;
+      menu_press_time = to_ms_since_boot(get_absolute_time());
     }
+
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+      if ((now_time - menu_press_time) > 1000) {
+        last_select=select;
+        return 1;
+      } else {
+        bool rx_settings_changed = scanner_radio_menu();
+        if (rx_settings_changed) {
+          apply_settings(false);
+        }
+        menu_press_time = 0;
+        draw_once=1;
+      }
+     }
 
     //cancel
     if(ev.tag == ev_button_back_press){
@@ -2069,7 +2102,7 @@ bool ui::configuration_menu()
 
 }
 
-// top level menu selection and launch
+// subset of top level menus
 bool ui::scanner_radio_menu()
 {
   bool rx_settings_changed = false;
