@@ -1407,28 +1407,34 @@ bool ui::memory_scan(bool &ok)
     power_dBm = status.signal_strength_dBm;
     receiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
-    listen = (settings[idx_squelch] == 0) || (power_dBm > S_to_dBm(settings[idx_squelch]));
+    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
 
     int32_t pos_change = get_encoder_change();
-    static int8_t direction=1;
-    if ( pos_change > 0 ){
-      printf("up\n");
-      if(!listen && ++scan_speed>4) scan_speed=4;
-      update_display = true;
-      load = true;
-      direction = 1;
-    }
-    if ( pos_change < 0 ){
-      printf("down\n");
-      if(!listen && --scan_speed<-4) scan_speed=-4;
-      update_display = true;
-      load = true;
-      direction = -1;
+    if(listen)
+    {
+      //if scanning is stopped, nudge (and possibly change direction)
+      if(pos_change > 0 ){
+        if(scan_speed < 0) scan_speed *= -1;
+      }
+      if(pos_change < 0 ){
+        if(scan_speed > 0) scan_speed *= -1;
+      }
+    } 
+    else 
+    {
+      if ( pos_change > 0 ){
+        if(++scan_speed>4) scan_speed=4;
+      }
+      if ( pos_change < 0 ){
+        if(--scan_speed<-4) scan_speed=-4;
+      }
     }
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) || pos_change) {
+    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+      int8_t direction = scan_speed>0?1:-1;
+
       //skip blank channels
       for(uint16_t i = 0; i<num_chans; i++)
       {
@@ -1437,6 +1443,8 @@ bool ui::memory_scan(bool &ok)
         if(select > max) select = min;
         if(radio_memory[select][9] != 0xffffffff) break;
       }
+      update_display = true;
+      load = true;
     }
 
     //ok - launch menu
@@ -1559,68 +1567,74 @@ void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
 // Scan across the frequency band
 bool ui::frequency_scan(bool &ok)
 {
-
-  bool load_and_update_display = false;
-  bool can_scan = false;
-  float power_dBm = FLT_MAX;
-  enum e_frequency_state{idle, active};
+  bool update_display = false;
+  bool listen = false;
+  enum e_frequency_state{idle, active, menu_active};
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
-  const int32_t min = 0;
-  const int32_t max = num_chans-1;
-  static int32_t select = 0;
+  float power_dBm = 0;
 
   if(state == idle)
   {
-    load_and_update_display = true;
+
+    update_display = true;
     scan_speed = 0;
     state = active;
+
   }
   else if(state == active)
   {
 
-    int32_t pos_change = encoder_control(&select, min, max);
-    load_and_update_display = pos_change != 0;
-
+    static float last_power_dBm = FLT_MAX;
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
     receiver.release();
-    can_scan = (settings[idx_squelch] == 0) || (power_dBm < S_to_dBm(settings[idx_squelch]));
+    update_display = abs(power_dBm - last_power_dBm) > 1.0f;
+    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
 
-    static int8_t direction = 1;
-    if ( pos_change > 0 ){
-       if(++scan_speed>4) scan_speed=4;
-       direction = 1;
-    }
-    if ( pos_change < 0 ){
-       if(--scan_speed<-4) scan_speed=-4;
-       direction = -1;
+    int32_t pos_change = get_encoder_change();
+    if(listen)
+    {
+      //if scanning is stopped, nudge (and possibly change direction)
+      if(pos_change > 0 ){
+        if(scan_speed < 0) scan_speed *= -1;
+      }
+      if(pos_change < 0 ){
+        if(scan_speed > 0) scan_speed *= -1;
+      }
+    } 
+    else 
+    {
+      if ( pos_change > 0 ){
+        if(++scan_speed>4) scan_speed=4;
+      }
+      if ( pos_change < 0 ){
+        if(--scan_speed<-4) scan_speed=-4;
+      }
     }
 
-    uint32_t now_time = to_ms_since_boot(get_absolute_time());
     static uint32_t last_time = 0u;
-    if (scan_speed && can_scan && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
-      last_time = now_time;
+    uint32_t now_time = to_ms_since_boot(get_absolute_time());
+    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+      int8_t direction = scan_speed>0?1:-1;
 
       //update frequency 
       settings[idx_frequency] += direction * step_sizes[settings[idx_step]];
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
-      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+      if (settings[idx_frequency] < settings[idx_min_frequency])
           settings[idx_frequency] = settings[idx_max_frequency];
-      if ((int)settings[idx_frequency] == 0)
+      if (settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
+      update_display = true;
       apply_settings(false);
-      load_and_update_display = true;
     }
 
-    //ok
-    if(encoder_button.is_pressed()||menu_button.is_pressed()){
-      ok=true;
-      state = idle;
-      return true;
+    //ok - launch menu
+    if(menu_button.is_pressed()){
+      state = menu_active;
     }
 
     //cancel
@@ -1630,8 +1644,22 @@ bool ui::frequency_scan(bool &ok)
       return true;
     }
   }
+  else if(state == menu_active)
+  {
+    bool ok = false;
+    if(main_menu(ok))
+    {
+      update_display = true;
+      scan_speed = 0;
+      state = active;
+      if(ok){
+        apply_settings(false);
+        autosave();
+      }
+    }
+  }
 
-  if(load_and_update_display)
+  if(update_display)
   {
       display_clear();
       display_print_str("Scanner");
@@ -1660,31 +1688,22 @@ bool ui::frequency_scan(bool &ok)
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
-      if (can_scan) {
-        display_set_xy(0,48);
-        display_print_str("Speed",2);
-        display_print_speed(91, display_get_y(), 2, scan_speed);
-      } else {
+      if (listen) {
         display_set_xy(0,48);
         display_print_str("Listen",2);
         display_set_xy(91-6,48);
         display_print_char(CHAR_SPEAKER, 2);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
       }
 
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
       display_show();
   }
 
-  //draw power meter
-  static float last_power_dBm = FLT_MAX;
-  if(abs(power_dBm - last_power_dBm) > 1)
-  {
-    // draw vertical signal strength
-    last_power_dBm = power_dBm;
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
-    display_show();
-  }
-
-  return false;
+  return false; 
 }
 
 

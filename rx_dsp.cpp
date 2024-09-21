@@ -126,9 +126,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //squelch
       if(signal_amplitude < squelch_threshold) {
         audio = 0;
-        squelch_state = false;
-      } else {
-        squelch_state = true;
       }
 
       //convert to unsigned value in range 0 to 500 to output to PWM
@@ -541,11 +538,6 @@ void rx_dsp :: set_squelch(uint8_t val)
 void rx_dsp :: set_pwm_max(uint32_t pwm_max)
 {
   pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
-}
-
-bool rx_dsp :: get_squelch_state()
-{
-  return squelch_state;
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()
