@@ -366,12 +366,39 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 }
 
+// draw vertical signal strength
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch) {
+      int bar_len = dBm_to_63px(power_dBm);
+      int sq = dBm_to_63px(squelch);
+      ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
+      ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
+      ssd1306_draw_line(&disp, x, 63-sq, x+3, 63-sq, 2);
+}
+
 int ui::dBm_to_S(float power_dBm) {
   int power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   return (power_s);
+}
+
+float ui::S_to_dBm(int S) {
+  float dBm = 0;
+  if (S<=9) {
+    dBm = S0 + 6.0f * S;
+  } else {
+    dBm = S9_10 + (S-10) * 10.f;
+  }
+  return (dBm);
+}
+
+int32_t ui::dBm_to_63px(float power_dBm) {
+        int32_t power = floorf((power_dBm-S0));
+        power = power * 63 / (S9_10 + 20 - S0);
+        if (power<0) power=0;
+        if (power>63) power=63;
+        return (power);
 }
 
 void ui::log_spectrum(float *min, float *max)
@@ -1250,7 +1277,6 @@ bool ui::memory_recall()
   int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1265,7 +1291,6 @@ bool ui::memory_recall()
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       power_change = true;
       last_power_dBm = power_dBm;
     }
@@ -1331,14 +1356,8 @@ bool ui::memory_recall()
 
     if (power_change)
     {
-      int bar_len = power_s * 62 / 12;
-      // framed
-      // ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
-      // ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
-
-      // solid
-      ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
-      ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+      // draw vertical signal strength
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
     }
 
     if ((pos_change != 0) || draw_once || power_change)
@@ -1388,10 +1407,13 @@ bool ui::memory_scan()
   uint32_t last_time = 0;
   uint32_t now_time = 0;
 
+  uint32_t menu_press_time = 0;
+
   int32_t pos_change = 0;
+
+  bool squelch_state=false;   // false is muted/silent
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1400,23 +1422,30 @@ bool ui::memory_scan()
   }
 
   while(1){
+    now_time = to_ms_since_boot(get_absolute_time());
+    
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
+    squelch_state = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       draw_once = true;
       last_power_dBm = power_dBm;
     }
 
-    pos_change = get_encoder_change();
-    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
-    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
 
-    now_time = to_ms_since_boot(get_absolute_time());
-    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+    pos_change = get_encoder_change();
+    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
+      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    } else {
+       if (pos_change) can_scan = true; // we can cos you asked
+    }
+ 
+    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
       last_time = now_time;
       pos_change = scan_speed;
       if (pos_change > 0) if (++select > max) select = min;
@@ -1472,12 +1501,19 @@ bool ui::memory_scan()
       display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 2, scan_speed);
+      if (can_scan) {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+      }
 
       // draw vertical signal strength
-      int bar_len = power_s*62/12;
-      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
 
       display_show();
     }
@@ -1490,9 +1526,22 @@ bool ui::memory_scan()
     }
 
     if(ev.tag == ev_button_menu_press){
-      last_select=select;
-      return 1;
+      menu_press_time = to_ms_since_boot(get_absolute_time());
     }
+
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+      if ((now_time - menu_press_time) > 1000) {
+        last_select=select;
+        return 1;
+      } else {
+        bool rx_settings_changed = scanner_radio_menu();
+        if (rx_settings_changed) {
+          apply_settings(false);
+        }
+        menu_press_time = 0;
+        draw_once=1;
+      }
+     }
 
     //cancel
     if(ev.tag == ev_button_back_press){
@@ -1545,10 +1594,13 @@ bool ui::frequency_scan()
   uint32_t last_time = 0;
   uint32_t now_time = 0;
 
+  uint32_t menu_press_time = 0;
+
   int32_t pos_change = 0;
+
+  bool squelch_state=false;   // false is muted/silent
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1557,23 +1609,29 @@ bool ui::frequency_scan()
   }
 
   while(1){
+    now_time = to_ms_since_boot(get_absolute_time());
+
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
+    squelch_state = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
-      //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       draw_once = true;
       last_power_dBm = power_dBm;
     }
 
-    pos_change = get_encoder_change();
-    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
-    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
 
-    now_time = to_ms_since_boot(get_absolute_time());
-    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+    pos_change = get_encoder_change();
+    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
+      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    } else {
+      if (pos_change) can_scan = true; // we can cos you asked
+    }
+
+    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
       last_time = now_time;
       pos_change = scan_speed/abs(scan_speed);
 
@@ -1582,8 +1640,9 @@ bool ui::frequency_scan()
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
-
       if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+      if ((int)settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
       apply_settings(false);
@@ -1620,13 +1679,20 @@ bool ui::frequency_scan()
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
-      display_set_xy(0,48);
-      display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 2, scan_speed);
+      if (can_scan) {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+      }
 
       // draw vertical signal strength
-      int bar_len = power_s*62/12;
-      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+//      draw_vertical_dBm( 124, power_dBm);
 
       display_show();
     }
@@ -1638,20 +1704,24 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-#if 1
     if(ev.tag == ev_button_menu_press){
-      return 1;
+      menu_press_time = to_ms_since_boot(get_absolute_time());
     }
 
-#else
-    if(ev.tag == ev_button_menu_press){
-        bool rx_settings_changed = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+      if ((now_time - menu_press_time) > 1000) {
+        return 1;
+      } else {
+        bool rx_settings_changed = scanner_radio_menu();
+
         if (rx_settings_changed) {
           apply_settings(false);
-          draw_once=1;
         }
+        menu_press_time = 0;
+        draw_once=1;
+      }
     }
-#endif
+
     //cancel
     if(ev.tag == ev_button_back_press){
       //put things back how they were to start with
@@ -2044,6 +2114,67 @@ bool ui::configuration_menu()
   return rx_settings_changed;
 
 }
+
+// subset of top level menus
+bool ui::scanner_radio_menu()
+{
+  bool rx_settings_changed = false;
+  uint32_t setting = 0;
+
+  while (1)
+  {
+      event_t ev = event_get();
+      if(ev.tag == ev_button_back_press){
+        break;
+      }
+      if(!menu_entry("Radio Menu", "Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-emph.#Frequency\nStep#", &setting)) 
+        return rx_settings_changed;
+
+      switch(setting)
+      {
+
+        case 0 : 
+          rx_settings_changed |= number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
+          break;
+
+        case 1 : 
+          rx_settings_changed |= enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode]);
+          break;
+
+        case 2 :
+          rx_settings_changed |= enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed]);
+          break;
+
+        case 3 :
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+          break;
+
+        case 4 :
+          rx_settings_changed |= enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+          break;
+
+        case 5 : 
+          rx_settings_changed |= bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features]);
+          break;
+
+        case 6 :
+        {
+          uint32_t v = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+          rx_settings_changed |= enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v);
+          settings[idx_rx_features] &= ~(mask_deemphasis);
+          settings[idx_rx_features] |= ( (v << flag_deemphasis) & mask_deemphasis);
+        }
+        break;
+
+        case 7 : 
+          rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
+          settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
+          break;
+      }
+  }
+  return rx_settings_changed;
+}
+
 
 bool ui::scanner_menu()
 {
