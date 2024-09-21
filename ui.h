@@ -144,13 +144,14 @@ class ui
   #define NUM_VIEWS 6
 
   int dBm_to_S(float power_dBm);
+  float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
   void log_spectrum(float *min, float *max);
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY, rx & receiver);
   void draw_waterfall(uint16_t startY, rx & receiver);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
-  void draw_vertical_dBm(uint16_t x, float power_dBm);
+  void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);
   void draw_analogmeter(    uint16_t startx, uint16_t starty, 
                               uint16_t width, int16_t height,
                               float  needle_pct, int numticks = 0,

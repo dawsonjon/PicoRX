@@ -367,10 +367,12 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
 }
 
 // draw vertical signal strength
-void ui::draw_vertical_dBm(uint16_t x, float power_dBm) {
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch) {
       int bar_len = dBm_to_63px(power_dBm);
+      int sq = dBm_to_63px(squelch);
       ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
       ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
+      ssd1306_draw_line(&disp, x, 63-sq, x+3, 63-sq, 2);
 }
 
 int ui::dBm_to_S(float power_dBm) {
@@ -379,6 +381,16 @@ int ui::dBm_to_S(float power_dBm) {
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   return (power_s);
+}
+
+float ui::S_to_dBm(int S) {
+  float dBm = 0;
+  if (S<=9) {
+    dBm = S0 + 6.0f * S;
+  } else {
+    dBm = S9_10 + (S-10) * 10.f;
+  }
+  return (dBm);
 }
 
 int32_t ui::dBm_to_63px(float power_dBm) {
@@ -1345,7 +1357,7 @@ bool ui::memory_recall()
     if (power_change)
     {
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm);
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
     }
 
     if ((pos_change != 0) || draw_once || power_change)
@@ -1501,7 +1513,7 @@ bool ui::memory_scan()
       }
 
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm);
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
 
       display_show();
     }
@@ -1679,7 +1691,8 @@ bool ui::frequency_scan()
       }
 
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm);
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+//      draw_vertical_dBm( 124, power_dBm);
 
       display_show();
     }
