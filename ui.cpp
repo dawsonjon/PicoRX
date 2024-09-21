@@ -366,12 +366,27 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 }
 
+// draw vertical signal strength
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm) {
+      int bar_len = dBm_to_63px(power_dBm);
+      ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
+      ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
+}
+
 int ui::dBm_to_S(float power_dBm) {
   int power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   return (power_s);
+}
+
+int32_t ui::dBm_to_63px(float power_dBm) {
+        int32_t power = floorf((power_dBm-S0));
+        power = power * 63 / (S9_10 + 20 - S0);
+        if (power<0) power=0;
+        if (power>63) power=63;
+        return (power);
 }
 
 void ui::log_spectrum(float *min, float *max)
@@ -1250,7 +1265,6 @@ bool ui::memory_recall()
   int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1265,7 +1279,6 @@ bool ui::memory_recall()
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       power_change = true;
       last_power_dBm = power_dBm;
     }
@@ -1331,14 +1344,8 @@ bool ui::memory_recall()
 
     if (power_change)
     {
-      int bar_len = power_s * 62 / 12;
-      // framed
-      // ssd1306_draw_rectangle(&disp, 124, 0, 3, 63, 1);
-      // ssd1306_fill_rectangle(&disp, 125, 63-bar_len, 2, bar_len+1, 1);
-
-      // solid
-      ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
-      ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+      // draw vertical signal strength
+      draw_vertical_dBm( 124, power_dBm);
     }
 
     if ((pos_change != 0) || draw_once || power_change)
@@ -1391,7 +1398,6 @@ bool ui::memory_scan()
   int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1406,7 +1412,6 @@ bool ui::memory_scan()
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       draw_once = true;
       last_power_dBm = power_dBm;
     }
@@ -1476,8 +1481,7 @@ bool ui::memory_scan()
       display_print_speed(91, display_get_y(), 2, scan_speed);
 
       // draw vertical signal strength
-      int bar_len = power_s*62/12;
-      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+      draw_vertical_dBm( 124, power_dBm);
 
       display_show();
     }
@@ -1551,7 +1555,6 @@ bool ui::frequency_scan()
   int32_t pos_change = 0;
   float power_dBm;
   float last_power_dBm = FLT_MAX;
-  int8_t power_s = 0;
 
   //remember where we were incase we need to cancel
   uint32_t stored_settings[settings_to_store];
@@ -1568,7 +1571,6 @@ bool ui::frequency_scan()
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
-      power_s = dBm_to_S(power_dBm);
       draw_once = true;
       last_power_dBm = power_dBm;
     }
@@ -1629,8 +1631,7 @@ bool ui::frequency_scan()
       display_print_speed(91, display_get_y(), 2, scan_speed);
 
       // draw vertical signal strength
-      int bar_len = power_s*62/12;
-      ssd1306_fill_rectangle(&disp, 124, 63-bar_len, 3, bar_len+1, 1);
+      draw_vertical_dBm( 124, power_dBm);
 
       display_show();
     }
