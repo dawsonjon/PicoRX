@@ -1553,6 +1553,8 @@ bool ui::frequency_scan()
   uint32_t back_press_time = 0;
 
   int32_t pos_change = 0;
+
+  bool squelch_state=false;   // false is muted/silent
   float power_dBm;
   float last_power_dBm = FLT_MAX;
 
@@ -1568,18 +1570,24 @@ bool ui::frequency_scan()
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
+    squelch_state = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
-      //signal strength as an int 0..12
       draw_once = true;
       last_power_dBm = power_dBm;
     }
 
-    pos_change = get_encoder_change();
-    if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
-    if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
 
-    if ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) {
+    pos_change = get_encoder_change();
+    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
+      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+    } else {
+      if (pos_change) can_scan = true; // we can cos you asked
+    }
+
+    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
       last_time = now_time;
       pos_change = scan_speed/abs(scan_speed);
 
@@ -1588,8 +1596,9 @@ bool ui::frequency_scan()
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
-
       if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+      if ((int)settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
       apply_settings(false);
