@@ -39,6 +39,7 @@ struct rx_status
   uint32_t busy_time;
   uint16_t temp;
   uint16_t battery;
+  bool squelch_state;
 };
 
 class rx

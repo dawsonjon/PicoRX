@@ -24,6 +24,7 @@ class rx_dsp
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
+  bool get_squelch_state();   // false is muted
   void get_spectrum(float spectrum[]);
 
 
@@ -89,6 +90,7 @@ class rx_dsp
   //squelch
   int16_t squelch_threshold=0;
   int16_t s9_threshold=0;
+  bool squelch_state = false;
 
   //used in AGC
   uint8_t attack_factor;
