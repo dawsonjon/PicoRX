@@ -1635,9 +1635,16 @@ bool ui::frequency_scan()
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
-      display_set_xy(0,48);
-      display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 2, scan_speed);
+      if (can_scan) {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+      }
 
       // draw vertical signal strength
       draw_vertical_dBm( 124, power_dBm);
