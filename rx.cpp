@@ -135,6 +135,10 @@ void rx::apply_settings()
 
       //apply frequency
       tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+
+      //apply frequency calibration
+      tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
+
       uint32_t system_clock_rate;
       nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;

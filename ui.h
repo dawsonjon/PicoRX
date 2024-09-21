@@ -62,6 +62,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_tft_settings (0x7 << flag_tft_settings)
 // #define flag_nextfree 14
 // 32bit number, 31 is last flag bit
+#define flag_ppm 24   // bits 24-31
+#define mask_ppm (0xff << flag_ppm)
 
 //flags for receiver features idx_rx_features
 #define flag_enable_auto_notch (0)
@@ -186,7 +188,7 @@ class ui
   bool menu_entry(const char title[], const char options[], uint32_t *value, bool &ok);
   bool enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok);
   bool bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok);
   bool frequency_entry(const char title[], uint32_t which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);
   bool memory_recall(bool &ok);

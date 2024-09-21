@@ -35,6 +35,7 @@ struct rx_settings
   uint8_t band_5_limit;
   uint8_t band_6_limit;
   uint8_t band_7_limit;
+  int8_t ppm;
   bool suspend;
   bool swap_iq;
   bool enable_auto_notch;

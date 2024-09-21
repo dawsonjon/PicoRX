@@ -784,7 +784,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
 }
 
 //select a number in a range
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value, bool &ok)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok)
 {
   enum e_state{idle, active};
   static e_state state = idle;
@@ -847,13 +847,14 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = settings[idx_bandwidth];
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-  settings_to_apply.band_1_limit = 125*((settings[idx_band1] >> 0) & 0xff);
-  settings_to_apply.band_2_limit = 125*((settings[idx_band1] >> 8) & 0xff);
-  settings_to_apply.band_3_limit = 125*((settings[idx_band1] >> 16) & 0xff);
-  settings_to_apply.band_4_limit = 125*((settings[idx_band1] >> 24) & 0xff);
-  settings_to_apply.band_5_limit = 125*((settings[idx_band2] >> 0) & 0xff);
-  settings_to_apply.band_6_limit = 125*((settings[idx_band2] >> 8) & 0xff);
-  settings_to_apply.band_7_limit = 125*((settings[idx_band2] >> 16) & 0xff);
+  settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
+  settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
+  settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
+  settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
+  settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
+  settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
+  settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
+  settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   receiver.release();
 }
 
@@ -1929,7 +1930,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#Bands#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#Bands#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1978,28 +1979,35 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 4 : 
-          done =  number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal], ok);
+          done =  number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok);
           break;
 
         case 5 : 
+          setting_word = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
+          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok);
+          settings[idx_hw_setup] &= ~mask_ppm;
+          settings[idx_hw_setup] |= setting_word << flag_ppm;
+          break;
+
+        case 6 : 
           done = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup], ok);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
-        case 6: 
+        case 7: 
           done = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup], ok);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
-        case 7:
+        case 8:
           setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
-          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, &setting_word, ok);
+          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok);
           ssd1306_contrast(&disp, 17 * setting_word);
           settings[idx_hw_setup] &= ~mask_display_contrast;
           settings[idx_hw_setup] |= setting_word << flag_display_contrast;
           break;
 
-        case 8:
+        case 9:
           setting_word = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
           done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#", &setting_word, ok);
           settings[idx_hw_setup] &= ~mask_tft_settings;
@@ -2007,11 +2015,11 @@ bool ui::configuration_menu(bool &ok)
           waterfall_inst.configure_display(setting_word);
           break;
 
-        case 9:
+        case 10:
           done = bands_menu(ok);
           break;
 
-        case 10: 
+        case 11: 
           setting_word = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
           if(setting_word==1) {
@@ -2079,7 +2087,7 @@ bool ui::main_menu(bool & ok)
             done = memory_store(ok); 
             break;
           case 3 :  
-            done = number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume], ok);
+            done = number_entry("Volume", "%i", 0, 9, 1, (int32_t*)&settings[idx_volume], ok);
             break;
           case 4 :  
             done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode], ok);
@@ -2115,7 +2123,7 @@ bool ui::main_menu(bool & ok)
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
           case 13 : 
-            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone], ok);
+            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok);
             break;
           case 14 : 
             done = scanner_menu(ok);
@@ -2223,44 +2231,43 @@ bool ui::bands_menu(bool &ok)
         {
           case 0 :
             band_settings = settings[idx_band1] & 0xff;
-            printf("%lx\n", band_settings);
-            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xffffff00;
             settings[idx_band1] |= band_settings;
             break;
           case 1 : 
             band_settings = (settings[idx_band1] >> 8) & 0xff;
-            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xffff00ff;
             settings[idx_band1] |= band_settings << 8;
             break;
           case 2 :  
             band_settings = (settings[idx_band1] >> 16) & 0xff;
-            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xff00ffff;
             settings[idx_band1] |= band_settings << 16;
             break;
           case 3 : 
             band_settings = (settings[idx_band1] >> 24) & 0xff;
-            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0x00ffffff;
             settings[idx_band1] |= band_settings << 24;
             break;
           case 4 :
             band_settings = settings[idx_band2] & 0xff;
-            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xffffff00;
             settings[idx_band1] |= band_settings;
             break;
           case 5 : 
             band_settings = (settings[idx_band2] >> 8) & 0xff;
-            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xffff00ff;
             settings[idx_band1] |= band_settings << 8;
             break;
           case 6 :  
             band_settings = (settings[idx_band2] >> 16) & 0xff;
-            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, &band_settings, ok);
+            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
             settings[idx_band1] &= 0xff00ffff;
             settings[idx_band1] |= band_settings << 16;
             break;
@@ -2484,13 +2491,14 @@ void ui::do_ui()
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-      settings_to_apply.band_1_limit = 125*((settings[idx_band1] >> 0) & 0xff);
-      settings_to_apply.band_2_limit = 125*((settings[idx_band1] >> 8) & 0xff);
-      settings_to_apply.band_3_limit = 125*((settings[idx_band1] >> 16) & 0xff);
-      settings_to_apply.band_4_limit = 125*((settings[idx_band1] >> 24) & 0xff);
-      settings_to_apply.band_5_limit = 125*((settings[idx_band2] >> 0) & 0xff);
-      settings_to_apply.band_6_limit = 125*((settings[idx_band2] >> 8) & 0xff);
-      settings_to_apply.band_7_limit = 125*((settings[idx_band2] >> 16) & 0xff);
+      settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
+      settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
+      settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
+      settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
+      settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
+      settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
+      settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
+      settings_to_apply.ppm = ((settings[idx_hw_setup] & mask_ppm) >> flag_ppm);
       receiver.release();
     }
 
