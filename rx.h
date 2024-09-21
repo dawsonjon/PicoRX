@@ -48,6 +48,7 @@ struct rx_status
   uint16_t temp;
   uint16_t battery;
   s_filter_control filter_config;
+  bool squelch_state;
 };
 
 class rx

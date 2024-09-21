@@ -26,6 +26,8 @@ class rx_dsp
   int16_t get_signal_strength_dBm();
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
   s_filter_control get_filter_config();
+  bool get_squelch_state();   // false is muted
+  void get_spectrum(float spectrum[]);
 
 
   private:
@@ -88,6 +90,7 @@ class rx_dsp
   //squelch
   int16_t squelch_threshold=0;
   int16_t s9_threshold=0;
+  bool squelch_state = false;
 
   //used in AGC
   uint8_t attack_factor;

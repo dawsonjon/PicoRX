@@ -359,12 +359,39 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 }
 
+// draw vertical signal strength
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch) {
+      int bar_len = dBm_to_63px(power_dBm);
+      int sq = dBm_to_63px(squelch);
+      ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
+      ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
+      ssd1306_draw_line(&disp, x, 63-sq, x+3, 63-sq, 2);
+}
+
 int ui::dBm_to_S(float power_dBm) {
   int power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
   if(power_s > 12) power_s = 12;
   return (power_s);
+}
+
+float ui::S_to_dBm(int S) {
+  float dBm = 0;
+  if (S<=9) {
+    dBm = S0 + 6.0f * S;
+  } else {
+    dBm = S9_10 + (S-10) * 10.f;
+  }
+  return (dBm);
+}
+
+int32_t ui::dBm_to_63px(float power_dBm) {
+        int32_t power = floorf((power_dBm-S0));
+        power = power * 63 / (S9_10 + 20 - S0);
+        if (power<0) power=0;
+        if (power>63) power=63;
+        return (power);
 }
 
 void ui::draw_h_tick_marks(uint16_t startY)
@@ -1319,14 +1346,13 @@ bool ui::memory_recall(bool &ok)
 
   //draw power meter
   receiver.access(false);
-  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
+  int8_t power_dBm = status.signal_strength_dBm;
   receiver.release();
-  static int8_t last_power_s = 255;
-  if(power_s != last_power_s)
+  static float last_power_dBm = FLT_MAX;
+  if(abs(power_dBm - last_power_dBm) > 1.0f)
   {
-    int bar_len = power_s * 62 / 12;
-    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
-    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    // draw vertical signal strength
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
     display_show();
   }
 
@@ -1338,17 +1364,18 @@ bool ui::memory_recall(bool &ok)
 bool ui::memory_scan(bool &ok)
 {
 
-  //encoder loops through memories
   const int32_t min = 0;
   const int32_t max = num_chans-1;
   static int32_t select = 0;
   static uint32_t stored_settings[settings_to_store];
-  bool load_and_update_display = false;
-
-  enum e_frequency_state{idle, active};
+  bool load = false;
+  bool update_display = false;
+  bool listen = false;
+  enum e_frequency_state{idle, active, menu_active};
   static e_frequency_state state = idle;
-
   static int32_t scan_speed = 0;
+  float power_dBm = 0;
+  char name[17];
 
   if(state == idle)
   {
@@ -1359,7 +1386,6 @@ bool ui::memory_scan(bool &ok)
     }
 
     //skip blank channels
-    load_and_update_display = true;
     for(uint16_t i = 0; i<num_chans; i++)
     {
       if(radio_memory[select][9] != 0xffffffff) break;
@@ -1367,49 +1393,55 @@ bool ui::memory_scan(bool &ok)
       if(select > max) select = min;
     }
 
+    load = true;
+    update_display = true;
     scan_speed = 0;
     state = active;
+
   }
   else if(state == active)
   {
 
-    int32_t pos_change = encoder_control(&select, min, max);
+    static float last_power_dBm = FLT_MAX;
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    update_display = abs(power_dBm - last_power_dBm) > 1.0f;
+    listen = (settings[idx_squelch] == 0) || (power_dBm > S_to_dBm(settings[idx_squelch]));
 
-    static int8_t direction=0;
+    int32_t pos_change = get_encoder_change();
+    static int8_t direction=1;
     if ( pos_change > 0 ){
+      printf("up\n");
+      if(!listen && ++scan_speed>4) scan_speed=4;
+      update_display = true;
+      load = true;
       direction = 1;
-      if(++scan_speed>4) scan_speed=4;
-      load_and_update_display = true;
     }
     if ( pos_change < 0 ){
+      printf("down\n");
+      if(!listen && --scan_speed<-4) scan_speed=-4;
+      update_display = true;
+      load = true;
       direction = -1;
-      if(--scan_speed<-4) scan_speed=-4;
-      load_and_update_display = true;
     }
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if (scan_speed && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
-      last_time = now_time;
-      select += direction;
-      if (++select > max) select = min;
-      if (--select < min) select = max;
-      load_and_update_display = true;
+    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) || pos_change) {
+      //skip blank channels
+      for(uint16_t i = 0; i<num_chans; i++)
+      {
+        select += direction;      
+        if(select < min) select = max;
+        if(select > max) select = min;
+        if(radio_memory[select][9] != 0xffffffff) break;
+      }
     }
 
-    //skip blank channels
-    for(uint16_t i = 0; i<num_chans; i++)
-    {
-      if(radio_memory[select][9] != 0xffffffff) break;
-      if(select < min) select = max;
-      if(select > max) select = min;
-    }
-
-    //ok
-    if(encoder_button.is_pressed()||menu_button.is_pressed()){
-      ok=true;
-      state = idle;
-      return true;
+    //ok - launch menu
+    if(menu_button.is_pressed()){
+      state = menu_active;
     }
 
     //cancel
@@ -1424,10 +1456,24 @@ bool ui::memory_scan(bool &ok)
       return true;
     }
   }
-
-  if(load_and_update_display)
+  else if(state == menu_active)
   {
-    char name[17];
+    bool ok = false;
+    if(main_menu(ok))
+    {
+      update_display = true;
+      load = true;
+      scan_speed = 0;
+      state = active;
+      if(ok){
+        apply_settings(false);
+        autosave();
+      }
+    }
+  }
+
+  if(load)
+  {
     get_memory_name(name, select, true);
 
     //(temporarily) apply lodaed settings to RX
@@ -1435,6 +1481,11 @@ bool ui::memory_scan(bool &ok)
       settings[i] = radio_memory[select][i];
     }
     apply_settings(false);
+  }
+
+  if(update_display)
+  {
+    get_memory_name(name, select, true);
 
     //draw screen
     display_clear();
@@ -1458,26 +1509,21 @@ bool ui::memory_scan(bool &ok)
     display_print_freq('.', radio_memory[select][idx_frequency], 2);
     display_print_str("\n",2);
 
-    display_print_str("Speed",2);
-    display_print_speed(91, display_get_y(), 2, scan_speed);
-  }
-
-  //draw power meter
-  receiver.access(false);
-  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
-  receiver.release();
-  static int8_t last_power_s = 255;
-  if(power_s != last_power_s)
-  {
-    int bar_len = power_s * 62 / 12;
-    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
-    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    if (listen) {
+      display_set_xy(0,48);
+      display_print_str("Listen",2);
+      display_set_xy(91-6,48);
+      display_print_char(CHAR_SPEAKER, 2);
+    } else {
+      display_set_xy(0,48);
+      display_print_str("Speed",2);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
+    }
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
     display_show();
   }
 
-
   return false; 
-
 }
 
 // print pause, play, reverse play with extra > or < based on speed
@@ -1515,6 +1561,8 @@ bool ui::frequency_scan(bool &ok)
 {
 
   bool load_and_update_display = false;
+  bool can_scan = false;
+  float power_dBm = FLT_MAX;
   enum e_frequency_state{idle, active};
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
@@ -1534,6 +1582,11 @@ bool ui::frequency_scan(bool &ok)
     int32_t pos_change = encoder_control(&select, min, max);
     load_and_update_display = pos_change != 0;
 
+    receiver.access(false);
+    power_dBm = status.signal_strength_dBm;
+    receiver.release();
+    can_scan = (settings[idx_squelch] == 0) || (power_dBm < S_to_dBm(settings[idx_squelch]));
+
     static int8_t direction = 1;
     if ( pos_change > 0 ){
        if(++scan_speed>4) scan_speed=4;
@@ -1546,7 +1599,7 @@ bool ui::frequency_scan(bool &ok)
 
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
     static uint32_t last_time = 0u;
-    if (scan_speed && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
+    if (scan_speed && can_scan && (now_time - last_time) > (uint32_t)1000/abs(scan_speed)) {
       last_time = now_time;
 
       //update frequency 
@@ -1554,8 +1607,9 @@ bool ui::frequency_scan(bool &ok)
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
-
       if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+          settings[idx_frequency] = settings[idx_max_frequency];
+      if ((int)settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
       apply_settings(false);
@@ -1606,21 +1660,27 @@ bool ui::frequency_scan(bool &ok)
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
-      display_set_xy(0,48);
-      display_print_str("Speed",2);
-      display_print_speed(91, display_get_y(), 2, scan_speed);
+      if (can_scan) {
+        display_set_xy(0,48);
+        display_print_str("Speed",2);
+        display_print_speed(91, display_get_y(), 2, scan_speed);
+      } else {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+      }
+
+      display_show();
   }
 
   //draw power meter
-  receiver.access(false);
-  int8_t power_s = dBm_to_S(status.signal_strength_dBm);
-  receiver.release();
-  static int8_t last_power_s = 255;
-  if(power_s != last_power_s)
+  static float last_power_dBm = FLT_MAX;
+  if(abs(power_dBm - last_power_dBm) > 1)
   {
-    int bar_len = power_s * 62 / 12;
-    ssd1306_fill_rectangle(&disp, 124, 0, 3, 63, 0);
-    ssd1306_fill_rectangle(&disp, 124, 63 - bar_len, 3, bar_len + 1, 1);
+    // draw vertical signal strength
+    last_power_dBm = power_dBm;
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
     display_show();
   }
 
@@ -2053,7 +2113,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2126,62 +2186,7 @@ bool ui::main_menu(bool & ok)
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok);
             break;
           case 14 : 
-            done = scanner_menu(ok);
-            break;
-          case 15 : 
             done = configuration_menu(ok);
-            break;
-        }
-        if(done)
-        {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-    }
-
-    return false;
-}
-
-
-bool ui::scanner_menu(bool &ok)
-{
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
-
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("Scan", "Memories#Frequency\nRange#", &menu_selection, ok))
-      {
-        if(ok) 
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-      }
-    }
-
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       switch(menu_selection)
-        {
-          case 0 :  
-            done = memory_scan(ok);
-            break;
-          case 1 : 
-            done = frequency_scan(ok);
             break;
         }
         if(done)
@@ -2335,7 +2340,7 @@ void ui::do_ui()
 
     bool update_settings = false;
     bool autosave_settings = false;
-    enum e_ui_state {splash, idle, menu, recall, sleep};
+    enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
     static bool frequency_autosave_pending = false;
     static uint32_t frequency_autosave_time = 0;
@@ -2372,8 +2377,12 @@ void ui::do_ui()
       {
         display_option++;
         view_changed = true;
-        if(display_option==num_display_options) display_option=0u;
+        if(display_option==num_display_options){
+          display_option = 0;
+          ui_state = memory_scanner;
+        }
       }
+  
 
       //adjust frequency when encoder is turned
       uint32_t encoder_change = get_encoder_change();
@@ -2440,6 +2449,28 @@ void ui::do_ui()
         ui_state = idle;
         update_settings = ok;
         autosave_settings = ok;
+        display_time = time_us_32();
+      }
+    }
+
+    //enter scanner mode
+    else if(ui_state == memory_scanner)
+    {
+      bool ok = false;
+      if(memory_scan(ok))
+      {
+        ui_state = frequency_scanner;
+        display_time = time_us_32();
+      }
+    }
+
+    //enter scanner mode
+    else if(ui_state == frequency_scanner)
+    {
+      bool ok = false;
+      if(frequency_scan(ok))
+      {
+        ui_state = idle;
         display_time = time_us_32();
       }
     }
