@@ -1391,6 +1391,9 @@ bool ui::memory_recall()
   }
 }
 
+#define SQU_TIMER (now_time-last_squelch_time)
+#define SQU_WAIT 3000
+
 // Scan across the stored memories
 bool ui::memory_scan()
 {
@@ -1400,18 +1403,25 @@ bool ui::memory_scan()
   int32_t max = num_chans-1;
   // grab last selected memory
   int32_t select=last_select;
+  if (select < min) select=max;
+  if (select > max) select=min;
+
   char name[17];
   bool draw_once = true;
 
   int scan_speed = 0;
-  uint32_t last_time = 0;
+  uint32_t last_scan_time = 0;
   uint32_t now_time = 0;
 
   uint32_t menu_press_time = 0;
 
   int32_t pos_change = 0;
 
-  bool squelch_state=false;   // false is muted/silent
+  bool radio_squelch=false;   // false is muted/silent
+  bool last_radio_squelch=false;
+  uint32_t last_squelch_time=false;
+  e_scanner_squelch squelch_state = no_signal;
+
   float power_dBm;
   float last_power_dBm = FLT_MAX;
 
@@ -1427,7 +1437,7 @@ bool ui::memory_scan()
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    squelch_state = status.squelch_state;
+    radio_squelch = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
@@ -1435,33 +1445,74 @@ bool ui::memory_scan()
       last_power_dBm = power_dBm;
     }
 
-    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
+    if (radio_squelch != last_radio_squelch) {
+      draw_once = true;
+      if ( !radio_squelch) { // mutes just now
+        if (SQU_TIMER > SQU_WAIT) { // had sound for > 3 secs ?
+          squelch_state = count_down;
+          last_squelch_time = now_time;
+        } else {
+          squelch_state = no_signal;
+          last_squelch_time = 0;
+        }
+      } else { // just UN muted
+        squelch_state = signal_found;
+        last_squelch_time = now_time;
+      }
+      last_radio_squelch = radio_squelch;
+    }
+    if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
+      squelch_state = no_signal;
+    }
 
+    //                  squelch disabled   and    not listening 
+    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
+
+    bool scan_tick = false;
+    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+      last_scan_time = now_time;
+      scan_tick = true;
+    }
+
+    int freq_change = 0;
     pos_change = get_encoder_change();
-    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
+    if (pos_change) {
+      draw_once = true;
+      last_squelch_time = now_time; // trick the state logic to not dwell for 3s
+    }
+    if (can_scan || scan_speed == 0) {
+      // adjust the speed
       if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
       if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+      // compute the frequency change direction
+      if (scan_tick) {
+        if (scan_speed > 0) freq_change = 1;
+        if (scan_speed < 0) freq_change = -1;
+      }
     } else {
-       if (pos_change) can_scan = true; // we can cos you asked
+      if (pos_change > 0) {
+        freq_change = 1;                // jog frequency along
+        scan_speed = abs(scan_speed);   // change the scan direction
+      }
+      if (pos_change < 0) {
+        freq_change = -1;
+        scan_speed = -abs(scan_speed);
+      }
     }
  
-    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
-      last_time = now_time;
-      pos_change = scan_speed;
-      if (pos_change > 0) if (++select > max) select = min;
-      if (pos_change < 0) if (--select < min) select = max;
-    }
+    if( freq_change ) {
+      if (freq_change > 0) if (++select > max) select = min;
+      if (freq_change < 0) if (--select < min) select = max;
 
-    if( pos_change != 0 || draw_once) {
-
+      draw_once = true;
       if (radio_memory[select][9] == 0xffffffff) {
-        if (pos_change < 0) { // search backwards up to 512 times
+        if (freq_change < 0) { // search backwards up to 512 times
           for (unsigned int i=0; i<num_chans; i++) {
             if (--select < min) select = max;
             if(radio_memory[select][9] != 0xffffffff)
               break;
           }
-        } else if (pos_change > 0) {  // forwards
+        } else if (freq_change > 0) {  // forwards
           for (unsigned int i=0; i<num_chans; i++) {
             if (++select > max) select = min;
             if(radio_memory[select][9] != 0xffffffff)
@@ -1470,15 +1521,15 @@ bool ui::memory_scan()
         }
       }
 
-      get_memory_name(name, select, true);
-
       //(temporarily) apply lodaed settings to RX
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = radio_memory[select][i];
       }
       apply_settings(false);
+    }
 
-      //print selected menu item
+    //render the page
+    if (draw_once || squelch_state == count_down) {
       draw_once = false;
       display_clear();
       display_print_str("Scanner");
@@ -1489,6 +1540,8 @@ bool ui::memory_scan()
       display_print_str(mode_ptr,1);
 
       display_print_str("\n", 1);
+      get_memory_name(name, select, true);
+
       if (12*strlen(name) > 128) {
         display_add_xy(0,4);
         display_print_str(name,1,style_nowrap);
@@ -1501,15 +1554,26 @@ bool ui::memory_scan()
       display_print_freq('.', radio_memory[select][idx_frequency], 2);
       display_print_str("\n",2);
 
-      if (can_scan) {
-        display_set_xy(0,48);
-        display_print_str("Speed",2);
-        display_print_speed(91, display_get_y(), 2, scan_speed);
-      } else {
-        display_set_xy(0,48);
-        display_print_str("Listen",2);
-        display_set_xy(91-6,48);
-        display_print_char(CHAR_SPEAKER, 2);
+      //draw scanning speed
+      switch (squelch_state) {
+        case no_signal:
+          display_set_xy(0,48);
+          display_print_str("Speed",2);
+          display_print_speed(91, display_get_y(), 2, scan_speed);
+          break;
+        case signal_found:
+        case count_down:
+          display_set_xy(0,48);
+          display_print_str("Listen",2);
+          display_set_xy(91-6,48);
+          display_print_char(CHAR_SPEAKER, 2);
+          break;
+      }
+      // Do an animation for the 3 second dwell count down
+      if (squelch_state == count_down) {
+        uint32_t width = SQU_TIMER*display_get_x()/SQU_WAIT;
+        int x=display_get_x()-width;
+        ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
       }
 
       // draw vertical signal strength
@@ -1591,14 +1655,18 @@ bool ui::frequency_scan()
   bool draw_once = true;
 
   int scan_speed = 0;
-  uint32_t last_time = 0;
+  uint32_t last_scan_time = 0;
   uint32_t now_time = 0;
 
   uint32_t menu_press_time = 0;
 
   int32_t pos_change = 0;
 
-  bool squelch_state=false;   // false is muted/silent
+  bool radio_squelch=false;   // false is muted/silent
+  bool last_radio_squelch=false;
+  uint32_t last_squelch_time=false;
+  e_scanner_squelch squelch_state = no_signal;
+  
   float power_dBm;
   float last_power_dBm = FLT_MAX;
 
@@ -1614,35 +1682,82 @@ bool ui::frequency_scan()
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    squelch_state = status.squelch_state;
+    radio_squelch = status.squelch_state;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       draw_once = true;
       last_power_dBm = power_dBm;
     }
 
-    bool can_scan = ( (squelch_state == false) || (settings[idx_squelch] == 0));
+// defined earlier
+//#define SQU_TIMER (now_time-last_squelch_time)
+//#define SQU_WAIT 3000
 
-    pos_change = get_encoder_change();
-    if (can_scan || scan_speed == 0) { // silent audio or squelch disabled
-      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
-      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
-    } else {
-      if (pos_change) can_scan = true; // we can cos you asked
+    if (radio_squelch != last_radio_squelch) {
+      draw_once = true;
+      if ( !radio_squelch) { // mutes just now
+        if (SQU_TIMER > SQU_WAIT) { // had sound for > 3 secs ?
+          squelch_state = count_down;
+          last_squelch_time = now_time;
+        } else {
+          squelch_state = no_signal;
+          last_squelch_time = 0;
+        }
+      } else { // just UN muted
+        squelch_state = signal_found;
+        last_squelch_time = now_time;
+      }
+      last_radio_squelch = radio_squelch;
+    }
+    if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
+      squelch_state = no_signal;
     }
 
-    if ( can_scan && ((now_time - last_time) > 1000/(unsigned)abs(scan_speed)) ) {
-      last_time = now_time;
-      pos_change = scan_speed/abs(scan_speed);
+    //                  squelch disabled   and    not listening 
+    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
 
+    bool scan_tick = false;
+    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+      last_scan_time = now_time;
+      scan_tick = true;
+    }
+
+    int freq_change = 0;
+    pos_change = get_encoder_change();
+    if (pos_change) {
+      draw_once = true;
+      last_squelch_time = now_time; // trick the state logic to not dwell for 3s
+    }
+    if (can_scan || scan_speed == 0) {
+      // adjust the speed
+      if ( pos_change > 0 ) if(++scan_speed>4) scan_speed=4;
+      if ( pos_change < 0 ) if(--scan_speed<-4) scan_speed=-4;
+      // compute the frequency change direction
+      if (scan_tick) {
+        if (scan_speed > 0) freq_change = 1;
+        if (scan_speed < 0) freq_change = -1;
+      }
+    } else {
+      if (pos_change > 0) {
+        freq_change = 1;                // jog frequency along
+        scan_speed = abs(scan_speed);   // change the scan direction
+      }
+      if (pos_change < 0) {
+        freq_change = -1;
+        scan_speed = -abs(scan_speed);
+      }
+    }
+
+    if (freq_change) {
+      draw_once = true;
       //update frequency 
-      settings[idx_frequency] += pos_change * step_sizes[settings[idx_step]];
+      settings[idx_frequency] += freq_change * step_sizes[settings[idx_step]];
 
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
-      if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+      else if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
           settings[idx_frequency] = settings[idx_max_frequency];
-      if ((int)settings[idx_frequency] == 0)
+      else if ((int)settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
       apply_settings(false);
@@ -1650,7 +1765,7 @@ bool ui::frequency_scan()
     }
 
     //render the page
-    if (pos_change != 0 || draw_once) {
+    if (draw_once || squelch_state == count_down) {
       draw_once = false;
       display_clear();
       display_print_str("Scanner");
@@ -1679,20 +1794,29 @@ bool ui::frequency_scan()
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
-      if (can_scan) {
-        display_set_xy(0,48);
-        display_print_str("Speed",2);
-        display_print_speed(91, display_get_y(), 2, scan_speed);
-      } else {
-        display_set_xy(0,48);
-        display_print_str("Listen",2);
-        display_set_xy(91-6,48);
-        display_print_char(CHAR_SPEAKER, 2);
+      switch (squelch_state) {
+        case no_signal:
+          display_set_xy(0,48);
+          display_print_str("Speed",2);
+          display_print_speed(91, display_get_y(), 2, scan_speed);
+          break;
+        case signal_found:
+        case count_down:
+          display_set_xy(0,48);
+          display_print_str("Listen",2);
+          display_set_xy(91-6,48);
+          display_print_char(CHAR_SPEAKER, 2);
+          break;
+      }
+      // Do an animation for the 3 second dwell count down
+      if (squelch_state == count_down) {
+        uint32_t width = SQU_TIMER*display_get_x()/SQU_WAIT;
+        int x=display_get_x()-width;
+        ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
       }
 
       // draw vertical signal strength
       draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
-//      draw_vertical_dBm( 124, power_dBm);
 
       display_show();
     }
