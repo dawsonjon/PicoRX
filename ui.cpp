@@ -2263,7 +2263,7 @@ bool ui::scanner_radio_menu()
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Radio Menu", "Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-emph.#Frequency\nStep#", &setting)) 
+      if(!menu_entry("Radio Menu", "Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-emph.#Frequency\nStep#Store#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2306,6 +2306,11 @@ bool ui::scanner_radio_menu()
           rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
+          
+        case 8 :
+          memory_store();
+          break;
+
       }
   }
   return rx_settings_changed;
