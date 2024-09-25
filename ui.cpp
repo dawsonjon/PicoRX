@@ -24,13 +24,21 @@ void ui::setup_encoder()
     gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
     uint offset = pio_add_program(pio, &quadrature_encoder_program);
     quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    new_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
+    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
+    } else {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    }
     old_position = new_position;
 }
 
 int32_t ui::get_encoder_change()
 {
-    new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
+    } else {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    }
     int32_t delta = new_position - old_position;
     old_position = new_position;
     if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
@@ -2169,7 +2177,7 @@ bool ui::configuration_menu()
         break;
       }
 
-      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
+      if(!menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Flip OLED#OLED Type#Display\nContrast#USB\nUpload#", &setting)) return 1;
       switch(setting)
       {
         case 0:
@@ -2192,25 +2200,29 @@ bool ui::configuration_menu()
           rx_settings_changed |= bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup]);
           break;
 
-        case 3 : 
-          rx_settings_changed |= bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
+        case 3: 
+          rx_settings_changed |= bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res, &settings[idx_hw_setup]);
           break;
 
         case 4: 
-          rx_settings_changed |= number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          rx_settings_changed |= bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup]);
           break;
 
         case 5: 
+          rx_settings_changed |= number_entry("Gain Cal", "%idB", 1, 100, 1, &settings[idx_gain_cal]);
+          break;
+
+        case 6: 
           rx_settings_changed |= bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
-        case 6: 
+        case 7: 
           rx_settings_changed |= bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
-        case 7:
+        case 8:
           {
           uint32_t val = 0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
           rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &val);
@@ -2220,7 +2232,7 @@ bool ui::configuration_menu()
           }
           break;
 
-        case 8: 
+        case 9: 
           setting = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting);
           if(setting==1) {
