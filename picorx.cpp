@@ -22,7 +22,8 @@ const uint32_t ev_ui_evset = (1UL << ev_tick) |
                              (1UL << ev_button_menu_release) |
                              (1UL << ev_button_back_press) |
                              (1UL << ev_button_back_release) |
-                             (1UL << ev_button_push_press);
+                             (1UL << ev_button_push_press) |
+                             (1UL << ev_encoder);
 
 static debouncer_t button_menu_deb = {
     .ev_press = {.tag = ev_button_menu_press},
@@ -42,10 +43,23 @@ static debouncer_t button_push_deb = {
     .gpio_num = PIN_ENCODER_PUSH,
 };
 
-void core1_main()
+static const uint32_t sm = 0;
+static const PIO pio = pio1;
+static int32_t old_position;
+
+static void core1_main()
 {
     multicore_lockout_victim_init();
     receiver.run();
+}
+
+static void setup_encoder(void)
+{
+    gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
+    gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
+    uint offset = pio_add_program(pio, &quadrature_encoder_program);
+    quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
+    old_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
 }
 
 static bool io_callback(repeating_timer_t *rt)
@@ -55,6 +69,16 @@ static bool io_callback(repeating_timer_t *rt)
     debouncer_update(&button_menu_deb);
     debouncer_update(&button_back_deb);
     debouncer_update(&button_push_deb);
+
+    int32_t new_position = -((quadrature_encoder_get_count(pio, sm) + 2) / 4);
+    int32_t delta = new_position - old_position;
+    old_position = new_position;
+
+    if(delta != 0)
+    {
+      event_t ev = {.tag = ev_encoder, .encoder = {.delta = delta}};
+      event_send(ev);
+    }
 
     if (++tick_div == (DEBOUNCE_TICK_HZ / UI_REFRESH_HZ))
     {
@@ -76,7 +100,8 @@ int main()
   event_init();
   debouncer_init(&button_menu_deb);
   debouncer_init(&button_back_deb);
-  debouncer_init(&button_push_deb);  
+  debouncer_init(&button_push_deb);
+  setup_encoder(); 
 
   //sleep_us(5000000);
   user_interface.autorestore();

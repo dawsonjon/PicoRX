@@ -95,14 +95,9 @@ class ui
   // last selected memory
   int32_t last_select=0;
 
-  // Encoder 
-  void setup_encoder();
-  int32_t get_encoder_change();
-  int32_t encoder_control(int32_t *value, int32_t min, int32_t max);
-  int32_t new_position;
-  int32_t old_position;
-  const uint32_t sm = 0;
-  const PIO pio = pio1;
+  // Encoder
+  int32_t encoder_adjust_dir(int32_t position_change);
+  int32_t encoder_control(int32_t position_change, int32_t *value, int32_t min, int32_t max);
 
   // Buttons
   e_button_state button_state;

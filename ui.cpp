@@ -18,33 +18,21 @@ static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
 // Encoder 
 ////////////////////////////////////////////////////////////////////////////////
 
-void ui::setup_encoder()
+int32_t ui::encoder_adjust_dir(int32_t position_change)
 {
-    gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
-    gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
-    uint offset = pio_add_program(pio, &quadrature_encoder_program);
-    quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    new_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
-    old_position = new_position;
+  if ((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+  {
+    return -position_change;
+  }
+  else
+  {
+    return position_change;
+  }
 }
 
-int32_t ui::get_encoder_change()
+int32_t ui::encoder_control(int32_t position_change, int32_t *value, int32_t min, int32_t max)
 {
-    new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    int32_t delta = new_position - old_position;
-    old_position = new_position;
-    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
-    {
-      return -delta;
-    } else {
-      return delta;
-    }
-}
-
-int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
-{
-	int32_t position_change = get_encoder_change();
-	*value += position_change;
+	*value += encoder_adjust_dir(position_change);
 	if(*value > max) *value = min;
 	if(*value < min) *value = max;
 	return position_change;
@@ -791,6 +779,8 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
   int32_t select=*value;
   bool draw_once = true;
   uint32_t max = 0;
+  int32_t encoder_delta = 0;
+
   for (size_t i=0; i<strlen(options); i++) {
     if (options[i] == '#') max++;
   }
@@ -799,13 +789,14 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
   if (max > 0) max--;
 
   while(1){
-    if(encoder_control(&select, 0, max)!=0 || draw_once)
+
+    if (encoder_control(encoder_delta, &select, 0, max) != 0 || draw_once)
     {
-      //print selected menu item
+      // print selected menu item
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      display_draw_separator(18,3);
+      display_draw_separator(18, 3);
       display_linen(4);
       print_enum_option(options, select);
       display_show();
@@ -813,6 +804,16 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
 
     do_disp();  
     event_t ev = event_get();
+
+    if (ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    }
+    else
+    {
+      encoder_delta = 0;
+    }
+
     //select menu item
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select;
@@ -832,6 +833,8 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
   int32_t select=*value;
   bool draw_once = true;
   uint32_t max = 0;
+  int32_t encoder_delta = 0;
+
   for (size_t i=0; i<strlen(options); i++) {
     if (options[i] == '#') max++;
   }
@@ -840,13 +843,13 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
   if (max > 0) max--;
 
   while(1){
-    if(encoder_control(&select, 0, max)!=0 || draw_once)
+    if (encoder_control(encoder_delta, &select, 0, max) != 0 || draw_once)
     {
-      //print selected menu item
+      // print selected menu item
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
+      display_draw_separator(40, 1);
       display_linen(6);
       print_enum_option(options, select);
       display_show();
@@ -860,6 +863,13 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       return 1;
     }
 
+    if (ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    } else {
+      encoder_delta = 0;
+    }
+
     //cancel
     if(ev.tag == ev_button_back_press){
       return 0;
@@ -870,18 +880,20 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 //select a number in a range
 int16_t ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint32_t *value)
 {
+  int32_t encoder_delta = 0;
   int32_t select=*value/multiple;
   bool draw_once = true;
   while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
+
+    if (encoder_control(encoder_delta, &select, min, max) != 0 || draw_once)
     {
-      //print selected menu item
+      // print selected menu item
       draw_once = false;
       display_clear();
       display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
+      display_draw_separator(40, 1);
       display_linen(6);
-      display_print_num(format, select*multiple, 2, style_centered);
+      display_print_num(format, select * multiple, 2, style_centered);
       display_show();
     }
 
@@ -889,6 +901,16 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
     event_t ev = event_get();
 
     //select menu item
+
+    if (ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    }
+    else
+    {
+      encoder_delta = 0;
+    }
+
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
       *value = select*multiple;
       return 1;
@@ -1146,6 +1168,7 @@ bool ui::upload_memory()
 bool ui::memory_store()
 {
 
+  int32_t encoder_delta = 0;
   //encoder loops through memories
   uint32_t min = 0;
   uint32_t max = num_chans-1;
@@ -1155,28 +1178,34 @@ bool ui::memory_store()
 
   bool draw_once = true;
   while(1){
-    if(encoder_control(&select, min, max)!=0 || draw_once)
+
+    if (encoder_control(encoder_delta, &select, min, max) != 0 || draw_once)
     {
 
       get_memory_name(name, select, false);
-      //print selected menu item
+      // print selected menu item
       draw_once = false;
       display_clear();
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
       display_print_str("\n", 1);
-      // strip trailing spaces 
+      // strip trailing spaces
       char ss_name[17];
       strncpy(ss_name, name, 17);
-      for (int i=15; i>=0; i--) {
-        if (ss_name[i] != ' ') break;
+      for (int i = 15; i >= 0; i--)
+      {
+        if (ss_name[i] != ' ')
+          break;
         ss_name[i] = 0;
       }
-      if (12*strlen(ss_name) > 128) {
-        display_add_xy(0,4);
-        display_print_str(ss_name,1,style_nowrap|style_centered);
-      } else {
-        display_print_str(ss_name,2,style_nowrap|style_centered);
+      if (12 * strlen(ss_name) > 128)
+      {
+        display_add_xy(0, 4);
+        display_print_str(ss_name, 1, style_nowrap | style_centered);
+      }
+      else
+      {
+        display_print_str(ss_name, 2, style_nowrap | style_centered);
       }
 
       display_show();
@@ -1184,6 +1213,15 @@ bool ui::memory_store()
 
     do_disp();
     event_t ev = event_get();
+
+    if (ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    }
+    else
+    {
+      encoder_delta = 0;
+    }
 
     //select menu item
     if(ev.tag == ev_button_menu_press){
@@ -1299,8 +1337,6 @@ bool ui::memory_recall()
       last_power_dBm = power_dBm;
     }
 
-    pos_change = encoder_control(&select, min, max);;
-
     if( pos_change != 0 || draw_once) {
       power_change = true;
       if (radio_memory[select][9] == 0xffffffff) {
@@ -1373,6 +1409,15 @@ bool ui::memory_recall()
 
     do_disp();
     event_t ev = event_get();
+
+    if (ev.tag == ev_encoder)
+    {
+      pos_change = encoder_control(ev.encoder.delta, &select, min, max);
+    }
+    else
+    {
+      pos_change = 0;
+    }
 
     if(ev.tag == ev_button_push_press){
       last_select=min;
@@ -1480,7 +1525,6 @@ bool ui::memory_scan()
     }
 
     int freq_change = 0;
-    pos_change = get_encoder_change();
     if (pos_change) {
       draw_once = true;
       last_squelch_time = now_time; // trick the state logic to not dwell for 3s
@@ -1589,6 +1633,15 @@ bool ui::memory_scan()
 
     do_disp();
     event_t ev = event_get();
+
+    if (ev.tag == ev_encoder)
+    {
+      pos_change = encoder_adjust_dir(ev.encoder.delta);
+    }
+    else
+    {
+      pos_change = 0;
+    }
 
     if(ev.tag == ev_button_push_press){
       scan_speed=0;
@@ -1729,7 +1782,6 @@ bool ui::frequency_scan()
     }
 
     int freq_change = 0;
-    pos_change = get_encoder_change();
     if (pos_change) {
       draw_once = true;
       last_squelch_time = now_time; // trick the state logic to not dwell for 3s
@@ -1830,6 +1882,15 @@ bool ui::frequency_scan()
     do_disp();
     event_t ev = event_get();
 
+    if (ev.tag == ev_encoder)
+    {
+      pos_change = encoder_adjust_dir(ev.encoder.delta);
+    }
+    else
+    {
+      pos_change = 0;
+    }
+
     if(ev.tag == ev_button_push_press){
       scan_speed=0;
       draw_once=1;
@@ -1907,6 +1968,7 @@ int ui::get_memory_name(char* name, int select, bool strip_spaces)
 ////////////////////////////////////////////////////////////////////////////////
 int ui::string_entry(char string[]){
 
+  int32_t encoder_delta = 0;
   int32_t position=0;
   int32_t edit_mode = 0;
 
@@ -1921,7 +1983,7 @@ int ui::string_entry(char string[]){
       else if('A' <= string[position] && string[position] <= 'Z') val = string[position]-'A'+1;
       else if('0' <= string[position] && string[position] <= '9') val = string[position]-'0'+27;
       else if(string[position] == ' ') val = 0;
-      encoder_changed = encoder_control(&val, 0, 36);
+      encoder_changed = encoder_control(encoder_delta, &val, 0, 36);
       if     (1 <= val  && val <= 26) string[position] = 'A' + val - 1;
       else if(27 <= val && val <= 36) string[position] = '0' + val - 27;
       else string[position] = ' ';
@@ -1929,7 +1991,7 @@ int ui::string_entry(char string[]){
     else 
     {
       //change between chars
-      encoder_changed = encoder_control(&position, 0, 19);
+      encoder_changed = encoder_control(encoder_delta, &position, 0, 19);
     }
 
     //if encoder changes, or screen hasn't been updated
@@ -1981,6 +2043,15 @@ int ui::string_entry(char string[]){
     do_disp();
     event_t ev = event_get();
 
+    if (ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    }
+    else
+    {
+      encoder_delta = 0;
+    }
+
     //select menu item
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
     {
@@ -2014,6 +2085,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
   int32_t i, digit_val;
   int32_t edit_mode = 0;
   unsigned frequency;
+  int32_t encoder_delta = 0;
 
   //convert to binary representation
   frequency = settings[which_setting];
@@ -2026,16 +2098,15 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
 
   bool draw_once = true;
   while(1){
-
     bool encoder_changed;
     if(edit_mode){
       //change the value of a digit 
-      encoder_changed = encoder_control(&digits[digit], 0, 9);
+      encoder_changed = encoder_control(encoder_delta, &digits[digit], 0, 9);
     } 
     else 
     {
       //change between digits
-      encoder_changed = encoder_control(&digit, 0, 9);
+      encoder_changed = encoder_control(encoder_delta, &digit, 0, 9);
     }
 
     //if encoder changes, or screen hasn't been updated
@@ -2064,6 +2135,13 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
 
     do_disp();
     event_t ev = event_get();
+
+    if(ev.tag == ev_encoder)
+    {
+      encoder_delta = ev.encoder.delta;
+    } else {
+      encoder_delta = 0;
+    }
 
     //select menu item
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
@@ -2392,7 +2470,13 @@ void ui::do_ui(event_t event)
 {
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
-    uint32_t encoder_change = get_encoder_change();
+
+    uint32_t encoder_change = 0;
+    if(event.tag == ev_encoder)
+    {
+      encoder_change = encoder_adjust_dir(event.encoder.delta);
+    }
+
     static bool maybe_changeview = false;
     static int current_view = 0;
     static bool view_changed = true;  // has the main view changed?
@@ -2669,7 +2753,6 @@ bool ui::top_menu(rx_settings & settings_to_apply)
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : settings_to_apply(settings_to_apply), status(status), receiver(receiver)
 {
   setup_display();
-  setup_encoder();
 
   button_state = idle;
 }

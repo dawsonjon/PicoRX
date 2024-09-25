@@ -20,12 +20,20 @@ extern "C"
         ev_button_back_release,
         ev_button_push_press,
         ev_button_push_release,
+        ev_encoder,
         ev_last,
     } event_e;
 
     typedef struct
     {
         event_e tag;
+        union
+        {
+            struct
+            {
+                int32_t delta;
+            } encoder;
+        };
     } event_t;
 
     static const char *const event_to_str[] = {
@@ -37,6 +45,7 @@ extern "C"
         "ev_button_back_release",
         "ev_button_push_press",
         "ev_button_push_release",
+        "ev_encoder",
     };
 
     void event_init(void);
