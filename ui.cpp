@@ -2318,6 +2318,7 @@ bool ui::configuration_menu()
             display_clear();
             display_print_str("Ready for\nfirmware",2, style_centered);
             display_show();
+            do_disp();
             reset_usb_boot(0,0);
           }
           break;
