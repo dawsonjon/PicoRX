@@ -120,6 +120,7 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
     p->i2c_i=i2c_instance;
     p->curr_page=0;
     p->curr_buf=0;
+    p->show_pending = false;
 
     // 1 + p->width so each page is 129 bytes long
     // allows room for the 0x40 byte at the start of each page
@@ -392,6 +393,8 @@ void ssd1306_show(ssd1306_t *p)
         memcpy(p->buffer, &p->mem[p->bufsize * (p->curr_buf ^ 1)], p->bufsize); // needed for scrolling
         _draw_page(p);
         p->curr_page++;
+    } else {
+        p->show_pending = true;
     }
 }
 
@@ -406,6 +409,11 @@ bool ssd1306_show_continue(ssd1306_t *p)
         if (p->curr_page == p->pages)
         {
             p->curr_page = 0;
+            if(p->show_pending)
+            {
+                p->show_pending = false;
+                ssd1306_show(p);
+            }
         }
         else
         {
