@@ -811,6 +811,7 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
       display_show();
     }
 
+    do_disp();  
     event_t ev = event_get();
     //select menu item
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
@@ -851,6 +852,7 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
     //select menu item
     if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
@@ -883,6 +885,7 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     //select menu item
@@ -1179,6 +1182,7 @@ bool ui::memory_store()
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     //select menu item
@@ -1367,6 +1371,7 @@ bool ui::memory_recall()
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     if(ev.tag == ev_button_push_press){
@@ -1582,6 +1587,7 @@ bool ui::memory_scan()
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     if(ev.tag == ev_button_push_press){
@@ -1821,6 +1827,7 @@ bool ui::frequency_scan()
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     if(ev.tag == ev_button_push_press){
@@ -1971,6 +1978,7 @@ int ui::string_entry(char string[]){
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     //select menu item
@@ -2054,6 +2062,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
       display_show();
     }
 
+    do_disp();
     event_t ev = event_get();
 
     //select menu item
@@ -2132,6 +2141,7 @@ bool ui::display_timeout(bool encoder_change, event_t event)
         ssd1306_poweron(&disp);
         do
         {
+          do_disp();
           event = event_get();
         } while (((1UL << event.tag) & (ev_display_tmout_evset)));
         display_timer = display_timeout;
@@ -2164,6 +2174,7 @@ bool ui::configuration_menu()
   uint32_t setting = 0;
 
   while (1) {
+      do_disp();
       event_t ev = event_get();
       if(ev.tag == ev_button_back_press){
         break;
@@ -2247,6 +2258,7 @@ bool ui::scanner_radio_menu()
 
   while (1)
   {
+      do_disp();
       event_t ev = event_get();
       if(ev.tag == ev_button_back_press){
         break;
@@ -2306,6 +2318,7 @@ bool ui::scanner_menu()
   uint32_t setting = 0;
 
   while (1) {
+      do_disp();
       event_t ev = event_get();
       if(ev.tag == ev_button_back_press){
         break;
@@ -2568,6 +2581,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
 
   while (1)
   {
+      do_disp();
       event_t ev = event_get();
       if(ev.tag == ev_button_back_press){
         break;
@@ -2658,4 +2672,22 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : sett
   setup_encoder();
 
   button_state = idle;
+}
+
+void ui::do_disp(void)
+{
+    while (true)
+    {
+      if (ssd1306_show_continue(&disp))
+      {
+        break;
+      }
+      else
+      {
+        if (event_has())
+        {
+          break;
+        }
+      }
+    }
 }

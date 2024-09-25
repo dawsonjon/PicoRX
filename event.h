@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -41,6 +42,7 @@ extern "C"
     void event_init(void);
     void event_send(event_t event);
     event_t event_get(void);
+    bool event_has(void);
     void event_print(event_t const *const ev);
 
 #ifdef __cplusplus

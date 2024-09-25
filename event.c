@@ -30,6 +30,12 @@ event_t event_get(void)
     return event;
 }
 
+bool event_has(void)
+{
+    event_t event;
+    return queue_try_peek(&core0_evq, &event);
+}
+
 void event_print(event_t const *const ev)
 {
     if (ev->tag < ev_last)

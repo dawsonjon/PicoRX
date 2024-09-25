@@ -71,7 +71,10 @@ typedef struct {
     i2c_inst_t *i2c_i; 	/**< i2c connection instance */
     bool external_vcc; 	/**< whether display uses external vcc */ 
     uint8_t *buffer;	/**< display buffer */
+	uint8_t *mem;	    /**< display memory */
     size_t bufsize;		/**< buffer size */
+	uint8_t curr_page;  /**< currently drawn page */
+	uint8_t curr_buf;
 	uint8_t disp_col_offset; /**< 0 for ssd1306, 2 for sh1106 */
 } ssd1306_t;
 
@@ -160,6 +163,16 @@ void ssd1306_type(ssd1306_t *p, uint8_t type);
 
 */
 void ssd1306_show(ssd1306_t *p);
+
+/**
+	@brief continue display buffer
+
+	@param[in] p : instance of display
+
+	* 	@return bool.
+	*	@retval true if finished
+*/
+bool ssd1306_show_continue(ssd1306_t *p);
 
 /**
 	@brief clear display buffer

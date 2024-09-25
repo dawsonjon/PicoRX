@@ -200,6 +200,7 @@ class ui
   void autorestore();
   void do_ui(event_t event);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver);
+  void do_disp(void);
 
 };
 

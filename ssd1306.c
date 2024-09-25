@@ -118,15 +118,18 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
     p->address=address;
     p->disp_col_offset=0;
     p->i2c_i=i2c_instance;
+    p->curr_page=0;
+    p->curr_buf=0;
 
     // 1 + p->width so each page is 129 bytes long
     // allows room for the 0x40 byte at the start of each page
     // draw_pixel knows about this and does the right thing
     p->bufsize = (p->pages) * (1 + p->width);
-    if((p->buffer=malloc(p->bufsize))==NULL) {
+    if((p->mem=malloc(2 * p->bufsize))==NULL) {
         p->bufsize=0;
         return false;
     }
+    p->buffer = &p->mem[p->bufsize * p->curr_buf];
 
     // from https://github.com/makerportal/rpi-pico-ssd1306
     uint8_t cmds[]= {
@@ -170,9 +173,9 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
 
 inline void ssd1306_deinit(ssd1306_t *p)
 {
-    if ( p->buffer )
+    if ( p->mem )
     {
-        free(p->buffer);
+        free(p->mem);
     }
 }
 
@@ -368,17 +371,47 @@ inline void ssd1306_bmp_show_image(ssd1306_t *p, const uint8_t *data, const long
     ssd1306_bmp_show_image_with_offset(p, data, size, 0, 0);
 }
 
+static void _draw_page(ssd1306_t *p)
+{
+    uint8_t payload[] = {(0x00 | (p->disp_col_offset & 0x0F)), (0x10 | (p->disp_col_offset >> 4)), (0xB0 | (p->curr_page & 0x0F))};
+    uint8_t *buf = &p->mem[p->bufsize * (p->curr_buf ^ 1)];
+
+    for (size_t i = 0; i < sizeof(payload); ++i)
+        ssd1306_write(p, payload[i]);
+
+    buf[p->curr_page * (1 + p->width)] = 0x40; // oled data not cmd
+    fancy_write(p->i2c_i, p->address, &buf[p->curr_page * (1 + p->width)], p->width + 1, "ssd1306_show");
+}
+
 void ssd1306_show(ssd1306_t *p)
 {
-
-    for (uint8_t page = 0; page < p->pages; page++)
+    if (p->curr_page == 0)
     {
-        uint8_t payload[] = {(0x00 | (p->disp_col_offset & 0x0F)), (0x10 | (p->disp_col_offset >> 4)), (0xB0 | (page & 0x0F))};
-
-        for (size_t i = 0; i < sizeof(payload); ++i)
-            ssd1306_write(p, payload[i]);
-
-        p->buffer[page * (1+p->width)] = 0x40; // oled data not cmd
-        fancy_write(p->i2c_i, p->address, &p->buffer[page * (1+p->width)], p->width + 1, "ssd1306_show");
+        p->curr_buf ^= 1;
+        p->buffer = &p->mem[p->bufsize * p->curr_buf];
+        memcpy(p->buffer, &p->mem[p->bufsize * (p->curr_buf ^ 1)], p->bufsize); // needed for scrolling
+        _draw_page(p);
+        p->curr_page++;
     }
+}
+
+bool ssd1306_show_continue(ssd1306_t *p)
+{
+    bool finished = true;
+
+    if (p->curr_page > 0)
+    {
+        _draw_page(p);
+        p->curr_page++;
+        if (p->curr_page == p->pages)
+        {
+            p->curr_page = 0;
+        }
+        else
+        {
+            finished = false;
+        }
+    }
+
+    return finished;
 }

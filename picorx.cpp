@@ -84,8 +84,10 @@ int main()
   bool ret = add_repeating_timer_us(-1000000 / DEBOUNCE_TICK_HZ, io_callback, NULL, &io_timer);
   hard_assert(ret);
 
-  while(1)
+  while(true)
   {
+    user_interface.do_disp();
+    
     event_t event = event_get();
     if((1UL << event.tag) & (ev_ui_evset))
     {
