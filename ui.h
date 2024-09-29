@@ -47,7 +47,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
   #define mask_display_timeout (0x7 << flag_display_timeout)
 #define flag_display_contrast 7   // bits 7-10 stored ^0xf so 0000 is full bright
   #define mask_display_contrast (0xf << flag_display_contrast)
-// #define flag_nextfree 11
+#define flag_encoder_res 11
+// #define flag_nextfree 12
 // 32bit number, 31 is last flag bit
 
 //flags for receiver features idx_rx_features
