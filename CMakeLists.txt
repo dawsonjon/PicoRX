@@ -25,14 +25,29 @@ if(PICO_BOARD STREQUAL "pico")
       utils.cpp
       debouncer.c
       event.c
+      usb_descriptors.c
+      usb_audio_device.c
+      ring_buffer_lib.c
   )
+
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
   pico_add_extra_outputs(picorx)
   # enable usb output, disable uart output
-  pico_enable_stdio_usb(picorx 1)
+  pico_enable_stdio_usb(picorx 0)
   pico_enable_stdio_uart(picorx 0)
-  target_link_libraries(picorx pico_stdlib pico_multicore hardware_clocks hardware_flash hardware_pio hardware_adc hardware_pwm hardware_dma hardware_i2c)
+  target_include_directories(picorx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+  target_link_libraries(picorx PRIVATE pico_stdlib
+                                       pico_multicore
+                                       hardware_clocks
+                                       hardware_flash
+                                       hardware_pio
+                                       hardware_adc
+                                       hardware_pwm
+                                       hardware_dma 
+                                       hardware_i2c
+                                       tinyusb_device
+                                       tinyusb_board)
 
   #battery check utility
   project(battery_check)
