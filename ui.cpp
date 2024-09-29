@@ -20,13 +20,21 @@ void ui::setup_encoder()
     gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
     uint offset = pio_add_program(pio, &quadrature_encoder_program);
     quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    new_position = (quadrature_encoder_get_count(pio, sm) + 2)/4;
+    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
+    } else {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    }
     old_position = new_position;
 }
 
 int32_t ui::get_encoder_change()
 {
-    new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
+    } else {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    }
     int32_t delta = new_position - old_position;
     old_position = new_position;
     if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
@@ -1371,6 +1379,8 @@ bool ui::memory_scan(bool &ok)
   bool load = false;
   bool update_display = false;
   bool listen = false;
+  bool wait = false;
+  uint32_t time_since_last_listen = 0;
   enum e_frequency_state{idle, active, menu_active};
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
@@ -1379,7 +1389,6 @@ bool ui::memory_scan(bool &ok)
 
   if(state == idle)
   {
-
     //remember where we were incase we need to cancel
     for(uint8_t i=0; i<settings_to_store; i++){
       stored_settings[i] = settings[i];
@@ -1397,7 +1406,6 @@ bool ui::memory_scan(bool &ok)
     update_display = true;
     scan_speed = 0;
     state = active;
-
   }
   else if(state == active)
   {
@@ -1409,15 +1417,25 @@ bool ui::memory_scan(bool &ok)
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
 
+    //hang for 3 seconds
+    static uint32_t last_listen_time = 0u;
+    if(listen) last_listen_time = to_ms_since_boot(get_absolute_time());
+    time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
+    wait = time_since_last_listen < 3000u;
+
     int32_t pos_change = get_encoder_change();
-    if(listen)
+    if(listen || wait)
     {
       //if scanning is stopped, nudge (and possibly change direction)
       if(pos_change > 0 ){
         if(scan_speed < 0) scan_speed *= -1;
+        last_listen_time = 0u; //cancel hang
+        wait = false;
       }
       if(pos_change < 0 ){
         if(scan_speed > 0) scan_speed *= -1;
+        last_listen_time = 0u; //cancel hang
+        wait = false;
       }
     } 
     else 
@@ -1432,7 +1450,7 @@ bool ui::memory_scan(bool &ok)
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+    if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
       int8_t direction = scan_speed>0?1:-1;
 
       //skip blank channels
@@ -1522,6 +1540,14 @@ bool ui::memory_scan(bool &ok)
       display_print_str("Listen",2);
       display_set_xy(91-6,48);
       display_print_char(CHAR_SPEAKER, 2);
+    } else if (wait) {
+      display_set_xy(0,48);
+      display_print_str("Listen",2);
+      display_set_xy(91-6,48);
+      display_print_char(CHAR_SPEAKER, 2);
+      uint32_t width = time_since_last_listen*display_get_x()/3000u;
+      int32_t  x=display_get_x()-width;
+      ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
     } else {
       display_set_xy(0,48);
       display_print_str("Speed",2);
@@ -1573,14 +1599,14 @@ bool ui::frequency_scan(bool &ok)
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
   float power_dBm = 0;
+  bool wait = false;
+  uint32_t time_since_last_listen = 0;
 
   if(state == idle)
   {
-
     update_display = true;
     scan_speed = 0;
     state = active;
-
   }
   else if(state == active)
   {
@@ -1592,15 +1618,25 @@ bool ui::frequency_scan(bool &ok)
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
 
+    //hang for 3 seconds
+    static uint32_t last_listen_time = 0u;
+    if(listen) last_listen_time = to_ms_since_boot(get_absolute_time());
+    time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
+    wait = time_since_last_listen < 3000u;
+
     int32_t pos_change = get_encoder_change();
     if(listen)
     {
       //if scanning is stopped, nudge (and possibly change direction)
       if(pos_change > 0 ){
         if(scan_speed < 0) scan_speed *= -1;
+        last_listen_time = 0u; //cancel hang
+        wait = false;
       }
       if(pos_change < 0 ){
         if(scan_speed > 0) scan_speed *= -1;
+        last_listen_time = 0u; //cancel hang
+        wait = false;
       }
     } 
     else 
@@ -1615,7 +1651,7 @@ bool ui::frequency_scan(bool &ok)
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if ((scan_speed && !listen && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+    if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
       int8_t direction = scan_speed>0?1:-1;
 
       //update frequency 
@@ -1624,8 +1660,6 @@ bool ui::frequency_scan(bool &ok)
       if (settings[idx_frequency] > settings[idx_max_frequency])
           settings[idx_frequency] = settings[idx_min_frequency];
       if (settings[idx_frequency] < settings[idx_min_frequency])
-          settings[idx_frequency] = settings[idx_max_frequency];
-      if (settings[idx_frequency] == 0)
           settings[idx_frequency] = settings[idx_max_frequency];
 
       update_display = true;
@@ -1693,6 +1727,14 @@ bool ui::frequency_scan(bool &ok)
         display_print_str("Listen",2);
         display_set_xy(91-6,48);
         display_print_char(CHAR_SPEAKER, 2);
+      } else if (wait) {
+        display_set_xy(0,48);
+        display_print_str("Listen",2);
+        display_set_xy(91-6,48);
+        display_print_char(CHAR_SPEAKER, 2);
+        uint32_t width = time_since_last_listen*display_get_x()/3000u;
+        int32_t  x=display_get_x()-width;
+        ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
       } else {
         display_set_xy(0,48);
         display_print_str("Speed",2);
@@ -2009,7 +2051,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#Bands#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#Bands#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2050,35 +2092,39 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 2 : 
-          done =  bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
+          done = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
           break;
 
-        case 3 : 
-          done =  bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
+        case 3: 
+          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res, &settings[idx_hw_setup], ok);
           break;
 
         case 4 : 
-          done =  number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok);
+          done = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
           break;
 
         case 5 : 
+          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok);
+          break;
+
+        case 6 : 
           setting_word = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok);
           settings[idx_hw_setup] &= ~mask_ppm;
           settings[idx_hw_setup] |= setting_word << flag_ppm;
           break;
 
-        case 6 : 
+        case 7 : 
           done = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup], ok);
           ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
           break;
 
-        case 7: 
+        case 8: 
           done = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup], ok);
           ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
           break;
 
-        case 8:
+        case 9:
           setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
           done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok);
           ssd1306_contrast(&disp, 17 * setting_word);
@@ -2086,7 +2132,7 @@ bool ui::configuration_menu(bool &ok)
           settings[idx_hw_setup] |= setting_word << flag_display_contrast;
           break;
 
-        case 9:
+        case 10:
           setting_word = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
           done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#", &setting_word, ok);
           settings[idx_hw_setup] &= ~mask_tft_settings;
@@ -2094,11 +2140,11 @@ bool ui::configuration_menu(bool &ok)
           waterfall_inst.configure_display(setting_word);
           break;
 
-        case 10:
+        case 11:
           done = bands_menu(ok);
           break;
 
-        case 11: 
+        case 12: 
           setting_word = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
           if(setting_word==1) {

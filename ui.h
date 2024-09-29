@@ -60,8 +60,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_display_contrast (0xf << flag_display_contrast)
 #define flag_tft_settings 11   // bits 11-13
 #define mask_tft_settings (0x7 << flag_tft_settings)
-// #define flag_nextfree 14
-// 32bit number, 31 is last flag bit
+#define flag_encoder_res 14
 #define flag_ppm 24   // bits 24-31
 #define mask_ppm (0xff << flag_ppm)
 
@@ -76,6 +75,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_100MS sleep_us(100000);
 
 enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
+
+// scanner
+enum e_scanner_squelch {no_signal, signal_found, count_down};
 
 // font styles styles as bits to be ORed
 #define style_normal      0
