@@ -23,6 +23,75 @@ int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
   return y;
 }
 
+static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16_t nx, int16_t *ny)
+{
+  const int16_t x1 = 0;
+  const int16_t x2 = nx - 1;
+  const int16_t dx = x2 - x1;
+
+  int16_t d, dy, ai, bi, yi;
+  int16_t x = x1;
+  int16_t y = y1;
+
+  if (y1 < y2)
+  {
+    yi = 1;
+    dy = y2 - y1;
+  }
+  else
+  {
+    yi = -1;
+    dy = y1 - y2;
+  }
+
+  ny[x] = y;
+
+  if (dx > dy)
+  {
+    ai = (dy - dx) * 2;
+    bi = dy * 2;
+    d = bi - dx;
+
+    while (x != x2)
+    {
+      if (d >= 0)
+      {
+        x++;
+        y += yi;
+        d += ai;
+      }
+      else
+      {
+        d += bi;
+        x++;
+      }
+      ny[x] = y;
+    }
+  }
+  else
+  {
+    ai = (dx - dy) * 2;
+    bi = dx * 2;
+    d = bi - dy;
+
+    while (y != y2)
+    {
+      if (d >= 0)
+      {
+        x++;
+        y += yi;
+        d += ai;
+      }
+      else
+      {
+        d += bi;
+        y += yi;
+      }
+      ny[x] = y;
+    }
+  }
+}
+
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
 
@@ -30,6 +99,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   uint16_t decimated_index = 0;
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
+  static int16_t prev_audio = 0;
 
   int16_t real[adc_block_size/cic_decimation_rate];
   int16_t imag[adc_block_size/cic_decimation_rate];
@@ -130,13 +200,11 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
-      audio /= pwm_scale; 
+      audio /= pwm_scale;
 
-      for(uint8_t sample=0; sample < interpolation_rate; sample++)
-      {
-        audio_samples[audio_index] = audio;
-        audio_index++;
-      }
+      interp_bresenham(prev_audio, audio, interpolation_rate, &audio_samples[audio_index]);
+      audio_index += interpolation_rate;
+      prev_audio = audio;
     } 
 
     //average over the number of samples
