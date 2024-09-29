@@ -2,10 +2,13 @@
 #include "rx_definitions.h"
 #include "fft_filter.h"
 #include "utils.h"
+#include "ring_buffer_lib.h"
+#include "pico/stdlib.h"
+#include "usb_audio_device.h"
+
 #include <math.h>
 #include <cstdio>
 #include <algorithm>
-#include "pico/stdlib.h"
 
 static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
 
@@ -94,6 +97,10 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
   }
 }
 
+#define USB_BUF_SIZE (sizeof(int16_t) * 4 * adc_block_size/decimation_rate)
+static ring_buffer_t usb_rb;
+static uint8_t usb_buf[USB_BUF_SIZE];
+
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
 
@@ -172,6 +179,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(real, imag, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
+  int16_t tmp_usb_buf[adc_block_size/decimation_rate];
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
       int16_t i = real[idx];
@@ -198,6 +206,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         audio = 0;
       }
 
+
+      tmp_usb_buf[idx] = audio * 2;
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
       audio /= pwm_scale;
@@ -205,7 +215,14 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       interp_bresenham(prev_audio, audio, interpolation_rate, &audio_samples[audio_index]);
       audio_index += interpolation_rate;
       prev_audio = audio;
-    } 
+    }
+
+    uint16_t space = USB_BUF_SIZE - ring_buffer_get_num_bytes(&usb_rb);
+    if(space >= sizeof(tmp_usb_buf))
+    {
+      uint16_t s = ring_buffer_push(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(tmp_usb_buf));
+      hard_assert(s == sizeof(tmp_usb_buf));
+    }
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
@@ -438,6 +455,18 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     return audio;
 }
 
+static void on_usb_audio_tx_ready()
+{
+  uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
+
+  // Callback from TinyUSB library when all data is ready
+  // to be transmitted.
+  //
+  // Write local buffer to the USB microphone
+  uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
+  usb_audio_device_write(usb_buf, s);
+}
+
 rx_dsp :: rx_dsp()
 {
 
@@ -451,6 +480,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
+  ring_buffer_init(&usb_rb, usb_buf, USB_BUF_SIZE, 1);
   set_agc_speed(3);
   filter_control.enable_auto_notch = false;
 
@@ -467,7 +497,11 @@ rx_dsp :: rx_dsp()
   delayi1=0; delayq1=0;
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
+}
 
+void rx_dsp :: set_usb_callback(void)
+{
+    usb_audio_device_set_tx_ready_handler(on_usb_audio_tx_ready);
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)

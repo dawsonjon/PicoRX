@@ -27,7 +27,7 @@ class rx_dsp
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
-
+  void set_usb_callback(void);
 
   private:
   

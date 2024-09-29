@@ -8,6 +8,7 @@
 #include "nco.h"
 #include "fft_filter.h"
 #include "utils.h"
+#include "usb_audio_device.h"
 
 //buffers and dma for ADC
 int rx::adc_dma_ping;
@@ -353,8 +354,23 @@ void rx::read_batt_temp()
   }
 }
 
+static bool usb_callback(repeating_timer_t *rt)
+{
+  usb_audio_device_task();
+  return true; // keep repeating
+}
+
 void rx::run()
 {
+    usb_audio_device_init();
+    rx_dsp_inst.set_usb_callback();
+    repeating_timer_t usb_timer;
+
+    // here the delay theoretically should be 1024 (1.024ms = 1 / (15625 / 16))
+    // however the 'usb_microphone_task' should be called more often, but not too often
+    bool ret = add_repeating_timer_us(-800, usb_callback, NULL, &usb_timer);
+    hard_assert(ret);
+
     while(true)
     {
       if (settings_changed)
@@ -380,6 +396,7 @@ void rx::run()
       dma_channel_set_irq0_enabled(adc_dma_pong, true);
       dma_start_channel_mask(1u << adc_dma_ping);
       adc_run(true);
+
       while(true)
       {
           //exchange data with UI (runing in core 0)
