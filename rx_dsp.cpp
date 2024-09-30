@@ -112,9 +112,33 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
   }
 }
 
-#define USB_BUF_SIZE (sizeof(int16_t) * 2 * adc_block_size/decimation_rate)
+#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
+
+static bool frac_interp(void)
+{
+  bool ret = false;
+  static uint32_t i = 0;
+  static uint32_t next = 0;
+  static uint32_t err = 0;
+
+  // '42' and '667' below stem from the fact that 15625 / (16000 - 15625) ~= 41.667
+  if (i == next)
+  {
+    ret = true;
+    next += 42;
+    err += 1000 - 667;
+    if (err >= 1000)
+    {
+      err %= 1000;
+      next -= 1;
+    }
+  }
+
+  i++;
+  return ret;
+}
 
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
@@ -194,7 +218,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(real, imag, filter_control, capture_i, capture_q);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
-  int16_t tmp_usb_buf[adc_block_size/decimation_rate];
+  int16_t tmp_usb_buf[1 + (adc_block_size/decimation_rate)];
+  uint16_t rb_idx = 0;
+
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
       int16_t i = real[idx];
@@ -224,8 +250,12 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         squelch_state = true;
       }
 
-
-      tmp_usb_buf[idx] = audio * 2;
+      tmp_usb_buf[rb_idx++] = audio * 2;
+      // inject duplicated sample to get 16k samplerate
+      if(frac_interp())
+      {
+        tmp_usb_buf[rb_idx++] = audio * 2;
+      }
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
       audio /= pwm_scale;
@@ -235,7 +265,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(tmp_usb_buf));    
+    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * rb_idx); 
     rolling_avg_int(ring_buffer_get_num_bytes(&usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples

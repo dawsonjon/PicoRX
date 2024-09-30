@@ -350,10 +350,10 @@ void rx::run()
     // and to reduce potential contention
     struct alarm_pool *pool = alarm_pool_create(0, 16);
 
-    // here the delay theoretically should be 1024 (1.024ms = 1 / (15625 / 16))
+    // here the delay theoretically should be 1000 (1ms = 1 / (16000 / 16))
     // however the 'usb_microphone_task' should be called more often, but not too often
     // to save compute
-    bool ret = alarm_pool_add_repeating_timer_us(pool, 512, usb_callback, NULL, &usb_timer);
+    bool ret = alarm_pool_add_repeating_timer_us(pool, 1000/2, usb_callback, NULL, &usb_timer);
     hard_assert(ret);
 
     while(true)
