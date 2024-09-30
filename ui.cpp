@@ -263,6 +263,7 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
+  const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
 #define buff_SZ 21
   char buff [buff_SZ];
@@ -295,7 +296,7 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   display_print_str(smeter[power_s],1);
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 
-  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
+  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%% %3d%%", battery_voltage, temp, '\x7f', (100.0f * busy_time) / block_time, usb_buf_level);
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
 

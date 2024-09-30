@@ -27,6 +27,7 @@ class rx_dsp
   bool get_squelch_state();   // false is muted
   void get_spectrum(float spectrum[]);
   void set_usb_callback(void);
+  uint8_t get_usb_buf_level(void);
 
   private:
   
@@ -102,6 +103,8 @@ class rx_dsp
 
   // gain calibration
   float amplifier_gain_dB = 62.0f;
+
+  int32_t usb_buf_level_avg = 0;
 
 };
 
