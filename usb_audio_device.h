@@ -10,8 +10,7 @@
 
 #include "tusb.h"
 
-// this is dc_sample_rate / decimation_rate
-#define USB_A_SAMPLE_RATE (15625)
+#define USB_A_SAMPLE_RATE (16000)
 #define SAMPLE_BUFFER_SIZE ((CFG_TUD_AUDIO_EP_SZ_IN / 2) - 1)
 
 #ifdef __cplusplus
