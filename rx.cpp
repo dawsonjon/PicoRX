@@ -126,6 +126,7 @@ void rx::update_status()
      status.battery = battery;
      status.temp = temp;
      status.squelch_state = rx_dsp_inst.get_squelch_state();
+     status.usb_buf_level = rx_dsp_inst.get_usb_buf_level();
      sem_release(&settings_semaphore);
    }
 }
@@ -343,10 +344,16 @@ void rx::run()
     usb_audio_device_init();
     rx_dsp_inst.set_usb_callback();
     repeating_timer_t usb_timer;
+    
+    // the default alarm pool seems to be on core0, so
+    // create one new on core1, so that ring buffer can be 'not multicore'
+    // and to reduce potential contention
+    struct alarm_pool *pool = alarm_pool_create(0, 16);
 
     // here the delay theoretically should be 1024 (1.024ms = 1 / (15625 / 16))
     // however the 'usb_microphone_task' should be called more often, but not too often
-    bool ret = add_repeating_timer_us(-800, usb_callback, NULL, &usb_timer);
+    // to save compute
+    bool ret = alarm_pool_add_repeating_timer_us(pool, 512, usb_callback, NULL, &usb_timer);
     hard_assert(ret);
 
     while(true)

@@ -12,6 +12,21 @@
 
 static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
 
+static inline void rolling_avg_int(int16_t nv, int32_t *avg, int16_t *err)
+{
+  const int16_t t = 10;
+  const int16_t d = nv - *avg;
+
+  *avg += d / t;
+  *err += d % t;
+
+  if (abs(*err) >= t)
+  {
+    *avg += *err / t;
+    *err %= t;
+  }
+}
+
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
   if(deemphasis == 0)
@@ -97,7 +112,7 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
   }
 }
 
-#define USB_BUF_SIZE (sizeof(int16_t) * 4 * adc_block_size/decimation_rate)
+#define USB_BUF_SIZE (sizeof(int16_t) * 2 * adc_block_size/decimation_rate)
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
@@ -109,6 +124,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
   static int16_t prev_audio = 0;
+  static int16_t usb_lev_err = 0;
 
   int16_t real[adc_block_size/cic_decimation_rate];
   int16_t imag[adc_block_size/cic_decimation_rate];
@@ -219,12 +235,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    uint16_t space = USB_BUF_SIZE - ring_buffer_get_num_bytes(&usb_rb);
-    if(space >= sizeof(tmp_usb_buf))
-    {
-      uint16_t s = ring_buffer_push(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(tmp_usb_buf));
-      hard_assert(s == sizeof(tmp_usb_buf));
-    }
+    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(tmp_usb_buf));    
+    rolling_avg_int(ring_buffer_get_num_bytes(&usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
@@ -466,7 +478,10 @@ static void on_usb_audio_tx_ready()
   //
   // Write local buffer to the USB microphone
   uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, s);
+  if (s > 0)
+  {
+    usb_audio_device_write(usb_buf, s);
+  }
 }
 
 rx_dsp :: rx_dsp()
@@ -649,6 +664,11 @@ void rx_dsp :: set_pwm_max(uint32_t pwm_max)
 bool rx_dsp :: get_squelch_state()
 {
   return squelch_state;
+}
+
+uint8_t rx_dsp :: get_usb_buf_level(void)
+{
+  return 100 * usb_buf_level_avg / USB_BUF_SIZE;
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()

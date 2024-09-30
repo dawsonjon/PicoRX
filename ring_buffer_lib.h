@@ -115,6 +115,13 @@ RING_BUFFER_SIZE_TYPE ring_buffer_push_unsafe(ring_buffer_t *ring_buf, const uin
 RING_BUFFER_SIZE_TYPE ring_buffer_push(ring_buffer_t *ring_buf, const uint8_t* vals, RING_BUFFER_SIZE_TYPE nvals);
 
 /**
+ * @brief enter a critical section and then put byte in a ring buffer overwriting old data
+ * @param ring_buf pointer to the ring buffer structure
+ * @param val the byte to put in the ring buffer
+ */
+void ring_buffer_push_ovr(ring_buffer_t *ring_buf, const uint8_t *vals, RING_BUFFER_SIZE_TYPE nvals);
+
+/**
  * @brief wait for the spinlock but do not disable interrupts before
  * getting the number of bytes currently stored in the buffer
  * 
