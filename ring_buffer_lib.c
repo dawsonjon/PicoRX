@@ -66,6 +66,23 @@ static RING_BUFFER_SIZE_TYPE ring_buffer_push_core(ring_buffer_t *ring_buf, cons
     return npushed;
 }
 
+static void ring_buffer_push_ovr_core(ring_buffer_t *ring_buf, const uint8_t *vals, RING_BUFFER_SIZE_TYPE nvals)
+{
+    assert(ring_buf);
+    assert(vals);
+    for (RING_BUFFER_SIZE_TYPE idx = 0; idx < nvals; idx++) {
+        ring_buf->buf[ring_buf->in_idx] = vals[idx];
+        ring_buf->in_idx = ((ring_buf->in_idx+1) % ring_buf->bufsize);
+        if (ring_buf->num_buffered < ring_buf->bufsize)
+        {
+            ++ring_buf->num_buffered;
+        } else {
+            // buffer full
+            ring_buf->out_idx = ring_buf->in_idx;
+        }
+    }
+}
+
 RING_BUFFER_SIZE_TYPE ring_buffer_push_unsafe(ring_buffer_t *ring_buf, const uint8_t *vals, RING_BUFFER_SIZE_TYPE nvals)
 {
 #if RING_BUFFER_MULTICORE_SUPPORT
@@ -92,6 +109,21 @@ RING_BUFFER_SIZE_TYPE ring_buffer_push(ring_buffer_t *ring_buf, const uint8_t *v
     RING_BUFFER_EXIT_CRITICAL(status);
 #endif
     return result;
+}
+
+void ring_buffer_push_ovr(ring_buffer_t *ring_buf, const uint8_t *vals, RING_BUFFER_SIZE_TYPE nvals)
+{
+#if RING_BUFFER_MULTICORE_SUPPORT
+    critical_section_enter_blocking(&ring_buf->crit);
+#else
+    RING_BUFFER_ENTER_CRITICAL(status);
+#endif
+    ring_buffer_push_ovr_core(ring_buf, vals, nvals);
+#if RING_BUFFER_MULTICORE_SUPPORT
+    critical_section_exit(&ring_buf->crit);
+#else
+    RING_BUFFER_EXIT_CRITICAL(status);
+#endif
 }
 
 // TODO: are these functions really necessary?

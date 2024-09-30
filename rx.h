@@ -40,6 +40,7 @@ struct rx_status
   uint16_t temp;
   uint16_t battery;
   bool squelch_state;
+  uint8_t usb_buf_level;
 };
 
 class rx
