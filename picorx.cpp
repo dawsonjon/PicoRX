@@ -22,7 +22,8 @@ const uint32_t ev_ui_evset = (1UL << ev_tick) |
                              (1UL << ev_button_menu_release) |
                              (1UL << ev_button_back_press) |
                              (1UL << ev_button_back_release) |
-                             (1UL << ev_button_push_press);
+                             (1UL << ev_button_push_press) |
+                             (1UL << ev_button_push_release);
 
 static debouncer_t button_menu_deb = {
     .ev_press = {.tag = ev_button_menu_press},

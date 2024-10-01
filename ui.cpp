@@ -2423,6 +2423,58 @@ bool ui::do_splash()
 
 }
 
+static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e ev_tag)
+{
+  button_decoder_ev_e ret = btn_dec_none;
+
+  switch (self->state)
+  {
+  case 0:
+    if (ev_tag == self->press_ev)
+    {
+      self->state = 1;
+      self->start_time = time_us_32();
+    }
+    break;
+
+  case 1:
+  {
+    uint32_t tmstmp = time_us_32();
+    if (ev_tag == self->release_ev)
+    {
+      if ((tmstmp - self->start_time) < 300000)
+      {
+        // short tap
+        self->state = 0;
+        ret = btn_dec_tap;
+      }
+    }
+    else if ((ev_tag == ev_tick) && ((tmstmp - self->start_time) >= 300000))
+    {
+      // long press
+      self->state = 2;
+      ret = btn_dec_long_press;
+    }
+  }
+  break;
+
+  case 2:
+    if (ev_tag == self->release_ev)
+    {
+      // long release
+      self->state = 0;
+      ret = btn_dec_long_release;
+    }
+    break;
+
+  default:
+    self->state = 0;
+    break;
+  }
+
+  return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
@@ -2436,10 +2488,16 @@ void ui::do_ui(event_t event)
     static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
 
+    static button_decoder_t push_btn_decoder = {.press_ev = ev_button_push_press,
+                                                .release_ev = ev_button_push_release,
+                                                .state = 0};
+
     if (!splash_done) {
       splash_done = do_splash();
       if ((button_state != idle) || (encoder_change)) splash_done=true;
     }
+
+    button_decoder_ev_e btn_push_ev = button_decoder_update(&push_btn_decoder, event.tag);
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
@@ -2457,6 +2515,9 @@ void ui::do_ui(event_t event)
         {
           maybe_changeview = true;
           button_state = slow_mode;
+        } else if (btn_push_ev == btn_dec_long_press)
+        {
+          button_state = volume;
         }
         break;
       case slow_mode:
@@ -2505,6 +2566,12 @@ void ui::do_ui(event_t event)
       case menu:
         button_state = idle;
         break;
+      case volume:
+        if(btn_push_ev == btn_dec_long_release)
+        {
+          button_state = idle;
+        }
+        break;
     }
 
     //update frequency if encoder changes
@@ -2532,6 +2599,21 @@ void ui::do_ui(event_t event)
         // slow if cancel button held
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
         break;
+
+      case volume:
+      {
+        int32_t vol = (int32_t)settings[idx_volume] + encoder_change;
+        if (vol > 9)
+        {
+          vol = 9;
+        }
+        else if (vol < 0)
+        {
+          vol = 0;
+        }
+        settings[idx_volume] = vol;
+      }
+      break;
 
       default:
       settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
@@ -2566,7 +2648,7 @@ void ui::do_ui(event_t event)
       rx_settings_changed = top_menu(settings_to_apply);
       autosave_settings = rx_settings_changed;
     }
-    else if(event.tag == ev_button_push_press)
+    else if(btn_push_ev == btn_dec_tap)
     {
       view_changed = true;
       rx_settings_changed = memory_recall();
@@ -2593,6 +2675,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+      settings_to_apply.volume = settings[idx_volume];
       receiver.release();
     }
 
