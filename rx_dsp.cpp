@@ -123,16 +123,16 @@ static bool frac_interp(void)
   static uint32_t next = 0;
   static uint32_t err = 0;
 
-  // '42' and '667' below stem from the fact that 15625 / (16000 - 15625) ~= 41.667
+  // '42' and '6667' below stem from the fact that 15625 / (16000 - 15625) ~= 41.6667
   if (i == next)
   {
     ret = true;
-    next += 42;
-    err += 1000 - 667;
-    if (err >= 1000)
+    next += 41;
+    err += 6667;
+    if (err >= 10000)
     {
-      err %= 1000;
-      next -= 1;
+      err %= 10000;
+      next += 1;
     }
   }
 
@@ -508,11 +508,8 @@ static void on_usb_audio_tx_ready()
   // to be transmitted.
   //
   // Write local buffer to the USB microphone
-  uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
-  if (s > 0)
-  {
-    usb_audio_device_write(usb_buf, s);
-  }
+  ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
+  usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
 rx_dsp :: rx_dsp()
