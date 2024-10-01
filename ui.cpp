@@ -443,21 +443,26 @@ int32_t ui::dBm_to_63px(float power_dBm) {
         return (power);
 }
 
-void ui::log_spectrum(float *min, float *max)
+void ui::log_spectrum(float *min, float *max, int zoom)
 {
   *min=log10f(spectrum[0] + FLT_MIN);
   *max=log10f(spectrum[0] + FLT_MIN);
 
-  for (uint16_t x = 0; x < 128; x++)
+  uint16_t offset = ((128 - 128/zoom) /2);
+
+  for (uint16_t i = 0; i < 128; i++)
   {
-    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
-    if (spectrum[x] < *min)
+    uint16_t dst = i < 64 ? i : 191 - i;  // work our way from out to in
+    uint16_t src = dst/zoom + offset;
+
+    spectrum[dst] = log10f(spectrum[src] + FLT_MIN);
+    if (spectrum[dst] < *min)
     {
-      *min = spectrum[x];
+      *min = spectrum[dst];
     }
-    if (spectrum[x] > *max)
+    if (spectrum[dst] > *max)
     {
-      *max = spectrum[x];
+      *max = spectrum[dst];
     }
   }
 }
@@ -693,7 +698,7 @@ void ui::draw_spectrum(uint16_t startY, rx & receiver)
 
   //Display spectrum capture
   receiver.get_spectrum(spectrum);
-  log_spectrum(&min, &max);
+  log_spectrum(&min, &max, spectrum_zoom);
 
   draw_h_tick_marks(startY);
 
@@ -2623,7 +2628,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Frequency\nScanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2692,10 +2697,14 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 14 : 
-          rx_settings_changed |= scanner_menu();
+          number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, &spectrum_zoom);
           break;
 
         case 15 : 
+          rx_settings_changed |= scanner_menu();
+          break;
+
+        case 16 : 
           rx_settings_changed |= configuration_menu();
           break;
       }

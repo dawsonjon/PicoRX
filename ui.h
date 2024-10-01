@@ -152,7 +152,8 @@ class ui
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
-  void log_spectrum(float *min, float *max);
+  void log_spectrum(float *min, float *max, int zoom = 1);
+  uint32_t spectrum_zoom = 1;
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY, rx & receiver);
   void draw_waterfall(uint16_t startY, rx & receiver);
