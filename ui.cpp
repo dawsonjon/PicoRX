@@ -746,7 +746,7 @@ void ui::draw_waterfall(uint16_t starty, rx & receiver)
   ssd1306_scroll_screen(&disp, 0, 1);
 
   receiver.get_spectrum(spectrum);
-  log_spectrum(&min, &max);
+  log_spectrum(&min, &max, spectrum_zoom);
 
   const float scale = ((float)WATERFALL_MAX_VALUE)/(max-min);
   int16_t err = 0;
