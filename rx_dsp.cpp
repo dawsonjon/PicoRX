@@ -237,24 +237,25 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
-      audio = automatic_gain_control(audio);
+      int32_t usbaudio = audio = automatic_gain_control(audio);
+      // usbaudio is not subject to volume control so duplicate it
 
       //digital volume control
       audio = ((int32_t)audio * gain_numerator) >> 8;
 
       //squelch
       if(signal_amplitude < squelch_threshold) {
-        audio = 0;
+        usbaudio = audio = 0;
         squelch_state = false;
       } else {
         squelch_state = true;
       }
 
-      tmp_usb_buf[rb_idx++] = audio * 2;
+      tmp_usb_buf[rb_idx++] = usbaudio;
       // inject duplicated sample to get 16k samplerate
       if(frac_interp())
       {
-        tmp_usb_buf[rb_idx++] = audio * 2;
+        tmp_usb_buf[rb_idx++] = usbaudio;
       }
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;

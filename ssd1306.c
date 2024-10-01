@@ -127,6 +127,7 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
         p->bufsize=0;
         return false;
     }
+    p->power_state = true;
 
     // from https://github.com/makerportal/rpi-pico-ssd1306
     uint8_t cmds[]= {
@@ -178,10 +179,12 @@ inline void ssd1306_deinit(ssd1306_t *p)
 
 inline void ssd1306_poweroff(ssd1306_t *p) {
     ssd1306_write(p, SET_DISP|0x00);
+    p->power_state = true;
 }
 
 inline void ssd1306_poweron(ssd1306_t *p) {
     ssd1306_write(p, SET_DISP|0x01);
+    p->power_state = true;
 }
 
 inline void ssd1306_contrast(ssd1306_t *p, uint8_t val) {
@@ -370,7 +373,7 @@ inline void ssd1306_bmp_show_image(ssd1306_t *p, const uint8_t *data, const long
 
 void ssd1306_show(ssd1306_t *p)
 {
-
+    if (!p->power_state) return;
     for (uint8_t page = 0; page < p->pages; page++)
     {
         uint8_t payload[] = {(0x00 | (p->disp_col_offset & 0x0F)), (0x10 | (p->disp_col_offset >> 4)), (0xB0 | (page & 0x0F))};
