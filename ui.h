@@ -125,6 +125,8 @@ class ui
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
+  void display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7]);
+  void display_draw_volume(uint8_t v);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();

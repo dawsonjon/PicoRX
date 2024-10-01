@@ -229,6 +229,35 @@ void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, 
   display_print_str(buff, scale, style);
 }
 
+void ui::display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7])
+{
+  for (uint8_t i = 0; i < 8 * 7; i++)
+  {
+    ssd1306_draw_pixel(&disp, x + (i / 8), y + i % 8, (data[i / 8] >> (i % 8)) & 1);
+  }
+}
+
+void ui::display_draw_volume(uint8_t v)
+{
+  if (v == 0)
+  {
+    display_draw_icon7x8(98, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+  }
+  else
+  {
+    if (v > 9)
+    {
+      v = 9;
+    }
+    v = (v + 2) / 3;
+
+    for (uint8_t i = 0; i < v; i++)
+    {
+      ssd1306_fill_rectangle(&disp, 100 + 3 * i, 0, 2, 7, 1);
+    }
+  }
+}
+
 void ui::display_show()
 {
   ssd1306_show(&disp);
@@ -265,7 +294,7 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   const float busy_time = ((float)status.busy_time*1e-6f);
   const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
-#define buff_SZ 21
+#define buff_SZ 23
   char buff [buff_SZ];
   display_clear();
 
@@ -296,9 +325,13 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   display_print_str(smeter[power_s],1);
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 
-  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%% %3d%%", battery_voltage, temp, '\x7f', (100.0f * busy_time) / block_time, usb_buf_level);
+  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%% %3d%%  ", battery_voltage, temp, '\x7f', (100.0f * busy_time) / block_time, usb_buf_level);
   display_set_xy(0,16);
   display_print_str(buff, 1, style_right);
+  // USB plug icon
+  display_draw_icon7x8(117, 16, (uint8_t[7]){0x1c,0x14,0x3e,0x2a,0x22,0x1c,0x08});
+
+  display_draw_volume(settings[idx_volume]);
 
   draw_spectrum(32, receiver);
 
