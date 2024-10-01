@@ -2271,7 +2271,7 @@ bool ui::scanner_radio_menu()
       {
 
         case 0 : 
-          rx_settings_changed |= number_entry("Analog\nVolume", "%i", 0, 9, 1, &settings[idx_volume]);
+          rx_settings_changed |= number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
           break;
 
         case 1 : 
@@ -2609,7 +2609,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 3 : 
-          rx_settings_changed |= number_entry("Analog\nVolume", "%i", 0, 9, 1, &settings[idx_volume]);
+          rx_settings_changed |= number_entry("Volume", "%i", 0, 9, 1, &settings[idx_volume]);
           break;
 
         case 4 : 

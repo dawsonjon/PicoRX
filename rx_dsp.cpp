@@ -237,11 +237,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
-      audio = automatic_gain_control(audio);
-
+      int32_t usbaudio = audio = automatic_gain_control(audio);
       // usbaudio is not subject to volume control so duplicate it
-      // usb uses volume 8 and double it for usb samples
-      int32_t usbaudio = ((int32_t)audio * 180) >> 7;
 
       //digital volume control
       audio = ((int32_t)audio * gain_numerator) >> 8;
