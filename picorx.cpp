@@ -69,9 +69,8 @@ static bool io_callback(repeating_timer_t *rt)
 int main() 
 {
   repeating_timer_t io_timer;
-
-  stdio_init_all();
   multicore_launch_core1(core1_main);
+  stdio_init_all();
 
   event_init();
   debouncer_init(&button_menu_deb);
