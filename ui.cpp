@@ -443,6 +443,8 @@ int32_t ui::dBm_to_63px(float power_dBm) {
         return (power);
 }
 
+// takes the log10 of each bucket
+// then zooms in on the centre while computing min and max.
 void ui::log_spectrum(float *min, float *max, int zoom)
 {
   *min=log10f(spectrum[0] + FLT_MIN);
@@ -450,12 +452,17 @@ void ui::log_spectrum(float *min, float *max, int zoom)
 
   uint16_t offset = ((128 - 128/zoom) /2);
 
+  for (uint16_t i = 0; i < 128; i++) {
+    spectrum[i] = log10f(spectrum[i] + FLT_MIN);
+  }
+
   for (uint16_t i = 0; i < 128; i++)
   {
-    uint16_t dst = i < 64 ? i : 191 - i;  // work our way from out to in
+    // work our way from out to in 0,1,2..64,127,126..65,64
+    uint16_t dst = i < 64 ? i : 191 - i;
     uint16_t src = dst/zoom + offset;
 
-    spectrum[dst] = log10f(spectrum[src] + FLT_MIN);
+    spectrum[dst] = spectrum[src];
     if (spectrum[dst] < *min)
     {
       *min = spectrum[dst];
