@@ -8,6 +8,7 @@
 #include "ui.h"
 #include "event.h"
 #include "debouncer.h"
+#include "button_decoder.h"
 
 #define UI_REFRESH_HZ (10UL)
 
@@ -17,29 +18,56 @@ static rx receiver(settings_to_apply, status);
 static ui user_interface(settings_to_apply, status,  receiver);
 
 const uint32_t ev_ui_evset = (1UL << ev_tick) |
-                             (1UL << ev_button_menu_press) |
-                             (1UL << ev_button_menu_release) |
-                             (1UL << ev_button_back_press) |
-                             (1UL << ev_button_back_release) |
-                             (1UL << ev_button_push_press) |
-                             (1UL << ev_button_push_release);
+                             (1UL << ev_button_menu_short_press) |
+                             (1UL << ev_button_menu_long_press) |
+                             (1UL << ev_button_menu_long_release) |
+                             (1UL << ev_button_back_short_press) |
+                             (1UL << ev_button_back_long_press) |
+                             (1UL << ev_button_back_long_release) |
+                             (1UL << ev_button_push_short_press) |
+                             (1UL << ev_button_push_long_press) |
+                             (1UL << ev_button_push_long_release);
 
 static debouncer_t button_menu_deb = {
-    .ev_press = {.tag = ev_button_menu_press},
-    .ev_release = {.tag = ev_button_menu_release},
+    .ev_press = {.tag = ev_none},
+    .ev_release = {.tag = ev_none},
     .gpio_num = PIN_MENU,
 };
 
 static debouncer_t button_back_deb = {
-    .ev_press = {.tag = ev_button_back_press},
-    .ev_release = {.tag = ev_button_back_release},
+    .ev_press = {.tag = ev_none},
+    .ev_release = {.tag = ev_none},
     .gpio_num = PIN_BACK,
 };
 
 static debouncer_t button_push_deb = {
-    .ev_press = {.tag = ev_button_push_press},
-    .ev_release = {.tag = ev_button_push_release},
+    .ev_press = {.tag = ev_none},
+    .ev_release = {.tag = ev_none},
     .gpio_num = PIN_ENCODER_PUSH,
+};
+
+static button_decoder_t button_menu_dec = {
+    .short_press = {.tag = ev_button_menu_short_press},
+    .long_press = {.tag = ev_button_menu_long_press},
+    .long_release = {.tag = ev_button_menu_long_release},
+    .active = false,
+    .count = 0,
+};
+
+static button_decoder_t button_back_dec = {
+    .short_press = {.tag = ev_button_back_short_press},
+    .long_press = {.tag = ev_button_back_long_press},
+    .long_release = {.tag = ev_button_back_long_release},
+    .active = false,
+    .count = 0,
+};
+
+static button_decoder_t button_push_dec = {
+    .short_press = {.tag = ev_button_push_short_press},
+    .long_press = {.tag = ev_button_push_long_press},
+    .long_release = {.tag = ev_button_push_long_release},
+    .active = false,
+    .count = 0,
 };
 
 void core1_main()
@@ -51,16 +79,39 @@ void core1_main()
 static bool io_callback(repeating_timer_t *rt)
 {
     static uint8_t tick_div = 0;
+    static uint8_t btn_tick_div = 0;
 
-    debouncer_update(&button_menu_deb);
-    debouncer_update(&button_back_deb);
-    debouncer_update(&button_push_deb);
+    int8_t ret = debouncer_update(&button_menu_deb);
+    if (ret >= 0)
+    {
+      button_decoder_update(&button_menu_dec, ret == 1);
+    }
+
+    ret = debouncer_update(&button_back_deb);
+    if (ret >= 0)
+    {
+      button_decoder_update(&button_back_dec, ret == 1);
+    }
+
+    ret = debouncer_update(&button_push_deb);
+    if (ret >= 0)
+    {
+      button_decoder_update(&button_push_dec, ret == 1);
+    }
 
     if (++tick_div == (DEBOUNCE_TICK_HZ / UI_REFRESH_HZ))
     {
       tick_div = 0;
       event_t ev = {.tag = ev_tick};
       event_send(ev);
+    }
+
+    if (++btn_tick_div == (DEBOUNCE_TICK_HZ / BUTTON_DECODER_TICK_HZ))
+    {
+      btn_tick_div = 0;
+      button_decoder_tick(&button_menu_dec);
+      button_decoder_tick(&button_back_dec);
+      button_decoder_tick(&button_push_dec);
     }
 
     return true; // keep repeating

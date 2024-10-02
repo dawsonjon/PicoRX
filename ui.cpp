@@ -10,9 +10,9 @@
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
-static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_press) |
-                                               (1UL << ev_button_back_press) |
-                                               (1UL << ev_button_push_press);
+static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_short_press) |
+                                               (1UL << ev_button_back_short_press) |
+                                               (1UL << ev_button_push_short_press);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
@@ -867,13 +867,13 @@ uint32_t ui::menu_entry(const char title[], const char options[], uint32_t *valu
 
     event_t ev = event_get();
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
+    if((ev.tag == ev_button_menu_short_press) || (ev.tag == ev_button_push_short_press)){
       *value = select;
       return 1;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       return 0;
     }
   }
@@ -907,13 +907,13 @@ uint32_t ui::enumerate_entry(const char title[], const char options[], uint32_t 
 
     event_t ev = event_get();
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
+    if((ev.tag == ev_button_menu_short_press) || (ev.tag == ev_button_push_short_press)){
       *value = select;
       return 1;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       return 0;
     }
   }
@@ -940,13 +940,13 @@ int16_t ui::number_entry(const char title[], const char format[], int16_t min, i
     event_t ev = event_get();
 
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press)){
+    if((ev.tag == ev_button_menu_short_press) || (ev.tag == ev_button_push_short_press)){
       *value = select*multiple;
       return 1;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       return 0;
     }
   }
@@ -1237,7 +1237,7 @@ bool ui::memory_store()
     event_t ev = event_get();
 
     //select menu item
-    if(ev.tag == ev_button_menu_press){
+    if(ev.tag == ev_button_menu_short_press){
 
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
@@ -1310,7 +1310,7 @@ bool ui::memory_store()
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       return false;
     }
   }
@@ -1424,18 +1424,18 @@ bool ui::memory_recall()
 
     event_t ev = event_get();
 
-    if(ev.tag == ev_button_push_press){
+    if(ev.tag == ev_button_push_short_press){
       last_select=min;
       return 1;
     }
 
-    if(ev.tag == ev_button_menu_press){
+    if(ev.tag == ev_button_menu_short_press){
       last_select=select;
       return 1;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -1639,16 +1639,16 @@ bool ui::memory_scan()
 
     event_t ev = event_get();
 
-    if(ev.tag == ev_button_push_press){
+    if(ev.tag == ev_button_push_short_press){
       scan_speed=0;
       draw_once=1;
     }
 
-    if(ev.tag == ev_button_menu_press){
+    if(ev.tag == ev_button_menu_short_press){
       menu_press_time = to_ms_since_boot(get_absolute_time());
     }
 
-    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_long_release) ) {
       if ((now_time - menu_press_time) > 1000) {
         last_select=select;
         return 1;
@@ -1663,7 +1663,7 @@ bool ui::memory_scan()
      }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -1878,16 +1878,16 @@ bool ui::frequency_scan()
 
     event_t ev = event_get();
 
-    if(ev.tag == ev_button_push_press){
+    if(ev.tag == ev_button_push_short_press){
       scan_speed=0;
       draw_once=1;
     }
 
-    if(ev.tag == ev_button_menu_press){
+    if(ev.tag == ev_button_menu_short_press){
       menu_press_time = to_ms_since_boot(get_absolute_time());
     }
 
-    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_release) ) {
+    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_long_release) ) {
       if ((now_time - menu_press_time) > 1000) {
         return 1;
       } else {
@@ -1902,7 +1902,7 @@ bool ui::frequency_scan()
     }
 
     //cancel
-    if(ev.tag == ev_button_back_press){
+    if(ev.tag == ev_button_back_short_press){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -2029,7 +2029,7 @@ int ui::string_entry(char string[]){
     event_t ev = event_get();
 
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
+    if((ev.tag == ev_button_menu_short_press) || (ev.tag == ev_button_push_short_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -2044,7 +2044,7 @@ int ui::string_entry(char string[]){
 	  }
 
     //cancel
-    if(ev.tag == ev_button_back_press)
+    if(ev.tag == ev_button_back_short_press)
     {
       return 0;
     }
@@ -2112,7 +2112,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
     event_t ev = event_get();
 
     //select menu item
-    if((ev.tag == ev_button_menu_press) || (ev.tag == ev_button_push_press))
+    if((ev.tag == ev_button_menu_short_press) || (ev.tag == ev_button_push_short_press))
     {
       draw_once = true;
 	    edit_mode = !edit_mode;
@@ -2163,7 +2163,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting){
 	  }
 
     //cancel
-    if(ev.tag == ev_button_back_press)
+    if(ev.tag == ev_button_back_short_press)
     {
       return false;
     }
@@ -2220,7 +2220,7 @@ bool ui::configuration_menu()
 
   while (1) {
       event_t ev = event_get();
-      if(ev.tag == ev_button_back_press){
+      if(ev.tag == ev_button_back_short_press){
         break;
       }
 
@@ -2307,7 +2307,7 @@ bool ui::scanner_radio_menu()
   while (1)
   {
       event_t ev = event_get();
-      if(ev.tag == ev_button_back_press){
+      if(ev.tag == ev_button_back_short_press){
         break;
       }
       if(!menu_entry("Radio Menu", "Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-emph.#Frequency\nStep#Store#", &setting)) 
@@ -2376,7 +2376,7 @@ bool ui::scanner_menu()
 
   while (1) {
       event_t ev = event_get();
-      if(ev.tag == ev_button_back_press){
+      if(ev.tag == ev_button_back_short_press){
         break;
       }
 
@@ -2441,75 +2441,13 @@ bool ui::do_splash()
 
 }
 
-static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e ev_tag, uint32_t encoder_change)
-{
-  button_decoder_ev_e ret = btn_dec_none;
-
-  switch (self->state)
-  {
-  case 0:
-    if (ev_tag == self->press_ev)
-    {
-      self->state = 1;
-      self->start_time = time_us_32();
-    }
-    break;
-
-  case 1:
-  {
-    uint32_t tmstmp = time_us_32();
-    if (ev_tag == self->release_ev)
-    {
-      if ((tmstmp - self->start_time) < 300000)
-      {
-        // short tap
-        self->state = 0;
-        ret = btn_dec_tap;
-      }
-    }
-    else if (((ev_tag == ev_tick) && ((tmstmp - self->start_time) >= 300000)) || encoder_change)
-    {
-      // long press
-      self->state = 2;
-      ret = btn_dec_long_press;
-    }
-    else if(ev_tag == self->press_ev)
-    {
-      // in case events come out of sync (event queue overflowed, etc.)
-      self->start_time = time_us_32();
-    }
-  }
-  break;
-
-  case 2:
-    if (ev_tag == self->release_ev)
-    {
-      // long release
-      self->state = 0;
-      ret = btn_dec_long_release;
-    }
-    else if (ev_tag == self->press_ev)
-    {
-      // in case events come out of sync (event queue overflowed, etc.)
-      self->state = 1;
-      self->start_time = time_us_32();
-    }
-    break;
-
-  default:
-    self->state = 0;
-    break;
-  }
-
-  return ret;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-#define IS_BUTTON_EV(_btn, _type) (btn_##_btn##_ev == btn_dec_##_type)
+#define IS_BUTTON_EV(_btn, _type) (event.tag == ev_button_##_btn##_##_type)
 void ui::do_ui(event_t event)
 {
+    static uint32_t prev_volume = 0;
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
@@ -2517,26 +2455,10 @@ void ui::do_ui(event_t event)
     static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
 
-    static button_decoder_t push_btn_decoder = {.press_ev = ev_button_push_press,
-                                                .release_ev = ev_button_push_release,
-                                                .state = 0};
-
-    static button_decoder_t menu_btn_decoder = {.press_ev = ev_button_menu_press,
-                                                .release_ev = ev_button_menu_release,
-                                                .state = 0};
-
-    static button_decoder_t back_btn_decoder = {.press_ev = ev_button_back_press,
-                                                .release_ev = ev_button_back_release,
-                                                .state = 0};
-
     if (!splash_done) {
       splash_done = do_splash();
       if ((button_state != idle) || (encoder_change)) splash_done=true;
     }
-
-    button_decoder_ev_e btn_menu_ev = button_decoder_update(&menu_btn_decoder, event.tag, encoder_change);
-    button_decoder_ev_e btn_back_ev = button_decoder_update(&back_btn_decoder, event.tag, encoder_change);
-    button_decoder_ev_e btn_push_ev = button_decoder_update(&push_btn_decoder, event.tag, encoder_change);
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
@@ -2546,11 +2468,7 @@ void ui::do_ui(event_t event)
     switch(button_state)
     {
       case idle:
-        if (IS_BUTTON_EV(menu, long_press) && IS_BUTTON_EV(back, long_press))
-        {
-          button_state = very_fast_mode;
-        }
-        else if (IS_BUTTON_EV(menu, long_press))
+        if (IS_BUTTON_EV(menu, long_press))
         {
           button_state = fast_mode;
         }
@@ -2558,11 +2476,11 @@ void ui::do_ui(event_t event)
         {
           button_state = slow_mode;
         }
-        else if(IS_BUTTON_EV(menu, tap))
+        else if(IS_BUTTON_EV(menu, short_press))
         {
           button_state = menu;
         }
-        else if(IS_BUTTON_EV(back, tap))
+        else if(IS_BUTTON_EV(back, short_press))
         {
           current_view = (current_view+1) % NUM_VIEWS;
           view_changed = true;
@@ -2570,6 +2488,20 @@ void ui::do_ui(event_t event)
         else if (IS_BUTTON_EV(push, long_press))
         {
           button_state = volume;
+        }
+        else if (IS_BUTTON_EV(push, short_press))
+        {
+          if (event.short_press.count == 2)
+          {
+            rx_settings_changed = true;
+            if(settings[idx_volume] == 0)
+            {
+              settings[idx_volume] = prev_volume;
+            } else {
+              prev_volume = settings[idx_volume];
+              settings[idx_volume] = 0;
+            }
+          }
         }
         break;
       case slow_mode:
@@ -2591,11 +2523,7 @@ void ui::do_ui(event_t event)
         }
         break;
       case very_fast_mode:
-        if(IS_BUTTON_EV(menu, long_release) && IS_BUTTON_EV(back, long_release))
-        {
-          button_state = idle;
-        }
-        else if (IS_BUTTON_EV(back, long_release))
+        if (IS_BUTTON_EV(back, long_release))
         {
           button_state = fast_mode;
         }
@@ -2688,11 +2616,14 @@ void ui::do_ui(event_t event)
       rx_settings_changed = top_menu(settings_to_apply);
       autosave_settings = rx_settings_changed;
     }
-    else if(IS_BUTTON_EV(push, tap))
+    else if(IS_BUTTON_EV(push, short_press))
     {
-      view_changed = true;
-      rx_settings_changed = memory_recall();
-      autosave_settings = rx_settings_changed;
+      if(event.short_press.count == 1)
+      {
+        view_changed = true;
+        rx_settings_changed = memory_recall();
+        autosave_settings = rx_settings_changed;
+      }
     }
 
     if(rx_settings_changed)
@@ -2743,7 +2674,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
   while (1)
   {
       event_t ev = event_get();
-      if(ev.tag == ev_button_back_press){
+      if(ev.tag == ev_button_back_short_press){
         break;
       }
       if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Frequency\nScanner#Hardware\nConfig#", &setting)) 

@@ -5,7 +5,7 @@
 #include "pico/util/queue.h"
 
 // the UI code still has some large blocking delays, so give it some slack
-#define CORE0_EVQ_LEN (4)
+#define CORE0_EVQ_LEN (8)
 
 static queue_t core0_evq;
 

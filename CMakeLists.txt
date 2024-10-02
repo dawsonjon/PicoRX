@@ -24,6 +24,7 @@ if(PICO_BOARD STREQUAL "pico")
       ui.cpp
       utils.cpp
       debouncer.c
+      button_decoder.c
       event.c
       usb_descriptors.c
       usb_audio_device.c
