@@ -78,21 +78,6 @@ enum e_scanner_squelch {no_signal, signal_found, count_down};
 #define style_bordered    (1<<4)
 #define style_xor         (1<<5)
 
-typedef struct
-{
-  const event_e press_ev;
-  const event_e release_ev;
-  uint32_t start_time;
-  uint8_t state;
-} button_decoder_t;
-
-typedef enum
-{
-  btn_dec_none,
-  btn_dec_tap,
-  btn_dec_long_press,
-  btn_dec_long_release,
-} button_decoder_ev_e;
 
 class ui
 {

@@ -13,29 +13,42 @@ extern "C"
     {
         ev_none = 0,
         ev_tick,
-        ev_button_menu_press,
-        ev_button_menu_release,
-        ev_button_back_press,
-        ev_button_back_release,
-        ev_button_push_press,
-        ev_button_push_release,
+        ev_button_menu_short_press,
+        ev_button_menu_long_press,
+        ev_button_menu_long_release,
+        ev_button_back_short_press,
+        ev_button_back_long_press,
+        ev_button_back_long_release,
+        ev_button_push_short_press,
+        ev_button_push_long_press,
+        ev_button_push_long_release,
         ev_last,
     } event_e;
 
     typedef struct
     {
         event_e tag;
+        union
+        {
+            struct
+            {
+                size_t count;
+            } short_press;
+        };
     } event_t;
 
     static const char *const event_to_str[] = {
         "ev_none",
         "ev_tick",
-        "ev_button_menu_press",
-        "ev_button_menu_release",
-        "ev_button_back_press",
-        "ev_button_back_release",
-        "ev_button_push_press",
-        "ev_button_push_release",
+        "ev_button_menu_short_press",
+        "ev_button_menu_long_press",
+        "ev_button_menu_long_release",
+        "ev_button_back_short_press",
+        "ev_button_back_long_press",
+        "ev_button_back_long_release",
+        "ev_button_push_short_press",
+        "ev_button_push_long_press",
+        "ev_button_push_long_release",
     };
 
     void event_init(void);
