@@ -2423,6 +2423,58 @@ bool ui::do_splash()
 
 }
 
+static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e ev_tag, uint32_t encoder_change)
+{
+  button_decoder_ev_e ret = btn_dec_none;
+
+  switch (self->state)
+  {
+  case 0:
+    if (ev_tag == self->press_ev)
+    {
+      self->state = 1;
+      self->start_time = time_us_32();
+    }
+    break;
+
+  case 1:
+  {
+    uint32_t tmstmp = time_us_32();
+    if (ev_tag == self->release_ev)
+    {
+      if ((tmstmp - self->start_time) < 300000)
+      {
+        // short tap
+        self->state = 0;
+        ret = btn_dec_tap;
+      }
+    }
+    else if (((ev_tag == ev_tick) && ((tmstmp - self->start_time) >= 300000)) || encoder_change)
+    {
+      // long press
+      self->state = 2;
+      ret = btn_dec_long_press;
+    }
+  }
+  break;
+
+  case 2:
+    if (ev_tag == self->release_ev)
+    {
+      // long release
+      self->state = 0;
+      ret = btn_dec_long_release;
+    }
+    break;
+
+  default:
+    self->state = 0;
+    break;
+  }
+
+  return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
@@ -2431,15 +2483,30 @@ void ui::do_ui(event_t event)
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
     uint32_t encoder_change = get_encoder_change();
-    static bool maybe_changeview = false;
     static int current_view = 0;
     static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
+
+    static button_decoder_t push_btn_decoder = {.press_ev = ev_button_push_press,
+                                                .release_ev = ev_button_push_release,
+                                                .state = 0};
+
+    static button_decoder_t menu_btn_decoder = {.press_ev = ev_button_menu_press,
+                                                .release_ev = ev_button_menu_release,
+                                                .state = 0};
+
+    static button_decoder_t back_btn_decoder = {.press_ev = ev_button_back_press,
+                                                .release_ev = ev_button_back_release,
+                                                .state = 0};
 
     if (!splash_done) {
       splash_done = do_splash();
       if ((button_state != idle) || (encoder_change)) splash_done=true;
     }
+
+    button_decoder_ev_e btn_menu_ev = button_decoder_update(&menu_btn_decoder, event.tag, encoder_change);
+    button_decoder_ev_e btn_back_ev = button_decoder_update(&back_btn_decoder, event.tag, encoder_change);
+    button_decoder_ev_e btn_push_ev = button_decoder_update(&push_btn_decoder, event.tag, encoder_change);
 
     //automatically switch off display after a period of inactivity
     if(!display_timeout(encoder_change, event)) return;
@@ -2449,55 +2516,56 @@ void ui::do_ui(event_t event)
     switch(button_state)
     {
       case idle:
-        if(event.tag == ev_button_menu_press)
+        if((btn_menu_ev == btn_dec_long_press) && (btn_back_ev == btn_dec_long_press))
         {
-          button_state = down;
-          timeout = 100;
-        } else if (event.tag == ev_button_back_press)
+          button_state = very_fast_mode;
+        }
+        else if(btn_menu_ev == btn_dec_long_press)
         {
-          maybe_changeview = true;
+          button_state = fast_mode;
+        }
+        else if (btn_back_ev == btn_dec_long_press)
+        {
           button_state = slow_mode;
+        }
+        else if(btn_menu_ev == btn_dec_tap)
+        {
+          button_state = menu;
+        }
+        else if(btn_back_ev == btn_dec_tap)
+        {
+          current_view = (current_view+1) % NUM_VIEWS;
+          view_changed = true;
+        }
+        else if (btn_push_ev == btn_dec_long_press)
+        {
+          button_state = volume;
         }
         break;
       case slow_mode:
-        if (event.tag == ev_button_back_release)
+        if (btn_back_ev == btn_dec_long_release)
         {
           button_state = idle;
-          if (maybe_changeview == true) {
-            current_view = (current_view+1) % NUM_VIEWS;
-            view_changed = true;
-            maybe_changeview = false;
-          }
-        } else if (event.tag == ev_button_menu_press)
+        } else if (btn_menu_ev == btn_dec_long_press)
         {
           button_state = very_fast_mode;
         }
         break;
-      case down:
-        if(encoder_change != 0 || (timeout-- == 0))
-        {
-          button_state = fast_mode;
-        }
-        else if(event.tag == ev_button_menu_release)
-        {
-          button_state = menu;
-        }
-        break;
       case fast_mode:
-        if(event.tag == ev_button_menu_release)
+        if(btn_menu_ev == btn_dec_long_release)
         {
           button_state = idle;
-        } else if(event.tag == ev_button_back_press)
+        } else if(btn_back_ev == btn_dec_long_press)
         {
           button_state = very_fast_mode;
         }
         break;
       case very_fast_mode:
-        if (event.tag == ev_button_back_release)
+        if (btn_back_ev == btn_dec_long_release)
         {
           button_state = fast_mode;
         }
-        else if (event.tag == ev_button_menu_release)
+        else if (btn_menu_ev == btn_dec_long_release)
         {
           button_state = slow_mode;
         }
@@ -2505,12 +2573,17 @@ void ui::do_ui(event_t event)
       case menu:
         button_state = idle;
         break;
+      case volume:
+        if(btn_push_ev == btn_dec_long_release)
+        {
+          button_state = idle;
+        }
+        break;
     }
 
     //update frequency if encoder changes
     if(encoder_change != 0)
     {
-      maybe_changeview = false;
       rx_settings_changed = true;
 
       frequency_autosave_pending = false;
@@ -2533,8 +2606,23 @@ void ui::do_ui(event_t event)
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
         break;
 
+      case volume:
+      {
+        int32_t vol = (int32_t)settings[idx_volume] + encoder_change;
+        if (vol > 9)
+        {
+          vol = 9;
+        }
+        else if (vol < 0)
+        {
+          vol = 0;
+        }
+        settings[idx_volume] = vol;
+      }
+      break;
+
       default:
-      settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+        settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
         break;
       }
 
@@ -2566,7 +2654,7 @@ void ui::do_ui(event_t event)
       rx_settings_changed = top_menu(settings_to_apply);
       autosave_settings = rx_settings_changed;
     }
-    else if(event.tag == ev_button_push_press)
+    else if(btn_push_ev == btn_dec_tap)
     {
       view_changed = true;
       rx_settings_changed = memory_recall();
@@ -2593,6 +2681,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.bandwidth = settings[idx_bandwidth];
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+      settings_to_apply.volume = settings[idx_volume];
       receiver.release();
     }
 

@@ -60,7 +60,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
 
-enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
+enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume};
 
 // scanner
 enum e_scanner_squelch {no_signal, signal_found, count_down};
@@ -73,6 +73,22 @@ enum e_scanner_squelch {no_signal, signal_found, count_down};
 #define style_nowrap      (1<<3)
 #define style_bordered    (1<<4)
 #define style_xor         (1<<5)
+
+typedef struct
+{
+  const event_e press_ev;
+  const event_e release_ev;
+  uint32_t start_time;
+  uint8_t state;
+} button_decoder_t;
+
+typedef enum
+{
+  btn_dec_none,
+  btn_dec_tap,
+  btn_dec_long_press,
+  btn_dec_long_release,
+} button_decoder_ev_e;
 
 class ui
 {
@@ -107,7 +123,6 @@ class ui
 
   // Buttons
   e_button_state button_state;
-  uint8_t timeout;
 
   // Display
   void setup_display();
