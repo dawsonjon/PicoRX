@@ -967,7 +967,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.gain_cal = settings[idx_gain_cal];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-  settings_to_apply.bandwidth = settings[idx_bandwidth];
+  settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   receiver.release();
 }
@@ -1112,7 +1112,8 @@ void ui::autorestore()
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
   ssd1306_contrast(&disp, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
-
+  spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
+  if (spectrum_zoom == 0) spectrum_zoom = 1;
 }
 
 //Upload memories via USB interface
@@ -2328,7 +2329,12 @@ bool ui::scanner_radio_menu()
           break;
 
         case 3 :
-          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+        {
+          uint32_t v = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &v);
+          settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
+          settings[idx_bandwidth_spectrum] |= ( (v << flag_bandwidth) & mask_bandwidth);
+        }
           break;
 
         case 4 :
@@ -2602,7 +2608,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-      settings_to_apply.bandwidth = settings[idx_bandwidth];
+      settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       receiver.release();
@@ -2666,7 +2672,12 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 6 :
-          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+        {
+          uint32_t v = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &v);
+          settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
+          settings[idx_bandwidth_spectrum] |= ( (v << flag_bandwidth) & mask_bandwidth);
+        }
           break;
 
         case 7 :
@@ -2704,7 +2715,9 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 14 : 
-          number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, &spectrum_zoom);
+          rx_settings_changed |= number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, &spectrum_zoom);
+          settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
+          settings[idx_bandwidth_spectrum] |= ( (spectrum_zoom << flag_spectrum) & mask_spectrum);
           break;
 
         case 15 : 

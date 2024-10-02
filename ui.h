@@ -35,7 +35,11 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
 #define idx_gain_cal 10
-#define idx_bandwidth 11
+#define idx_bandwidth_spectrum 11
+  #define flag_bandwidth 0 // bits 0-3
+  #define mask_bandwidth (0xf << flag_bandwidth)
+  #define flag_spectrum 4 // bits 4-7
+  #define mask_spectrum (0xf << flag_spectrum)
 #define idx_rx_features 12
 
 // bit flags for HW settings in idx_hw_setup
