@@ -35,7 +35,11 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
 #define idx_gain_cal 10
-#define idx_bandwidth 11
+#define idx_bandwidth_spectrum 11
+  #define flag_bandwidth 0 // bits 0-3
+  #define mask_bandwidth (0xf << flag_bandwidth)
+  #define flag_spectrum 4 // bits 4-7
+  #define mask_spectrum (0xf << flag_spectrum)
 #define idx_rx_features 12
 
 // bit flags for HW settings in idx_hw_setup
@@ -167,7 +171,8 @@ class ui
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
-  void log_spectrum(float *min, float *max);
+  void log_spectrum(float *min, float *max, int zoom = 1);
+  uint32_t spectrum_zoom = 1;
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY, rx & receiver);
   void draw_waterfall(uint16_t startY, rx & receiver);

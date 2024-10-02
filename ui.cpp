@@ -443,21 +443,33 @@ int32_t ui::dBm_to_63px(float power_dBm) {
         return (power);
 }
 
-void ui::log_spectrum(float *min, float *max)
+// takes the log10 of each bucket
+// then zooms in on the centre while computing min and max.
+void ui::log_spectrum(float *min, float *max, int zoom)
 {
   *min=log10f(spectrum[0] + FLT_MIN);
   *max=log10f(spectrum[0] + FLT_MIN);
 
-  for (uint16_t x = 0; x < 128; x++)
+  uint16_t offset = ((128 - 128/zoom) /2);
+
+  for (uint16_t i = 0; i < 128; i++) {
+    spectrum[i] = log10f(spectrum[i] + FLT_MIN);
+  }
+
+  for (uint16_t i = 0; i < 128; i++)
   {
-    spectrum[x] = log10f(spectrum[x] + FLT_MIN);
-    if (spectrum[x] < *min)
+    // work our way from out to in 0,1,2..64,127,126..65,64
+    uint16_t dst = i < 64 ? i : 191 - i;
+    uint16_t src = dst/zoom + offset;
+
+    spectrum[dst] = spectrum[src];
+    if (spectrum[dst] < *min)
     {
-      *min = spectrum[x];
+      *min = spectrum[dst];
     }
-    if (spectrum[x] > *max)
+    if (spectrum[dst] > *max)
     {
-      *max = spectrum[x];
+      *max = spectrum[dst];
     }
   }
 }
@@ -693,7 +705,7 @@ void ui::draw_spectrum(uint16_t startY, rx & receiver)
 
   //Display spectrum capture
   receiver.get_spectrum(spectrum);
-  log_spectrum(&min, &max);
+  log_spectrum(&min, &max, spectrum_zoom);
 
   draw_h_tick_marks(startY);
 
@@ -741,7 +753,7 @@ void ui::draw_waterfall(uint16_t starty, rx & receiver)
   ssd1306_scroll_screen(&disp, 0, 1);
 
   receiver.get_spectrum(spectrum);
-  log_spectrum(&min, &max);
+  log_spectrum(&min, &max, spectrum_zoom);
 
   const float scale = ((float)WATERFALL_MAX_VALUE)/(max-min);
   int16_t err = 0;
@@ -955,7 +967,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.gain_cal = settings[idx_gain_cal];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-  settings_to_apply.bandwidth = settings[idx_bandwidth];
+  settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   receiver.release();
 }
@@ -1100,7 +1112,8 @@ void ui::autorestore()
   ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
   ssd1306_contrast(&disp, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
-
+  spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
+  if (spectrum_zoom == 0) spectrum_zoom = 1;
 }
 
 //Upload memories via USB interface
@@ -2316,7 +2329,12 @@ bool ui::scanner_radio_menu()
           break;
 
         case 3 :
-          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+        {
+          uint32_t v = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &v);
+          settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
+          settings[idx_bandwidth_spectrum] |= ( (v << flag_bandwidth) & mask_bandwidth);
+        }
           break;
 
         case 4 :
@@ -2678,7 +2696,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-      settings_to_apply.bandwidth = settings[idx_bandwidth];
+      settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       settings_to_apply.volume = settings[idx_volume];
@@ -2712,7 +2730,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#Scanner#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Frequency\nScanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2743,7 +2761,12 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 6 :
-          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth]);
+        {
+          uint32_t v = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+          rx_settings_changed |= enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &v);
+          settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
+          settings[idx_bandwidth_spectrum] |= ( (v << flag_bandwidth) & mask_bandwidth);
+        }
           break;
 
         case 7 :
@@ -2781,10 +2804,16 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 14 : 
-          rx_settings_changed |= scanner_menu();
+          rx_settings_changed |= number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, &spectrum_zoom);
+          settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
+          settings[idx_bandwidth_spectrum] |= ( (spectrum_zoom << flag_spectrum) & mask_spectrum);
           break;
 
         case 15 : 
+          rx_settings_changed |= scanner_menu();
+          break;
+
+        case 16 : 
           rx_settings_changed |= configuration_menu();
           break;
       }
