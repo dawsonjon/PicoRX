@@ -1644,7 +1644,7 @@ bool ui::memory_scan()
       draw_once=1;
     }
 
-    if(ev.tag == ev_button_menu_short_press){
+    if(ev.tag == ev_button_menu_long_press){
       menu_press_time = to_ms_since_boot(get_absolute_time());
     }
 
