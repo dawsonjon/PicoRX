@@ -249,11 +249,11 @@ void ui::display_draw_volume(uint8_t v)
     {
       v = 9;
     }
-    v = (v + 2) / 3;
 
+    const uint8_t hs[9] = {1, 2, 2, 3, 4, 5, 6, 6, 7};
     for (uint8_t i = 0; i < v; i++)
     {
-      ssd1306_fill_rectangle(&disp, 100 + 3 * i, 0, 2, 7, 1);
+      ssd1306_fill_rectangle(&disp, 97 + i, 7-hs[i], 1, hs[i], 1);
     }
   }
 }
@@ -2473,6 +2473,11 @@ static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e
       self->state = 2;
       ret = btn_dec_long_press;
     }
+    else if(ev_tag == self->press_ev)
+    {
+      // in case events come out of sync (event queue overflowed, etc.)
+      self->start_time = time_us_32();
+    }
   }
   break;
 
@@ -2482,6 +2487,12 @@ static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e
       // long release
       self->state = 0;
       ret = btn_dec_long_release;
+    }
+    else if (ev_tag == self->press_ev)
+    {
+      // in case events come out of sync (event queue overflowed, etc.)
+      self->state = 1;
+      self->start_time = time_us_32();
     }
     break;
 
@@ -2496,6 +2507,7 @@ static button_decoder_ev_e button_decoder_update(button_decoder_t *self, event_e
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
+#define IS_BUTTON_EV(_btn, _type) (btn_##_btn##_ev == btn_dec_##_type)
 void ui::do_ui(event_t event)
 {
     static bool rx_settings_changed = true;
@@ -2534,56 +2546,60 @@ void ui::do_ui(event_t event)
     switch(button_state)
     {
       case idle:
-        if((btn_menu_ev == btn_dec_long_press) && (btn_back_ev == btn_dec_long_press))
+        if (IS_BUTTON_EV(menu, long_press) && IS_BUTTON_EV(back, long_press))
         {
           button_state = very_fast_mode;
         }
-        else if(btn_menu_ev == btn_dec_long_press)
+        else if (IS_BUTTON_EV(menu, long_press))
         {
           button_state = fast_mode;
         }
-        else if (btn_back_ev == btn_dec_long_press)
+        else if (IS_BUTTON_EV(back, long_press))
         {
           button_state = slow_mode;
         }
-        else if(btn_menu_ev == btn_dec_tap)
+        else if(IS_BUTTON_EV(menu, tap))
         {
           button_state = menu;
         }
-        else if(btn_back_ev == btn_dec_tap)
+        else if(IS_BUTTON_EV(back, tap))
         {
           current_view = (current_view+1) % NUM_VIEWS;
           view_changed = true;
         }
-        else if (btn_push_ev == btn_dec_long_press)
+        else if (IS_BUTTON_EV(push, long_press))
         {
           button_state = volume;
         }
         break;
       case slow_mode:
-        if (btn_back_ev == btn_dec_long_release)
+        if (IS_BUTTON_EV(back, long_release))
         {
           button_state = idle;
-        } else if (btn_menu_ev == btn_dec_long_press)
+        } else if (IS_BUTTON_EV(menu, long_press))
         {
           button_state = very_fast_mode;
         }
         break;
       case fast_mode:
-        if(btn_menu_ev == btn_dec_long_release)
+        if(IS_BUTTON_EV(menu, long_release))
         {
           button_state = idle;
-        } else if(btn_back_ev == btn_dec_long_press)
+        } else if(IS_BUTTON_EV(back, long_press))
         {
           button_state = very_fast_mode;
         }
         break;
       case very_fast_mode:
-        if (btn_back_ev == btn_dec_long_release)
+        if(IS_BUTTON_EV(menu, long_release) && IS_BUTTON_EV(back, long_release))
+        {
+          button_state = idle;
+        }
+        else if (IS_BUTTON_EV(back, long_release))
         {
           button_state = fast_mode;
         }
-        else if (btn_menu_ev == btn_dec_long_release)
+        else if (IS_BUTTON_EV(menu, long_release))
         {
           button_state = slow_mode;
         }
@@ -2592,7 +2608,7 @@ void ui::do_ui(event_t event)
         button_state = idle;
         break;
       case volume:
-        if(btn_push_ev == btn_dec_long_release)
+        if(IS_BUTTON_EV(push, long_release))
         {
           button_state = idle;
         }
@@ -2672,7 +2688,7 @@ void ui::do_ui(event_t event)
       rx_settings_changed = top_menu(settings_to_apply);
       autosave_settings = rx_settings_changed;
     }
-    else if(btn_push_ev == btn_dec_tap)
+    else if(IS_BUTTON_EV(push, tap))
     {
       view_changed = true;
       rx_settings_changed = memory_recall();

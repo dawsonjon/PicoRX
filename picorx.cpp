@@ -10,7 +10,6 @@
 #include "debouncer.h"
 
 #define UI_REFRESH_HZ (10UL)
-#define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
 
 static rx_settings settings_to_apply;
 static rx_status status;
