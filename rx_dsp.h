@@ -17,18 +17,14 @@ class rx_dsp
   void set_mode(uint8_t mode, uint8_t bw);
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);
-  void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
   void set_deemphasis(uint8_t deemphasis);
-  void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
-  void set_usb_callbacks(void);
-  uint8_t get_usb_buf_level(void);
 
   private:
   
@@ -84,8 +80,6 @@ class rx_dsp
   // de-emphasis
   uint8_t deemphasis=0;
 
-  //volume control
-  int16_t gain_numerator=0;
 
   //squelch
   int16_t squelch_threshold=0;
@@ -97,11 +91,9 @@ class rx_dsp
   uint16_t hang_time;
   uint16_t hang_timer;
   int32_t max_hold;
-  uint32_t pwm_scale;
 
   // gain calibration
   float amplifier_gain_dB = 62.0f;
-
   int32_t usb_buf_level_avg = 0;
 
 };

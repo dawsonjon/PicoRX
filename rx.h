@@ -58,6 +58,7 @@ class rx
   void pwm_ramp_down();
   void pwm_ramp_up();
   void update_status();
+  void set_usb_callbacks();
 
   //receiver configuration
   double tuned_frequency_Hz;
@@ -68,7 +69,6 @@ class rx
   bool suspend;
   uint16_t temp;
   uint16_t battery;
-
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;
@@ -100,11 +100,16 @@ class rx
   static bool audio_running;
   static void dma_handler();
   uint32_t pwm_max;
+  uint32_t pwm_scale;
+  uint16_t process_block(uint16_t adc_samples[], int16_t pwm_audio[]);
   
   //store busy time for performance monitoring
   uint32_t busy_time;
 
   alarm_pool_t *pool = NULL;
+
+  //volume control
+  int16_t gain_numerator=0;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);
