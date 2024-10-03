@@ -70,3 +70,15 @@ void button_decoder_tick(button_decoder_t *dec)
         }
     }
 }
+
+void button_decoder_other_ev(button_decoder_t *dec)
+{
+    if (dec->count > 0)
+    {
+        if (dec->short_press.short_press.count == 0)
+        {
+            event_send(dec->long_press);
+            dec->count = -1;
+        }
+    }
+}

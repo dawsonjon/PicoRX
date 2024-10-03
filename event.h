@@ -22,6 +22,7 @@ extern "C"
         ev_button_push_short_press,
         ev_button_push_long_press,
         ev_button_push_long_release,
+        ev_encoder_change,
         ev_last,
     } event_e;
 
@@ -34,6 +35,10 @@ extern "C"
             {
                 size_t count;
             } short_press;
+            struct
+            {
+                int32_t new_position;
+            } encoder_change;
         };
     } event_t;
 
@@ -49,6 +54,7 @@ extern "C"
         "ev_button_push_short_press",
         "ev_button_push_long_press",
         "ev_button_push_long_release",
+        "ev_encoder_change",
     };
 
     void event_init(void);

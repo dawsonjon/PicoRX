@@ -5,7 +5,6 @@
 
 #include "pico/bootrom.h"
 #include "hardware/i2c.h"
-#include "quadrature_encoder.pio.h"
 #include "ssd1306.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
@@ -101,14 +100,11 @@ class ui
   // last selected memory
   int32_t last_select=0;
 
-  // Encoder 
-  void setup_encoder();
-  int32_t get_encoder_change();
+  // Encoder
+  int32_t get_encoder_change(void);
   int32_t encoder_control(int32_t *value, int32_t min, int32_t max);
-  int32_t new_position;
-  int32_t old_position;
-  const uint32_t sm = 0;
-  const PIO pio = pio1;
+  int32_t new_position = 0;
+  int32_t old_position = 0;
 
   // Buttons
   e_button_state button_state;
