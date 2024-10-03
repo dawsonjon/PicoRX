@@ -80,7 +80,7 @@ extern "C" {
 #endif
 
 //------------- CLASS -------------//
-#define CFG_TUD_CDC               0
+#define CFG_TUD_CDC               1
 #define CFG_TUD_MSC               0
 #define CFG_TUD_HID               0
 #define CFG_TUD_MIDI              0
@@ -103,6 +103,10 @@ extern "C" {
 #define CFG_TUD_AUDIO_EP_SZ_IN                                        (16 + 1) * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX      // 16 Samples x 2 Bytes/Sample x 1 Channel
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX                             CFG_TUD_AUDIO_EP_SZ_IN                  // Maximum EP IN size for all AS alternate settings used
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ                          CFG_TUD_AUDIO_EP_SZ_IN
+
+// CDC FIFO size of TX and RX
+#define CFG_TUD_CDC_RX_BUFSIZE                    64
+#define CFG_TUD_CDC_TX_BUFSIZE                    64
 
 #ifdef __cplusplus
 }

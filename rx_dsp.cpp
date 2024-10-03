@@ -12,6 +12,21 @@
 
 static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
 
+static inline void rolling_avg_int(int16_t nv, int32_t *avg, int16_t *err)
+{
+  const int16_t t = 10;
+  const int16_t d = nv - *avg;
+
+  *avg += d / t;
+  *err += d % t;
+
+  if (abs(*err) >= t)
+  {
+    *avg += *err / t;
+    *err %= t;
+  }
+}
+
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
   if(deemphasis == 0)
@@ -97,9 +112,37 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
   }
 }
 
-#define USB_BUF_SIZE (sizeof(int16_t) * 4 * adc_block_size/decimation_rate)
+#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
+
+critical_section_t usb_volumute;
+static int16_t usb_volume=180;  // usb volume
+static bool usb_mute = false;   // usb mute control
+
+//static bool frac_interp(void)
+//{
+  //bool ret = false;
+  //static uint32_t i = 0;
+  //static uint32_t next = 0;
+  //static uint32_t err = 0;
+
+  // '42' and '6667' below stem from the fact that 15625 / (16000 - 15625) ~= 41.6667
+  //if (i == next)
+  //{
+    //ret = true;
+    //next += 41;
+    //err += 6667;
+    //if (err >= 10000)
+    //{
+      //err %= 10000;
+      //next += 1;
+    //}
+  //}
+//
+  //i++;
+  //return ret;
+//}
 
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
@@ -109,6 +152,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   int32_t magnitude_sum = 0;
   int32_t sample_accumulator = 0;
   static int16_t prev_audio = 0;
+  static int16_t usb_lev_err = 0;
 
   int16_t real[adc_block_size/cic_decimation_rate];
   int16_t imag[adc_block_size/cic_decimation_rate];
@@ -179,11 +223,19 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(real, imag, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
-  int16_t tmp_usb_buf[adc_block_size/decimation_rate];
+  int16_t tmp_usb_buf[1 + (adc_block_size/decimation_rate)];
+  uint16_t rb_idx = 0;
+
+  critical_section_enter_blocking(&usb_volumute);
+  int32_t safe_usb_volume = usb_volume;
+  bool safe_usb_mute = usb_mute;
+  critical_section_exit(&usb_volumute);
+
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
       int16_t i = real[idx];
       int16_t q = imag[idx];
+
 
       //Measure amplitude (for signal strength indicator)
       int32_t amplitude = rectangular_2_magnitude(i, q);
@@ -196,7 +248,14 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
-      audio = automatic_gain_control(audio);
+      int32_t usbaudio = audio = automatic_gain_control(audio);
+
+      // usbaudio volume is controlled from usb so duplicate the sample
+      if (safe_usb_mute) {
+        usbaudio = 0;
+      } else {
+        usbaudio = (usbaudio * safe_usb_volume)/180;
+      }
 
       //digital volume control
       audio = ((int32_t)audio * gain_numerator) >> 8;
@@ -204,10 +263,15 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //squelch
       if(signal_amplitude < squelch_threshold) {
         audio = 0;
+        usbaudio = audio = 0;
       }
 
-
-      tmp_usb_buf[idx] = audio * 2;
+      tmp_usb_buf[rb_idx++] = usbaudio;
+      // inject duplicated sample to get 16k samplerate
+      //if(frac_interp())
+      //{
+      //  tmp_usb_buf[rb_idx++] = usbaudio;
+      //}
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
       audio /= pwm_scale;
@@ -217,12 +281,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    uint16_t space = USB_BUF_SIZE - ring_buffer_get_num_bytes(&usb_rb);
-    if(space >= sizeof(tmp_usb_buf))
-    {
-      uint16_t s = ring_buffer_push(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(tmp_usb_buf));
-      hard_assert(s == sizeof(tmp_usb_buf));
-    }
+    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * rb_idx); 
+    rolling_avg_int(ring_buffer_get_num_bytes(&usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
@@ -455,6 +515,16 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     return audio;
 }
 
+// usb mute setting = true is muted
+static void on_usb_set_mutevol(bool mute, int16_t vol)
+{
+  //printf ("usbcb: got mute %d vol %d\n", mute, vol);
+  critical_section_enter_blocking(&usb_volumute);
+  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  usb_mute = mute;
+  critical_section_exit(&usb_volumute);
+}
+
 static void on_usb_audio_tx_ready()
 {
   uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
@@ -463,8 +533,8 @@ static void on_usb_audio_tx_ready()
   // to be transmitted.
   //
   // Write local buffer to the USB microphone
-  uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, s);
+  ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
+  usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
 rx_dsp :: rx_dsp()
@@ -499,9 +569,11 @@ rx_dsp :: rx_dsp()
   delayi3=0; delayq3=0;
 }
 
-void rx_dsp :: set_usb_callback(void)
+void rx_dsp :: set_usb_callbacks(void)
 {
+    critical_section_init(&usb_volumute);
     usb_audio_device_set_tx_ready_handler(on_usb_audio_tx_ready);
+    usb_audio_device_set_mutevol_handler(on_usb_set_mutevol);
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
@@ -640,6 +712,11 @@ void rx_dsp :: set_squelch(uint8_t val)
 void rx_dsp :: set_pwm_max(uint32_t pwm_max)
 {
   pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
+}
+
+uint8_t rx_dsp :: get_usb_buf_level(void)
+{
+  return 100 * usb_buf_level_avg / USB_BUF_SIZE;
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()

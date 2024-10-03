@@ -125,6 +125,7 @@ void rx::update_status()
      status.busy_time = busy_time;
      status.battery = battery;
      status.temp = temp;
+     status.usb_buf_level = rx_dsp_inst.get_usb_buf_level();
      sem_release(&settings_semaphore);
    }
 }
@@ -263,7 +264,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
     adc_gpio_init(29);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
-    adc_set_clkdiv(0); //flat out
+    adc_set_clkdiv(99); //48e6/480e3
 
     //band select
     gpio_init(2);//band 0
@@ -305,7 +306,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
     pwm_config config = pwm_get_default_config();
     pwm_config_set_clkdiv(&config, 1.f);
-    pwm_max = 500;
+    pwm_max = 520;
     pwm_config_set_wrap(&config, pwm_max);
     pwm_init(audio_pwm_slice_num, &config, true);
 
@@ -360,15 +361,23 @@ static bool usb_callback(repeating_timer_t *rt)
   return true; // keep repeating
 }
 
+void rx::set_alarm_pool(alarm_pool_t *p)
+{
+  pool = p;
+}
+
 void rx::run()
 {
     usb_audio_device_init();
-    rx_dsp_inst.set_usb_callback();
+    rx_dsp_inst.set_usb_callbacks();
     repeating_timer_t usb_timer;
 
-    // here the delay theoretically should be 1024 (1.024ms = 1 / (15625 / 16))
+    hard_assert(pool);
+
+    // here the delay theoretically should be 1000 (1ms = 1 / (16000 / 16))
     // however the 'usb_microphone_task' should be called more often, but not too often
-    bool ret = add_repeating_timer_us(-800, usb_callback, NULL, &usb_timer);
+    // to save compute
+    bool ret = alarm_pool_add_repeating_timer_us(pool, 1000/2, usb_callback, NULL, &usb_timer);
     hard_assert(ret);
 
     while(true)

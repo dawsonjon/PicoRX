@@ -31,6 +31,10 @@ int main()
 {
   stdio_init_all();
   multicore_launch_core1(core1_main);
+
+  // create an alarm pool for USB streaming with highest priority (0), so
+  // that it can pre-empt the default pool used by IO which uses timer 3 (lowest priority)
+  receiver.set_alarm_pool(alarm_pool_create(0, 16));
   user_interface.autorestore();
 
   uint32_t last_ui_update = 0;
@@ -51,7 +55,6 @@ int main()
     }
 
     waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
-
 
   }
 }

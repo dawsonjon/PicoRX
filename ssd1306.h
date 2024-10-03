@@ -73,6 +73,7 @@ typedef struct {
     uint8_t *buffer;	/**< display buffer */
     size_t bufsize;		/**< buffer size */
 	uint8_t disp_col_offset; /**< 0 for ssd1306, 2 for sh1106 */
+	bool power_state;
 } ssd1306_t;
 
  void ssd1306_set_start_line(ssd1306_t *p, uint8_t val);

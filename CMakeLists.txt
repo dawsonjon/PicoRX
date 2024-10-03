@@ -36,7 +36,7 @@ if(PICO_BOARD STREQUAL "pico")
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
   pico_add_extra_outputs(picorx)
   # enable usb output, disable uart output
-  pico_enable_stdio_usb(picorx 0)
+  pico_enable_stdio_usb(picorx 1)
   pico_enable_stdio_uart(picorx 0)
   target_include_directories(picorx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
   target_link_libraries(picorx PRIVATE pico_stdlib
@@ -106,7 +106,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                        hardware_spi
                                        tinyusb_device
                                        tinyusb_board)
-
     #battery check utility
     project(battery_check_pico2-riscv)
     add_executable(battery_check_pico2-riscv
