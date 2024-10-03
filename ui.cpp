@@ -10,6 +10,7 @@
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
+#define IS_BUTTON_EV(_btn, _type) (event.tag == ev_button_##_btn##_##_type)
 static const uint32_t ev_display_tmout_evset = (1UL << ev_button_menu_short_press) |
                                                (1UL << ev_button_back_short_press) |
                                                (1UL << ev_button_push_short_press);
@@ -1468,8 +1469,6 @@ bool ui::memory_scan()
   uint32_t last_scan_time = 0;
   uint32_t now_time = 0;
 
-  uint32_t menu_press_time = 0;
-
   int32_t pos_change = 0;
 
   bool radio_squelch=false;   // false is muted/silent
@@ -1637,33 +1636,28 @@ bool ui::memory_scan()
       display_show();
     }
 
-    event_t ev = event_get();
+    event_t event = event_get();
 
-    if(ev.tag == ev_button_push_short_press){
+    if(IS_BUTTON_EV(push, short_press)){
       scan_speed=0;
       draw_once=1;
     }
 
-    if(ev.tag == ev_button_menu_long_press){
-      menu_press_time = to_ms_since_boot(get_absolute_time());
-    }
-
-    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_long_release) ) {
-      if ((now_time - menu_press_time) > 1000) {
-        last_select=select;
-        return 1;
-      } else {
-        bool rx_settings_changed = scanner_radio_menu();
-        if (rx_settings_changed) {
-          apply_settings(false);
-        }
-        menu_press_time = 0;
-        draw_once=1;
-      }
+    if(IS_BUTTON_EV(menu, long_press)){
+      last_select=select;
+      return 1;
      }
 
+    if(IS_BUTTON_EV(menu, short_press)){
+      bool rx_settings_changed = scanner_radio_menu();
+      if (rx_settings_changed) {
+        apply_settings(false);
+      }
+      draw_once=1;
+    }
+
     //cancel
-    if(ev.tag == ev_button_back_short_press){
+    if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -1712,8 +1706,6 @@ bool ui::frequency_scan()
   int scan_speed = 0;
   uint32_t last_scan_time = 0;
   uint32_t now_time = 0;
-
-  uint32_t menu_press_time = 0;
 
   int32_t pos_change = 0;
 
@@ -1876,33 +1868,27 @@ bool ui::frequency_scan()
       display_show();
     }
 
-    event_t ev = event_get();
+    event_t event = event_get();
 
-    if(ev.tag == ev_button_push_short_press){
+    if(IS_BUTTON_EV(push, short_press)){
       scan_speed=0;
       draw_once=1;
     }
 
-    if(ev.tag == ev_button_menu_short_press){
-      menu_press_time = to_ms_since_boot(get_absolute_time());
-    }
+    if(IS_BUTTON_EV(menu, long_press)){
+      return 1;
+     }
 
-    if( (menu_press_time > 0) && (ev.tag == ev_button_menu_long_release) ) {
-      if ((now_time - menu_press_time) > 1000) {
-        return 1;
-      } else {
-        bool rx_settings_changed = scanner_radio_menu();
-
-        if (rx_settings_changed) {
-          apply_settings(false);
-        }
-        menu_press_time = 0;
-        draw_once=1;
+    if(IS_BUTTON_EV(menu, short_press)){
+      bool rx_settings_changed = scanner_radio_menu();
+      if (rx_settings_changed) {
+        apply_settings(false);
       }
+      draw_once=1;
     }
 
     //cancel
-    if(ev.tag == ev_button_back_short_press){
+    if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
         settings[i] = stored_settings[i];
@@ -2444,7 +2430,6 @@ bool ui::do_splash()
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-#define IS_BUTTON_EV(_btn, _type) (event.tag == ev_button_##_btn##_##_type)
 void ui::do_ui(event_t event)
 {
     static uint32_t prev_volume = 0;
@@ -2677,7 +2662,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_short_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Frequency\nScanner#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Scanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
