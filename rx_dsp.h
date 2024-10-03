@@ -26,7 +26,7 @@ class rx_dsp
   int16_t get_signal_strength_dBm();
   bool get_squelch_state();   // false is muted
   void get_spectrum(float spectrum[]);
-  void set_usb_callback(void);
+  void set_usb_callbacks(void);
   uint8_t get_usb_buf_level(void);
 
   private:
