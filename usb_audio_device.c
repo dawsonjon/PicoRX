@@ -37,6 +37,7 @@ audio_control_range_2_n_t(1) volumeRng[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX+1]; 		
 audio_control_range_4_n_t(1) sampleFreqRng; 						// Sample frequency range state
 
 static usb_audio_device_tx_ready_handler_t usb_audio_device_tx_ready_handler = NULL;
+static usb_audio_device_mutevol_handler_t usb_audio_device_mutevol_handler = NULL;
 
 /*------------- MAIN -------------*/
 void usb_audio_device_init()
@@ -56,6 +57,11 @@ void usb_audio_device_init()
 void usb_audio_device_set_tx_ready_handler(usb_audio_device_tx_ready_handler_t handler)
 {
   usb_audio_device_tx_ready_handler = handler;
+}
+
+void usb_audio_device_set_mutevol_handler(usb_audio_device_mutevol_handler_t handler)
+{
+  usb_audio_device_mutevol_handler = handler;
 }
 
 uint16_t usb_audio_device_write(const void * data, uint16_t len)
@@ -138,6 +144,11 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         mute[channelNum] = ((audio_control_cur_1_t*) pBuff)->bCur;
 
         TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
+//        printf("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
+        if (usb_audio_device_mutevol_handler)
+        {
+          usb_audio_device_mutevol_handler((bool)mute[channelNum], (int16_t)volume[channelNum]);
+        }
 
       return true;
 
@@ -148,6 +159,11 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         volume[channelNum] = ((audio_control_cur_2_t*) pBuff)->bCur;
 
         TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
+//        printf("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
+        if (usb_audio_device_mutevol_handler)
+        {
+          usb_audio_device_mutevol_handler((bool)mute[channelNum], (int16_t)volume[channelNum]);
+        }
 
      return true;
 

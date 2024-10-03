@@ -342,7 +342,7 @@ static bool usb_callback(repeating_timer_t *rt)
 void rx::run()
 {
     usb_audio_device_init();
-    rx_dsp_inst.set_usb_callback();
+    rx_dsp_inst.set_usb_callbacks();
     repeating_timer_t usb_timer;
     
     // the default alarm pool seems to be on core0, so

@@ -19,9 +19,11 @@ extern "C"
 #endif
 
     typedef void (*usb_audio_device_tx_ready_handler_t)(void);
+    typedef void (*usb_audio_device_mutevol_handler_t)(bool, int16_t);
 
     void usb_audio_device_init();
     void usb_audio_device_set_tx_ready_handler(usb_audio_device_tx_ready_handler_t handler);
+    void usb_audio_device_set_mutevol_handler(usb_audio_device_mutevol_handler_t handler);
     void usb_audio_device_task();
     uint16_t usb_audio_device_write(const void *data, uint16_t len);
 

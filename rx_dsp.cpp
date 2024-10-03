@@ -500,6 +500,12 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     return audio;
 }
 
+// usb mute setting = true is muted
+static void on_usb_set_mutevol(bool mute, int16_t vol)
+{
+printf ("yay! got mute %d vol %d\n", mute, vol);
+}
+
 static void on_usb_audio_tx_ready()
 {
   uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
@@ -546,9 +552,10 @@ rx_dsp :: rx_dsp()
   for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
 }
 
-void rx_dsp :: set_usb_callback(void)
+void rx_dsp :: set_usb_callbacks(void)
 {
     usb_audio_device_set_tx_ready_handler(on_usb_audio_tx_ready);
+    usb_audio_device_set_mutevol_handler(on_usb_set_mutevol);
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
