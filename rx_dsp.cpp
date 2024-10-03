@@ -116,6 +116,9 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
+static int16_t usb_volume=180;  // usb volume
+static bool usb_mute = false;     // usb mute control
+
 static bool frac_interp(void)
 {
   bool ret = false;
@@ -238,7 +241,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
       int32_t usbaudio = audio = automatic_gain_control(audio);
-      // usbaudio is not subject to volume control so duplicate it
+
+      // usbaudio volume is controlled from usb so duplicate the sample
+      if (usb_mute) {
+        usbaudio = 0;
+      } else {
+        usbaudio = (usbaudio * usb_volume)/180;
+      }
 
       //digital volume control
       audio = ((int32_t)audio * gain_numerator) >> 8;
@@ -503,7 +512,9 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
 // usb mute setting = true is muted
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
-printf ("yay! got mute %d vol %d\n", mute, vol);
+  //printf ("usbcb: got mute %d vol %d\n", mute, vol);
+  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  usb_mute = mute;
 }
 
 static void on_usb_audio_tx_ready()
