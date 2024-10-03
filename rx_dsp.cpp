@@ -116,6 +116,7 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
+critical_section_t usb_volumute;
 static int16_t usb_volume=180;  // usb volume
 static bool usb_mute = false;     // usb mute control
 
@@ -229,6 +230,11 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       int16_t i = real[idx];
       int16_t q = imag[idx];
 
+      critical_section_enter_blocking(&usb_volumute);
+      int32_t safe_usb_volume = usb_volume;
+      bool safe_usb_mute = usb_mute;
+      critical_section_exit(&usb_volumute);
+
       //Measure amplitude (for signal strength indicator)
       int32_t amplitude = rectangular_2_magnitude(i, q);
       magnitude_sum += amplitude;
@@ -243,10 +249,10 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       int32_t usbaudio = audio = automatic_gain_control(audio);
 
       // usbaudio volume is controlled from usb so duplicate the sample
-      if (usb_mute) {
+      if (safe_usb_mute) {
         usbaudio = 0;
       } else {
-        usbaudio = (usbaudio * usb_volume)/180;
+        usbaudio = (usbaudio * safe_usb_volume)/180;
       }
 
       //digital volume control
@@ -513,8 +519,10 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
+  critical_section_enter_blocking(&usb_volumute);
   usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
   usb_mute = mute;
+  critical_section_exit(&usb_volumute);
 }
 
 static void on_usb_audio_tx_ready()
@@ -565,6 +573,7 @@ rx_dsp :: rx_dsp()
 
 void rx_dsp :: set_usb_callbacks(void)
 {
+    critical_section_init(&usb_volumute);
     usb_audio_device_set_tx_ready_handler(on_usb_audio_tx_ready);
     usb_audio_device_set_mutevol_handler(on_usb_set_mutevol);
 }
