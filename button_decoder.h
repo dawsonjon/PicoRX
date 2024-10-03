@@ -24,6 +24,7 @@ extern "C"
 
     void button_decoder_update(button_decoder_t *dec, bool input);
     void button_decoder_tick(button_decoder_t *dec);
+    void button_decoder_other_ev(button_decoder_t *dec);
 
 #ifdef __cplusplus
 }
