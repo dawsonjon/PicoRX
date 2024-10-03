@@ -13,6 +13,8 @@
 #include "autosave_memory.h"
 #include "event.h"
 
+#include "u8g2.h"
+
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
 const uint8_t PIN_MENU = 22;
@@ -110,6 +112,7 @@ class ui
   e_button_state button_state;
 
   // Display
+  void update_display_type(void);
   void setup_display();
   void display_clear(bool colour=0);
 
@@ -198,6 +201,8 @@ class ui
   rx_settings &settings_to_apply;
   rx_status &status;
   rx &receiver;
+
+  u8g2_t u8g2;
 
   public:
 

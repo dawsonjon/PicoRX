@@ -123,48 +123,8 @@ bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address
     // allows room for the 0x40 byte at the start of each page
     // draw_pixel knows about this and does the right thing
     p->bufsize = (p->pages) * (1 + p->width);
-    if((p->buffer=malloc(p->bufsize))==NULL) {
-        p->bufsize=0;
-        return false;
-    }
+    p->buffer = NULL;
     p->power_state = true;
-
-    // from https://github.com/makerportal/rpi-pico-ssd1306
-    uint8_t cmds[]= {
-        SET_DISP,
-        // timing and driving scheme
-        SET_DISP_CLK_DIV,
-        0x80,
-        SET_MUX_RATIO,
-        height - 1,
-        SET_DISP_OFFSET,
-        0x00,
-        // resolution and layout
-        SET_DISP_START_LINE,
-        // charge pump
-        SET_CHARGE_PUMP,
-        p->external_vcc?0x10:0x14,
-        SET_SEG_REMAP | 0x01,           // column addr 127 mapped to SEG0
-        SET_COM_OUT_DIR | 0x08,         // scan from COM[N] to COM0
-        SET_COM_PIN_CFG,
-        width>2*height?0x02:0x12,
-        // display
-        SET_CONTRAST,
-        0xff,
-        SET_PRECHARGE,
-        p->external_vcc?0x22:0xF1,
-        SET_VCOM_DESEL,
-        0x30,                           // or 0x40?
-        SET_ENTIRE_ON,                  // output follows RAM contents
-        SET_NORM_INV,                   // not inverted
-        SET_DISP | 0x01,
-        // address setting
-        SET_MEM_ADDR,
-        0x00,  // horizontal
-    };
-
-    for(size_t i=0; i<sizeof(cmds); ++i)
-        ssd1306_write(p, cmds[i]);
 
     return true;
 }
@@ -187,37 +147,13 @@ inline void ssd1306_poweron(ssd1306_t *p) {
     p->power_state = true;
 }
 
-inline void ssd1306_contrast(ssd1306_t *p, uint8_t val) {
-    ssd1306_write(p, SET_CONTRAST);
-    ssd1306_write(p, val);
-}
-
 inline void ssd1306_invert(ssd1306_t *p, uint8_t inv) {
     ssd1306_write(p, SET_NORM_INV | (inv & 1));
-}
-
-inline void ssd1306_flip(ssd1306_t *p, uint8_t flip) {
-    if (flip) {
-        ssd1306_write(p, SET_SEG_REMAP | 0x00);
-        ssd1306_write(p, SET_COM_OUT_DIR | 0x00);
-    } else {
-        ssd1306_write(p, SET_SEG_REMAP | 0x01);
-        ssd1306_write(p, SET_COM_OUT_DIR | 0x08);
-    }
 }
 
 inline void ssd1306_clear(ssd1306_t *p, uint8_t colour) {
     memset(p->buffer, 0xff*(colour > 0), p->bufsize);
 }
-
-inline void ssd1306_type(ssd1306_t *p, uint8_t type) {
-    if (type) {
-        p->disp_col_offset = 2;
-    } else {
-        p->disp_col_offset = 0;
-    }
-}
-
 
 void ssd1306_draw_pixel(ssd1306_t *p, int32_t x, int32_t y, uint8_t colour) {
     if(x>=p->width || y>=p->height) return;
@@ -225,11 +161,11 @@ void ssd1306_draw_pixel(ssd1306_t *p, int32_t x, int32_t y, uint8_t colour) {
 
     // each page is 129 bytes long for the oled cmd byte at the start
     if(colour == 2) {
-        p->buffer[1 + x + (1 + p->width)*(y>>3) ] ^= 0x1<<(y&0x07);
+        p->buffer[x + (p->width)*(y>>3) ] ^= 0x1<<(y&0x07);
     } else if (colour) {
-        p->buffer[1 + x + (1 + p->width)*(y>>3) ] |= 0x1<<(y&0x07); // y>>3==y/8 && y&0x7==y%8
+        p->buffer[x + (p->width)*(y>>3) ] |= 0x1<<(y&0x07); // y>>3==y/8 && y&0x7==y%8
     } else {
-        p->buffer[1 + x + (1 + p->width)*(y>>3) ] &= ~(0x1<<(y&0x07)); // y>>3==y/8 && y&0x7==y%8
+        p->buffer[x + (p->width)*(y>>3) ] &= ~(0x1<<(y&0x07)); // y>>3==y/8 && y&0x7==y%8
     }
 }
 
