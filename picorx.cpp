@@ -120,6 +120,11 @@ static bool io_callback(repeating_timer_t *rt)
 int main() 
 {
   repeating_timer_t io_timer;
+
+  // create an alarm pool for USB streaming with highest priority (0), so
+  // that it can pre-empt the default pool used by IO which uses timer 3 (lowest priority)
+  receiver.set_alarm_pool(alarm_pool_create(0, 16));
+  
   multicore_launch_core1(core1_main);
   stdio_init_all();
 

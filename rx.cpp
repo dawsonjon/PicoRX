@@ -339,16 +339,18 @@ static bool usb_callback(repeating_timer_t *rt)
   return true; // keep repeating
 }
 
+void rx::set_alarm_pool(alarm_pool_t *p)
+{
+  pool = p;
+}
+
 void rx::run()
 {
     usb_audio_device_init();
     rx_dsp_inst.set_usb_callbacks();
     repeating_timer_t usb_timer;
-    
-    // the default alarm pool seems to be on core0, so
-    // create one new on core1, so that ring buffer can be 'not multicore'
-    // and to reduce potential contention
-    struct alarm_pool *pool = alarm_pool_create(0, 16);
+
+    hard_assert(pool);
 
     // here the delay theoretically should be 1000 (1ms = 1 / (16000 / 16))
     // however the 'usb_microphone_task' should be called more often, but not too often
