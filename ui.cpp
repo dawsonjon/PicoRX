@@ -6,6 +6,7 @@
 #include "ui.h"
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
+#include "fonts.h"
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
@@ -230,7 +231,7 @@ void ui::display_draw_volume(uint8_t v)
 {
   if (v == 0)
   {
-    display_draw_icon7x8(98, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+    display_draw_icon7x8(63, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
   }
   else
   {
@@ -239,10 +240,10 @@ void ui::display_draw_volume(uint8_t v)
       v = 9;
     }
 
-    const uint8_t hs[9] = {1, 2, 2, 3, 4, 5, 6, 6, 7};
+    const uint8_t hs[9] = {1, 2, 2, 2, 3, 4, 4, 4, 5};
     for (uint8_t i = 0; i < v; i++)
     {
-      ssd1306_fill_rectangle(&disp, 97 + i, 7-hs[i], 1, hs[i], 1);
+      ssd1306_fill_rectangle(&disp, 62 + i, 6-hs[i], 1, hs[i], 1);
     }
   }
 }
@@ -294,35 +295,79 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  display_set_xy(0,0);
-  snprintf(buff, buff_SZ, "%2lu.%03lu", MHz, kHz);
-  display_print_str(buff,2);
-  snprintf(buff, buff_SZ, ".%03lu", Hz);
-  display_print_str(buff,1);
+
+  u8g2_SetFont(&u8g2, font_seg_big);
+  snprintf(buff, buff_SZ, "%2lu", MHz);
+  u8g2_DrawStr(&u8g2, 0, 28, buff);
+
+  snprintf(buff, buff_SZ, "%03lu", kHz);
+  u8g2_DrawStr(&u8g2, 35, 28, buff);
+
+  u8g2_DrawBox(&u8g2, 32, 26, 2, 2);
+
+  u8g2_SetFont(&u8g2, font_seg_mid);
+  snprintf(buff, buff_SZ, "%03lu", Hz);
+  u8g2_DrawStr(&u8g2, 80, 23, buff);
 
   //mode
-  display_print_str(modes[settings[idx_mode]],1, style_right);
+  u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
+  u8g2_DrawStr(&u8g2, 2, 6, modes[settings[idx_mode]]);
 
   //step
-  display_set_xy(0,8);
-  display_print_str(steps[settings[idx_step]],1, style_right);
+  uint16_t w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
+  u8g2_DrawStr(&u8g2, 55 - w, 6, steps[settings[idx_step]]);
 
-  //signal strength/cpu
-  int8_t power_s = dBm_to_S(power_dBm);
+  //battery
+  snprintf(buff, buff_SZ, "%2.1fV", battery_voltage);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 104 - w, 6, buff);
 
-  display_set_xy(0,24);
-  display_print_str(smeter[power_s],1);
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%% %3d%%  ", battery_voltage, temp, '\x7f', (100.0f * busy_time) / block_time, usb_buf_level);
-  display_set_xy(0,16);
-  display_print_str(buff, 1, style_right);
-  // USB plug icon
-  display_draw_icon7x8(117, 16, (uint8_t[7]){0x1c,0x14,0x3e,0x2a,0x22,0x1c,0x08});
+  //temp
+  snprintf(buff, buff_SZ, "%2.0f%cC", temp, '\xb0');
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 6, buff);
 
   display_draw_volume(settings[idx_volume]);
 
-  draw_spectrum(32, receiver);
+  u8g2_DrawHLine(&u8g2, 0, 8, 127);
+
+  //signal strength
+  snprintf(buff, buff_SZ, "% 4d", (int)power_dBm);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 122 - w, 34, buff);
+  w = u8g2_GetStrWidth(&u8g2, "dBm");
+  u8g2_DrawStr(&u8g2, 126 - w, 26, "dBm");
+
+  int8_t power_s = dBm_to_S(power_dBm);
+
+  for (int8_t i = 0; i < 12; i++)
+  {
+    if (i < power_s)
+    {
+      u8g2_DrawRBox(&u8g2, i * 8, 30, 7, 4, 2);
+    }
+    else
+    {
+      u8g2_DrawRFrame(&u8g2, i * 8, 30, 7, 4, 2);
+    }
+  }
+
+  draw_spectrum(35, receiver);
+
+  // load and USB buf level
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawBox(&u8g2, 128 - 38, 56, 38, 8);
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawFrame(&u8g2, 128 - 38, 56, 38, 8);
+
+  u8g2_SetFont(&u8g2, u8g2_font_tiny5_tf );
+  snprintf(buff, buff_SZ, "%3.0f%%", (100.0f * busy_time) / block_time);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 108 - w, 63, buff);
+
+  snprintf(buff, buff_SZ, "%3d%%", usb_buf_level);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
 
   display_show();
 }
