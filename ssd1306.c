@@ -63,10 +63,8 @@ inline static void ssd1306_write(ssd1306_t *p, uint8_t val) {
  }
 
 void ssd1306_scroll_screen(ssd1306_t *p, int16_t x, int16_t y) {
-  // index 0 of each page has a fixed 0x40 header for I2C
-  // so we run from 1..128 (or 128..1)
-  int32_t start = 1;
-  int32_t end = p->width+1;
+  int32_t start = 0;
+  int32_t end = p->width;
   int32_t count = 1;
   if (x>0) { // run loop from right to left
     start = p->width;
@@ -77,7 +75,7 @@ void ssd1306_scroll_screen(ssd1306_t *p, int16_t x, int16_t y) {
     // assemble 8 bytes of a column into 64 bit number
     uint64_t temp=0;
     for (uint32_t page=0; page < p->pages; page++) {
-      temp |= (uint64_t)p->buffer[page*(p->width+1) + i] << 8*page;
+      temp |= (uint64_t)p->buffer[page*(p->width) + i] << 8*page;
     }
     // shift it
     if (y>0) {
@@ -88,24 +86,24 @@ void ssd1306_scroll_screen(ssd1306_t *p, int16_t x, int16_t y) {
     // split it back out
     // can do some X shifting here too...
     unsigned int new_x = i + x;
-    if ((new_x >= 1) && (new_x <= p->width)) {
+    if ((new_x >= 0) && (new_x <= (p->width - 1))) {
         for (uint32_t page=0; page < p->pages; page++) {
-            p->buffer[page*(p->width+1) + new_x] = temp & 0xff;
+            p->buffer[page*p->width + new_x] = temp & 0xff;
             temp >>= 8;
         }
     }
   }
   if (x != 0) {
     // assume x is negative so we zero from the right
-    int32_t start = p->width+1+x;
-    int32_t end = p->width;
+    int32_t start = p->width+x;
+    int32_t end = p->width - 1;
     if (x>0) { // zero from the left
         start = 1;
         end = x;
     }
     for (int32_t i=start; i<=end; i++) {
         for (uint32_t page=0; page < p->pages; page++) {
-            p->buffer[page*(p->width+1) + i] = 0;
+            p->buffer[page*p->width + i] = 0;
         }
     }
   }
