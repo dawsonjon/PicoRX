@@ -96,10 +96,13 @@ class rx
   //store busy time for performance monitoring
   uint32_t busy_time;
 
+  alarm_pool_t *pool = NULL;
+
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
+  void set_alarm_pool(alarm_pool_t *p);
   void get_spectrum(float spectrum[]);
   rx_settings &settings_to_apply;
   rx_status &status;
