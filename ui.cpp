@@ -250,6 +250,23 @@ void ui::display_draw_volume(uint8_t v)
 
 void ui::display_show()
 {
+// Enable below to output display contents to uart
+#if 0
+  const uint16_t w = u8g2_GetDisplayWidth(&u8g2);
+  const uint16_t h = u8g2_GetDisplayHeight(&u8g2);
+  const uint16_t p = u8g2_GetBufferTileHeight(&u8g2);
+
+  for (size_t j = 0; j < h / p; j++)
+  {
+    for (size_t i = 0; i < w; i++)
+    {
+      printf("%02x,", *(u8g2.tile_buf_ptr + i + j * (w)));
+    }
+    printf("\n");
+  }
+  printf("\n");
+#endif
+
   u8g2_SendBuffer(&u8g2);
 }
 
