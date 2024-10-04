@@ -315,12 +315,12 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
 
   u8g2_SetFont(&u8g2, font_seg_big);
   snprintf(buff, buff_SZ, "%2lu", MHz);
-  u8g2_DrawStr(&u8g2, 0, 33, buff);
+  u8g2_DrawStr(&u8g2, 0, 34, buff);
 
   snprintf(buff, buff_SZ, "%03lu", kHz);
-  u8g2_DrawStr(&u8g2, 39, 33, buff);
+  u8g2_DrawStr(&u8g2, 39, 34, buff);
 
-  u8g2_DrawBox(&u8g2, 35, 30, 3, 3);
+  u8g2_DrawBox(&u8g2, 35, 31, 3, 3);
 
   u8g2_SetFont(&u8g2, font_seg_mid);
   snprintf(buff, buff_SZ, "%03lu", Hz);
