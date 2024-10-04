@@ -2493,7 +2493,7 @@ void ui::do_ui(event_t event)
 
     if (!splash_done) {
       splash_done = do_splash();
-      if ((button_state != idle) || (encoder_change)) splash_done=true;
+      if (event.tag != ev_tick) splash_done=true;
     }
 
     //automatically switch off display after a period of inactivity
@@ -2516,29 +2516,29 @@ void ui::do_ui(event_t event)
         {
           button_state = menu;
         }
-        else if(IS_BUTTON_EV(back, short_press))
-        {
-          current_view = (current_view+1) % NUM_VIEWS;
-          view_changed = true;
-        }
+        // else if(IS_BUTTON_EV(back, short_press))
+        // {
+        //   current_view = (current_view+1) % NUM_VIEWS;
+        //   view_changed = true;
+        // }
         else if (IS_BUTTON_EV(push, long_press))
         {
           button_state = volume;
         }
-        else if (IS_BUTTON_EV(push, short_press))
-        {
-          if (event.short_press.count == 2)
-          {
-            rx_settings_changed = true;
-            if(settings[idx_volume] == 0)
-            {
-              settings[idx_volume] = prev_volume;
-            } else {
-              prev_volume = settings[idx_volume];
-              settings[idx_volume] = 0;
-            }
-          }
-        }
+        // else if (IS_BUTTON_EV(push, short_press))
+        // {
+        //   if (event.short_press.count == 2)
+        //   {
+        //     rx_settings_changed = true;
+        //     if(settings[idx_volume] == 0)
+        //     {
+        //       settings[idx_volume] = prev_volume;
+        //     } else {
+        //       prev_volume = settings[idx_volume];
+        //       settings[idx_volume] = 0;
+        //     }
+        //   }
+        // }
         break;
       case slow_mode:
         if (IS_BUTTON_EV(back, long_release))
@@ -2579,7 +2579,27 @@ void ui::do_ui(event_t event)
         break;
     }
 
+
+    if (button_state == idle) {
+      if(IS_BUTTON_EV(back, short_press))
+      {
+        current_view = (current_view+1) % NUM_VIEWS;
+        view_changed = true;
+      }
+
+      // double short press => toggle mute
+      if ( (IS_BUTTON_EV(push, short_press)) && (event.short_press.count == 2) )
+      rx_settings_changed = true;
+      if(settings[idx_volume] == 0) {
+        settings[idx_volume] = prev_volume;
+      } else {
+        prev_volume = settings[idx_volume];
+        settings[idx_volume] = 0;
+      }
+    }
+
     //update frequency if encoder changes
+    //update volume if encoder changes while pressed
     if(encoder_change != 0)
     {
       rx_settings_changed = true;

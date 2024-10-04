@@ -13,6 +13,11 @@
 #include "autosave_memory.h"
 #include "event.h"
 
+// vscode cant find it and flags a problem (but the compiler can)
+#ifndef M_PI
+#define M_PI 3.14159265
+#endif
+
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
 const uint8_t PIN_MENU = 22;
