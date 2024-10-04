@@ -6,6 +6,7 @@
 #include "ui.h"
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
+#include "fonts.h"
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
@@ -56,11 +57,6 @@ int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
 // Display
 ////////////////////////////////////////////////////////////////////////////////
 void ui::setup_display() {
-  i2c_init(i2c1, 400000);
-  gpio_set_function(PIN_DISPLAY_SDA, GPIO_FUNC_I2C);
-  gpio_set_function(PIN_DISPLAY_SCL, GPIO_FUNC_I2C);
-  gpio_pull_up(PIN_DISPLAY_SDA);
-  gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
   ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
@@ -235,7 +231,7 @@ void ui::display_draw_volume(uint8_t v)
 {
   if (v == 0)
   {
-    display_draw_icon7x8(98, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+    display_draw_icon7x8(63, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
   }
   else
   {
@@ -244,17 +240,34 @@ void ui::display_draw_volume(uint8_t v)
       v = 9;
     }
 
-    const uint8_t hs[9] = {1, 2, 2, 3, 4, 5, 6, 6, 7};
+    const uint8_t hs[9] = {1, 2, 2, 2, 3, 4, 4, 4, 5};
     for (uint8_t i = 0; i < v; i++)
     {
-      ssd1306_fill_rectangle(&disp, 97 + i, 7-hs[i], 1, hs[i], 1);
+      ssd1306_fill_rectangle(&disp, 62 + i, 6-hs[i], 1, hs[i], 1);
     }
   }
 }
 
 void ui::display_show()
 {
-  ssd1306_show(&disp);
+// Enable below to output display contents to uart
+#if 0
+  const uint16_t w = u8g2_GetDisplayWidth(&u8g2);
+  const uint16_t h = u8g2_GetDisplayHeight(&u8g2);
+  const uint16_t p = u8g2_GetBufferTileHeight(&u8g2);
+
+  for (size_t j = 0; j < h / p; j++)
+  {
+    for (size_t i = 0; i < w; i++)
+    {
+      printf("%02x,", *(u8g2.tile_buf_ptr + i + j * (w)));
+    }
+    printf("\n");
+  }
+  printf("\n");
+#endif
+
+  u8g2_SendBuffer(&u8g2);
 }
 
 static float find_nearest_tick(float dist)
@@ -299,35 +312,98 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  display_set_xy(0,0);
-  snprintf(buff, buff_SZ, "%2lu.%03lu", MHz, kHz);
-  display_print_str(buff,2);
-  snprintf(buff, buff_SZ, ".%03lu", Hz);
-  display_print_str(buff,1);
+
+  u8g2_SetFont(&u8g2, font_seg_big);
+  snprintf(buff, buff_SZ, "%2lu", MHz);
+  u8g2_DrawStr(&u8g2, 0, 34, buff);
+
+  snprintf(buff, buff_SZ, "%03lu", kHz);
+  u8g2_DrawStr(&u8g2, 39, 34, buff);
+
+  u8g2_DrawBox(&u8g2, 35, 31, 3, 3);
+
+  u8g2_SetFont(&u8g2, font_seg_mid);
+  snprintf(buff, buff_SZ, "%03lu", Hz);
+  u8g2_DrawStr(&u8g2, 94, 23, buff);
+
+  u8g2_DrawBox(&u8g2, 90, 20, 3, 3);
 
   //mode
-  display_print_str(modes[settings[idx_mode]],1, style_right);
+  u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
+  u8g2_DrawStr(&u8g2, 2, 6, modes[settings[idx_mode]]);
 
   //step
-  display_set_xy(0,8);
-  display_print_str(steps[settings[idx_step]],1, style_right);
+  uint16_t w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
+  u8g2_DrawStr(&u8g2, 55 - w, 6, steps[settings[idx_step]]);
 
-  //signal strength/cpu
-  int8_t power_s = dBm_to_S(power_dBm);
+  //battery
+  snprintf(buff, buff_SZ, "%2.1fV", battery_voltage);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 104 - w, 6, buff);
 
-  display_set_xy(0,24);
-  display_print_str(smeter[power_s],1);
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
-
-  snprintf(buff, buff_SZ, "%2.1fV %2.0f%cC %3.0f%% %3d%%  ", battery_voltage, temp, '\x7f', (100.0f * busy_time) / block_time, usb_buf_level);
-  display_set_xy(0,16);
-  display_print_str(buff, 1, style_right);
-  // USB plug icon
-  display_draw_icon7x8(117, 16, (uint8_t[7]){0x1c,0x14,0x3e,0x2a,0x22,0x1c,0x08});
+  //temp
+  snprintf(buff, buff_SZ, "%2.0f%cC", temp, '\xb0');
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 6, buff);
 
   display_draw_volume(settings[idx_volume]);
 
-  draw_spectrum(32, receiver);
+  u8g2_DrawHLine(&u8g2, 0, 8, 128);
+
+  //signal strength
+  snprintf(buff, buff_SZ, "% 4d", (int)power_dBm);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 111 - w, 32, buff);
+  w = u8g2_GetStrWidth(&u8g2, "dBm");
+  u8g2_DrawStr(&u8g2, 127 - w, 32, "dBm");
+
+  // way to make minus sign shorter
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawPixel(&u8g2, 92, 29);
+
+  draw_spectrum(35, receiver);
+
+  int8_t power_s = dBm_to_S(power_dBm);
+
+  const uint16_t seg_w = 8;
+  const uint16_t seg_h = 5;
+
+  for (int8_t i = 0; i < 12; i++)
+  {
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1, 34, seg_w + 2, seg_h + 2, 2);
+    u8g2_SetDrawColor(&u8g2, 1);
+
+    if (i < power_s)
+    {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
+    }
+    else
+    {
+      u8g2_DrawRFrame(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
+    }
+  }
+
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawRBox(&u8g2, 127 - (seg_w + 8), 35, seg_w + 9, seg_h + 4, 2);
+  u8g2_SetDrawColor(&u8g2, 1);
+  snprintf(buff, buff_SZ, "S%d", power_s);
+  u8g2_DrawStr(&u8g2, 127 - 13, 40, buff);
+
+  // load and USB buf level
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawBox(&u8g2, 128 - 38, 56, 38, 8);
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawFrame(&u8g2, 128 - 38, 56, 38, 8);
+
+  u8g2_SetFont(&u8g2, u8g2_font_tiny5_tf );
+  snprintf(buff, buff_SZ, "%3.0f%%", (100.0f * busy_time) / block_time);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 108 - w, 63, buff);
+
+  snprintf(buff, buff_SZ, "%3d%%", usb_buf_level);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
 
   display_show();
 }
@@ -1123,9 +1199,9 @@ void ui::autorestore()
   apply_settings(false);
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
   display_timer = timeout_lookup[display_timeout_setting];
-  ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
-  ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
-  ssd1306_contrast(&disp, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
+  u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+  update_display_type();
+  u8g2_SetContrast(&u8g2, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
   spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
   if (spectrum_zoom == 0) spectrum_zoom = 1;
 }
@@ -2299,19 +2375,20 @@ bool ui::configuration_menu()
 
         case 6: 
           rx_settings_changed |= bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup]);
-          ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+          u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+          update_display_type();
           break;
 
         case 7: 
           rx_settings_changed |= bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup]);
-          ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
+          update_display_type();
           break;
 
         case 8:
           {
           uint32_t val = 0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
           rx_settings_changed |= number_entry("Display\nContrast", "%i", 0, 15, 1, &val);
-          ssd1306_contrast(&disp, 17 * val);
+          u8g2_SetContrast(&u8g2, 17 * val);
           settings[idx_hw_setup] &= ~mask_display_contrast;
           settings[idx_hw_setup] |= (((val^0xf) << flag_display_contrast) & mask_display_contrast);
           }
@@ -2821,9 +2898,112 @@ bool ui::top_menu(rx_settings & settings_to_apply)
   return rx_settings_changed;
 }
 
+#define OLED_I2C_SDA_PIN (18)
+#define OLED_I2C_SCL_PIN (19)
+#define OLED_I2C_SPEED (400UL)
+#define OLED_I2C_INST (i2c1)
+
+static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+{
+    switch (msg)
+    {
+    case U8X8_MSG_GPIO_AND_DELAY_INIT:
+        break;
+
+    case U8X8_MSG_DELAY_NANO: // delay arg_int * 1 nano second
+        break;
+    case U8X8_MSG_DELAY_100NANO: // delay arg_int * 100 nano seconds
+        break;
+    case U8X8_MSG_DELAY_10MICRO: // delay arg_int * 10 micro seconds
+        break;
+    case U8X8_MSG_DELAY_MILLI: // delay arg_int * 1 milli second
+        sleep_ms(arg_int);
+        break;
+    case U8X8_MSG_DELAY_I2C:
+        /* arg_int is 1 or 4: 100KHz (5us) or 400KHz (1.25us) */
+        sleep_us(arg_int <= 2 ? 5 : 1);
+        break;
+
+    default:
+        u8x8_SetGPIOResult(u8x8, 1); // default return value
+        break;
+    }
+    return 1;
+}
+
+static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+{
+    uint8_t *data;
+    static uint8_t buffer[132];
+    static uint8_t buf_idx;
+
+    switch (msg)
+    {
+    case U8X8_MSG_BYTE_SEND:
+        data = (uint8_t *)arg_ptr;
+        while (arg_int > 0)
+        {
+            assert(buf_idx < 132);
+            buffer[buf_idx++] = *data;
+            data++;
+            arg_int--;
+        }
+        break;
+
+    case U8X8_MSG_BYTE_INIT:
+        i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
+        gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
+        gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
+        gpio_pull_up(OLED_I2C_SDA_PIN);
+        gpio_pull_up(OLED_I2C_SCL_PIN);
+        break;
+
+    case U8X8_MSG_BYTE_SET_DC:
+        break;
+
+    case U8X8_MSG_BYTE_START_TRANSFER:
+        buf_idx = 0;
+        break;
+
+    case U8X8_MSG_BYTE_END_TRANSFER:
+    {
+        uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
+        int ret = i2c_write_blocking(OLED_I2C_INST, addr, buffer, buf_idx, false);
+        if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
+        {
+            return 0;
+        }
+    }
+    break;
+
+    default:
+        return 0;
+    }
+    return 1;
+}
+
+void ui::update_display_type(void)
+{
+  if((settings[idx_hw_setup] >> flag_oled_type) & 1)
+  {
+    u8g2_GetU8x8(&u8g2)->x_offset = 2;
+  } else {
+    u8g2_GetU8x8(&u8g2)->x_offset = 0;
+  }
+}
+
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver) : settings_to_apply(settings_to_apply), status(status), receiver(receiver)
 {
+  u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
+                                         u8x8_byte_pico_hw_i2c,
+                                         u8x8_gpio_and_delay_pico);
   setup_display();
+  disp.buffer = u8g2.tile_buf_ptr;
 
+  u8g2_SetI2CAddress(&u8g2, 0x78);
+  u8g2_InitDisplay(&u8g2);
+  u8g2_SetPowerSave(&u8g2, 0);
+
+  u8g2_ClearBuffer(&u8g2);
   button_state = idle;
 }
