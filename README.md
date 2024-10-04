@@ -44,6 +44,9 @@ You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonj
 ```
   sudo apt install git
   git clone https://github.com/dawsonjon/PicoRX.git
+  cd PicoRX
+  git submodule init
+  git submodule update
 ```
 
 

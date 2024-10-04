@@ -8,7 +8,9 @@ Getting the Code
 
   sudo apt install git
   git clone https://github.com/dawsonjon/PicoRX.git
-
+  cd PicoRX
+  git submodule init
+  git submodule update
 
 Install Pi Pico SDK
 -------------------
