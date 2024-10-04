@@ -8,6 +8,17 @@ add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
+file(GLOB U8G2_SRCS
+     "external/u8g2/csrc/*.c"
+)
+
+include_directories(include external/u8g2/csrc/)
+
+add_library(
+    u8g2
+    ${U8G2_SRCS}
+)
+
 if(PICO_BOARD STREQUAL "pico")
 
   #main application
@@ -48,7 +59,8 @@ if(PICO_BOARD STREQUAL "pico")
                                        hardware_dma 
                                        hardware_i2c
                                        tinyusb_device
-                                       tinyusb_board)
+                                       tinyusb_board
+                                       u8g2)
 
   #battery check utility
   project(battery_check)
