@@ -1542,12 +1542,13 @@ bool ui::memory_scan()
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
     }
+    if (settings[idx_squelch] == 0) squelch_state = no_squelch;
 
-    //                  squelch disabled   and    not listening 
-    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
+    //                        squelch disabled   or    not listening 
+    bool can_scan = ( squelch_state == no_signal || squelch_state == no_signal );
 
     bool scan_tick = false;
-    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+    if (scan_speed && ((now_time - last_scan_time) > 500/abs(scan_speed)) ){
       last_scan_time = now_time;
       scan_tick = true;
     }
@@ -1635,6 +1636,7 @@ bool ui::memory_scan()
 
       //draw scanning speed
       switch (squelch_state) {
+        case no_squelch:
         case no_signal:
           display_set_xy(0,48);
           display_print_str("Speed",2);
@@ -1790,12 +1792,13 @@ bool ui::frequency_scan()
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
     }
+    if (settings[idx_squelch] == 0) squelch_state = no_squelch;
 
-    //                  squelch disabled   and    not listening 
-    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
+    //                       squelch disabled     or    not listening 
+    bool can_scan = ( squelch_state == no_squelch || squelch_state == no_signal );
 
     bool scan_tick = false;
-    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+    if (scan_speed && ((now_time - last_scan_time) > 500/abs(scan_speed)) ){
       last_scan_time = now_time;
       scan_tick = true;
     }
@@ -1875,6 +1878,7 @@ bool ui::frequency_scan()
       //draw scanning speed
       switch (squelch_state) {
         case no_signal:
+        case no_squelch:
           display_set_xy(0,48);
           display_print_str("Speed",2);
           display_print_speed(91, display_get_y(), 2, scan_speed);

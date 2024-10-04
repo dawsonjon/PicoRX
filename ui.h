@@ -71,7 +71,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume};
 
 // scanner
-enum e_scanner_squelch {no_signal, signal_found, count_down};
+enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 
 // font styles styles as bits to be ORed
 #define style_normal      0
