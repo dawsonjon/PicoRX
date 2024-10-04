@@ -298,16 +298,16 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
 
   u8g2_SetFont(&u8g2, font_seg_big);
   snprintf(buff, buff_SZ, "%2lu", MHz);
-  u8g2_DrawStr(&u8g2, 0, 28, buff);
+  u8g2_DrawStr(&u8g2, 0, 33, buff);
 
   snprintf(buff, buff_SZ, "%03lu", kHz);
-  u8g2_DrawStr(&u8g2, 35, 28, buff);
+  u8g2_DrawStr(&u8g2, 39, 33, buff);
 
-  u8g2_DrawBox(&u8g2, 32, 26, 2, 2);
+  u8g2_DrawBox(&u8g2, 35, 30, 3, 3);
 
   u8g2_SetFont(&u8g2, font_seg_mid);
   snprintf(buff, buff_SZ, "%03lu", Hz);
-  u8g2_DrawStr(&u8g2, 80, 23, buff);
+  u8g2_DrawStr(&u8g2, 94, 23, buff);
 
   //mode
   u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
@@ -329,30 +329,47 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
 
   display_draw_volume(settings[idx_volume]);
 
-  u8g2_DrawHLine(&u8g2, 0, 8, 127);
+  u8g2_DrawHLine(&u8g2, 0, 8, 128);
 
   //signal strength
   snprintf(buff, buff_SZ, "% 4d", (int)power_dBm);
   w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 122 - w, 34, buff);
+  u8g2_DrawStr(&u8g2, 111 - w, 32, buff);
   w = u8g2_GetStrWidth(&u8g2, "dBm");
-  u8g2_DrawStr(&u8g2, 126 - w, 26, "dBm");
+  u8g2_DrawStr(&u8g2, 127 - w, 32, "dBm");
+
+  // way to make minus sign shorter
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawPixel(&u8g2, 92, 29);
+
+  draw_spectrum(35, receiver);
 
   int8_t power_s = dBm_to_S(power_dBm);
 
+  const uint16_t seg_w = 8;
+  const uint16_t seg_h = 5;
+
   for (int8_t i = 0; i < 12; i++)
   {
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1, 34, seg_w + 2, seg_h + 2, 2);
+    u8g2_SetDrawColor(&u8g2, 1);
+
     if (i < power_s)
     {
-      u8g2_DrawRBox(&u8g2, i * 8, 30, 7, 4, 2);
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
     }
     else
     {
-      u8g2_DrawRFrame(&u8g2, i * 8, 30, 7, 4, 2);
+      u8g2_DrawRFrame(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
     }
   }
 
-  draw_spectrum(35, receiver);
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawRBox(&u8g2, 127 - (seg_w + 8), 35, seg_w + 9, seg_h + 4, 2);
+  u8g2_SetDrawColor(&u8g2, 1);
+  snprintf(buff, buff_SZ, "S%d", power_s);
+  u8g2_DrawStr(&u8g2, 127 - 13, 40, buff);
 
   // load and USB buf level
   u8g2_SetDrawColor(&u8g2, 0);
@@ -2916,7 +2933,6 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
     {
         uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
         int ret = i2c_write_blocking(OLED_I2C_INST, addr, buffer, buf_idx, false);
-        printf("%d\n", ret);
         if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
         {
             return 0;
