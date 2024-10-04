@@ -326,6 +326,8 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   snprintf(buff, buff_SZ, "%03lu", Hz);
   u8g2_DrawStr(&u8g2, 94, 23, buff);
 
+  u8g2_DrawBox(&u8g2, 90, 20, 3, 3);
+
   //mode
   u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
   u8g2_DrawStr(&u8g2, 2, 6, modes[settings[idx_mode]]);
