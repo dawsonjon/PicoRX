@@ -1673,11 +1673,6 @@ bool ui::memory_scan()
       draw_once=1;
     }
 
-    if(IS_BUTTON_EV(menu, long_press)){
-      last_select=select;
-      return 1;
-     }
-
     if(IS_BUTTON_EV(menu, short_press)){
       bool rx_settings_changed = scanner_radio_menu();
       if (rx_settings_changed) {
@@ -1686,7 +1681,13 @@ bool ui::memory_scan()
       draw_once=1;
     }
 
-    //cancel
+    // exit keep current settings
+    if(IS_BUTTON_EV(back, long_press)){
+      last_select=select;
+      return 1;
+     }
+
+    // exit rollback settings
     if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
@@ -1911,10 +1912,6 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-    if(IS_BUTTON_EV(menu, long_press)){
-      return 1;
-     }
-
     if(IS_BUTTON_EV(menu, short_press)){
       bool rx_settings_changed = scanner_radio_menu();
       if (rx_settings_changed) {
@@ -1923,7 +1920,12 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-    //cancel
+    // exit keep current settings
+    if(IS_BUTTON_EV(back, long_press)){
+      return 1;
+     }
+
+    // exit rollback settings
     if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
