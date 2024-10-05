@@ -18,6 +18,7 @@ add_library(
     u8g2
     ${U8G2_SRCS}
 )
+target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 
 if(PICO_BOARD STREQUAL "pico")
 
