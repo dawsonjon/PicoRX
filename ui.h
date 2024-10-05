@@ -12,8 +12,12 @@
 #include "memory.h"
 #include "autosave_memory.h"
 #include "event.h"
-
 #include "u8g2.h"
+
+// vscode cant find it and flags a problem (but the compiler can)
+#ifndef M_PI
+#define M_PI 3.14159265
+#endif
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -68,7 +72,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume};
 
 // scanner
-enum e_scanner_squelch {no_signal, signal_found, count_down};
+enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 
 // font styles styles as bits to be ORed
 #define style_normal      0

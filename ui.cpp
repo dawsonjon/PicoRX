@@ -1618,12 +1618,13 @@ bool ui::memory_scan()
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
     }
+    if (settings[idx_squelch] == 0) squelch_state = no_squelch;
 
-    //                  squelch disabled   and    not listening 
-    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
+    //                        squelch disabled   or    not listening 
+    bool can_scan = ( squelch_state == no_signal || squelch_state == no_signal );
 
     bool scan_tick = false;
-    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+    if (scan_speed && ((now_time - last_scan_time) > 500/abs(scan_speed)) ){
       last_scan_time = now_time;
       scan_tick = true;
     }
@@ -1711,6 +1712,7 @@ bool ui::memory_scan()
 
       //draw scanning speed
       switch (squelch_state) {
+        case no_squelch:
         case no_signal:
           display_set_xy(0,48);
           display_print_str("Speed",2);
@@ -1749,11 +1751,6 @@ bool ui::memory_scan()
       draw_once=1;
     }
 
-    if(IS_BUTTON_EV(menu, long_press)){
-      last_select=select;
-      return 1;
-     }
-
     if(IS_BUTTON_EV(menu, short_press)){
       bool rx_settings_changed = scanner_radio_menu();
       if (rx_settings_changed) {
@@ -1762,7 +1759,13 @@ bool ui::memory_scan()
       draw_once=1;
     }
 
-    //cancel
+    // exit keep current settings
+    if(IS_BUTTON_EV(back, long_press)){
+      last_select=select;
+      return 1;
+     }
+
+    // exit rollback settings
     if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
@@ -1865,12 +1868,13 @@ bool ui::frequency_scan()
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
     }
+    if (settings[idx_squelch] == 0) squelch_state = no_squelch;
 
-    //                  squelch disabled   and    not listening 
-    bool can_scan = ( settings[idx_squelch] && squelch_state == no_signal );
+    //                       squelch disabled     or    not listening 
+    bool can_scan = ( squelch_state == no_squelch || squelch_state == no_signal );
 
     bool scan_tick = false;
-    if (scan_speed && ((now_time - last_scan_time) > 1000/abs(scan_speed)) ){
+    if (scan_speed && ((now_time - last_scan_time) > 500/abs(scan_speed)) ){
       last_scan_time = now_time;
       scan_tick = true;
     }
@@ -1950,6 +1954,7 @@ bool ui::frequency_scan()
       //draw scanning speed
       switch (squelch_state) {
         case no_signal:
+        case no_squelch:
           display_set_xy(0,48);
           display_print_str("Speed",2);
           display_print_speed(91, display_get_y(), 2, scan_speed);
@@ -1987,10 +1992,6 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-    if(IS_BUTTON_EV(menu, long_press)){
-      return 1;
-     }
-
     if(IS_BUTTON_EV(menu, short_press)){
       bool rx_settings_changed = scanner_radio_menu();
       if (rx_settings_changed) {
@@ -1999,7 +2000,12 @@ bool ui::frequency_scan()
       draw_once=1;
     }
 
-    //cancel
+    // exit keep current settings
+    if(IS_BUTTON_EV(back, long_press)){
+      return 1;
+     }
+
+    // exit rollback settings
     if(IS_BUTTON_EV(back, short_press)){
       //put things back how they were to start with
       for(uint8_t i=0; i<settings_to_store; i++){
@@ -2570,7 +2576,7 @@ void ui::do_ui(event_t event)
 
     if (!splash_done) {
       splash_done = do_splash();
-      if ((button_state != idle) || (encoder_change)) splash_done=true;
+      if (event.tag != ev_tick) splash_done=true;
     }
 
     //automatically switch off display after a period of inactivity
@@ -2593,28 +2599,9 @@ void ui::do_ui(event_t event)
         {
           button_state = menu;
         }
-        else if(IS_BUTTON_EV(back, short_press))
-        {
-          current_view = (current_view+1) % NUM_VIEWS;
-          view_changed = true;
-        }
         else if (IS_BUTTON_EV(push, long_press))
         {
           button_state = volume;
-        }
-        else if (IS_BUTTON_EV(push, short_press))
-        {
-          if (event.short_press.count == 2)
-          {
-            rx_settings_changed = true;
-            if(settings[idx_volume] == 0)
-            {
-              settings[idx_volume] = prev_volume;
-            } else {
-              prev_volume = settings[idx_volume];
-              settings[idx_volume] = 0;
-            }
-          }
         }
         break;
       case slow_mode:
@@ -2656,7 +2643,37 @@ void ui::do_ui(event_t event)
         break;
     }
 
+    // menu button short press -> show next page
+    // menu button double press -> show page 0
+    if (button_state == idle) {
+      if(IS_BUTTON_EV(back, short_press))
+      {
+        if (event.short_press.count == 2)
+        {
+          current_view = 0;
+          view_changed = true;
+        }
+        else
+        {
+          current_view = (current_view+1) % NUM_VIEWS;
+          view_changed = true;
+        }
+      }
+
+      // double short press => toggle headphone mute
+      if ( (IS_BUTTON_EV(push, short_press)) && (event.short_press.count == 2) ) {
+        rx_settings_changed = true;
+        if(settings[idx_volume] == 0) {
+          settings[idx_volume] = prev_volume;
+        } else {
+          prev_volume = settings[idx_volume];
+          settings[idx_volume] = 0;
+        }
+      }
+    }
+
     //update frequency if encoder changes
+    //update volume if encoder changes while pressed
     if(encoder_change != 0)
     {
       rx_settings_changed = true;
