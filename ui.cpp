@@ -231,7 +231,7 @@ void ui::display_draw_volume(uint8_t v)
 {
   if (v == 0)
   {
-    display_draw_icon7x8(63, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+    display_draw_icon7x8(67, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
   }
   else
   {
@@ -240,10 +240,10 @@ void ui::display_draw_volume(uint8_t v)
       v = 9;
     }
 
-    const uint8_t hs[9] = {1, 2, 2, 2, 3, 4, 4, 4, 5};
-    for (uint8_t i = 0; i < v; i++)
+    const uint8_t ramp[2 * 9] = {1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+    for (uint8_t i = 0; i < 2 * v; i++)
     {
-      ssd1306_fill_rectangle(&disp, 62 + i, 6-hs[i], 1, hs[i], 1);
+      u8g2_DrawVLine(&u8g2, 62 + i, 6-ramp[i], ramp[i]);
     }
   }
 }
