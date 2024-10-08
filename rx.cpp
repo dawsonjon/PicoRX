@@ -333,7 +333,7 @@ void rx::read_batt_temp()
   }
 }
 
-static bool usb_callback(repeating_timer_t *rt)
+static bool __not_in_flash_func(usb_callback)(repeating_timer_t *rt)
 {
   usb_audio_device_task();
   return true; // keep repeating
@@ -352,10 +352,10 @@ void rx::run()
 
     hard_assert(pool);
 
-    // here the delay theoretically should be 1000 (1ms = 1 / (16000 / 16))
+    // here the delay theoretically should be 1067 (1ms = 1 / (15000 / 16))
     // however the 'usb_microphone_task' should be called more often, but not too often
     // to save compute
-    bool ret = alarm_pool_add_repeating_timer_us(pool, 1000/2, usb_callback, NULL, &usb_timer);
+    bool ret = alarm_pool_add_repeating_timer_us(pool, 1067 / 2, usb_callback, NULL, &usb_timer);
     hard_assert(ret);
 
     while(true)
@@ -374,6 +374,7 @@ void rx::run()
       audio_running = false;
       hw_clear_bits(&adc_hw->fcs, ADC_FCS_UNDER_BITS);
       hw_clear_bits(&adc_hw->fcs, ADC_FCS_OVER_BITS);
+      adc_set_clkdiv(100 - 1);
       adc_fifo_setup(true, true, 1, false, false);
       adc_select_input(0);
       adc_set_round_robin(3);

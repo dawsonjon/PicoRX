@@ -5,7 +5,7 @@ from scipy import signal
 import matplotlib.pyplot as plt
 
 
-FS = 250000 // 32
+FS = 480000 // 32
 
 
 def to_fixed(arr):

@@ -150,7 +150,8 @@ int main()
 
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool used by IO which uses timer 3 (lowest priority)
-  receiver.set_alarm_pool(alarm_pool_create(0, 16));
+  irq_set_priority(TIMER_IRQ_1, PICO_HIGHEST_IRQ_PRIORITY);
+  receiver.set_alarm_pool(alarm_pool_create_on_timer(alarm_pool_timer_for_timer_num(1), 0, 16));
   
   multicore_launch_core1(core1_main);
   stdio_init_all();
