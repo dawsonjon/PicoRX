@@ -2,7 +2,7 @@
 #define RX_CONSTANTS
 #include <math.h>
 
-const uint32_t adc_sample_rate = 500e3;
+const uint32_t adc_sample_rate = 480e3;
 const uint32_t audio_sample_rate = adc_sample_rate/2;
 const uint8_t  adc_bits = 12u;
 const uint16_t adc_max=1<<(adc_bits-1);

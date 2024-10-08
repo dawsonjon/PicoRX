@@ -10,7 +10,7 @@
 #include "pico/stdlib.h"
 #include "usb_audio_device.h"
 
-static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
+static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 
 static inline void rolling_avg_int(int16_t nv, int32_t *avg, int16_t *err)
 {
@@ -112,37 +112,13 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
   }
 }
 
-#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
+#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (adc_block_size/decimation_rate))
 static ring_buffer_t usb_rb;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
 critical_section_t usb_volumute;
 static int16_t usb_volume=180;  // usb volume
 static bool usb_mute = false;     // usb mute control
-
-static bool frac_interp(void)
-{
-  bool ret = false;
-  static uint32_t i = 0;
-  static uint32_t next = 0;
-  static uint32_t err = 0;
-
-  // '42' and '6667' below stem from the fact that 15625 / (16000 - 15625) ~= 41.6667
-  if (i == next)
-  {
-    ret = true;
-    next += 41;
-    err += 6667;
-    if (err >= 10000)
-    {
-      err %= 10000;
-      next += 1;
-    }
-  }
-
-  i++;
-  return ret;
-}
 
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
@@ -223,7 +199,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
   int16_t tmp_usb_buf[1 + (adc_block_size/decimation_rate)];
-  uint16_t rb_idx = 0;
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
@@ -266,12 +241,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         squelch_state = true;
       }
 
-      tmp_usb_buf[rb_idx++] = usbaudio;
-      // inject duplicated sample to get 16k samplerate
-      if(frac_interp())
-      {
-        tmp_usb_buf[rb_idx++] = usbaudio;
-      }
+      tmp_usb_buf[idx] = usbaudio;
+
       //convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
       audio /= pwm_scale;
@@ -281,7 +252,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * rb_idx); 
+    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * (adc_block_size / decimation_rate));
     rolling_avg_int(ring_buffer_get_num_bytes(&usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples
@@ -356,10 +327,10 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
-#define AMSYNC_ALPHA (4225)
-#define AMSYNC_BETA (4531)
-#define AMSYNC_F_MIN (-419)
-#define AMSYNC_F_MAX (419)
+#define AMSYNC_ALPHA (3398)
+#define AMSYNC_BETA (1898)
+#define AMSYNC_F_MIN (-218)
+#define AMSYNC_F_MAX (218)
 #define AMSYNC_FIX_MAX (32767)
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
@@ -525,7 +496,7 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
   critical_section_exit(&usb_volumute);
 }
 
-static void on_usb_audio_tx_ready()
+static void __not_in_flash_func(on_usb_audio_tx_ready)()
 {
   uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
 
@@ -533,8 +504,8 @@ static void on_usb_audio_tx_ready()
   // to be transmitted.
   //
   // Write local buffer to the USB microphone
-  ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, sizeof(usb_buf));
+  uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
+  usb_audio_device_write(usb_buf, s);
 }
 
 rx_dsp :: rx_dsp()
@@ -590,15 +561,15 @@ void rx_dsp :: set_deemphasis(uint8_t deemph)
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 {
-  //input fs=500000.000000 Hz
+  //input fs=480000.000000 Hz
   //decimation=32 x 2
   //fs=15625.000000 Hz
   //Setting Decay Time(s) Factor Attack Time(s) Factor  Hang  Timer
   //======= ============= ====== ============== ======  ====  =====
-  //fast        0.151          10       0.001      2    0.1s   1562
-  //medium      0.302          11       0.001      2    0.25s  3906
-  //slow        0.604          12       0.001      2    1s     15625
-  //long        2.414          14       0.001      2    2s     31250
+  //fast        0.151          10       0.001      2    0.1s   1500
+  //medium      0.302          11       0.001      2    0.25s  3750
+  //slow        0.604          12       0.001      2    1s     15000
+  //long        2.414          14       0.001      2    2s     30000
 
 
 
@@ -607,25 +578,25 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
       case 0: //fast
         attack_factor=2;
         decay_factor=10;
-        hang_time=1562;
+        hang_time=1500;
         break;
 
       case 1: //medium
         attack_factor=2;
         decay_factor=11;
-        hang_time=3906;
+        hang_time=3750;
         break;
 
       case 2: //slow
         attack_factor=2;
         decay_factor=12;
-        hang_time=15625;
+        hang_time=15000;
         break;
 
       default: //long
         attack_factor=2;
         decay_factor=14;
-        hang_time=31250;
+        hang_time=30000;
         break;
   }
 }
