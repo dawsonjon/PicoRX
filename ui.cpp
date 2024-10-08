@@ -330,7 +330,17 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
 
   //mode
   u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
-  u8g2_DrawStr(&u8g2, 2, 6, modes[settings[idx_mode]]);
+  if (button_state == e_button_state::mode)
+  {
+    u8g2_DrawRBox(&u8g2, 1, 0, 20, 7, 2);
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawStr(&u8g2, 4, 6, modes[settings[idx_mode]]);
+    u8g2_SetDrawColor(&u8g2, 1);
+  }
+  else
+  {
+    u8g2_DrawStr(&u8g2, 4, 6, modes[settings[idx_mode]]);
+  }
 
   //step
   uint16_t w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
@@ -2586,90 +2596,108 @@ void ui::do_ui(event_t event)
     // that will later be used for live freq changes and home page selection
     switch(button_state)
     {
-      case idle:
+      case e_button_state::idle:
         if (IS_BUTTON_EV(menu, long_press))
         {
-          button_state = fast_mode;
+          button_state = e_button_state::fast_mode;
         }
         else if (IS_BUTTON_EV(back, long_press))
         {
-          button_state = slow_mode;
+          button_state = e_button_state::slow_mode;
         }
         else if(IS_BUTTON_EV(menu, short_press))
         {
-          button_state = menu;
+          if (event.short_press.count == 1)
+          {
+            button_state = e_button_state::menu;
+          }
+          else if (event.short_press.count == 2)
+          {
+            // pressing menu button two times
+            // allows modulation setting
+            button_state = e_button_state::mode;
+          }
         }
         else if (IS_BUTTON_EV(push, long_press))
         {
-          button_state = volume;
+          button_state = e_button_state::volume;
+        }
+        else if(IS_BUTTON_EV(push, short_press))
+        {
+          if (event.short_press.count == 2)
+          {
+            // double short press => toggle headphone mute
+            rx_settings_changed = true;
+            if (settings[idx_volume] == 0)
+            {
+              settings[idx_volume] = prev_volume;
+            }
+            else
+            {
+              prev_volume = settings[idx_volume];
+              settings[idx_volume] = 0;
+            }
+          }
+        }
+        else if(IS_BUTTON_EV(back, short_press))
+        {
+          // back button short press -> show next page
+          // back button double press -> show page 0
+          if (event.short_press.count == 2)
+          {
+            current_view = 0;
+            view_changed = true;
+          }
+          else
+          {
+            current_view = (current_view + 1) % NUM_VIEWS;
+            view_changed = true;
+          }
         }
         break;
-      case slow_mode:
+      case e_button_state::slow_mode:
         if (IS_BUTTON_EV(back, long_release))
         {
-          button_state = idle;
+          button_state = e_button_state::idle;
         } else if (IS_BUTTON_EV(menu, long_press))
         {
-          button_state = very_fast_mode;
+          button_state = e_button_state::very_fast_mode;
         }
         break;
-      case fast_mode:
+      case e_button_state::fast_mode:
         if(IS_BUTTON_EV(menu, long_release))
         {
-          button_state = idle;
+          button_state = e_button_state::idle;
         } else if(IS_BUTTON_EV(back, long_press))
         {
-          button_state = very_fast_mode;
+          button_state = e_button_state::very_fast_mode;
         }
         break;
-      case very_fast_mode:
+      case e_button_state::very_fast_mode:
         if (IS_BUTTON_EV(back, long_release))
         {
-          button_state = fast_mode;
+          button_state = e_button_state::fast_mode;
         }
         else if (IS_BUTTON_EV(menu, long_release))
         {
-          button_state = slow_mode;
+          button_state = e_button_state::slow_mode;
         }
         break;
-      case menu:
-        button_state = idle;
+      case e_button_state::menu:
+        button_state = e_button_state::idle;
         break;
-      case volume:
+      case e_button_state::volume:
         if(IS_BUTTON_EV(push, long_release))
         {
-          button_state = idle;
+          button_state = e_button_state::idle;
         }
         break;
-    }
-
-    // menu button short press -> show next page
-    // menu button double press -> show page 0
-    if (button_state == idle) {
-      if(IS_BUTTON_EV(back, short_press))
-      {
-        if (event.short_press.count == 2)
+      case e_button_state::mode:
+        if(IS_BUTTON_EV(back, short_press))
         {
-          current_view = 0;
-          view_changed = true;
+          button_state = e_button_state::idle;
         }
-        else
-        {
-          current_view = (current_view+1) % NUM_VIEWS;
-          view_changed = true;
-        }
-      }
-
-      // double short press => toggle headphone mute
-      if ( (IS_BUTTON_EV(push, short_press)) && (event.short_press.count == 2) ) {
-        rx_settings_changed = true;
-        if(settings[idx_volume] == 0) {
-          settings[idx_volume] = prev_volume;
-        } else {
-          prev_volume = settings[idx_volume];
-          settings[idx_volume] = 0;
-        }
-      }
+        break;
     }
 
     //update frequency if encoder changes
@@ -2683,22 +2711,22 @@ void ui::do_ui(event_t event)
 
       switch (button_state)
       {
-      case fast_mode:
+      case e_button_state::fast_mode:
         // fast if menu button held
         settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
         break;
 
-      case very_fast_mode:
+      case e_button_state::very_fast_mode:
         // very fast if both buttons pressed
         settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
         break;
 
-      case slow_mode:
+      case e_button_state::slow_mode:
         // slow if cancel button held
         settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
         break;
 
-      case volume:
+      case e_button_state::volume:
       {
         int32_t vol = (int32_t)settings[idx_volume] + encoder_change;
         if (vol > 9)
@@ -2710,6 +2738,21 @@ void ui::do_ui(event_t event)
           vol = 0;
         }
         settings[idx_volume] = vol;
+      }
+      break;
+
+      case e_button_state::mode:
+      {
+        int32_t mode = (int32_t)settings[idx_mode] + encoder_change;
+        if (mode > 5)
+        {
+          mode = 0;
+        }
+        else if (mode < 0)
+        {
+          mode = 5;
+        }
+        settings[idx_mode] = mode;
       }
       break;
 
@@ -2740,7 +2783,7 @@ void ui::do_ui(event_t event)
 
 
     //if button is pressed enter menu
-    else if(button_state == menu)
+    else if(button_state == e_button_state::menu)
     {
       view_changed = true;
       rx_settings_changed = top_menu(settings_to_apply);
