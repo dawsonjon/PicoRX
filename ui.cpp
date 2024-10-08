@@ -2753,6 +2753,23 @@ void ui::do_ui(event_t event)
           mode = 5;
         }
         settings[idx_mode] = mode;
+        switch (mode)
+        {
+        case AM:
+        case AMSYNC:
+          settings[idx_agc_speed] = 3; // Very slow
+          break;
+
+        case FM:
+          settings[idx_agc_speed] = 0; // Fast
+          break;
+
+        case USB:
+        case LSB:
+        case CW:
+          settings[idx_agc_speed] = 2; // Slow
+          break;
+        }
       }
       break;
 
