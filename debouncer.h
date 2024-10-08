@@ -5,7 +5,7 @@
 
 #include "event.h"
 
-#define DEBOUNCE_TICK_HZ (200L)
+#define DEBOUNCE_TICK_HZ (400L)
 
 #ifdef __cplusplus
 extern "C"

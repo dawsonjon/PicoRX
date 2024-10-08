@@ -1,10 +1,7 @@
 #include "button_decoder.h"
 
-#define _TIMEOUT1_MS (250UL)
-#define _TIMEOUT1_TICK (_TIMEOUT1_MS / (1000UL / BUTTON_DECODER_TICK_HZ))
-
-#define _TIMEOUT2_MS (150UL)
-#define _TIMEOUT2_TICK (_TIMEOUT2_MS / (1000UL / BUTTON_DECODER_TICK_HZ))
+#define _TIMEOUT_MS (200UL)
+#define _TIMEOUT_TICK (_TIMEOUT_MS / (1000UL / BUTTON_DECODER_TICK_HZ))
 
 void button_decoder_update(button_decoder_t *dec, bool input)
 {
@@ -15,7 +12,7 @@ void button_decoder_update(button_decoder_t *dec, bool input)
             if (dec->count > 0)
             {
                 dec->short_press.short_press.count++;
-                dec->count = _TIMEOUT2_TICK;
+                dec->count = _TIMEOUT_TICK;
             }
             else
             {
@@ -29,7 +26,7 @@ void button_decoder_update(button_decoder_t *dec, bool input)
         {
             if (dec->count > 0)
             {
-                dec->count = _TIMEOUT2_TICK;
+                dec->count = _TIMEOUT_TICK;
             }
         }
     }
@@ -38,7 +35,7 @@ void button_decoder_update(button_decoder_t *dec, bool input)
         if (input)
         {
             dec->active = true;
-            dec->count = _TIMEOUT1_TICK;
+            dec->count = _TIMEOUT_TICK;
         }
     }
 }
