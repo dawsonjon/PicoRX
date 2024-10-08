@@ -2574,7 +2574,6 @@ void ui::do_ui(event_t event)
     static uint32_t prev_volume = 0;
     static bool rx_settings_changed = true;
     bool autosave_settings = false;
-    uint32_t encoder_change = get_encoder_change();
     static int current_view = 0;
     static bool view_changed = true;  // has the main view changed?
     static bool splash_done = false;
@@ -2583,6 +2582,7 @@ void ui::do_ui(event_t event)
     {
       new_position = event.encoder_change.new_position; 
     }
+    uint32_t encoder_change = get_encoder_change();
 
     if (!splash_done) {
       splash_done = do_splash();
