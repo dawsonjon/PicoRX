@@ -199,16 +199,15 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
   int16_t tmp_usb_buf[1 + (adc_block_size/decimation_rate)];
+  critical_section_enter_blocking(&usb_volumute);
+  int32_t safe_usb_volume = usb_volume;
+  bool safe_usb_mute = usb_mute;
+  critical_section_exit(&usb_volumute);
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
       int16_t i = real[idx];
       int16_t q = imag[idx];
-
-      critical_section_enter_blocking(&usb_volumute);
-      int32_t safe_usb_volume = usb_volume;
-      bool safe_usb_mute = usb_mute;
-      critical_section_exit(&usb_volumute);
 
       //Measure amplitude (for signal strength indicator)
       int32_t amplitude = rectangular_2_magnitude(i, q);
