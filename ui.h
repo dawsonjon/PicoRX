@@ -69,7 +69,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
 
-enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume};
+enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume, mode};
 
 // scanner
 enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
