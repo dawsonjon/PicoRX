@@ -414,8 +414,6 @@ void ui::renderpage_original(bool view_changed, rx_status & status, rx & receive
   snprintf(buff, buff_SZ, "%3d%%", usb_buf_level);
   w = u8g2_GetStrWidth(&u8g2, buff);
   u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
-
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -426,7 +424,6 @@ void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & rece
   display_clear();
   draw_slim_status(0, status, receiver);
   draw_spectrum(8, receiver);
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -439,7 +436,6 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8, receiver);
   draw_slim_status(0, status, receiver);
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -466,8 +462,6 @@ void ui::renderpage_bigtext(bool view_changed, rx_status & status, rx & receiver
   int8_t power_s = dBm_to_S(power_dBm);
 
   display_print_str(smeter[power_s],2);
-
-  display_show();
 }
 
 // Draw a slim 8 pixel status line
@@ -745,8 +739,6 @@ const char labels[13][5] = {
 //  draw_analogmeter( 12, 19, 104, -31, percent, 13, "Signal", labels );
 
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
-
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -768,7 +760,7 @@ void ui::renderpage_fun(bool view_changed, rx_status & status, rx & receiver)
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
   ssd1306_scroll_screen(&disp, 40*cos(xm*M_PI*degrees/180), 20*sin(ym*M_PI*degrees/180));
-  display_show();
+
   if ((degrees+=3) >=360) degrees = 0;
 }
 
@@ -2308,7 +2300,7 @@ bool ui::display_timeout(bool encoder_change, event_t event)
     {
       if(!display_timer)
       {
-        ssd1306_poweron(&disp);
+        u8g2_SetPowerSave(&u8g2, 0);
         do
         {
           event = event_get();
@@ -2327,7 +2319,7 @@ bool ui::display_timeout(bool encoder_change, event_t event)
       //if a timeout occurs turn display off
       if(!display_timer)
       {
-         ssd1306_poweroff(&disp);
+         u8g2_SetPowerSave(&u8g2, 1);
          return false;
       }
       return true;
@@ -2850,6 +2842,7 @@ void ui::do_ui(event_t event)
         case 5: renderpage_fun(view_changed, status, receiver); break;
         default: renderpage_original(view_changed, status, receiver); break;
       }
+      display_show();
       view_changed = false;
     }
     rx_settings_changed = false;
