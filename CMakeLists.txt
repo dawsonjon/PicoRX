@@ -91,6 +91,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         ui.cpp
         utils.cpp
         debouncer.c
+        button_decoder.c
         event.c
         usb_descriptors.c
         usb_audio_device.c
@@ -113,7 +114,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_dma 
                                          hardware_i2c
                                          tinyusb_device
-                                         tinyusb_board)
+                                         tinyusb_board
+                                         u8g2)
 
     #battery check utility
     project(battery_check_pico2-riscv)
@@ -139,6 +141,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         ui.cpp
         utils.cpp
         debouncer.c
+        button_decoder.c
         event.c
         usb_descriptors.c
         usb_audio_device.c
@@ -161,7 +164,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_dma 
                                          hardware_i2c
                                          tinyusb_device
-                                         tinyusb_board)
+                                         tinyusb_board
+                                         u8g2)
 
     #battery check utility
     project(battery_check_pico2)
