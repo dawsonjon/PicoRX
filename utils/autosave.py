@@ -63,7 +63,7 @@ class Memory:
         int(min_frequency)&0xffffffff,       #5
         squelch,                             #6
         volume,                              #7
-        int(cw_sidetone*100),                #8 (100Hz steps)
+        int(cw_sidetone),                    #8 (100Hz steps)
         0x00000780,                          #9	hw_setup
         int(gain_cal),                       #a
         filter_bandwidths[filter_bandwidth], #b

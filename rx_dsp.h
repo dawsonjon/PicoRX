@@ -53,6 +53,7 @@ class rx_dsp
   int32_t delayi3, delayq3;
 
   //used in fft filter
+  int16_t fft_bin;
   fft_filter fft_filter_inst;
   s_filter_control filter_control;
   s_filter_control capture_filter_control;
@@ -79,7 +80,6 @@ class rx_dsp
 
   // de-emphasis
   uint8_t deemphasis=0;
-
 
   //squelch
   int16_t squelch_threshold=0;

@@ -14,7 +14,11 @@ class waterfall
   void configure_display(uint8_t settings);
 
   private:
+  void draw();
   uint16_t heatmap(uint8_t value, bool lighten = false, bool highlight = false);
+  uint16_t dBm_to_px(float power_dBm, int16_t px);
+  float S_to_dBm(int S);
+  int dBm_to_S(float power_dBm);
   uint8_t waterfall_buffer[120][256];
   uint8_t *spectrum;
   ILI934X *display;

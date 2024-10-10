@@ -9,6 +9,8 @@
 #include "ili934x.h"
 #include "font_16x12.h"
 #include "font_8x5.h"
+#include "rx_definitions.h"
+#include "ui.h"
 
 waterfall::waterfall()
 {
@@ -34,39 +36,6 @@ waterfall::waterfall()
     gpio_init(PIN_RST);
     gpio_set_dir(PIN_RST, GPIO_OUT);
     display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, PIN_RST, 240, 320, MIRRORED90DEG);
-    display->reset();
-    display->init();
-    display->clear();
-
-    //draw borders
-
-    //Horizontal
-    display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
-    display->drawLine(31, 122, 288, 122, display->colour565(255,255,255));
-    display->drawLine(31, 20,   288, 20, display->colour565(255,255,255));
-    display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
-
-    //Vertical
-    display->drawLine(31,  20, 31,  122, display->colour565(255,255,255));
-    display->drawLine(288, 20, 288, 122, display->colour565(255,255,255));
-    display->drawLine(31,  135, 31,  239, display->colour565(255,255,255));
-    display->drawLine(288, 135, 288, 239, display->colour565(255,255,255));
-
-    //5kHz ticks
-    for(uint16_t fbin=0; fbin<256; ++fbin)
-    {
-      if((fbin-128)%41==0)
-      {
-        display->drawLine(32+fbin, 122, 32+fbin, 123, COLOUR_WHITE);
-      }
-    }
-    display->drawString(29,  127, font_8x5, "-15", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(70,  127, font_8x5, "-10", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(111, 127, font_8x5, "-5", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(154, 127, font_8x5, "-0", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(199, 127, font_8x5, "5", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(238, 127, font_8x5, "10", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(279, 127, font_8x5, "15", COLOUR_WHITE, COLOUR_BLACK);
 }
 
 waterfall::~waterfall()
@@ -100,6 +69,48 @@ void waterfall::configure_display(uint8_t settings)
       enabled = true;
       display->setRotation(R270DEG);
     }
+
+    if(enabled) draw();
+}
+
+void waterfall::draw()
+{
+    display->init();
+    display->clear();
+
+    //draw borders
+    //Horizontal
+    display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
+    display->drawLine(31, 122, 288, 122, display->colour565(255,255,255));
+    display->drawLine(31, 20,   288, 20, display->colour565(255,255,255));
+    display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
+    display->drawLine(292,  20, 319,  20, display->colour565(255,255,255));
+    display->drawLine(292, 239, 319, 239, display->colour565(255,255,255));
+
+    //Vertical
+    display->drawLine(31,  20, 31,  122, display->colour565(255,255,255));
+    display->drawLine(288, 20, 288, 122, display->colour565(255,255,255));
+    display->drawLine(31,  135, 31,  239, display->colour565(255,255,255));
+    display->drawLine(288, 135, 288, 239, display->colour565(255,255,255));
+    display->drawLine(292, 20, 292, 239, display->colour565(255,255,255));
+    display->drawLine(319, 20, 319, 239, display->colour565(255,255,255));
+
+    //5kHz ticks
+    for(uint16_t fbin=0; fbin<256; ++fbin)
+    {
+      if((fbin-128)%42==0)
+      {
+        display->drawLine(32+fbin, 122, 32+fbin, 123, COLOUR_WHITE);
+      }
+    }
+    display->drawString(29,  127, font_8x5, "-15", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(70,  127, font_8x5, "-10", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(111, 127, font_8x5, "-5",  COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(154, 127, font_8x5, "-0",  COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(199, 127, font_8x5, "5",   COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(238, 127, font_8x5, "10",  COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(279, 127, font_8x5, "15",  COLOUR_WHITE, COLOUR_BLACK);
+
 }
 
 uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
@@ -164,6 +175,32 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     return display->colour565(r,g,b);
 }
 
+uint16_t waterfall::dBm_to_px(float power_dBm, int16_t px) {
+  int16_t power = floorf((power_dBm-S0));
+  power = power * px / (S9_10 + 20 - S0);
+  if (power<0) power=0;
+  if (power>px) power=px;
+  return (power);
+}
+
+float waterfall::S_to_dBm(int S) {
+  float dBm = 0;
+  if (S<=9) {
+    dBm = S0 + 6.0f * S;
+  } else {
+    dBm = S9_10 + (S-10) * 10.f;
+  }
+  return (dBm);
+}
+
+int waterfall::dBm_to_S(float power_dBm) {
+  int power_s = floorf((power_dBm-S0)/6.0f);
+  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
+  if(power_s < 0) power_s = 0;
+  if(power_s > 12) power_s = 12;
+  return (power_s);
+}
+
 void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10)
 {
 
@@ -180,6 +217,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
     enum FSM_states{
       update_waterfall,
+      draw_smeter,
       draw_waterfall, 
       draw_scope, 
       draw_frequency
@@ -187,6 +225,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     static uint16_t top_row = 0u;
     static uint8_t waterfall_row = 0u;
     static uint8_t scope_col = 0u;
+    static uint8_t stored_dB10 = 0u;
     static FSM_states FSM_state = update_waterfall;
 
     if(FSM_state == update_waterfall)
@@ -200,8 +239,60 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
         waterfall_buffer[top_row][col] = spectrum[col];
       }
 
-      FSM_state = draw_waterfall;
+      FSM_state = draw_smeter;
 
+    } else if(FSM_state == draw_smeter ){
+
+      const uint16_t smeter_height = 237-43;
+      const uint16_t smeter_width = 24;
+
+      receiver.access(false);
+      const int16_t power_dBm = status.signal_strength_dBm;
+      receiver.release();
+
+      static float filtered_power = power_dBm;
+      filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
+
+      static float last_filtered_power = 0;
+      if(abs(filtered_power - last_filtered_power) > 1)
+      {
+        last_filtered_power = filtered_power;
+        uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
+        uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch), smeter_height);
+
+        uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
+        display->fillRect(294, 43+smeter_height-power_px, power_px, smeter_width, colour);
+        display->fillRect(294, 43, smeter_height-power_px, smeter_width, COLOUR_BLACK);
+        display->drawLine(294, 43+smeter_height-squelch_px, 316, 43+smeter_height-squelch_px, COLOUR_WHITE);
+
+        char buffer[9];
+        snprintf(buffer, 9, "%4.0fdBm", filtered_power);
+        display->drawString(236, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
+
+        uint16_t power_s = dBm_to_S(filtered_power);
+        if(power_s >= 0 && power_s <= 9)
+        {
+          snprintf(buffer, 9, "S%1u", power_s);
+          display->drawString(293, 22, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
+          display->drawString(296, 38, font_8x5, "   ", COLOUR_WHITE, COLOUR_BLACK);
+        }
+        else
+        {
+          display->drawString(293, 22, font_16x12, "S9", COLOUR_WHITE, COLOUR_BLACK);
+          snprintf(buffer, 9, "+%1u", (power_s-9)*10);
+          display->drawString(296, 38, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        }
+      }
+
+      static int16_t last_mode = -1;
+      if(settings.mode != last_mode)
+      {
+        last_mode = settings.mode;
+        const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
+        display->drawString(0, 0, font_16x12, modes[settings.mode], COLOUR_FUCHSIA, COLOUR_BLACK);
+      }
+
+      FSM_state = draw_waterfall;
     } else if(FSM_state == draw_waterfall ){
     
       //draw one line of waterfall
@@ -223,6 +314,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       if(waterfall_row == waterfall_height-1)
       {
         FSM_state = draw_scope;
+        stored_dB10 = dB10;
         waterfall_row = 0;
       } else {
         ++waterfall_row;
@@ -231,7 +323,6 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     } else if(FSM_state == draw_scope) {
 
       //draw scope one bar at a time
-
       uint8_t data_point = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
       uint16_t vline[scope_height];
   
@@ -239,15 +330,15 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
       const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
       const bool is_passband = is_usb_col || is_lsb_col;
-      const bool col_is_tick = (fbin%41 == 0) && fbin;
+      const bool col_is_tick = (fbin%42 == 0) && fbin;
 
 
       for(uint8_t row=0; row<scope_height; ++row)
       {
-        const bool row_is_tick = (row%(4*scope_height*dB10/270)) == 0;
+        const bool row_is_tick = (row%(4*scope_height*stored_dB10/270)) == 0;
         if(row < data_point)
         {
-          vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband);
+          vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband, fbin==0);
         }
         else if(row == data_point)
         {
@@ -298,3 +389,4 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       FSM_state = update_waterfall;
     }
 }
+

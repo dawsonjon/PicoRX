@@ -25,6 +25,7 @@ struct s_filter_control
 {
   uint16_t start_bin; 
   uint16_t stop_bin; 
+  int16_t fft_bin;
   bool lower_sideband; 
   bool upper_sideband; 
   bool capture;

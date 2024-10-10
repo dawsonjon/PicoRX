@@ -58,6 +58,31 @@ def plot_cic(length, order, fs):
         "b-"
       )
 
+def plot_correction(length, order, fs):
+
+    #CIC filter is equivilent to moving average filter
+    #make an equivilent filter kernel by convolving a rectangular kernel
+    response = np.ones(length)/length
+    for i in range(order-1):
+      response = np.convolve(response, response)
+
+    #pad kernel and find magnitude spectrum
+    response = np.concatenate([response, np.zeros((256*length)-len(response))])
+    response = np.fft.fftshift(1.0/abs(np.fft.fft(response)))
+
+    #Fold aliased parts of the signal around Fs/2 
+    response = response[len(response)//2:]
+    fragment = response[:(len(response)//length)+1]
+
+    print(",".join([str(int(round(i))) for i in fragment]))
+
+    plt.plot(
+      np.linspace(0, fs/(2*length), len(fragment)), 
+      fragment,
+      "b-",
+      label = "Order %u CIC Decmator"%order
+    )
+
 def plot_kernel(freq, taps, kernel_bits, fs, decimate=False, label=""):
     response = frequency_response(make_kernel(freq, taps, kernel_bits), kernel_bits)
 
@@ -119,5 +144,14 @@ if __name__ == "__main__":
     plt.ylabel("Gain (dB)")
     plt.ylim(-150, 10)
     plot_cic(decimation, 4, fs_kHz) #cic decimation filter
+    plt.legend()
+    plt.show()
+
+    plt.figure()
+    plt.grid(True)
+    plt.title("Decimation CIC=%i"%decimation)
+    plt.xlabel("Frequency (kHz)")
+    plt.ylabel("Gain (dB)")
+    plot_correction(decimation, 4, fs_kHz) #cic decimation filter
     plt.legend()
     plt.show()

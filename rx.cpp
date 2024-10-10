@@ -126,6 +126,7 @@ void rx::update_status()
      status.busy_time = busy_time;
      status.battery = battery;
      status.temp = temp;
+     status.filter_config = rx_dsp_inst.get_filter_config();
      //status.usb_buf_level = rx_dsp_inst.get_usb_buf_level();
      sem_release(&settings_semaphore);
    }
@@ -479,7 +480,7 @@ void rx::run()
       }
 
       //read other adc channels when streaming is not running
-      uint32_t timeout = 1000;
+      uint32_t timeout = 15000;
       read_batt_temp();
 
       //supress audio output until first block has completed

@@ -3,6 +3,7 @@
 #include "fft_filter.h"
 #include "utils.h"
 #include "pico/stdlib.h"
+#include "cic_corrections.h"
 
 #include <math.h>
 #include <cstdio>
@@ -25,77 +26,6 @@ int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
   y1 = y;
   return y;
 }
-
-//static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16_t nx, int16_t *ny)
-//{
-  //const int16_t x1 = 0;
-  //const int16_t x2 = nx - 1;
-  //const int16_t dx = x2 - x1;
-//
-  //int16_t d, dy, ai, bi, yi;
-  //int16_t x = x1;
-  //int16_t y = y1;
-//
-  //if (y1 < y2)
-  //{
-    //yi = 1;
-    //dy = y2 - y1;
-  //}
-  //else
-  //{
-    //yi = -1;
-    //dy = y1 - y2;
-  //}
-//
-  //ny[x] = y;
-//
-  //if (dx > dy)
-  //{
-    //ai = (dy - dx) * 2;
-    //bi = dy * 2;
-    //d = bi - dx;
-//
-    //while (x != x2)
-    //{
-      //if (d >= 0)
-      //{
-        //x++;
-        //y += yi;
-        //d += ai;
-      //}
-      //else
-      //{
-        //d += bi;
-        //x++;
-      //}
-      //ny[x] = y;
-    //}
-  //}
-  //else
-  //{
-    //ai = (dx - dy) * 2;
-    //bi = dx * 2;
-    //d = bi - dy;
-//
-    //while (y != y2)
-    //{
-      //if (d >= 0)
-      //{
-        //x++;
-        //y += yi;
-        //d += ai;
-      //}
-      //else
-      //{
-        //d += bi;
-        //y += yi;
-      //}
-      //ny[x] = y;
-    //}
-  //}
-//}
-
-
 
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
@@ -498,6 +428,8 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
   offset_frequency_Hz = offset_frequency;
+  const float bin_width = adc_sample_rate/(cic_decimation_rate*256);
+  filter_control.fft_bin = offset_frequency/bin_width;
   frequency = ((double)(1ull<<32)*offset_frequency)*cic_decimation_rate/(adc_sample_rate);
 }
 
@@ -573,9 +505,24 @@ s_filter_control rx_dsp :: get_filter_config()
   return capture_filter_control;
 }
 
+static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, uint16_t magnitude)
+{
+  int16_t corrected_fft_bin = (fft_bin + fft_offset);
+  if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
+  if(corrected_fft_bin < -128) corrected_fft_bin += 256;
+  uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
+  uint32_t adjusted_magnitude = magnitude * cic_correction[unsigned_fft_bin];
+  return std::min(adjusted_magnitude, (uint32_t)UINT16_MAX);
+}
+
+static int16_t frequency_bin(uint16_t bin)
+{
+  if(bin < 127) return bin;
+  return bin-256;
+}
+
 void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
 {
-
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
 
@@ -587,7 +534,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   uint16_t new_min=65535u;
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t magnitude = capture[i];
+    const uint16_t magnitude = cic_correct(frequency_bin(i), capture_filter_control.fft_bin, capture[i]);
     if(magnitude == 0) continue;
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
@@ -601,8 +548,9 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   uint8_t f = 0;
   for(uint16_t i=128; i<256; i++)
   {
-    const uint16_t magnitude = capture[i];
-    if(magnitude == 0)
+    const int16_t frequency_bin = f-128;
+    const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
+    if(magnitude == 0 )//|| frequency_bin == -capture_filter_control.fft_bin)
     {
       spectrum[f] = 0u;
     } else {
@@ -612,10 +560,12 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
     }
     f++;
   }
+
   for(uint16_t i=0; i<127; i++)
   {
-    const uint16_t magnitude = capture[i];
-    if(magnitude == 0)
+    const int16_t frequency_bin = i;
+    const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
+    if(magnitude == 0 )//|| frequency_bin==-capture_filter_control.fft_bin)
     {
       spectrum[f] = 0u;
     } else {

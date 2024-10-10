@@ -2137,7 +2137,7 @@ bool ui::configuration_menu(bool &ok)
           done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#", &setting_word, ok);
           settings[idx_hw_setup] &= ~mask_tft_settings;
           settings[idx_hw_setup] |= setting_word << flag_tft_settings;
-          waterfall_inst.configure_display(setting_word);
+          if(done && ok) waterfall_inst.configure_display(setting_word);
           break;
 
         case 11:

@@ -33,7 +33,7 @@ int main()
   multicore_launch_core1(core1_main);
 
   // create an alarm pool for USB streaming with highest priority (0), so
-  // that it can pre-empt the default pool used by IO which uses timer 3 (lowest priority)
+  // that it can pre-empt the default pool
   receiver.set_alarm_pool(alarm_pool_create(0, 16));
   user_interface.autorestore();
 

@@ -318,24 +318,23 @@ void ILI934X::_write(uint8_t cmd, uint8_t *data, size_t dataLen)
 {
     gpio_put(_dc, 0);
     gpio_put(_cs, 0);
+    sleep_us(1);
 
     // spi write
     uint8_t commandBuffer[1];
     commandBuffer[0] = cmd;
-
-    while (!spi_is_writable(_spi))
-    {
-        sleep_us(1);
-    }
-
     spi_write_blocking(_spi, commandBuffer, 1);
 
-    gpio_put(_cs, 1);
 
     // do stuff
     if (data != NULL)
     {
         _data(data, dataLen);
+    }
+    else
+    {
+        sleep_us(1);
+        gpio_put(_cs, 1);
     }
 }
 
@@ -344,11 +343,8 @@ void ILI934X::_data(uint8_t *data, size_t dataLen)
 
     gpio_put(_dc, 1);
     gpio_put(_cs, 0);
+    sleep_us(1);
 
-    while (!spi_is_writable(_spi))
-    {
-        sleep_us(1);
-    }
     //dma_channel_configure(dma_tx, &dma_config,
     //                      &spi_get_hw(_spi)->dr,
     //                      data,
@@ -357,6 +353,7 @@ void ILI934X::_data(uint8_t *data, size_t dataLen)
 
     spi_write_blocking(_spi, data, dataLen);
     //dma_channel_wait_for_finish_blocking(dma_tx);
+    sleep_us(1);
     gpio_put(_cs, 1);
 
 }
