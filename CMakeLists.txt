@@ -8,6 +8,9 @@ add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
+project(picorx)
+pico_sdk_init()
+
 file(GLOB U8G2_SRCS
      "external/u8g2/csrc/*.c"
 )
@@ -23,8 +26,6 @@ target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 if(PICO_BOARD STREQUAL "pico")
 
   #main application
-  project(picorx)
-  pico_sdk_init()
   add_executable(picorx
       ssd1306.c
       picorx.cpp
@@ -79,8 +80,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
   if(PICO_PLATFORM STREQUAL "rp2350-riscv")
 
     #main application
-    project(pico2rx-riscv)
-    pico_sdk_init()
     add_executable(pico2rx-riscv
         ssd1306.c
         picorx.cpp
@@ -92,6 +91,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         ui.cpp
         utils.cpp
         debouncer.c
+        button_decoder.c
         event.c
         usb_descriptors.c
         usb_audio_device.c
@@ -114,7 +114,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_dma 
                                          hardware_i2c
                                          tinyusb_device
-                                         tinyusb_board)
+                                         tinyusb_board
+                                         u8g2)
 
     #battery check utility
     project(battery_check_pico2-riscv)
@@ -129,8 +130,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
   else()
 
     #main application
-    project(pico2rx)
-    pico_sdk_init()
     add_executable(pico2rx
         ssd1306.c
         picorx.cpp
@@ -142,6 +141,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         ui.cpp
         utils.cpp
         debouncer.c
+        button_decoder.c
         event.c
         usb_descriptors.c
         usb_audio_device.c
@@ -164,7 +164,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_dma 
                                          hardware_i2c
                                          tinyusb_device
-                                         tinyusb_board)
+                                         tinyusb_board
+                                         u8g2)
 
     #battery check utility
     project(battery_check_pico2)
