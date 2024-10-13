@@ -550,12 +550,12 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   {
     const int16_t frequency_bin = f-128;
     const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
-    if(magnitude == 0 )//|| frequency_bin == -capture_filter_control.fft_bin)
+    if(magnitude == 0)
     {
       spectrum[f] = 0u;
     } else {
       const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
-      const float clamped = std::fmax(std::fmin(normalised, 255.0f), 0.0f);
+      const float clamped = std::max(std::min(normalised, 255.0f), 0.0f);
       spectrum[f] = clamped;
     }
     f++;
@@ -565,12 +565,12 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   {
     const int16_t frequency_bin = i;
     const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
-    if(magnitude == 0 )//|| frequency_bin==-capture_filter_control.fft_bin)
+    if(magnitude == 0)
     {
       spectrum[f] = 0u;
     } else {
       const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
-      const float clamped = std::fmax(std::fmin(normalised, 255.0f), 0.0f);
+      const float clamped = std::max(std::min(normalised, 255.0f), 0.0f);
       spectrum[f] = clamped;
     }
     f++;

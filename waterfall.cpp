@@ -86,6 +86,8 @@ void waterfall::draw()
     display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
     display->drawLine(292,  20, 319,  20, display->colour565(255,255,255));
     display->drawLine(292, 239, 319, 239, display->colour565(255,255,255));
+    display->drawLine(0,  20, 27,  20, display->colour565(255,255,255));
+    display->drawLine(0, 239, 27, 239, display->colour565(255,255,255));
 
     //Vertical
     display->drawLine(31,  20, 31,  122, display->colour565(255,255,255));
@@ -94,6 +96,8 @@ void waterfall::draw()
     display->drawLine(288, 135, 288, 239, display->colour565(255,255,255));
     display->drawLine(292, 20, 292, 239, display->colour565(255,255,255));
     display->drawLine(319, 20, 319, 239, display->colour565(255,255,255));
+    display->drawLine(0,   20, 0,   239, display->colour565(255,255,255));
+    display->drawLine(27,  20, 27,  239, display->colour565(255,255,255));
 
     //5kHz ticks
     for(uint16_t fbin=0; fbin<256; ++fbin)
@@ -218,6 +222,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     enum FSM_states{
       update_waterfall,
       draw_smeter,
+      draw_status,
       draw_waterfall, 
       draw_scope, 
       draw_frequency
@@ -283,6 +288,9 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
           display->drawString(296, 38, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
         }
       }
+
+      FSM_state = draw_status;
+    } else if(FSM_state == draw_status ){
 
       static int16_t last_mode = -1;
       if(settings.mode != last_mode)

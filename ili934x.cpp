@@ -74,8 +74,8 @@ ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t 
 
 void ILI934X::reset()
 {
-    gpio_put(_rst, 0);
-    sleep_us(100);
+    //gpio_put(_rst, 0);
+    //sleep_us(100);
     gpio_put(_rst, 1);
 }
 

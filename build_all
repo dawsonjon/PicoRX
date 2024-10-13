@@ -1,0 +1,19 @@
+#! /usr/bin/env bash
+
+mkdir -p build
+cd build
+cmake -DPICO_BOARD=pico -DPICO_PLATFORM=rp2040 -DPICO_SDK_PATH=~/pico/pico-sdk ..
+make
+cd ..
+
+mkdir -p build_pico2
+cd build_pico2
+cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350 -DPICO_SDK_PATH=~/pico/pico-sdk ..
+make
+cd ..
+
+mkdir -p build_pico2_riscv
+cd build_pico2_riscv
+cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv -DPICO_TOOLCHAIN_PATH=~/riscv32-embecosm-centos7-gcc13.2.0 -DPICO_SDK_PATH=~/pico/pico-sdk ..
+make
+cd ..

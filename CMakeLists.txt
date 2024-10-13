@@ -92,9 +92,10 @@ elseif(PICO_BOARD STREQUAL "pico2")
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx-riscv)
     # enable usb output, disable uart output
-    pico_enable_stdio_usb(pico2rx-riscv 0)
+    pico_enable_stdio_usb(pico2rx-riscv 1)
     pico_enable_stdio_uart(pico2rx-riscv 0)
-    target_link_libraries(picorx PRIVATE pico_stdlib
+    target_include_directories(pico2rx-riscv PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    target_link_libraries(pico2rx-riscv PRIVATE pico_stdlib
                                        pico_multicore
                                        hardware_clocks
                                        hardware_flash
@@ -142,9 +143,10 @@ elseif(PICO_BOARD STREQUAL "pico2")
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx)
-    pico_enable_stdio_usb(pico2rx-riscv 0)
-    pico_enable_stdio_uart(pico2rx-riscv 0)
-    target_link_libraries(picorx PRIVATE pico_stdlib
+    pico_enable_stdio_usb(pico2rx 1)
+    pico_enable_stdio_uart(pico2rx 0)
+    target_include_directories(pico2rx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    target_link_libraries(pico2rx PRIVATE pico_stdlib
                                        pico_multicore
                                        hardware_clocks
                                        hardware_flash
@@ -156,15 +158,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                        hardware_spi
                                        tinyusb_device
                                        tinyusb_board)
-    #battery check utility
-    project(battery_check_pico2)
-    add_executable(battery_check_pico2
-        battery_check.cpp
-    )
-    pico_add_extra_outputs(battery_check_pico2)
-    pico_enable_stdio_usb(battery_check_pico2 1)
-    pico_enable_stdio_uart(battery_check_pico2 0)
-    target_link_libraries(battery_check_pico2 pico_stdlib hardware_adc)
 
   endif()
 
