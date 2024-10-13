@@ -31,6 +31,7 @@ int main()
 {
   stdio_init_all();
   multicore_launch_core1(core1_main);
+  stdio_init_all();
 
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool

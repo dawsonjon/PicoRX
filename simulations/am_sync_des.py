@@ -7,7 +7,7 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 
 
-SR = 250000 // 32
+SR = 480000 // 32
 FIX_MAX = (1 << 15) - 1  # corresponds to 2*PI
 FIX_ONE = round(FIX_MAX / (2 * math.pi))
 

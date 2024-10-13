@@ -7,6 +7,7 @@
 #include "fft_filter.h"
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
+#include "fonts.h"
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
@@ -28,21 +29,28 @@ void ui::setup_encoder()
     old_position = new_position;
 }
 
-int32_t ui::get_encoder_change()
+int32_t ui::get_encoder_change(void)
 {
-    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
-    } else {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    }
-    int32_t delta = new_position - old_position;
-    old_position = new_position;
-    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
-    {
-      return -delta;
-    } else {
-      return delta;
-    }
+  int32_t np = new_position;
+  int32_t op = old_position;
+
+  if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+    np = -((np + 1)/2);
+    op = -((op + 1)/2);
+  } else {
+    np = -((np + 2)/4);
+    op = -((op + 2)/4);
+  }
+
+  int32_t delta = np - op;
+  old_position = new_position;
+  
+  if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+  {
+    return -delta;
+  } else {
+    return delta;
+  }
 }
 
 int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
@@ -58,11 +66,6 @@ int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
 // Display
 ////////////////////////////////////////////////////////////////////////////////
 void ui::setup_display() {
-  i2c_init(i2c1, 400000);
-  gpio_set_function(PIN_DISPLAY_SDA, GPIO_FUNC_I2C);
-  gpio_set_function(PIN_DISPLAY_SCL, GPIO_FUNC_I2C);
-  gpio_pull_up(PIN_DISPLAY_SDA);
-  gpio_pull_up(PIN_DISPLAY_SCL);
   disp.external_vcc=false;
   ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
@@ -224,9 +227,55 @@ void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, 
   display_print_str(buff, scale, style);
 }
 
+void ui::display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7])
+{
+  for (uint8_t i = 0; i < 8 * 7; i++)
+  {
+    ssd1306_draw_pixel(&disp, x + (i / 8), y + i % 8, (data[i / 8] >> (i % 8)) & 1);
+  }
+}
+
+void ui::display_draw_volume(uint8_t v)
+{
+  if (v == 0)
+  {
+    display_draw_icon7x8(67, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+  }
+  else
+  {
+    if (v > 9)
+    {
+      v = 9;
+    }
+
+    const uint8_t ramp[2 * 9] = {1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+    for (uint8_t i = 0; i < 2 * v; i++)
+    {
+      u8g2_DrawVLine(&u8g2, 62 + i, 6-ramp[i], ramp[i]);
+    }
+  }
+}
+
 void ui::display_show()
 {
-  ssd1306_show(&disp);
+// Enable below to output display contents to uart
+#if 0
+  const uint16_t w = u8g2_GetDisplayWidth(&u8g2);
+  const uint16_t h = u8g2_GetDisplayHeight(&u8g2);
+  const uint16_t p = u8g2_GetBufferTileHeight(&u8g2);
+
+  for (size_t j = 0; j < h / p; j++)
+  {
+    for (size_t i = 0; i < w; i++)
+    {
+      printf("%02x,", *(u8g2.tile_buf_ptr + i + j * (w)));
+    }
+    printf("\n");
+  }
+  printf("\n");
+#endif
+
+  u8g2_SendBuffer(&u8g2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -241,6 +290,7 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
+  const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
 
   const uint8_t buffer_size = 21;
@@ -254,32 +304,98 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
-  display_set_xy(0,0);
-  snprintf(buff, buffer_size, "%2lu.%03lu", MHz, kHz);
-  display_print_str(buff,2);
-  snprintf(buff, buffer_size, ".%03lu", Hz);
-  display_print_str(buff,1);
+
+  u8g2_SetFont(&u8g2, font_seg_big);
+  snprintf(buff, buffer_size, "%2lu", MHz);
+  u8g2_DrawStr(&u8g2, 0, 34, buff);
+
+  snprintf(buff, buffer_size, "%03lu", kHz);
+  u8g2_DrawStr(&u8g2, 39, 34, buff);
+
+  u8g2_DrawBox(&u8g2, 35, 31, 3, 3);
+
+  u8g2_SetFont(&u8g2, font_seg_mid);
+  snprintf(buff, buffer_size, "%03lu", Hz);
+  u8g2_DrawStr(&u8g2, 94, 23, buff);
+
+  u8g2_DrawBox(&u8g2, 90, 20, 3, 3);
 
   //mode
-  display_print_str(modes[settings[idx_mode]],1, style_right);
+  u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
+  u8g2_DrawStr(&u8g2, 4, 6, modes[settings[idx_mode]]);
 
   //step
-  display_set_xy(0,8);
-  display_print_str(steps[settings[idx_step]],1, style_right);
+  uint16_t w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
+  u8g2_DrawStr(&u8g2, 55 - w, 6, steps[settings[idx_step]]);
 
-  //signal strength/cpu
+  //battery
+  snprintf(buff, buffer_size, "%2.1fV", battery_voltage);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 104 - w, 6, buff);
+
+  //temp
+  snprintf(buff, buffer_size, "%2.0f%cC", temp, '\xb0');
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 6, buff);
+
+  display_draw_volume(settings[idx_volume]);
+
+  u8g2_DrawHLine(&u8g2, 0, 8, 128);
+
+  //signal strength
+  snprintf(buff, buffer_size, "% 4d", (int)power_dBm);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 111 - w, 32, buff);
+  w = u8g2_GetStrWidth(&u8g2, "dBm");
+  u8g2_DrawStr(&u8g2, 127 - w, 32, "dBm");
+
+  // way to make minus sign shorter
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawPixel(&u8g2, 92, 29);
+
+  draw_spectrum(35);
+
   int8_t power_s = dBm_to_S(power_dBm);
 
-  display_set_xy(0,24);
-  display_print_str(smeter[power_s],1);
-  display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
+  const uint16_t seg_w = 8;
+  const uint16_t seg_h = 5;
 
-  snprintf(buff, buffer_size, "%2.1fV %2.0f%cC %3.0f%%", battery_voltage, temp, '\x7f', (100.0f*busy_time)/block_time);
-  display_set_xy(0,16);
-  display_print_str(buff, 1, style_right);
+  for (int8_t i = 0; i < 12; i++)
+  {
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1, 34, seg_w + 2, seg_h + 2, 2);
+    u8g2_SetDrawColor(&u8g2, 1);
 
-  draw_spectrum(32);
-  display_show();
+    if (i < power_s)
+    {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
+    }
+    else
+    {
+      u8g2_DrawRFrame(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
+    }
+  }
+
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawRBox(&u8g2, 127 - (seg_w + 8), 35, seg_w + 9, seg_h + 4, 2);
+  u8g2_SetDrawColor(&u8g2, 1);
+  snprintf(buff, buffer_size, "S%d", power_s);
+  u8g2_DrawStr(&u8g2, 127 - 13, 40, buff);
+
+  // load and USB buf level
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawBox(&u8g2, 128 - 38, 56, 38, 8);
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawFrame(&u8g2, 128 - 38, 56, 38, 8);
+
+  u8g2_SetFont(&u8g2, u8g2_font_tiny5_tf );
+  snprintf(buff, buffer_size, "%3.0f%%", (100.0f * busy_time) / block_time);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 108 - w, 63, buff);
+
+  snprintf(buff, buffer_size, "%3d%%", usb_buf_level);
+  w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -290,7 +406,6 @@ void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
   display_clear();
   draw_slim_status(0, status, receiver);
   draw_spectrum(8);
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -302,7 +417,6 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8);
   draw_slim_status(0, status, receiver);
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -329,11 +443,9 @@ void ui::renderpage_bigtext(rx_status & status, rx & receiver)
   int8_t power_s = dBm_to_S(power_dBm);
 
   display_print_str(smeter[power_s],2);
-
-  display_show();
 }
 
-void ui::renderpage_fun(rx_status & status, rx & receiver)
+void ui::renderpage_fun(bool view_updated, rx_status & status, rx & receiver)
 {
   static int degrees = 0;
   static int xm, ym;
@@ -590,7 +702,6 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
 
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
-  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -627,7 +738,6 @@ void ui::draw_waterfall(uint16_t starty)
 
   // Move waterfall down to  make room for the new line
   ssd1306_scroll_screen(&disp, 0, 1);
-
   int16_t err = 0;
 
   for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
@@ -670,7 +780,7 @@ void ui::draw_waterfall(uint16_t starty)
 ////////////////////////////////////////////////////////////////////////////////
 
 void ui::print_enum_option(const char options[], uint8_t option){
-#define MAX_OPTS 32
+  const uint8_t MAX_OPTS=32;
   char *splits[MAX_OPTS];
   int num_splits;
   char *new_options;
@@ -880,7 +990,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.gain_cal = settings[idx_gain_cal];
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-  settings_to_apply.bandwidth = settings[idx_bandwidth];
+  settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
   settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
@@ -1031,10 +1141,12 @@ void ui::autorestore()
   uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
   display_timeout_max = timeout_lookup[display_timeout_setting];
   display_time = time_us_32();
-  ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
-  ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
-  ssd1306_contrast(&disp, 17 * ((settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
+  u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+  update_display_type();
+  u8g2_SetContrast(&u8g2, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
   waterfall_inst.configure_display((settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings);
+  spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
+  if (spectrum_zoom == 0) spectrum_zoom = 1;
 
 }
 
@@ -2078,7 +2190,6 @@ bool ui::configuration_menu(bool &ok)
       {
         case 0: 
           setting_word = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          done = enumerate_entry("Display\nTimeout", "Never#5 Sec#10 Sec#15 Sec#30 Sec#1 Min#2 Min#4 Min#", &setting_word, ok);
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting_word << flag_display_timeout;
           display_time = time_us_32();
@@ -2116,18 +2227,19 @@ bool ui::configuration_menu(bool &ok)
 
         case 7 : 
           done = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup], ok);
-          ssd1306_flip(&disp, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+          u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+          update_display_type();
           break;
 
         case 8: 
           done = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup], ok);
-          ssd1306_type(&disp, (settings[idx_hw_setup] >> flag_oled_type) & 1);
+          update_display_type();
           break;
 
         case 9:
           setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
           done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok);
-          ssd1306_contrast(&disp, 17 * setting_word);
+          u8g2_SetContrast(&u8g2, 17 * setting_word);
           settings[idx_hw_setup] &= ~mask_display_contrast;
           settings[idx_hw_setup] |= setting_word << flag_display_contrast;
           break;
@@ -2178,7 +2290,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Spectrum Zoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2200,6 +2312,7 @@ bool ui::main_menu(bool & ok)
     else if(ui_state == menu_item_active)
     {
        bool done = false;
+       uint32_t settings_word;
        switch(menu_selection)
         {
           case 0 :  
@@ -2221,7 +2334,10 @@ bool ui::main_menu(bool & ok)
             done = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed], ok);
             break;
           case 6 :  
-            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings[idx_bandwidth], ok);
+            settings_word = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings_word, ok);
+            settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
+            settings[idx_bandwidth_spectrum] |= ((settings_word << flag_bandwidth) & mask_bandwidth);
             break;
           case 7 :  
             done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch], ok);
@@ -2230,27 +2346,31 @@ bool ui::main_menu(bool & ok)
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
           case 9 :
-            {
-              uint32_t v = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-              done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &v, ok);
-              settings[idx_rx_features] &= ~(mask_deemphasis);
-              settings[idx_rx_features] |= (v << flag_deemphasis);
-            }
+            settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok);
+            settings[idx_rx_features] &= ~(mask_deemphasis);
+            settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
             break;
-          case 10 :  
+          case 10 : 
+            settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
+            done = number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, (int32_t*)&settings_word, ok);
+            settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
+            settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
+            break;
+          case 11 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 11 : 
+          case 12 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 12 : 
+          case 13 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 13 : 
+          case 14 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok);
             break;
-          case 14 : 
+          case 15 : 
             done = configuration_menu(ok);
             break;
         }
@@ -2447,7 +2567,6 @@ void ui::do_ui()
           ui_state = memory_scanner;
         }
       }
-  
 
       //adjust frequency when encoder is turned
       uint32_t encoder_change = get_encoder_change();
@@ -2488,7 +2607,7 @@ void ui::do_ui()
         case 2: renderpage_waterfall(view_changed, status, receiver);break;
         case 3: renderpage_bigtext(status, receiver);break;
         case 4: renderpage_smeter(view_changed, status, receiver); break;
-        case 5: renderpage_fun(status, receiver);break;
+        case 5: renderpage_fun(view_changed, status, receiver);break;
       }
     }
 
@@ -2575,29 +2694,102 @@ void ui::do_ui()
     //apply settings to receiver
     if(update_settings)
     {
-      receiver.access(true);
-      settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-      settings_to_apply.agc_speed = settings[idx_agc_speed];
-      settings_to_apply.enable_auto_notch = (settings[idx_rx_features] & mask_enable_auto_notch) >> flag_enable_auto_notch;
-      settings_to_apply.mode = settings[idx_mode];
-      settings_to_apply.volume = settings[idx_volume];
-      settings_to_apply.squelch = settings[idx_squelch];
-      settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-      settings_to_apply.bandwidth = settings[idx_bandwidth];
-      settings_to_apply.gain_cal = settings[idx_gain_cal];
-      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-      settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
-      settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
-      settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
-      settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
-      settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
-      settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
-      settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
-      settings_to_apply.ppm = ((settings[idx_hw_setup] & mask_ppm) >> flag_ppm);
-      receiver.release();
+      apply_settings(false);
     }
 
+}
+
+#define OLED_I2C_SDA_PIN (18)
+#define OLED_I2C_SCL_PIN (19)
+#define OLED_I2C_SPEED (400UL)
+#define OLED_I2C_INST (i2c1)
+
+static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+{
+    switch (msg)
+    {
+    case U8X8_MSG_GPIO_AND_DELAY_INIT:
+        break;
+    case U8X8_MSG_DELAY_NANO: // delay arg_int * 1 nano second
+        break;
+    case U8X8_MSG_DELAY_100NANO: // delay arg_int * 100 nano seconds
+        break;
+    case U8X8_MSG_DELAY_10MICRO: // delay arg_int * 10 micro seconds
+        break;
+    case U8X8_MSG_DELAY_MILLI: // delay arg_int * 1 milli second
+        sleep_ms(arg_int);
+        break;
+    case U8X8_MSG_DELAY_I2C:
+        /* arg_int is 1 or 4: 100KHz (5us) or 400KHz (1.25us) */
+        sleep_us(arg_int <= 2 ? 5 : 1);
+        break;
+
+    default:
+        u8x8_SetGPIOResult(u8x8, 1); // default return value
+        break;
+    }
+    return 1;
+}
+
+static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+{
+    uint8_t *data;
+    static uint8_t buffer[132];
+    static uint8_t buf_idx;
+
+    switch (msg)
+    {
+    case U8X8_MSG_BYTE_SEND:
+        data = (uint8_t *)arg_ptr;
+        while (arg_int > 0)
+        {
+            assert(buf_idx < 132);
+            buffer[buf_idx++] = *data;
+            data++;
+            arg_int--;
+        }
+        break;
+
+    case U8X8_MSG_BYTE_INIT:
+        i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
+        gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
+        gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
+        gpio_pull_up(OLED_I2C_SDA_PIN);
+        gpio_pull_up(OLED_I2C_SCL_PIN);
+        break;
+
+    case U8X8_MSG_BYTE_SET_DC:
+        break;
+
+    case U8X8_MSG_BYTE_START_TRANSFER:
+        buf_idx = 0;
+        break;
+
+    case U8X8_MSG_BYTE_END_TRANSFER:
+    {
+        uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
+        int ret = i2c_write_blocking(OLED_I2C_INST, addr, buffer, buf_idx, false);
+        if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
+        {
+            return 0;
+        }
+    }
+    break;
+
+    default:
+        return 0;
+    }
+    return 1;
+}
+
+void ui::update_display_type(void)
+{
+  if((settings[idx_hw_setup] >> flag_oled_type) & 1)
+  {
+    u8g2_GetU8x8(&u8g2)->x_offset = 2;
+  } else {
+    u8g2_GetU8x8(&u8g2)->x_offset = 0;
+  }
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 
@@ -2611,7 +2803,16 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   dB10(dB10),
   waterfall_inst(waterfall_inst)
 {
+  u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
+                                         u8x8_byte_pico_hw_i2c,
+                                         u8x8_gpio_and_delay_pico);
   setup_display();
   setup_encoder();
-}
+  disp.buffer = u8g2.tile_buf_ptr;
 
+  u8g2_SetI2CAddress(&u8g2, 0x78);
+  u8g2_InitDisplay(&u8g2);
+  u8g2_SetPowerSave(&u8g2, 0);
+
+  u8g2_ClearBuffer(&u8g2);
+}

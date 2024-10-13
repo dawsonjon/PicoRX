@@ -15,6 +15,12 @@
 #include "waterfall.h"
 #include "button.h"
 #include "logo.h"
+#include "u8g2.h"
+
+// vscode cant find it and flags a problem (but the compiler can)
+#ifndef M_PI
+#define M_PI 3.14159265
+#endif
 
 const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
@@ -44,7 +50,11 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
 #define idx_gain_cal 10
-#define idx_bandwidth 11
+#define idx_bandwidth_spectrum 11
+#define flag_bandwidth 0 // bits 0-3
+#define mask_bandwidth (0xf << flag_bandwidth)
+#define flag_spectrum 4 // bits 4-7
+#define mask_spectrum (0xf << flag_spectrum)
 #define idx_rx_features 12
 #define idx_band1 13
 #define idx_band2 14
@@ -74,10 +84,10 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
 
-enum e_button_state {idle, down, slow_mode, fast_mode, very_fast_mode, menu};
+enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume, mode};
 
 // scanner
-enum e_scanner_squelch {no_signal, signal_found, count_down};
+enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 
 // font styles styles as bits to be ORed
 #define style_normal      0
@@ -109,14 +119,15 @@ class ui
     "S8-------|",  "S9--------|", "S9+10dB---|", "S9+20dB---|",
     "S9+30dB---|"};
 
-  // Encoder 
-  void setup_encoder();
-  int32_t get_encoder_change();
+  // Encoder
+  void setup_encoder(void);
+  int32_t get_encoder_change(void);
   int32_t encoder_control(int32_t *value, int32_t min, int32_t max);
-  int32_t new_position;
-  int32_t old_position;
+  int32_t new_position = 0;
+  int32_t old_position = 0;
   const uint32_t sm = 0;
   const PIO pio = pio1;
+
 
   // Buttons
   button menu_button;
@@ -124,6 +135,7 @@ class ui
   button encoder_button;
 
   // Display
+  void update_display_type(void);
   void setup_display();
   void display_clear(bool colour=0);
 
@@ -139,6 +151,8 @@ class ui
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
+  void display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7]);
+  void display_draw_volume(uint8_t v);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
@@ -158,13 +172,14 @@ class ui
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
   void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_bigtext(rx_status & status, rx & receiver);
-  void renderpage_fun(rx_status & status, rx & receiver);
+  void renderpage_fun(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_smeter(bool view_changed, rx_status & status, rx & receiver);
 
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
-  void log_spectrum(float *min, float *max);
+  void log_spectrum(float *min, float *max, int zoom = 1);
+  uint32_t spectrum_zoom = 1;
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY);
   void draw_waterfall(uint16_t startY);
@@ -203,7 +218,6 @@ class ui
   int get_memory_name(char* name, int select, bool strip_spaces);
   bool upload_memory();
   void autosave();
-  void apply_settings(bool suspend);
   bool display_timeout(bool encoder_change);
 
   uint32_t regmode = 1;
@@ -213,6 +227,9 @@ class ui
   uint8_t *spectrum;
   uint8_t &dB10;
   waterfall &waterfall_inst;
+  void apply_settings(bool suspend);
+
+  u8g2_t u8g2;
 
   public:
 

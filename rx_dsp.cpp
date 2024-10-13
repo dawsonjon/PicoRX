@@ -9,8 +9,7 @@
 #include <cstdio>
 #include <algorithm>
 
-static const int16_t deemph_taps[2][3] = {{25222, 25222, 17676}, {17500, 17500, 2231}};
-
+static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
   if(deemphasis == 0)
@@ -184,10 +183,10 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
-#define AMSYNC_ALPHA (4225)
-#define AMSYNC_BETA (4531)
-#define AMSYNC_F_MIN (-419)
-#define AMSYNC_F_MAX (419)
+#define AMSYNC_ALPHA (3398)
+#define AMSYNC_BETA (1898)
+#define AMSYNC_F_MIN (-218)
+#define AMSYNC_F_MAX (218)
 #define AMSYNC_FIX_MAX (32767)
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
@@ -343,7 +342,6 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     return audio;
 }
 
-
 rx_dsp :: rx_dsp()
 {
 
@@ -372,7 +370,6 @@ rx_dsp :: rx_dsp()
   delayi3=0; delayq3=0;
 }
 
-
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
@@ -385,15 +382,15 @@ void rx_dsp :: set_deemphasis(uint8_t deemph)
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 {
-  //input fs=500000.000000 Hz
+  //input fs=480000.000000 Hz
   //decimation=32 x 2
   //fs=15625.000000 Hz
   //Setting Decay Time(s) Factor Attack Time(s) Factor  Hang  Timer
   //======= ============= ====== ============== ======  ====  =====
-  //fast        0.151          10       0.001      2    0.1s   1562
-  //medium      0.302          11       0.001      2    0.25s  3906
-  //slow        0.604          12       0.001      2    1s     15625
-  //long        2.414          14       0.001      2    2s     31250
+  //fast        0.151          10       0.001      2    0.1s   1500
+  //medium      0.302          11       0.001      2    0.25s  3750
+  //slow        0.604          12       0.001      2    1s     15000
+  //long        2.414          14       0.001      2    2s     30000
 
 
 
@@ -402,25 +399,25 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
       case 0: //fast
         attack_factor=2;
         decay_factor=10;
-        hang_time=1562;
+        hang_time=1500;
         break;
 
       case 1: //medium
         attack_factor=2;
         decay_factor=11;
-        hang_time=3906;
+        hang_time=3750;
         break;
 
       case 2: //slow
         attack_factor=2;
         decay_factor=12;
-        hang_time=15625;
+        hang_time=15000;
         break;
 
       default: //long
         attack_factor=2;
         decay_factor=14;
-        hang_time=31250;
+        hang_time=30000;
         break;
   }
 }

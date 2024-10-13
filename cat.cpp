@@ -209,9 +209,20 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
       settings_to_apply.volume = settings[idx_volume];
       settings_to_apply.squelch = settings[idx_squelch];
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone];
-      settings_to_apply.bandwidth = settings[idx_bandwidth];
+      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
       settings_to_apply.gain_cal = settings[idx_gain_cal];
+      settings_to_apply.suspend = false;
+      settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
+      settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
+      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+      settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
+      settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
+      settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
+      settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
+      settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
+      settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
+      settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
+      settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
       receiver.release();
     }
 

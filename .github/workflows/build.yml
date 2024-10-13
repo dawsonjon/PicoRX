@@ -36,6 +36,12 @@ jobs:
     - name: Configure
       run: |
         git clone --branch 2.0.0 https://github.com/raspberrypi/pico-sdk.git external/pico-sdk
+        cd external/pico-sdk
+        git submodule update --init --recursive
+        cd ../..
+        git clone https://github.com/olikraus/u8g2.git external/u8g2
+        cd external/u8g2
+        git reset --hard e6a66ee0de9f863f898ddad5fe50a112d159de80
 
     - name: RiscV_compiler
       if: ${{ matrix.pico_platform == 'rp2350-riscv' }}
