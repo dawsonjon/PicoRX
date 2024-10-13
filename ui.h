@@ -51,10 +51,6 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_hw_setup 9
 #define idx_gain_cal 10
 #define idx_bandwidth_spectrum 11
-#define flag_bandwidth 0 // bits 0-3
-#define mask_bandwidth (0xf << flag_bandwidth)
-#define flag_spectrum 4 // bits 4-7
-#define mask_spectrum (0xf << flag_spectrum)
 #define idx_rx_features 12
 #define idx_band1 13
 #define idx_band2 14
@@ -73,6 +69,12 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define flag_encoder_res 14
 #define flag_ppm 24   // bits 24-31
 #define mask_ppm (0xff << flag_ppm)
+
+//flags for idx_bandwidth_spectrum
+#define flag_bandwidth 0 // bits 0-3
+#define mask_bandwidth (0xf << flag_bandwidth)
+#define flag_spectrum 4 // bits 4-7
+#define mask_spectrum (0xf << flag_spectrum)
 
 //flags for receiver features idx_rx_features
 #define flag_enable_auto_notch (0)
@@ -98,7 +100,7 @@ enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 #define style_bordered    (1<<4)
 #define style_xor         (1<<5)
 
-const uint32_t step_sizes[10] = {10, 50, 100, 1000, 5000, 10000, 12500, 25000, 50000, 100000};
+const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
 
 class ui
 {
@@ -107,7 +109,6 @@ class ui
 
   uint32_t settings[16];
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
-  const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
   const char steps[11][8]  = {
     "10Hz", "50Hz", "100Hz", "1kHz",
@@ -179,7 +180,6 @@ class ui
   float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
   void log_spectrum(float *min, float *max, int zoom = 1);
-  uint32_t spectrum_zoom = 1;
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY);
   void draw_waterfall(uint16_t startY);

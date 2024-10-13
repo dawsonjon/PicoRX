@@ -9,6 +9,8 @@
 #include "pico/util/queue.h"
 #include "fonts.h"
 
+#include <algorithm>
+
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
@@ -31,26 +33,19 @@ void ui::setup_encoder()
 
 int32_t ui::get_encoder_change(void)
 {
-  int32_t np = new_position;
-  int32_t op = old_position;
-
-  if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
-    np = -((np + 1)/2);
-    op = -((op + 1)/2);
-  } else {
-    np = -((np + 2)/4);
-    op = -((op + 2)/4);
-  }
-
-  int32_t delta = np - op;
-  old_position = new_position;
-  
-  if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
-  {
-    return -delta;
-  } else {
-    return delta;
-  }
+    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
+    } else {
+      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
+    }
+    int32_t delta = new_position - old_position;
+    old_position = new_position;
+    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+    {
+      return -delta;
+    } else {
+      return delta;
+    }
 }
 
 int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
@@ -283,6 +278,7 @@ void ui::display_show()
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_original(rx_status & status, rx & receiver)
 {
+
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
@@ -292,6 +288,8 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   const float busy_time = ((float)status.busy_time*1e-6f);
   const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
+
+  printf("%u\n", usb_buf_level);
 
   const uint8_t buffer_size = 21;
   char buff [buffer_size];
@@ -396,6 +394,7 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   snprintf(buff, buffer_size, "%3d%%", usb_buf_level);
   w = u8g2_GetStrWidth(&u8g2, buff);
   u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
+  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -406,6 +405,7 @@ void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
   display_clear();
   draw_slim_status(0, status, receiver);
   draw_spectrum(8);
+  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -417,6 +417,7 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
   draw_waterfall(8);
   draw_slim_status(0, status, receiver);
+  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,6 +444,7 @@ void ui::renderpage_bigtext(rx_status & status, rx & receiver)
   int8_t power_s = dBm_to_S(power_dBm);
 
   display_print_str(smeter[power_s],2);
+  display_show();
 }
 
 void ui::renderpage_fun(bool view_updated, rx_status & status, rx & receiver)
@@ -457,8 +459,8 @@ void ui::renderpage_fun(bool view_updated, rx_status & status, rx & receiver)
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
   ssd1306_scroll_screen(&disp, 40*cos(xm*M_PI*degrees/180), 20*sin(ym*M_PI*degrees/180));
-  display_show();
   if ((degrees+=3) >=360) degrees = 0;
+  display_show();
 }
 
 // Draw a slim 8 pixel status line
@@ -507,11 +509,11 @@ float ui::S_to_dBm(int S) {
 }
 
 int32_t ui::dBm_to_63px(float power_dBm) {
-        int32_t power = floorf((power_dBm-S0));
-        power = power * 63 / (S9_10 + 20 - S0);
-        if (power<0) power=0;
-        if (power>63) power=63;
-        return (power);
+  int32_t power = floorf((power_dBm-S0));
+  power = power * 63 / (S9_10 + 20 - S0);
+  if (power<0) power=0;
+  if (power>63) power=63;
+  return (power);
 }
 
 void ui::draw_h_tick_marks(uint16_t startY)
@@ -702,6 +704,8 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
 
   ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
+
+  display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -713,12 +717,20 @@ void ui::draw_spectrum(uint16_t startY)
   draw_h_tick_marks(startY);
 
   //plot
+  const uint8_t spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
+  const uint8_t smoothing_factor = 1;
   const uint8_t max_height = (64-startY-3);
   const uint8_t scale = 256/max_height;
+  int16_t y=0, smoothed_y=0;
+
   for(uint16_t x=0; x<128; x++)
   {
-    int16_t y = spectrum[x*2]/scale;
-    ssd1306_draw_line(&disp, x, 63-y, x, 63, 1);
+    if(spectrum_zoom == 1) y = spectrum[x*2]/scale;
+    else if(spectrum_zoom == 2) y = spectrum[64+x]/scale;
+    else if(spectrum_zoom == 3) y = spectrum[96+(x>>1)]/scale;
+    else if(spectrum_zoom == 4) y = spectrum[112+(x>>2)]/scale;
+    smoothed_y = (smoothed_y - (smoothed_y>>smoothing_factor)) + (y>>smoothing_factor);
+    ssd1306_draw_line(&disp, x, 63-smoothed_y, x, 63, 1);
   }
 
 
@@ -1145,8 +1157,6 @@ void ui::autorestore()
   update_display_type();
   u8g2_SetContrast(&u8g2, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
   waterfall_inst.configure_display((settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings);
-  spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
-  if (spectrum_zoom == 0) spectrum_zoom = 1;
 
 }
 
@@ -2290,7 +2300,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Spectrum Zoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2353,7 +2363,7 @@ bool ui::main_menu(bool & ok)
             break;
           case 10 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
-            done = number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, (int32_t*)&settings_word, ok);
+            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
@@ -2531,7 +2541,9 @@ void ui::do_ui()
     static uint32_t frequency_autosave_time = 0;
     static uint8_t display_option = 0;
     const uint8_t num_display_options = 6;
-    bool view_changed = false;
+    static bool view_changed = false;
+
+    if(ui_state != idle) view_changed = true;
     
     
     //gui is idle, just update the display
@@ -2560,8 +2572,8 @@ void ui::do_ui()
       }
       else if(back_button.is_pressed())
       {
-        display_option++;
         view_changed = true;
+        display_option++;
         if(display_option==num_display_options){
           display_option = 0;
           ui_state = memory_scanner;
@@ -2574,29 +2586,52 @@ void ui::do_ui()
       {
         display_time = time_us_32();
 
-        //very fast tuning
-        if(menu_button.is_held() && back_button.is_held())
-          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-        //fast tuning
-        else if(menu_button.is_held())
-          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-        //slow tuning
-        else if(back_button.is_held())
-          settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
-        //normal tuning
+        if(encoder_button.is_held())
+        {
+          if(menu_button.is_held())
+          {
+            settings[idx_mode] += encoder_change;
+            settings[idx_mode] %= 6u;
+          }
+          else if(back_button.is_held())
+          {
+            settings[idx_step] += encoder_change;
+            settings[idx_step] %= 10u;
+          }
+          else
+          {
+            settings[idx_volume] += encoder_change;
+            settings[idx_volume] %= 10u;
+          }
+          update_settings = true;
+          autosave_settings = true;
+        }
         else
-          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+        {
+          //very fast tuning
+          if(menu_button.is_held() && back_button.is_held())
+            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+          //fast tuning
+          else if(menu_button.is_held())
+            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
+          //slow tuning
+          else if(back_button.is_held())
+            settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+          //normal tuning
+          else
+            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
 
-        //wrap frequency at band limits
-        if (settings[idx_frequency] > settings[idx_max_frequency])
-            settings[idx_frequency] = settings[idx_min_frequency];
-        if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
-            settings[idx_frequency] = settings[idx_max_frequency];
+          //wrap frequency at band limits
+          if (settings[idx_frequency] > settings[idx_max_frequency])
+              settings[idx_frequency] = settings[idx_min_frequency];
+          if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+              settings[idx_frequency] = settings[idx_max_frequency];
 
-        //update settings now, but don't autosave until later
-        update_settings = true;
-        frequency_autosave_pending = true;
-        frequency_autosave_time = time_us_32();
+          //update settings now, but don't autosave until later
+          update_settings = true;
+          frequency_autosave_pending = true;
+          frequency_autosave_time = time_us_32();
+        }
 
       }
       
@@ -2609,6 +2644,7 @@ void ui::do_ui()
         case 4: renderpage_smeter(view_changed, status, receiver); break;
         case 5: renderpage_fun(view_changed, status, receiver);break;
       }
+      view_changed = false;
     }
 
     //menu is active, if menu completes update settings
@@ -2665,7 +2701,7 @@ void ui::do_ui()
       if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
       {
         display_time = time_us_32();
-        ssd1306_poweron(&disp);
+        u8g2_SetPowerSave(&u8g2, 0);
         ui_state = idle;
       }
     }
@@ -2674,7 +2710,7 @@ void ui::do_ui()
     if(ui_state == idle && display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
     {
       ui_state = sleep;
-      ssd1306_poweroff(&disp);
+      u8g2_SetPowerSave(&u8g2, 1);
     }
 
     //autosave frequency only after is has been stable for 1 second

@@ -11,6 +11,11 @@
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
 
+//ring buffer for USB data
+#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
+static ring_buffer_t usb_ring_buffer;
+static uint8_t usb_buf[USB_BUF_SIZE];
+
 //buffers and dma for ADC
 int rx::adc_dma_ping;
 int rx::adc_dma_pong;
@@ -127,6 +132,9 @@ void rx::update_status()
      status.battery = battery;
      status.temp = temp;
      status.filter_config = rx_dsp_inst.get_filter_config();
+     static uint16_t avg_level = 0;
+     avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
+     status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
      sem_release(&settings_semaphore);
    }
 }
@@ -252,9 +260,6 @@ void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   rx_dsp_inst.get_spectrum(spectrum, dB10);
 }
 
-#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
-static ring_buffer_t usb_ring_buffer;
-static uint8_t usb_buf[USB_BUF_SIZE];
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
 {
@@ -392,7 +397,8 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
-  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  uint16_t usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  volume_steps = usb_volume * 32 / 180;
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
 }
