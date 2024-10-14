@@ -130,6 +130,12 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   static int16_t prev_audio = 0;
   static int16_t usb_lev_err = 0;
 
+  static uint32_t iq_count = 0;
+  static int32_t i_accumulator = 0;
+  static int32_t q_accumulator = 0;
+  static int16_t i_dc = 0;
+  static int16_t q_dc = 0;
+
   int16_t real[adc_block_size/cic_decimation_rate];
   int16_t imag[adc_block_size/cic_decimation_rate];
 
@@ -169,6 +175,20 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         prev_q_out = q;
         #endif 
 
+        i_accumulator += i;
+        q_accumulator += q;
+        if(++iq_count == 1500)
+        {
+          i_dc = i_accumulator / 1500;
+          q_dc = q_accumulator / 1500;
+          i_accumulator = 0;
+          q_accumulator = 0;
+          iq_count = 0;
+        }
+
+        i -= i_dc;
+        q -= q_dc;
+        
         //Apply frequency shift (move tuned frequency to DC)
         frequency_shift(i, q);
 
