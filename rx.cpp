@@ -397,8 +397,7 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
-  uint16_t usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
-  volume_steps = usb_volume * 32 / 180;
+  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
 }

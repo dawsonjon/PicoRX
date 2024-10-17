@@ -2374,7 +2374,7 @@ bool ui::main_menu(bool & ok)
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
           case 13 : 
-            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
+            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
           case 14 : 
