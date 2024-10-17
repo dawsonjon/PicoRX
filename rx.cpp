@@ -250,6 +250,9 @@ void rx::apply_settings()
       //apply swap iq
       rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
 
+      //apply iq imbalance correction
+      rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
+
       settings_changed = false;
       sem_release(&settings_semaphore);
    }

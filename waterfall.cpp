@@ -53,21 +53,25 @@ void waterfall::configure_display(uint8_t settings)
     {
       enabled = true;
       display->setRotation(MIRRORED90DEG);
+      printf("%u\n", 1);
     }
     else if(settings == 2)
     {
       enabled = true;
       display->setRotation(MIRRORED270DEG);
+      printf("%u\n", 2);
     }
     else if(settings == 3)
     {
       enabled = true;
       display->setRotation(R90DEG);
+      printf("%u\n", 3);
     }
     else if(settings == 4)
     {
       enabled = true;
       display->setRotation(R270DEG);
+      printf("%u\n", 4);
     }
 
     if(enabled) draw();

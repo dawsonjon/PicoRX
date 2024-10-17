@@ -126,6 +126,7 @@ public:
     void drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg);
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
 private:
+    void _setRotation(ILI934X_ROTATION rotation = R0DEG);
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);
     void _data(uint8_t *data, size_t dataLen = 0);
     void _writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data = NULL, size_t dataLen = 0);

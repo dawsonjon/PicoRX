@@ -62,7 +62,7 @@ ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t 
     _rst = rst;
     _init_width = _width = width;
     _init_height = _height = height;
-    _init_rotation = _rotation = rotation;
+    _rotation = rotation;
 
     dma_tx = dma_claim_unused_channel(true);
     dma_config = dma_channel_get_default_config(dma_tx);
@@ -95,7 +95,7 @@ void ILI934X::init()
     _write(_VMCTRL1, (uint8_t *)"\x3e\x28", 2);
     _write(_VMCTRL2, (uint8_t *)"\x86", 1);
 
-    setRotation(_rotation);
+    _setRotation(_rotation);
 
     _write(_PIXSET, (uint8_t *)"\x55", 1);
     _write(_FRMCTR1, (uint8_t *)"\x00\x18", 2);
@@ -110,6 +110,11 @@ void ILI934X::init()
 }
 
 void ILI934X::setRotation(ILI934X_ROTATION rotation)
+{
+  _rotation = rotation;
+}
+
+void ILI934X::_setRotation(ILI934X_ROTATION rotation)
 {
     uint8_t mode = MADCTL_MX | MADCTL_RGB;
     switch (rotation)
@@ -155,6 +160,8 @@ void ILI934X::setRotation(ILI934X_ROTATION rotation)
         this->_height = this->_init_width;
         break;
     }
+
+    printf("mode: %u\n", mode);
 
     uint8_t buffer[1] = {mode};
     _write(_MADCTL, (uint8_t *)buffer, 1);

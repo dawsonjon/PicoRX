@@ -36,6 +36,10 @@ int main()
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool
   receiver.set_alarm_pool(alarm_pool_create(0, 16));
+
+
+  sleep_ms(10000);
+
   user_interface.autorestore();
 
   uint32_t last_ui_update = 0;

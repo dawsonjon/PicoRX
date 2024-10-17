@@ -38,6 +38,7 @@ struct rx_settings
   int8_t ppm;
   bool suspend;
   bool swap_iq;
+  bool iq_correction;
   bool enable_auto_notch;
 };
 

@@ -289,8 +289,6 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
 
-  printf("%u\n", usb_buf_level);
-
   const uint8_t buffer_size = 21;
   char buff [buffer_size];
   display_clear();
@@ -1012,6 +1010,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
   settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
+  settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
   receiver.release();
 }
 
@@ -1155,7 +1154,7 @@ void ui::autorestore()
   display_time = time_us_32();
   u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   update_display_type();
-  u8g2_SetContrast(&u8g2, 17 * (0xf^(settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast));
+  u8g2_SetContrast(&u8g2, 17 * (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast);
   waterfall_inst.configure_display((settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings);
 
 }
@@ -2300,7 +2299,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2362,25 +2361,28 @@ bool ui::main_menu(bool & ok)
             settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
             break;
           case 10 : 
+            done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
+            break;
+          case 11 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
-          case 11 :  
+          case 12 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 12 : 
+          case 13 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 13 : 
+          case 14 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 14 : 
+          case 15 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok);
             break;
-          case 15 : 
+          case 16 : 
             done = configuration_menu(ok);
             break;
         }

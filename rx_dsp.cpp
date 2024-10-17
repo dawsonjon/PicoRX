@@ -26,13 +26,72 @@ int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
   return y;
 }
 
+static uint32_t __not_in_flash_func(intsqrt)(const uint32_t n) {
+    uint8_t shift = 32u;
+    shift += shift & 1; // round up to next multiple of 2
+
+    uint32_t result = 0;
+
+    do {
+        shift -= 2;
+        result <<= 1; // leftshift the result to make the next guess
+        result |= 1;  // guess that the next bit is 1
+        result ^= result * result > (n >> shift); // revert if guess too high
+    } while (shift != 0);
+
+    return result;
+}
+
+void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
+{
+    if (iq_correction)
+    {
+      static uint16_t index = 0;
+      static int32_t theta1 = 0;
+      static int32_t theta2 = 0;
+      static int32_t theta3 = 0;
+
+      theta1 += ((i < 0) ? -q : q);
+      theta2 += ((i < 0) ? -i : i);
+      theta3 += ((q < 0) ? -q : q);
+
+      static int32_t c1 = 0;
+      static int32_t c2 = 0;
+      if (++index == 512)
+      {             
+        static int64_t theta1_filtered = 0;
+        static int64_t theta2_filtered = 0;
+        static int64_t theta3_filtered = 0;
+        theta1_filtered = theta1_filtered - (theta1_filtered >> 5) + (-theta1 >> 5);
+        theta2_filtered = theta2_filtered - (theta2_filtered >> 5) + (theta2 >> 5);
+        theta3_filtered = theta3_filtered - (theta3_filtered >> 5) + (theta3 >> 5);
+
+        //try to constrain square to less than 32 bits.
+        //Assue that i/q used full int16_t range.
+        //Accumulating 512 samples adds 9 bits of growth, so remove 18 after square.
+        const int64_t theta1_squared = (theta1_filtered * theta1_filtered) >> 18; 
+        const int64_t theta2_squared = (theta2_filtered * theta2_filtered) >> 18;
+        const int64_t theta3_squared = (theta3_filtered * theta3_filtered) >> 18;
+
+        c1 = (theta1_filtered << 15)/theta2_filtered;
+        c2 = intsqrt(((theta3_squared - theta1_squared) << 30)/theta2_squared);
+
+        theta1 = 0;
+        theta2 = 0;
+        theta3 = 0;
+        index = 0;
+      }
+
+      q += ((int32_t)i * c1) >> 15;
+      i = ((int32_t)i * c2) >> 15;
+    }
+}
+
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
 {
 
   uint16_t decimated_index = 0;
   int32_t magnitude_sum = 0;
-  int32_t sample_accumulator = 0;
-
   int16_t real[adc_block_size/cic_decimation_rate];
   int16_t imag[adc_block_size/cic_decimation_rate];
 
@@ -40,18 +99,34 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   {
       //convert to signed representation
       const int16_t raw_sample = samples[idx];
-      sample_accumulator += raw_sample;
-
-      //remove dc
-      const int16_t sample = raw_sample - dc;
 
       //work out which samples are i and q
-      int16_t i = ((idx&1)^1^swap_iq)*sample;//even samples contain i data
-      int16_t q = ((idx&1)^swap_iq)*sample;//odd samples contain q data
+      int16_t i = ((idx&1)^1^swap_iq)*raw_sample;//even samples contain i data
+      int16_t q = ((idx&1)^swap_iq)*raw_sample;//odd samples contain q data
 
       //reduce sample rate by a factor of 16
       if(decimate(i, q))
       {
+
+        static uint32_t iq_count = 0;
+        static int32_t i_accumulator = 0;
+        static int32_t q_accumulator = 0;
+        static int16_t i_avg = 0;
+        static int16_t q_avg = 0;
+        i_accumulator += i;
+        q_accumulator += q;
+        if (++iq_count == 2048) //power of 2 avoids division
+        {
+          i_avg = i_accumulator / 2048;
+          q_avg = q_accumulator / 2048;
+          i_accumulator = 0;
+          q_accumulator = 0;
+          iq_count = 0;
+        }
+        i -= i_avg;
+        q -= q_avg;
+
+        iq_imbalance_correction(i, q);
 
         //Apply frequency shift (move tuned frequency to DC)
         frequency_shift(i, q);
@@ -113,7 +188,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
   //average over the number of samples
   signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
-  dc = sample_accumulator/adc_block_size;
 
   return adc_block_size/decimation_rate;
 }
@@ -173,9 +247,8 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         delayq3 = combq3;
 
         //remove bit growth, but keep some extra bits since noise floor is now lower
-        int32_t bias = 1 << (cic_bit_growth-extra_bits-1);
-        i = (combi4-bias)>>(cic_bit_growth-extra_bits);
-        q = (combq4-bias)>>(cic_bit_growth-extra_bits);
+        i = combi4>>(cic_bit_growth-extra_bits);
+        q = combq4>>(cic_bit_growth-extra_bits);
 
         return true;
       }
@@ -346,11 +419,11 @@ rx_dsp :: rx_dsp()
 {
 
   //initialise state
-  dc = 0;
   phase = 0;
   frequency=0;
   initialise_luts();
   swap_iq = 0;
+  iq_correction = 0;
 
   //initialise semaphore for spectrum
   set_mode(AM, 2);
@@ -452,6 +525,11 @@ void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
 void rx_dsp :: set_swap_iq(uint8_t val)
 {
   swap_iq = val;
+}
+
+void rx_dsp :: set_iq_correction(uint8_t val)
+{
+  iq_correction = val;
 }
 
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
