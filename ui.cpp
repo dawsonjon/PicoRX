@@ -1061,6 +1061,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
+  settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
   receiver.release();
 }
 
@@ -2609,6 +2610,11 @@ void ui::do_ui(event_t event)
             // allows modulation setting
             button_state = e_button_state::mode;
           }
+          else if (event.short_press.count == 3)
+          {
+            settings[idx_rx_features] ^= mask_iq_correction;
+            rx_settings_changed = true;
+          }
         }
         else if (IS_BUTTON_EV(push, long_press))
         {
@@ -2829,6 +2835,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.gain_cal = settings[idx_gain_cal];
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       settings_to_apply.volume = settings[idx_volume];
+      settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
       receiver.release();
     }
 
@@ -2860,7 +2867,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
       if(ev.tag == ev_button_back_short_press){
         break;
       }
-      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Scanner#Hardware\nConfig#", &setting)) 
+      if(!menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nemphasis#IQ\ncorrection#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Scanner#Hardware\nConfig#", &setting)) 
         return rx_settings_changed;
 
       switch(setting)
@@ -2917,33 +2924,37 @@ bool ui::top_menu(rx_settings & settings_to_apply)
         break;
 
         case 10 : 
-          rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
+          rx_settings_changed |= bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features]);
           break;
 
         case 11 : 
-          rx_settings_changed |= frequency_entry("Band Stop", idx_max_frequency);
+          rx_settings_changed |= frequency_entry("Band Start", idx_min_frequency);
           break;
 
         case 12 : 
+          rx_settings_changed |= frequency_entry("Band Stop", idx_max_frequency);
+          break;
+
+        case 13 : 
           rx_settings_changed |= enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step]);
           settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
           break;
 
-        case 13 : 
+        case 14 : 
           rx_settings_changed |= number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, &settings[idx_cw_sidetone]);
           break;
 
-        case 14 : 
+        case 15 : 
           rx_settings_changed |= number_entry("Spectrum\nZoom Level", "%i", 1, 6, 1, &spectrum_zoom);
           settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
           settings[idx_bandwidth_spectrum] |= ( (spectrum_zoom << flag_spectrum) & mask_spectrum);
           break;
 
-        case 15 : 
+        case 16 : 
           rx_settings_changed |= scanner_menu();
           break;
 
-        case 16 : 
+        case 17 : 
           rx_settings_changed |= configuration_menu();
           break;
       }

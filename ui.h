@@ -63,7 +63,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 //flags for receiver features idx_rx_features
 #define flag_enable_auto_notch (0)
 #define flag_deemphasis (1)
+#define flag_iq_correction (3)
   #define mask_deemphasis (0x3 << flag_deemphasis)
+  #define mask_iq_correction (0x1 << flag_iq_correction)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

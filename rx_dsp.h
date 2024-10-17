@@ -20,6 +20,7 @@ class rx_dsp
   void set_volume(uint8_t val);
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
+  void set_iq_correction(uint8_t val);
   void set_deemphasis(uint8_t deemphasis);
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
@@ -37,15 +38,13 @@ class rx_dsp
   int16_t automatic_gain_control(int16_t audio);
   bool cw_decimate(int16_t &i, int16_t &q);
   int16_t apply_deemphasis(int16_t x);
+  void iq_imbalance_correction(int16_t &i, int16_t &q);
 
   //capture samples for spectral analysis
   int16_t capture_i[256];
   int16_t capture_q[256];
   float accumulator[256];
   semaphore_t spectrum_semaphore;
-
-  //used in dc canceler
-  int64_t dc;
 
   //used in cic decimator
   uint8_t decimate_count;
@@ -64,6 +63,7 @@ class rx_dsp
 
   //used in frequency shifter
   uint8_t swap_iq;
+  uint8_t iq_correction;
   int32_t offset_frequency_Hz;
   int32_t dither;
   uint32_t phase;
