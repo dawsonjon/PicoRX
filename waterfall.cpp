@@ -35,7 +35,7 @@ waterfall::waterfall()
     gpio_set_dir(PIN_DC, GPIO_OUT);
     gpio_init(PIN_RST);
     gpio_set_dir(PIN_RST, GPIO_OUT);
-    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, PIN_RST, 240, 320, MIRRORED90DEG);
+    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, PIN_RST, 320, 240, R0DEG);
 }
 
 waterfall::~waterfall()
@@ -52,34 +52,53 @@ void waterfall::configure_display(uint8_t settings)
     else if(settings == 1)
     {
       enabled = true;
-      display->setRotation(MIRRORED90DEG);
-      printf("%u\n", 1);
+      display->setRotation(R0DEG);
     }
     else if(settings == 2)
     {
       enabled = true;
-      display->setRotation(MIRRORED270DEG);
-      printf("%u\n", 2);
+      display->setRotation(R180DEG);
     }
     else if(settings == 3)
     {
       enabled = true;
-      display->setRotation(R90DEG);
-      printf("%u\n", 3);
+      display->setRotation(MIRRORED0DEG);
     }
     else if(settings == 4)
     {
       enabled = true;
-      display->setRotation(R270DEG);
-      printf("%u\n", 4);
+      display->setRotation(MIRRORED180DEG);
     }
 
-    if(enabled) draw();
+    display->init();
+    if(enabled)
+    {
+       refresh = true;
+       display->powerOn(true);
+       draw();
+    }
+    else
+    {
+       display->powerOn(false);
+    }
+}
+
+void waterfall::powerOn(bool state)
+{
+    if(enabled && state)
+    {
+       refresh = true;
+       display->powerOn(true);
+       draw();
+    }
+    else
+    {
+       display->powerOn(false);
+    }
 }
 
 void waterfall::draw()
 {
-    display->init();
     display->clear();
 
     //draw borders
@@ -263,7 +282,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
 
       static float last_filtered_power = 0;
-      if(abs(filtered_power - last_filtered_power) > 1)
+      if(abs(filtered_power - last_filtered_power) > 1 || refresh)
       {
         last_filtered_power = filtered_power;
         uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
@@ -294,10 +313,10 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       }
 
       FSM_state = draw_status;
-    } else if(FSM_state == draw_status ){
+    } else if(FSM_state == draw_status){
 
       static int16_t last_mode = -1;
-      if(settings.mode != last_mode)
+      if(settings.mode != last_mode || refresh)
       {
         last_mode = settings.mode;
         const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
@@ -389,7 +408,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       static uint32_t lastMHz = 0;
       static uint32_t lastkHz = 0;
       static uint32_t lastHz = 0;
-      if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz)
+      if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz || refresh)
       {
         char buffer[20];
         snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
@@ -399,6 +418,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
         lastHz = Hz;
       }
       FSM_state = update_waterfall;
+      refresh = false;
     }
 }
 

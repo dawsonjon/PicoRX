@@ -83,6 +83,8 @@ void ILI934X::init()
 {
     reset();
 
+    _write(_SWRST, NULL, 0);
+    sleep_ms(5);
     _write(_RDDSDR, (uint8_t *)"\x03\x80\x02", 3);
     _write(_PWCRTLB, (uint8_t *)"\x00\xc1\x30", 3);
     _write(_PWRONCTRL, (uint8_t *)"\x64\x03\x12\x81", 4);
@@ -112,6 +114,18 @@ void ILI934X::init()
 void ILI934X::setRotation(ILI934X_ROTATION rotation)
 {
   _rotation = rotation;
+}
+
+void ILI934X::powerOn(bool power_on)
+{
+  if(power_on)
+  {
+    _write(_DISPON, NULL, 0);
+  }
+  else
+  {
+    _write(_DISPOFF, NULL, 0);
+  }
 }
 
 void ILI934X::_setRotation(ILI934X_ROTATION rotation)
@@ -160,8 +174,6 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation)
         this->_height = this->_init_width;
         break;
     }
-
-    printf("mode: %u\n", mode);
 
     uint8_t buffer[1] = {mode};
     _write(_MADCTL, (uint8_t *)buffer, 1);

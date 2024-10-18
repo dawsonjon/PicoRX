@@ -12,6 +12,7 @@ class waterfall
   ~waterfall();
   void update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10);
   void configure_display(uint8_t settings);
+  void powerOn(bool state);
 
   private:
   void draw();
@@ -23,6 +24,7 @@ class waterfall
   uint8_t *spectrum;
   ILI934X *display;
   bool enabled = false;
+  bool refresh = false;
 
 };
 

@@ -444,9 +444,14 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
     audio = (uint16_t)audio/pwm_scale;
 
     //interpolate to PWM rate
+    static int16_t last_audio = 0;
+    int32_t comb = audio - last_audio;
+    last_audio = audio;
     for(uint8_t subsample = 0; subsample < interpolation_rate; ++subsample)
     {
-      pwm_audio[odx++] = audio;
+      static int32_t integrator = 0;
+      integrator += comb;
+      pwm_audio[odx++] = integrator >> 4;
     }
 
     //usb audio volume is controlled from usb

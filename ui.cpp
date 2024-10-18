@@ -2199,6 +2199,7 @@ bool ui::configuration_menu(bool &ok)
       {
         case 0: 
           setting_word = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
+          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", &setting_word, ok);
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting_word << flag_display_timeout;
           display_time = time_us_32();
@@ -2704,6 +2705,7 @@ void ui::do_ui()
       {
         display_time = time_us_32();
         u8g2_SetPowerSave(&u8g2, 0);
+        waterfall_inst.powerOn(1);
         ui_state = idle;
       }
     }
@@ -2713,6 +2715,7 @@ void ui::do_ui()
     {
       ui_state = sleep;
       u8g2_SetPowerSave(&u8g2, 1);
+      waterfall_inst.powerOn(0);
     }
 
     //autosave frequency only after is has been stable for 1 second

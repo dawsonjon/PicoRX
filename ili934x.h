@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "hardware/spi.h"
 #include "hardware/dma.h"
 
+#define _SWRST 0x01     // Software Reset
 #define _RDDSDR 0x0f    // Read Display Self-Diagnostic Result
 #define _SLPOUT 0x11    // Sleep Out
 #define _GAMSET 0x26    // Gamma Set
@@ -125,6 +126,7 @@ public:
     void drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint16_t fg, uint16_t bg);
     void drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg);
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
+    void powerOn(bool power_on);
 private:
     void _setRotation(ILI934X_ROTATION rotation = R0DEG);
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);
