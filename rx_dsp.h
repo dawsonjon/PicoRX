@@ -5,6 +5,7 @@
 #include "rx_definitions.h"
 #include "pico/sem.h"
 #include "fft_filter.h"
+#include "squelch.h"
 
 class rx_dsp
 {
@@ -89,9 +90,8 @@ class rx_dsp
   int16_t gain_numerator=0;
 
   //squelch
-  int16_t squelch_threshold=0;
-  int16_t s9_threshold=0;
   bool squelch_state = false;
+  squelch_t squelch;
 
   //used in AGC
   uint8_t attack_factor;
