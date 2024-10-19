@@ -291,7 +291,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       audio = ((int32_t)audio * gain_numerator) >> 8;
 
       //squelch
-      if(squelch_state) {
+      if(squelch_on) {
         usbaudio = audio = 0;
       }
       tmp_usb_buf[idx] = usbaudio;
@@ -313,11 +313,11 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     squelch_update(&squelch, signal_amplitude);
     if (squelch.mode == SQUELCH_ENABLED)
     {
-      squelch_state = true;
+      squelch_on = true;
     }
     else
     {
-      squelch_state = false;
+      squelch_on = false;
     }
 
     return audio_index;
@@ -747,9 +747,9 @@ void rx_dsp :: set_pwm_max(uint32_t pwm_max)
   pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
 }
 
-bool rx_dsp :: get_squelch_state()
+bool rx_dsp :: is_squelch_on()
 {
-  return squelch_state;
+  return squelch_on;
 }
 
 uint8_t rx_dsp :: get_usb_buf_level(void)

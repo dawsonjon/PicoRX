@@ -125,7 +125,7 @@ void rx::update_status()
      status.busy_time = busy_time;
      status.battery = battery;
      status.temp = temp;
-     status.squelch_state = rx_dsp_inst.get_squelch_state();
+     status.squelch_on = rx_dsp_inst.is_squelch_on();
      status.usb_buf_level = rx_dsp_inst.get_usb_buf_level();
      sem_release(&settings_semaphore);
    }

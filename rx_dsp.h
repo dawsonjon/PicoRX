@@ -26,7 +26,7 @@ class rx_dsp
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
-  bool get_squelch_state();   // false is muted
+  bool is_squelch_on();
   void get_spectrum(float spectrum[]);
   void set_usb_callbacks(void);
   uint8_t get_usb_buf_level(void);
@@ -90,7 +90,7 @@ class rx_dsp
   int16_t gain_numerator=0;
 
   //squelch
-  bool squelch_state = false;
+  bool squelch_on = false;
   squelch_t squelch;
 
   //used in AGC

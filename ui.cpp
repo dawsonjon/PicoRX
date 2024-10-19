@@ -1577,8 +1577,8 @@ bool ui::memory_scan()
 
   int32_t pos_change = 0;
 
-  bool radio_squelch=false;   // false is muted/silent
-  bool last_radio_squelch=false;
+  bool radio_muted=false;   // false is muted/silent
+  bool last_radio_muted=false;
   uint32_t last_squelch_time=false;
   e_scanner_squelch squelch_state = no_signal;
 
@@ -1597,7 +1597,7 @@ bool ui::memory_scan()
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    radio_squelch = status.squelch_state;
+    radio_muted = status.squelch_on;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       //signal strength as an int 0..12
@@ -1605,9 +1605,9 @@ bool ui::memory_scan()
       last_power_dBm = power_dBm;
     }
 
-    if (radio_squelch != last_radio_squelch) {
+    if (radio_muted != last_radio_muted) {
       draw_once = true;
-      if ( !radio_squelch) { // mutes just now
+      if (radio_muted) { // mutes just now
         if (SQU_TIMER > SQU_WAIT) { // had sound for > 3 secs ?
           squelch_state = count_down;
           last_squelch_time = now_time;
@@ -1619,7 +1619,7 @@ bool ui::memory_scan()
         squelch_state = signal_found;
         last_squelch_time = now_time;
       }
-      last_radio_squelch = radio_squelch;
+      last_radio_muted = radio_muted;
     }
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
@@ -1824,8 +1824,8 @@ bool ui::frequency_scan()
 
   int32_t pos_change = 0;
 
-  bool radio_squelch=false;   // false is muted/silent
-  bool last_radio_squelch=false;
+  bool radio_muted=false;   // false is muted/silent
+  bool last_radio_muted=false;
   uint32_t last_squelch_time=false;
   e_scanner_squelch squelch_state = no_signal;
   
@@ -1844,7 +1844,7 @@ bool ui::frequency_scan()
     // grab power
     receiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    radio_squelch = status.squelch_state;
+    radio_muted = status.squelch_on;
     receiver.release();
     if (power_dBm != last_power_dBm) {
       draw_once = true;
@@ -1855,9 +1855,9 @@ bool ui::frequency_scan()
 //#define SQU_TIMER (now_time-last_squelch_time)
 //#define SQU_WAIT 3000
 
-    if (radio_squelch != last_radio_squelch) {
+    if (radio_muted != last_radio_muted) {
       draw_once = true;
-      if ( !radio_squelch) { // mutes just now
+      if (radio_muted) { // mutes just now
         if (SQU_TIMER > SQU_WAIT) { // had sound for > 3 secs ?
           squelch_state = count_down;
           last_squelch_time = now_time;
@@ -1869,7 +1869,7 @@ bool ui::frequency_scan()
         squelch_state = signal_found;
         last_squelch_time = now_time;
       }
-      last_radio_squelch = radio_squelch;
+      last_radio_muted = radio_muted;
     }
     if ((squelch_state == count_down) && (SQU_TIMER > SQU_WAIT)) {
       squelch_state = no_signal;
