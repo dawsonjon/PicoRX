@@ -19,7 +19,8 @@ class rx_dsp
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);
   void set_volume(uint8_t val);
-  void set_squelch(uint8_t val);
+  void set_squelch_treshold(uint8_t val);
+  void set_squelch_timeout_ms(uint32_t val);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
   void set_deemphasis(uint8_t deemphasis);

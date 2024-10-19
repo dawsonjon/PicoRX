@@ -32,6 +32,7 @@ void squelch_init(squelch_t *self, unsigned int timeout);
 void squelch_enable(squelch_t *self, uint8_t s_level);
 void squelch_disable(squelch_t *self);
 void squelch_calibrate(squelch_t *self, int16_t s9_threshold);
+void squelch_set_timeout(squelch_t *self, unsigned int timeout);
 void squelch_update(squelch_t *self, int16_t s);
 
 #ifdef __cplusplus

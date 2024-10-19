@@ -3,7 +3,7 @@
 void squelch_init(squelch_t *self, unsigned int timeout)
 {
     squelch_disable(self);
-    self->timeout = timeout;
+    squelch_set_timeout(self, timeout);
     self->s9_threshold = 0;
 }
 
@@ -37,6 +37,11 @@ void squelch_disable(squelch_t *self)
 void squelch_calibrate(squelch_t *self, int16_t s9_threshold)
 {
     self->s9_threshold = s9_threshold;
+}
+
+void squelch_set_timeout(squelch_t *self, unsigned int timeout)
+{
+    self->timeout = timeout;
 }
 
 void squelch_update(squelch_t *self, int16_t s)

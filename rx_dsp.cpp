@@ -729,8 +729,8 @@ void rx_dsp :: set_volume(uint8_t val)
   gain_numerator = gain[val];
 }
 
-//set_squelch
-void rx_dsp :: set_squelch(uint8_t val)
+//set_squelch_treshold
+void rx_dsp :: set_squelch_treshold(uint8_t val)
 {
   if (val > 0)
   {
@@ -740,6 +740,12 @@ void rx_dsp :: set_squelch(uint8_t val)
   {
     squelch_disable(&squelch);
   }
+}
+
+void rx_dsp :: set_squelch_timeout_ms(uint32_t val)
+{
+  val = (val * (adc_sample_rate / adc_block_size)) / 1000;
+  squelch_set_timeout(&squelch, val);
 }
 
 void rx_dsp :: set_pwm_max(uint32_t pwm_max)

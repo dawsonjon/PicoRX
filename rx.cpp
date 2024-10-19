@@ -131,6 +131,8 @@ void rx::update_status()
    }
 }
 
+static const uint32_t squelch_timeout2ms[] = {50, 100, 200, 500, 1000, 2000, 3000, 5000};
+
 void rx::apply_settings()
 {
    if(sem_try_acquire(&settings_semaphore))
@@ -202,7 +204,12 @@ void rx::apply_settings()
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
 
       //apply squelch
-      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+      rx_dsp_inst.set_squelch_treshold(settings_to_apply.squelch_treshold);
+      if (settings_to_apply.squelch_timeout >= (sizeof(squelch_timeout2ms) / sizeof(squelch_timeout2ms[0])))
+      {
+        settings_to_apply.squelch_timeout = (sizeof(squelch_timeout2ms) / sizeof(squelch_timeout2ms[0])) - 1;
+      }
+      rx_dsp_inst.set_squelch_timeout_ms(squelch_timeout2ms[settings_to_apply.squelch_timeout]);
 
       //apply swap iq
       rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);

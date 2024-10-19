@@ -36,6 +36,10 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_max_frequency 4
 #define idx_min_frequency 5
 #define idx_squelch 6
+  #define flag_squelch_treshold 0
+  #define mask_squelch_treshold (0xff << flag_squelch_treshold)
+  #define flag_squelch_timeout 8
+  #define mask_squelch_timeout (0xff << flag_squelch_timeout)
 #define idx_volume 7
 #define idx_cw_sidetone 8
 #define idx_hw_setup 9
