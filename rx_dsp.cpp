@@ -732,7 +732,14 @@ void rx_dsp :: set_volume(uint8_t val)
 //set_squelch
 void rx_dsp :: set_squelch(uint8_t val)
 {
-  squelch_enable(&squelch, val);
+  if (val > 0)
+  {
+    squelch_enable(&squelch, val - 1);
+  }
+  else
+  {
+    squelch_disable(&squelch);
+  }
 }
 
 void rx_dsp :: set_pwm_max(uint32_t pwm_max)

@@ -483,12 +483,15 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
 }
 
 // draw vertical signal strength
-void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch) {
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm, uint8_t squelch_tres) {
       int bar_len = dBm_to_63px(power_dBm);
-      int sq = dBm_to_63px(squelch);
       ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
       ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
-      ssd1306_draw_line(&disp, x, 63-sq, x+3, 63-sq, 2);
+      if (squelch_tres > 0)
+      {
+        int sq = dBm_to_63px(S_to_dBm(squelch_tres - 1));
+        ssd1306_draw_line(&disp, x, 63 - sq, x + 3, 63 - sq, 2);
+      }
 }
 
 int ui::dBm_to_S(float power_dBm) {
@@ -1511,7 +1514,7 @@ bool ui::memory_recall()
     if (power_change)
     {
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+      draw_vertical_dBm( 124, power_dBm, settings[idx_squelch]);
     }
 
     if ((pos_change != 0) || draw_once || power_change)
@@ -1737,7 +1740,7 @@ bool ui::memory_scan()
       }
 
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+      draw_vertical_dBm( 124, power_dBm, settings[idx_squelch]);
 
       display_show();
     }
@@ -1978,7 +1981,7 @@ bool ui::frequency_scan()
       }
 
       // draw vertical signal strength
-      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+      draw_vertical_dBm( 124, power_dBm, settings[idx_squelch]);
 
       display_show();
     }
@@ -2456,7 +2459,7 @@ bool ui::scanner_radio_menu()
           break;
 
         case 4 :
-          rx_settings_changed |= enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+          rx_settings_changed |= enumerate_entry("Squelch", "Disabled#S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
           break;
 
         case 5 : 
@@ -2907,7 +2910,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           break;
 
         case 7 :
-          rx_settings_changed |= enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
+          rx_settings_changed |= enumerate_entry("Squelch", "Disabled#S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch]);
           break;
 
         case 8 : 
