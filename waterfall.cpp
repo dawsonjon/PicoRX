@@ -69,6 +69,26 @@ void waterfall::configure_display(uint8_t settings)
       enabled = true;
       display->setRotation(MIRRORED180DEG);
     }
+    else if(settings == 5)
+    {
+      enabled = true;
+      display->setRotation(R90DEG);
+    }
+    else if(settings == 6)
+    {
+      enabled = true;
+      display->setRotation(R270DEG);
+    }
+    else if(settings == 7)
+    {
+      enabled = true;
+      display->setRotation(MIRRORED90DEG);
+    }
+    else if(settings == 8)
+    {
+      enabled = true;
+      display->setRotation(MIRRORED270DEG);
+    }
 
     display->init();
     if(enabled)
@@ -85,6 +105,7 @@ void waterfall::configure_display(uint8_t settings)
 
 void waterfall::powerOn(bool state)
 {
+    power_state = state;
     if(enabled && state)
     {
        refresh = true;
@@ -232,6 +253,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 {
 
     if(!enabled) return;
+    if(!power_state) return;
 
     const uint16_t waterfall_height = 100u;
     const uint16_t waterfall_x = 32u;
@@ -256,6 +278,8 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     static uint8_t stored_dB10 = 0u;
     static FSM_states FSM_state = update_waterfall;
 
+    static bool refresh_started = false;
+
     if(FSM_state == update_waterfall)
     {
       //scroll waterfall
@@ -266,6 +290,8 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       {
         waterfall_buffer[top_row][col] = spectrum[col];
       }
+
+      if(refresh) refresh_started = true;
 
       FSM_state = draw_smeter;
 
@@ -418,7 +444,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
         lastHz = Hz;
       }
       FSM_state = update_waterfall;
-      refresh = false;
+      if(refresh_started){ refresh_started = false; refresh = false; }
     }
 }
 

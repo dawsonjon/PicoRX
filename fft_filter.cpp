@@ -14,13 +14,24 @@
 #include "fft_filter.h"
 #include "fft.h"
 #include "utils.h"
+#include "cic_corrections.h"
 #include <cmath>
 #include <cstdio>
+#include <algorithm>
 
 #ifndef SIMULATION
 #include "pico/stdlib.h"
 #endif
 
+static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, int16_t sample)
+{
+  int16_t corrected_fft_bin = (fft_bin + fft_offset);
+  if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
+  if(corrected_fft_bin < -128) corrected_fft_bin += 256;
+  uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
+  int32_t adjusted_sample = ((int32_t)sample * cic_correction[unsigned_fft_bin]) >> 8;
+  return std::max(std::min(adjusted_sample, (int32_t)INT16_MAX), (int32_t)INT16_MIN);
+}
 
 #ifndef SIMULATION
 void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
@@ -59,8 +70,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
     else
     {
-      sample_real[i] = sample_real[i];
-      sample_imag[i] = sample_imag[i];
+      sample_real[i] = cic_correct(i, filter_control.fft_bin, sample_real[i]);
+      sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
 
       //capture highest and second highest peak
       uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
@@ -88,8 +99,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
     else
     {
-      sample_real[new_idx] = sample_real[fft_size - (new_fft_size/2u) + i + 1];
-      sample_imag[new_idx] = sample_imag[fft_size - (new_fft_size/2u) + i + 1];
+      sample_real[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_real[fft_size - (new_fft_size/2u) + i + 1]);
+      sample_imag[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_imag[fft_size - (new_fft_size/2u) + i + 1]);
 
       //capture highest and second highest peak
       uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
@@ -104,8 +115,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       }
     }
   }
-
-
 
   if(filter_control.enable_auto_notch)
   {

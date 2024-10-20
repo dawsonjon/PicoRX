@@ -140,8 +140,8 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation)
         break;
     case R90DEG:
         mode = MADCTL_MV | MADCTL_RGB;
-        this->_width = this->_init_height;
-        this->_height = this->_init_width;
+        this->_width = this->_init_width;
+        this->_height = this->_init_height;
         break;
     case R180DEG:
         mode = MADCTL_MY | MADCTL_RGB;
@@ -150,8 +150,8 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation)
         break;
     case R270DEG:
         mode = MADCTL_MY | MADCTL_MX | MADCTL_MV | MADCTL_RGB;
-        this->_width = this->_init_height;
-        this->_height = this->_init_width;
+        this->_width = this->_init_width;
+        this->_height = this->_init_height;
         break;
     case MIRRORED0DEG:
         mode = MADCTL_MY | MADCTL_MX | MADCTL_RGB;
@@ -160,8 +160,8 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation)
         break;
     case MIRRORED90DEG:
         mode = MADCTL_MX | MADCTL_MV | MADCTL_RGB;
-        this->_width = this->_init_height;
-        this->_height = this->_init_width;
+        this->_width = this->_init_width;
+        this->_height = this->_init_height;
         break;
     case MIRRORED180DEG:
         mode = MADCTL_RGB;
@@ -170,8 +170,8 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation)
         break;
     case MIRRORED270DEG:
         mode = MADCTL_MY | MADCTL_MV | MADCTL_RGB;
-        this->_width = this->_init_height;
-        this->_height = this->_init_width;
+        this->_width = this->_init_width;
+        this->_height = this->_init_height;
         break;
     }
 

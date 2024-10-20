@@ -586,14 +586,18 @@ static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, uint16_t magnitu
   if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
   if(corrected_fft_bin < -128) corrected_fft_bin += 256;
   uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
-  uint32_t adjusted_magnitude = magnitude * cic_correction[unsigned_fft_bin];
+  uint32_t adjusted_magnitude = ((uint32_t)magnitude * cic_correction[unsigned_fft_bin]) >> 8;
   return std::min(adjusted_magnitude, (uint32_t)UINT16_MAX);
 }
 
-static int16_t frequency_bin(uint16_t bin)
+static inline int8_t freq_bin(uint8_t bin)
 {
-  if(bin < 127) return bin;
-  return bin-256;
+  return bin > 127 ? bin - 256 : bin;
+}
+
+static inline uint8_t fft_shift(uint8_t bin)
+{
+  return bin ^ 0x80;
 }
 
 void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
@@ -609,7 +613,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   uint16_t new_min=65535u;
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t magnitude = cic_correct(frequency_bin(i), capture_filter_control.fft_bin, capture[i]);
+    const uint16_t magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
     if(magnitude == 0) continue;
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
@@ -620,36 +624,19 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
   const float logmax = log10f(std::max(max, lowest_max));
 
   //clamp and convert to log scale 0 -> 255
-  uint8_t f = 0;
-  for(uint16_t i=128; i<256; i++)
+  for(uint16_t i=0; i<256; i++)
   {
-    const int16_t frequency_bin = f-128;
-    const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
+    const uint16_t magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
     if(magnitude == 0)
     {
-      spectrum[f] = 0u;
+      spectrum[fft_shift(i)] = 0u;
     } else {
       const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
       const float clamped = std::max(std::min(normalised, 255.0f), 0.0f);
-      spectrum[f] = clamped;
+      spectrum[fft_shift(i)] = clamped;
     }
-    f++;
   }
 
-  for(uint16_t i=0; i<127; i++)
-  {
-    const int16_t frequency_bin = i;
-    const uint16_t magnitude = cic_correct(frequency_bin, capture_filter_control.fft_bin, capture[i]);
-    if(magnitude == 0)
-    {
-      spectrum[f] = 0u;
-    } else {
-      const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
-      const float clamped = std::max(std::min(normalised, 255.0f), 0.0f);
-      spectrum[f] = clamped;
-    }
-    f++;
-  }
   sem_release(&spectrum_semaphore);
 
   //number steps representing 10dB

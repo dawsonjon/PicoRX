@@ -2230,6 +2230,7 @@ bool ui::configuration_menu(bool &ok)
 
         case 6 : 
           setting_word = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
+          if(setting_word & 0x80) setting_word |= 0xffffff00;
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok);
           settings[idx_hw_setup] &= ~mask_ppm;
           settings[idx_hw_setup] |= setting_word << flag_ppm;
@@ -2256,7 +2257,7 @@ bool ui::configuration_menu(bool &ok)
 
         case 10:
           setting_word = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#", &setting_word, ok);
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &setting_word, ok);
           settings[idx_hw_setup] &= ~mask_tft_settings;
           settings[idx_hw_setup] |= setting_word << flag_tft_settings;
           if(done && ok) waterfall_inst.configure_display(setting_word);

@@ -34,6 +34,7 @@ if(PICO_BOARD STREQUAL "pico")
       rx_dsp.cpp
       fft.cpp
       fft_filter.cpp
+      cic_corrections.cpp
       ui.cpp
       utils.cpp
       ili934x.cpp
@@ -90,6 +91,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       rx_dsp.cpp
       fft.cpp
       fft_filter.cpp
+      cic_corrections.cpp
       ui.cpp
       utils.cpp
       ili934x.cpp
@@ -142,6 +144,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       rx_dsp.cpp
       fft.cpp
       fft_filter.cpp
+      cic_corrections.cpp
       ui.cpp
       utils.cpp
       ili934x.cpp

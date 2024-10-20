@@ -24,7 +24,8 @@ class waterfall
   uint8_t *spectrum;
   ILI934X *display;
   bool enabled = false;
-  bool refresh = false;
+  bool power_state = true;
+  bool refresh = true;
 
 };
 

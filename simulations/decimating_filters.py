@@ -74,7 +74,7 @@ def plot_correction(length, order, fs):
     response = response[len(response)//2:]
     fragment = response[:(len(response)//length)+1]
 
-    print(",".join([str(int(round(i))) for i in fragment]))
+    print(",".join([str(int(round(256*i))) for i in fragment]))
 
     plt.plot(
       np.linspace(0, fs/(2*length), len(fragment)), 
