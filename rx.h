@@ -23,7 +23,8 @@ struct rx_settings
   uint8_t agc_speed;
   uint8_t mode;
   uint8_t volume;
-  uint8_t squelch;
+  uint8_t squelch_treshold;
+  uint8_t squelch_timeout;
   uint8_t bandwidth;
   uint8_t deemphasis;
   uint16_t cw_sidetone_Hz;
@@ -40,7 +41,7 @@ struct rx_status
   uint32_t busy_time;
   uint16_t temp;
   uint16_t battery;
-  bool squelch_state;
+  bool squelch_on;
   uint8_t usb_buf_level;
 };
 

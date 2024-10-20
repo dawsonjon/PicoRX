@@ -61,7 +61,7 @@ class Memory:
         steps[step],                         #3
         int(max_frequency)&0xffffffff,       #4
         int(min_frequency)&0xffffffff,       #5
-        squelch,                             #6
+        squelch,                             #6 squelch treshold and timeout
         volume,                              #7
         int(cw_sidetone),                    #8
         0x00000000,                          #9	hw_setup default is 0
@@ -90,5 +90,5 @@ const uint32_t __in_flash() __attribute__((aligned(4096))) autosave_memory[%s][%
         outf.write(buffer)
 
 mem = Memory()
-mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, 0, 62, "NORMAL")
+mem.add(1413000,  0,   30e6,  "AM", "VERY SLOW", "1kHz", 1000, 5, (3 << 8) | 0, 62, "NORMAL")
 mem.generate_c_header()

@@ -5,6 +5,7 @@
 #include "rx_definitions.h"
 #include "pico/sem.h"
 #include "fft_filter.h"
+#include "squelch.h"
 
 class rx_dsp
 {
@@ -18,14 +19,15 @@ class rx_dsp
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);
   void set_volume(uint8_t val);
-  void set_squelch(uint8_t val);
+  void set_squelch_treshold(uint8_t val);
+  void set_squelch_timeout_ms(uint32_t val);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
   void set_deemphasis(uint8_t deemphasis);
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
   int16_t get_signal_strength_dBm();
-  bool get_squelch_state();   // false is muted
+  bool is_squelch_on();
   void get_spectrum(float spectrum[]);
   void set_usb_callbacks(void);
   uint8_t get_usb_buf_level(void);
@@ -89,9 +91,8 @@ class rx_dsp
   int16_t gain_numerator=0;
 
   //squelch
-  int16_t squelch_threshold=0;
-  int16_t s9_threshold=0;
-  bool squelch_state = false;
+  bool squelch_on = false;
+  squelch_t squelch;
 
   //used in AGC
   uint8_t attack_factor;

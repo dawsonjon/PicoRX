@@ -291,13 +291,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       audio = ((int32_t)audio * gain_numerator) >> 8;
 
       //squelch
-      if(signal_amplitude < squelch_threshold) {
+      if(squelch_on) {
         usbaudio = audio = 0;
-        squelch_state = false;
-      } else {
-        squelch_state = true;
       }
-
       tmp_usb_buf[idx] = usbaudio;
 
       //convert to unsigned value in range 0 to 500 to output to PWM
@@ -314,6 +310,15 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
+    squelch_update(&squelch, signal_amplitude);
+    if (squelch.mode == SQUELCH_ENABLED)
+    {
+      squelch_on = true;
+    }
+    else
+    {
+      squelch_on = false;
+    }
 
     return audio_index;
 }
@@ -594,6 +599,9 @@ rx_dsp :: rx_dsp()
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
+  squelch_init(&squelch, (adc_sample_rate / adc_block_size) / 2); // 500ms squelch timeout
+  squelch_enable(&squelch, 0);
+
   for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
 }
 
@@ -699,7 +707,8 @@ void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)
 void rx_dsp :: set_gain_cal_dB(uint16_t val)
 {
   amplifier_gain_dB = val;
-  s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);
+  int16_t s9_threshold = full_scale_signal_strength*powf(10.0f, (S9 - full_scale_dBm + amplifier_gain_dB)/20.0f);
+  squelch_calibrate(&squelch, s9_threshold);
 }
 
 //volume settings 0 to 9
@@ -720,26 +729,23 @@ void rx_dsp :: set_volume(uint8_t val)
   gain_numerator = gain[val];
 }
 
-//set_squelch
-void rx_dsp :: set_squelch(uint8_t val)
+//set_squelch_treshold
+void rx_dsp :: set_squelch_treshold(uint8_t val)
 {
-  //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
-  const int16_t thresholds[] = {
-    (int16_t)(s9_threshold>>9), //s0
-    (int16_t)(s9_threshold>>8), //s1
-    (int16_t)(s9_threshold>>7), //s2
-    (int16_t)(s9_threshold>>6), //s3
-    (int16_t)(s9_threshold>>5), //s4
-    (int16_t)(s9_threshold>>4), //s5
-    (int16_t)(s9_threshold>>3), //s6
-    (int16_t)(s9_threshold>>2), //s7
-    (int16_t)(s9_threshold>>1), //s8
-    (int16_t)(s9_threshold),    //s9
-    (int16_t)(s9_threshold*3),  //s9+10dB
-    (int16_t)(s9_threshold*10), //s9+20dB
-    (int16_t)(s9_threshold*31), //s9+30dB
-  };
-  squelch_threshold = thresholds[val];
+  if (val > 0)
+  {
+    squelch_enable(&squelch, val - 1);
+  }
+  else
+  {
+    squelch_disable(&squelch);
+  }
+}
+
+void rx_dsp :: set_squelch_timeout_ms(uint32_t val)
+{
+  val = (val * (adc_sample_rate / adc_block_size)) / 1000;
+  squelch_set_timeout(&squelch, val);
 }
 
 void rx_dsp :: set_pwm_max(uint32_t pwm_max)
@@ -747,9 +753,9 @@ void rx_dsp :: set_pwm_max(uint32_t pwm_max)
   pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
 }
 
-bool rx_dsp :: get_squelch_state()
+bool rx_dsp :: is_squelch_on()
 {
-  return squelch_state;
+  return squelch_on;
 }
 
 uint8_t rx_dsp :: get_usb_buf_level(void)
