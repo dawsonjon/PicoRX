@@ -97,7 +97,7 @@ void ILI934X::init()
     _write(_VMCTRL1, (uint8_t *)"\x3e\x28", 2);
     _write(_VMCTRL2, (uint8_t *)"\x86", 1);
 
-    _setRotation(_rotation);
+    _setRotation(_rotation, _invert_colours);
 
     _write(_PIXSET, (uint8_t *)"\x55", 1);
     _write(_FRMCTR1, (uint8_t *)"\x00\x18", 2);
@@ -111,9 +111,10 @@ void ILI934X::init()
     _write(_DISPON);
 }
 
-void ILI934X::setRotation(ILI934X_ROTATION rotation)
+void ILI934X::setRotation(ILI934X_ROTATION rotation, bool invert_colours)
 {
   _rotation = rotation;
+  _invert_colours = invert_colours;
 }
 
 void ILI934X::powerOn(bool power_on)
@@ -128,48 +129,50 @@ void ILI934X::powerOn(bool power_on)
   }
 }
 
-void ILI934X::_setRotation(ILI934X_ROTATION rotation)
+void ILI934X::_setRotation(ILI934X_ROTATION rotation, bool invert_colours)
 {
-    uint8_t mode = MADCTL_MX | MADCTL_RGB;
+
+    uint8_t colour_flags = invert_colours?MADCTL_BGR:MADCTL_RGB;
+    uint8_t mode = MADCTL_MX | colour_flags;
     switch (rotation)
     {
     case R0DEG:
-        mode = MADCTL_MX | MADCTL_RGB;
+        mode = MADCTL_MX | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case R90DEG:
-        mode = MADCTL_MV | MADCTL_RGB;
+        mode = MADCTL_MV | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case R180DEG:
-        mode = MADCTL_MY | MADCTL_RGB;
+        mode = MADCTL_MY | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case R270DEG:
-        mode = MADCTL_MY | MADCTL_MX | MADCTL_MV | MADCTL_RGB;
+        mode = MADCTL_MY | MADCTL_MX | MADCTL_MV | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case MIRRORED0DEG:
-        mode = MADCTL_MY | MADCTL_MX | MADCTL_RGB;
+        mode = MADCTL_MY | MADCTL_MX | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case MIRRORED90DEG:
-        mode = MADCTL_MX | MADCTL_MV | MADCTL_RGB;
+        mode = MADCTL_MX | MADCTL_MV | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case MIRRORED180DEG:
-        mode = MADCTL_RGB;
+        mode = colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;
     case MIRRORED270DEG:
-        mode = MADCTL_MY | MADCTL_MV | MADCTL_RGB;
+        mode = MADCTL_MY | MADCTL_MV | colour_flags;
         this->_width = this->_init_width;
         this->_height = this->_init_height;
         break;

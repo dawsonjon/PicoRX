@@ -43,7 +43,7 @@ waterfall::~waterfall()
     delete display;
 }
 
-void waterfall::configure_display(uint8_t settings)
+void waterfall::configure_display(uint8_t settings, bool invert_colours)
 {
     if(settings == 0)
     {
@@ -52,42 +52,42 @@ void waterfall::configure_display(uint8_t settings)
     else if(settings == 1)
     {
       enabled = true;
-      display->setRotation(R0DEG);
+      display->setRotation(R0DEG, invert_colours);
     }
     else if(settings == 2)
     {
       enabled = true;
-      display->setRotation(R180DEG);
+      display->setRotation(R180DEG, invert_colours);
     }
     else if(settings == 3)
     {
       enabled = true;
-      display->setRotation(MIRRORED0DEG);
+      display->setRotation(MIRRORED0DEG, invert_colours);
     }
     else if(settings == 4)
     {
       enabled = true;
-      display->setRotation(MIRRORED180DEG);
+      display->setRotation(MIRRORED180DEG, invert_colours);
     }
     else if(settings == 5)
     {
       enabled = true;
-      display->setRotation(R90DEG);
+      display->setRotation(R90DEG, invert_colours);
     }
     else if(settings == 6)
     {
       enabled = true;
-      display->setRotation(R270DEG);
+      display->setRotation(R270DEG, invert_colours);
     }
     else if(settings == 7)
     {
       enabled = true;
-      display->setRotation(MIRRORED90DEG);
+      display->setRotation(MIRRORED90DEG, invert_colours);
     }
     else if(settings == 8)
     {
       enabled = true;
-      display->setRotation(MIRRORED270DEG);
+      display->setRotation(MIRRORED270DEG, invert_colours);
     }
 
     display->init();

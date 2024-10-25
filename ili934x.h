@@ -116,7 +116,7 @@ public:
 
     void reset();
     void init();
-    void setRotation(ILI934X_ROTATION rotation = R0DEG);
+    void setRotation(ILI934X_ROTATION rotation, bool invert_colours);
     void setPixel(uint16_t x, uint16_t y, uint16_t colour);
     void writeHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t line[]);
     void writeVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t line[]);
@@ -128,7 +128,7 @@ public:
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
     void powerOn(bool power_on);
 private:
-    void _setRotation(ILI934X_ROTATION rotation = R0DEG);
+    void _setRotation(ILI934X_ROTATION rotation, bool invert_colours);
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);
     void _data(uint8_t *data, size_t dataLen = 0);
     void _writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data = NULL, size_t dataLen = 0);
@@ -146,6 +146,7 @@ private:
     uint16_t _init_width;
     uint16_t _init_height;
     uint8_t _init_rotation;
+    uint8_t _invert_colours;
 };
 
 #endif //__ILI934X_H__

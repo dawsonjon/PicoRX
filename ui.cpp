@@ -1155,7 +1155,9 @@ void ui::autorestore()
   u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
   update_display_type();
   u8g2_SetContrast(&u8g2, 17 * (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast);
-  waterfall_inst.configure_display((settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings);
+  waterfall_inst.configure_display(
+      (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings,
+      (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour);
 
 }
 
@@ -2172,7 +2174,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#Bands#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2256,18 +2258,34 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 10:
-          setting_word = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &setting_word, ok);
+	  {
+          static uint32_t rotation, colour;
+          rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
+          colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &rotation, ok);
           settings[idx_hw_setup] &= ~mask_tft_settings;
-          settings[idx_hw_setup] |= setting_word << flag_tft_settings;
-          if(done && ok) waterfall_inst.configure_display(setting_word);
+          settings[idx_hw_setup] |= rotation << flag_tft_settings;
+          if(done && ok) waterfall_inst.configure_display(rotation, colour);
           break;
+	  }
 
         case 11:
+	  {
+          static uint32_t rotation, colour;
+          rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
+          colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
+          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", &colour, ok);
+          settings[idx_hw_setup] &= ~mask_tft_colour;
+          settings[idx_hw_setup] |= colour << flag_tft_colour;
+          if(done && ok) waterfall_inst.configure_display(rotation, colour);
+          break;
+	  }
+
+        case 12:
           done = bands_menu(ok);
           break;
 
-        case 12: 
+        case 13: 
           setting_word = 0;
           enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
           if(setting_word==1) {
