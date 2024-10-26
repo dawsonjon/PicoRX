@@ -94,10 +94,10 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             receiver.access(false);
             float power_dBm = status.signal_strength_dBm;
             receiver.release();
-            float power_scaled = 0xffff*((power_dBm - (-127))/114);
-            power_scaled = std::min((float)0xffff, power_scaled);
+            float power_scaled = 020*((power_dBm - (-127))/114);
+            power_scaled = std::min((float)0x20, power_scaled);
             power_scaled = std::max((float)0, power_scaled);
-            printf("SM%04X;", (uint16_t)power_scaled);
+            printf("SM%05X;", (uint16_t)power_scaled);
         } else {
             stdio_puts_raw("?;");
         }
@@ -174,6 +174,98 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     } else if (strncmp(cmd, "FL", 2) == 0) {
         if (cmd[2] == ';') {
             printf("FL0;");
+        }
+    } else if (strncmp(cmd, "AC", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("AC010;");
+        }
+    } else if (strncmp(cmd, "PR", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("PR0;");
+        }
+    } else if (strncmp(cmd, "NB", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("NB0;");
+        }
+    } else if (strncmp(cmd, "LK", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("LK00;");
+        }
+    } else if (strncmp(cmd, "MG", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("MG000;");
+        }
+    } else if (strncmp(cmd, "PL", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("PL000000;");
+        }
+    } else if (strncmp(cmd, "VD", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("VD0000;");
+        }
+    } else if (strncmp(cmd, "VG", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("VG000;");
+        }
+    } else if (strncmp(cmd, "BC", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("BC0;");
+        }
+    } else if (strncmp(cmd, "ML", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("ML000;");
+        }
+    } else if (strncmp(cmd, "NR", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("NR0;");
+        }
+    } else if (strncmp(cmd, "SD", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SD0000;");
+        }
+    } else if (strncmp(cmd, "KS", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("KS010;");
+        }
+    } else if (strncmp(cmd, "EX", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("EX000000000;");
+        }
+    } else if (strncmp(cmd, "RL", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("RL00;");
+        }
+    } else if (strncmp(cmd, "SQ", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SQ0000;");
+        }
+    } else if (strncmp(cmd, "RG", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("RG000;");
+        }
+    } else if (strncmp(cmd, "RM", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("RM10000;");
+        }
+    } else if (strncmp(cmd, "PA", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("PA00;");
+        }
+    } else if (strncmp(cmd, "RA", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("RA0000;");
+        }
+    } else if (strncmp(cmd, "GT", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("GT000;");
+        }
+    } else if (strncmp(cmd, "PC", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("PC005;");
+        }
+    } else if (strncmp(cmd, "FW", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("FW0000;");
         }
     } else if (strncmp(cmd, "TX", 2) == 0) {
         static uint8_t tx_status = 0;

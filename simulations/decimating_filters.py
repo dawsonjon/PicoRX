@@ -149,9 +149,9 @@ if __name__ == "__main__":
 
     plt.figure()
     plt.grid(True)
-    plt.title("Decimation CIC=%i"%decimation)
+    plt.title("CIC correction CIC=%i"%decimation)
     plt.xlabel("Frequency (kHz)")
-    plt.ylabel("Gain (dB)")
+    plt.ylabel("Gain")
     plot_correction(decimation, 4, fs_kHz) #cic decimation filter
     plt.legend()
     plt.show()
