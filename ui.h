@@ -66,7 +66,9 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_display_contrast (0xf << flag_display_contrast)
 #define flag_tft_settings 11   // bits 11-14
 #define mask_tft_settings (0xf << flag_tft_settings)
-#define flag_encoder_res 15
+#define flag_tft_colour 15   // bits 15
+#define mask_tft_colour (0x1 << flag_tft_colour)
+#define flag_encoder_res 16
 #define flag_ppm 24   // bits 24-31
 #define mask_ppm (0xff << flag_ppm)
 

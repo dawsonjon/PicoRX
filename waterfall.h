@@ -11,7 +11,7 @@ class waterfall
   waterfall();
   ~waterfall();
   void update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10);
-  void configure_display(uint8_t settings);
+  void configure_display(uint8_t settings, bool invert_colours);
   void powerOn(bool state);
 
   private:
