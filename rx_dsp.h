@@ -91,6 +91,9 @@ class rx_dsp
   uint16_t hang_time;
   uint16_t hang_timer;
   int32_t max_hold;
+  int16_t gain;
+  int16_t manual_gain;
+  bool manual_gain_control = false;
 
   // gain calibration
   float amplifier_gain_dB = 62.0f;

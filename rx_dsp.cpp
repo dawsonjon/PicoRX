@@ -399,7 +399,14 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     //apply gain
     if(magnitude > 0)
     {
-      int16_t gain = setpoint/magnitude;
+      if(manual_gain_control)
+      {
+        gain = manual_gain;
+      }
+      else
+      {
+        gain = setpoint/magnitude;
+      }
       if(gain < 1) gain = 1;
       audio *= gain;
     }
@@ -417,7 +424,6 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
 
 rx_dsp :: rx_dsp()
 {
-
   //initialise state
   phase = 0;
   frequency=0;
@@ -466,6 +472,8 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
   //long        2.414          14       0.001      2    2s     30000
 
 
+  manual_gain_control = false;
+  manual_gain = 1;
 
   switch(agc_setting)
   {
@@ -487,10 +495,15 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
         hang_time=15000;
         break;
 
-      default: //long
+      case 3: //long
         attack_factor=2;
         decay_factor=14;
         hang_time=30000;
+        break;
+
+      default://4=6dB-60dB,
+        manual_gain = 1 << (agc_setting - 4);
+        manual_gain_control = true;
         break;
   }
 }
@@ -641,5 +654,4 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
 
   //number steps representing 10dB
   dB10 = 256/(2*logf(max/min));
-
 }

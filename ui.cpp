@@ -818,7 +818,8 @@ void ui::print_enum_option(const char options[], uint8_t option){
 bool ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok)
 {
     uint32_t bit = (*value >> bit_position) & 1;
-    bool done = enumerate_entry(title, options, &bit, ok);
+    bool changed = false;
+    bool done = enumerate_entry(title, options, &bit, ok, changed);
     if(bit)
     {
      *value |= (1 << bit_position);
@@ -884,17 +885,17 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
 }
 
 //choose from an enumerate list of settings
-bool ui::enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok)
+bool ui::enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok, bool &changed)
 {
   enum e_state{idle, active};
   static e_state state = idle;
-  static int32_t select = 0;
+  static uint32_t original_value = 0;
   bool draw_display = false;
 
   if(state == idle)
   {
     draw_display = true;
-    select = *value;
+    original_value = *value;
     state = active;
   }
   else if(state == active)
@@ -907,11 +908,10 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = encoder_control(&select, 0, max)!=0;
+    draw_display = changed = encoder_control((int32_t*)value, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
-      *value = select;
       ok = true;
       state = idle;
       return true;
@@ -919,6 +919,8 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
 
     //cancel
     if(back_button.is_pressed()){
+      *value = original_value;
+      changed = true;
       ok = false;
       state = idle;
       return true;
@@ -931,7 +933,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
       display_print_str(title, 2, style_centered);
       display_draw_separator(40,1);
       display_linen(6);
-      print_enum_option(options, select);
+      print_enum_option(options, *value);
       display_show();
   }
 
@@ -939,26 +941,25 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
 }
 
 //select a number in a range
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok, bool &changed)
 {
   enum e_state{idle, active};
   static e_state state = idle;
-  static int32_t select = 0;
+  static int32_t old_value = 0;
   bool draw_display = false;
 
   if(state == idle)
   {
     draw_display = true;
-    select=*value;
+    old_value=*value;
     state = active;
   }
   else if(state == active)
   {
-    draw_display = encoder_control(&select, min, max)!=0;
+    draw_display = changed = encoder_control((int32_t*)value, min, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
-      *value = select;
       ok = true;
       state = idle;
       return true;
@@ -966,6 +967,8 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
 
     //cancel
     if(back_button.is_pressed()){
+      *value = old_value;
+      changed = true;
       ok = false;
       state = idle;
       return true;
@@ -978,7 +981,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
       display_print_str(title, 2, style_centered);
       display_draw_separator(40,1);
       display_linen(6);
-      display_print_num(format, select*multiple, 2, style_centered);
+      display_print_num(format, (*value)*multiple, 2, style_centered);
       display_show();
   }
 
@@ -986,9 +989,9 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
 }
 
 //Apply settings
-void ui::apply_settings(bool suspend)
+void ui::apply_settings(bool suspend, bool settings_changed)
 {
-  receiver.access(true);
+  receiver.access(settings_changed);
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
   settings_to_apply.agc_speed = settings[idx_agc_speed];
   settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
@@ -1059,7 +1062,7 @@ void ui::autosave()
     const uint32_t flash_address = address - XIP_BASE; 
     //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    apply_settings(true);                                //suspend rx to disable all DMA transfers
+    apply_settings(true, false);                         //suspend rx to disable all DMA transfers
     WAIT_100MS                                           //wait for suspension to take effect
     multicore_lockout_start_blocking();                  //halt the second core
     const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
@@ -1071,7 +1074,7 @@ void ui::autosave()
 
     restore_interrupts (ints);                           //restore interrupts
     multicore_lockout_end_blocking();                    //restart the second core
-    apply_settings(false);                               //resume rx operation
+    apply_settings(false, false);                        //resume rx operation
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //!!! Normal operation resumed
   }
@@ -1106,7 +1109,7 @@ void ui::autosave()
 
   //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  apply_settings(true);                                //suspend rx to disable all DMA transfers
+  apply_settings(true, false);                         //suspend rx to disable all DMA transfers
   WAIT_100MS                                           //wait for suspension to take effect
   multicore_lockout_start_blocking();                  //halt the second core
   const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
@@ -1118,7 +1121,7 @@ void ui::autosave()
 
   restore_interrupts (ints);                           //restore interrupts
   multicore_lockout_end_blocking();                    //restart the second core
-  apply_settings(false);                               //resume rx operation
+  apply_settings(false, false);                        //resume rx operation
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   //!!! Normal operation resumed
 
@@ -2196,12 +2199,13 @@ bool ui::configuration_menu(bool &ok)
     else if(ui_state == menu_item_active)
     {
       bool done = false;
+      bool changed = false;
       static uint32_t setting_word;
       switch(menu_selection)
       {
         case 0: 
           setting_word = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", &setting_word, ok);
+          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", &setting_word, ok, changed);
           settings[idx_hw_setup] &=  ~mask_display_timeout;
           settings[idx_hw_setup] |=  setting_word << flag_display_timeout;
           display_time = time_us_32();
@@ -2209,7 +2213,7 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 1 : 
-          done = enumerate_entry("PSU Mode", "FM#PWM#", &regmode, ok);
+          done = enumerate_entry("PSU Mode", "FM#PWM#", &regmode, ok, changed);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, regmode);
           break;
@@ -2227,13 +2231,13 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 5 : 
-          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok);
+          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok, changed);
           break;
 
         case 6 : 
           setting_word = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
           if(setting_word & 0x80) setting_word |= 0xffffff00;
-          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok);
+          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok, changed);
           settings[idx_hw_setup] &= ~mask_ppm;
           settings[idx_hw_setup] |= setting_word << flag_ppm;
           break;
@@ -2251,7 +2255,7 @@ bool ui::configuration_menu(bool &ok)
 
         case 9:
           setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
-          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok);
+          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok, changed);
           u8g2_SetContrast(&u8g2, 17 * setting_word);
           settings[idx_hw_setup] &= ~mask_display_contrast;
           settings[idx_hw_setup] |= setting_word << flag_display_contrast;
@@ -2262,9 +2266,10 @@ bool ui::configuration_menu(bool &ok)
           static uint32_t rotation, colour;
           rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
           colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &rotation, ok);
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &rotation, ok, changed);
           settings[idx_hw_setup] &= ~mask_tft_settings;
           settings[idx_hw_setup] |= rotation << flag_tft_settings;
+          if(changed) waterfall_inst.configure_display(rotation, colour);
           if(done && ok) waterfall_inst.configure_display(rotation, colour);
           break;
 	  }
@@ -2274,9 +2279,10 @@ bool ui::configuration_menu(bool &ok)
           static uint32_t rotation, colour;
           rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
           colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
-          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", &colour, ok);
+          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", &colour, ok, changed);
           settings[idx_hw_setup] &= ~mask_tft_colour;
           settings[idx_hw_setup] |= colour << flag_tft_colour;
+          if(changed) waterfall_inst.configure_display(rotation, colour);
           if(done && ok) waterfall_inst.configure_display(rotation, colour);
           break;
 	  }
@@ -2287,7 +2293,7 @@ bool ui::configuration_menu(bool &ok)
 
         case 13: 
           setting_word = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok);
+          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok, changed);
           if(setting_word==1) {
             upload_memory();
           } else if (setting_word==2) {
@@ -2341,6 +2347,7 @@ bool ui::main_menu(bool & ok)
     else if(ui_state == menu_item_active)
     {
        bool done = false;
+       bool changed = false;
        uint32_t settings_word;
        switch(menu_selection)
         {
@@ -2354,38 +2361,44 @@ bool ui::main_menu(bool & ok)
             done = memory_store(ok); 
             break;
           case 3 :  
-            done = number_entry("Volume", "%i", 0, 9, 1, (int32_t*)&settings[idx_volume], ok);
+            done = number_entry("Volume", "%i", 0, 9, 1, (int32_t*)&settings[idx_volume], ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 4 :  
-            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode], ok);
+            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode], ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 5 :
-            done = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#", &settings[idx_agc_speed], ok);
+            done = enumerate_entry("AGC Speed", "Fast#Normal#Slow#Very slow#0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", &settings[idx_agc_speed], ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 6 :  
             settings_word = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
-            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings_word, ok);
+            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings_word, ok, changed);
             settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_bandwidth) & mask_bandwidth);
+            if(changed) apply_settings(false);
             break;
           case 7 :  
-            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch], ok);
+            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch], ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 8 :  
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
           case 9 :
             settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok);
+            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok, changed);
             settings[idx_rx_features] &= ~(mask_deemphasis);
             settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
+            if(changed) apply_settings(false);
             break;
           case 10 : 
             done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
             break;
           case 11 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
-            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok);
+            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok, changed);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
@@ -2396,11 +2409,12 @@ bool ui::main_menu(bool & ok)
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
           case 14 : 
-            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok);
+            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok, changed);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
           case 15 : 
-            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok);
+            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 16 : 
             done = configuration_menu(ok);
@@ -2448,48 +2462,49 @@ bool ui::bands_menu(bool &ok)
     else if(ui_state == menu_item_active)
     {
        bool done = false;
+       bool changed = false;
        uint32_t band_settings;
        switch(menu_selection)
         {
           case 0 :
             band_settings = settings[idx_band1] & 0xff;
-            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xffffff00;
             settings[idx_band1] |= band_settings;
             break;
           case 1 : 
             band_settings = (settings[idx_band1] >> 8) & 0xff;
-            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xffff00ff;
             settings[idx_band1] |= band_settings << 8;
             break;
           case 2 :  
             band_settings = (settings[idx_band1] >> 16) & 0xff;
-            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xff00ffff;
             settings[idx_band1] |= band_settings << 16;
             break;
           case 3 : 
             band_settings = (settings[idx_band1] >> 24) & 0xff;
-            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0x00ffffff;
             settings[idx_band1] |= band_settings << 24;
             break;
           case 4 :
             band_settings = settings[idx_band2] & 0xff;
-            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xffffff00;
             settings[idx_band1] |= band_settings;
             break;
           case 5 : 
             band_settings = (settings[idx_band2] >> 8) & 0xff;
-            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xffff00ff;
             settings[idx_band1] |= band_settings << 8;
             break;
           case 6 :  
             band_settings = (settings[idx_band2] >> 16) & 0xff;
-            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok);
+            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
             settings[idx_band1] &= 0xff00ffff;
             settings[idx_band1] |= band_settings << 16;
             break;
@@ -2556,11 +2571,8 @@ void ui::do_ui()
 {
 
     bool update_settings = false;
-    bool autosave_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
-    static bool frequency_autosave_pending = false;
-    static uint32_t frequency_autosave_time = 0;
     static uint8_t display_option = 0;
     const uint8_t num_display_options = 6;
     static bool view_changed = false;
@@ -2626,7 +2638,6 @@ void ui::do_ui()
             settings[idx_volume] %= 10u;
           }
           update_settings = true;
-          autosave_settings = true;
         }
         else
         {
@@ -2651,8 +2662,6 @@ void ui::do_ui()
 
           //update settings now, but don't autosave until later
           update_settings = true;
-          frequency_autosave_pending = true;
-          frequency_autosave_time = time_us_32();
         }
 
       }
@@ -2677,7 +2686,6 @@ void ui::do_ui()
       {
         ui_state = idle;
         update_settings = ok;
-        autosave_settings = ok;
         display_time = time_us_32();
       }
     }
@@ -2690,7 +2698,6 @@ void ui::do_ui()
       {
         ui_state = idle;
         update_settings = ok;
-        autosave_settings = ok;
         display_time = time_us_32();
       }
     }
@@ -2737,26 +2744,12 @@ void ui::do_ui()
       waterfall_inst.powerOn(0);
     }
 
-    //autosave frequency only after is has been stable for 1 second
-    if(frequency_autosave_pending)
-    {
-      if((time_us_32() - frequency_autosave_time) > 1000000u)
-      {
-        autosave_settings = true;
-        frequency_autosave_pending = false;
-      }
-    }
-
-    //autosave current settings to flash
-    if(autosave_settings)
-      autosave();
- 
-    //apply settings to receiver
-    if(update_settings)
+    //apply settings to receiver (without saving)
+    if (update_settings)
     {
       apply_settings(false);
+      autosave();
     }
-
 }
 
 #define OLED_I2C_SDA_PIN (18)

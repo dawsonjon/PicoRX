@@ -210,9 +210,9 @@ class ui
   void print_menu_option(const char options[], uint8_t option);
 
   bool menu_entry(const char title[], const char options[], uint32_t *value, bool &ok);
-  bool enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok);
+  bool enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok, bool &changed);
   bool bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok, bool &changed);
   bool frequency_entry(const char title[], uint32_t which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);
   bool memory_recall(bool &ok);
@@ -231,7 +231,7 @@ class ui
   uint8_t *spectrum;
   uint8_t &dB10;
   waterfall &waterfall_inst;
-  void apply_settings(bool suspend);
+  void apply_settings(bool suspend, bool settings_changed=true);
 
   u8g2_t u8g2;
 

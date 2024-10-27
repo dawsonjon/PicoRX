@@ -308,9 +308,11 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
 
       static float last_filtered_power = 0;
-      if(abs(filtered_power - last_filtered_power) > 1 || refresh)
+      static uint8_t last_squelch = 255;
+      if(abs(filtered_power - last_filtered_power) > 1 || settings.squelch != last_squelch|| refresh)
       {
         last_filtered_power = filtered_power;
+        last_squelch = settings.squelch;
         uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
         uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch), smeter_height);
 
