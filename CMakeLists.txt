@@ -41,7 +41,7 @@ if(PICO_BOARD STREQUAL "pico")
       event.c
       usb_descriptors.c
       usb_audio_device.c
-      ring_buffer_lib.c
+      bipbuffer.c
       squelch.c
   )
 

@@ -5,7 +5,7 @@
 #include <math.h>
 #include <cstdio>
 
-#include "ring_buffer_lib.h"
+#include "bipbuffer.h"
 
 #include "pico/stdlib.h"
 #include "usb_audio_device.h"
@@ -113,8 +113,7 @@ static void __not_in_flash_func(interp_bresenham)(int16_t y1, int16_t y2, uint16
 }
 
 #define USB_BUF_SIZE (sizeof(int16_t) * 2 * (adc_block_size/decimation_rate))
-static ring_buffer_t usb_rb;
-static uint8_t usb_buf[USB_BUF_SIZE];
+static bipbuf_t *usb_rb;
 
 critical_section_t usb_volumute;
 static int16_t usb_volume=180;  // usb volume
@@ -305,8 +304,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    ring_buffer_push_ovr(&usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * (adc_block_size / decimation_rate));
-    rolling_avg_int(ring_buffer_get_num_bytes(&usb_rb), &usb_buf_level_avg, &usb_lev_err);
+    bipbuf_offer(usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * (adc_block_size / decimation_rate));
+    rolling_avg_int(bipbuf_used(usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples
     signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
@@ -558,14 +557,16 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
 
 static void __not_in_flash_func(on_usb_audio_tx_ready)()
 {
-  uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
-
   // Callback from TinyUSB library when all data is ready
   // to be transmitted.
   //
   // Write local buffer to the USB microphone
-  uint16_t s = ring_buffer_pop(&usb_rb, usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, s);
+  uint8_t *usb_buf = bipbuf_peek(usb_rb, SAMPLE_BUFFER_SIZE * sizeof(int16_t));
+  if (usb_buf)
+  {
+    usb_audio_device_write(usb_buf, SAMPLE_BUFFER_SIZE * sizeof(int16_t));
+    bipbuf_poll(usb_rb, SAMPLE_BUFFER_SIZE * sizeof(int16_t));
+  }
 }
 
 rx_dsp :: rx_dsp()
@@ -581,7 +582,8 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  ring_buffer_init(&usb_rb, usb_buf, USB_BUF_SIZE, 1);
+  usb_rb = bipbuf_new(USB_BUF_SIZE);
+  hard_assert(usb_rb);
   set_agc_speed(3);
   filter_control.enable_auto_notch = false;
 
