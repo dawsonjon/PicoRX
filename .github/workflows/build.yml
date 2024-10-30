@@ -42,6 +42,10 @@ jobs:
         git clone https://github.com/olikraus/u8g2.git external/u8g2
         cd external/u8g2
         git reset --hard e6a66ee0de9f863f898ddad5fe50a112d159de80
+        cd ../..
+        git clone https://github.com/ARM-software/CMSIS-DSP.git external/CMSIS-DSP
+        cd external/CMSIS-DSP
+        git reset --hard d5717e454fec0337bef114a21f1d2d01d74f2701
 
     - name: RiscV_compiler
       if: ${{ matrix.pico_platform == 'rp2350-riscv' }}

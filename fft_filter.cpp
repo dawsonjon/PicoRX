@@ -12,7 +12,9 @@
 //
 
 #include "fft_filter.h"
+#ifndef PICORX_FFT_FILTER_USE_CMSIS
 #include "fft.h"
+#endif
 #include "utils.h"
 #include <cmath>
 #include <cstdio>
@@ -28,6 +30,30 @@ void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_
 void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture_i[], int16_t capture_q[]) {
 #endif
 
+#ifdef PICORX_FFT_FILTER_USE_CMSIS
+  static q15_t tmp_fft_buf[2 * fft_size];
+  static q15_t magnitudes[new_fft_size];
+
+  // window
+  arm_mult_q15(sample_real, window, sample_real, fft_size);
+  arm_mult_q15(sample_imag, window, sample_imag, fft_size);
+
+  for (uint16_t i = 0; i < fft_size; i++)
+  {
+    tmp_fft_buf[2 * i] = 512 * sample_real[i];
+    tmp_fft_buf[(2 * i) + 1] = 512 * sample_imag[i];
+  }
+
+  // forward FFT
+  arm_cfft_q15(&fft_i, tmp_fft_buf, 0, 1);
+  arm_cmplx_mag_fast_q15(tmp_fft_buf, magnitudes, new_fft_size);
+
+  for (uint16_t i = 0; i < fft_size; i++)
+  {
+    sample_real[i] = tmp_fft_buf[2 * i];
+    sample_imag[i] = tmp_fft_buf[(2 * i) + 1];
+  }
+#else
   // window
   for (uint16_t i = 0; i < fft_size; i++) {
     sample_real[i] = product(sample_real[i], window[i]);
@@ -36,6 +62,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
   // forward FFT
   fixed_fft(sample_real, sample_imag, 8);
+#endif
 
   if(filter_control.capture)
   {
@@ -64,7 +91,11 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[i] = sample_imag[i];
 
       //capture highest and second highest peak
-      uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+#ifdef PICORX_FFT_FILTER_USE_CMSIS
+      const uint16_t magnitude = magnitudes[i];
+#else
+      const uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+#endif
       if(magnitude > peak)
       {
         peak = magnitude; 
@@ -93,7 +124,11 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[new_idx] = sample_imag[fft_size - (new_fft_size/2u) + i + 1];
 
       //capture highest and second highest peak
-      uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+#ifdef PICORX_FFT_FILTER_USE_CMSIS
+      const uint16_t magnitude = magnitudes[new_idx];
+#else
+      const uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+#endif
       if(magnitude > peak)
       {
         peak = magnitude; 
@@ -130,9 +165,25 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+#ifdef PICORX_FFT_FILTER_USE_CMSIS
+  for (uint16_t i = 0; i < new_fft_size; i++)
+  {
+    tmp_fft_buf[2 * i] = sample_real[i];
+    tmp_fft_buf[2 * i + 1] = sample_imag[i];
+  }
 
   // inverse FFT
+  arm_cfft_q15(&ifft_i, tmp_fft_buf, 1, 1);
+
+  for (uint16_t i = 0; i < new_fft_size; i++)
+  {
+    sample_real[i] = tmp_fft_buf[2 * i] / 2;
+    sample_imag[i] = tmp_fft_buf[(2 * i) + 1] / 2;
+  }
+#else
+  // inverse FFT
   fixed_ifft(sample_real, sample_imag, 7);
+#endif
 
 }
 

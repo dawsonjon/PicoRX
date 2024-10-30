@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 
 include(pico_sdk_import.cmake)
 
@@ -22,6 +22,27 @@ add_library(
     ${U8G2_SRCS}
 )
 target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
+
+if(PICORX_FFT_FILTER_USE_CMSIS)
+  if(PICO_PLATFORM STREQUAL "rp2350-riscv")
+    message( FATAL_ERROR "CMSIS cannot be used on RISC-V")
+  else()
+    add_compile_definitions(PICORX_FFT_FILTER_USE_CMSIS)
+  endif()
+else()
+  if(NOT PICORX_FFT_FILTER_USE_CMSIS STREQUAL "0")
+    if(NOT PICO_PLATFORM STREQUAL "rp2350-riscv")
+      add_compile_definitions(PICORX_FFT_FILTER_USE_CMSIS)
+    endif()
+  endif()
+endif()
+
+if(NOT PICO_PLATFORM STREQUAL "rp2350-riscv")
+  set(CMSISDSP "${CMAKE_CURRENT_LIST_DIR}/external/CMSIS-DSP" CACHE STRING "CMSIS-DSP Library")
+  add_subdirectory(${CMSISDSP}/Source bin_dsp)
+  target_compile_options(CMSISDSP PRIVATE -Ofast)
+  target_link_libraries(CMSISDSP PUBLIC pico_stdlib cmsis_core)
+endif()
 
 if(PICO_BOARD STREQUAL "pico")
 
@@ -63,7 +84,8 @@ if(PICO_BOARD STREQUAL "pico")
                                        hardware_i2c
                                        tinyusb_device
                                        tinyusb_board
-                                       u8g2)
+                                       u8g2
+                                       CMSISDSP)
 
   #battery check utility
   project(battery_check)
@@ -168,7 +190,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_i2c
                                          tinyusb_device
                                          tinyusb_board
-                                         u8g2)
+                                         u8g2
+                                         CMSISDSP)
 
     #battery check utility
     project(battery_check_pico2)
