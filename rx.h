@@ -33,6 +33,7 @@ struct rx_settings
   bool swap_iq;
   bool iq_correction;
   bool enable_auto_notch;
+  bool audio_denoiser;
 };
 
 struct rx_status

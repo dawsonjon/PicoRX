@@ -40,8 +40,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
   for (uint16_t i = 0; i < fft_size; i++)
   {
-    tmp_fft_buf[2 * i] = 512 * sample_real[i];
-    tmp_fft_buf[(2 * i) + 1] = 512 * sample_imag[i];
+    tmp_fft_buf[2 * i] = 128 * sample_real[i];
+    tmp_fft_buf[(2 * i) + 1] = 128 * sample_imag[i];
   }
 
   // forward FFT
@@ -177,8 +177,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
   for (uint16_t i = 0; i < new_fft_size; i++)
   {
-    sample_real[i] = tmp_fft_buf[2 * i] / 2;
-    sample_imag[i] = tmp_fft_buf[(2 * i) + 1] / 2;
+    sample_real[i] = tmp_fft_buf[2 * i];
+    sample_imag[i] = tmp_fft_buf[(2 * i) + 1];
   }
 #else
   // inverse FFT

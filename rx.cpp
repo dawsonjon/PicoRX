@@ -217,6 +217,8 @@ void rx::apply_settings()
       //apply iq imbalance correction
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
+      rx_dsp_inst.set_audio_denoiser(settings_to_apply.audio_denoiser);
+
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
