@@ -255,7 +255,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(real, imag, filter_control, capture_i, capture_q);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
-  int16_t tmp_usb_buf[1 + (adc_block_size/decimation_rate)];
+  int16_t tmp_audio_buf[(adc_block_size/decimation_rate)];
   critical_section_enter_blocking(&usb_volumute);
   int32_t safe_usb_volume = usb_volume;
   bool safe_usb_mute = usb_mute;
@@ -277,25 +277,43 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
       //Automatic gain control scales signal to use full 16 bit range
       //e.g. -32767 to 32767
-      int32_t usbaudio = audio = automatic_gain_control(audio);
+      tmp_audio_buf[idx] = automatic_gain_control(audio);
+    }
+
+#ifndef __riscv
+    if (audio_denoiser)
+    {
+      denoiser_process(&denoiser, tmp_audio_buf, adc_block_size / decimation_rate);
+    }
+#endif
+
+    for (uint16_t idx = 0; idx < adc_block_size / decimation_rate; idx++)
+    {
+      int32_t audio = tmp_audio_buf[idx];
+      int32_t usbaudio = audio;
 
       // usbaudio volume is controlled from usb so duplicate the sample
-      if (safe_usb_mute) {
+      if (safe_usb_mute)
+      {
         usbaudio = 0;
-      } else {
-        usbaudio = (usbaudio * safe_usb_volume)/180;
+      }
+      else
+      {
+        usbaudio = (usbaudio * safe_usb_volume) / 180;
       }
 
-      //digital volume control
+      // digital volume control
       audio = ((int32_t)audio * gain_numerator) >> 8;
 
-      //squelch
-      if(squelch_on) {
+      // squelch
+      if (squelch_on)
+      {
         usbaudio = audio = 0;
       }
-      tmp_usb_buf[idx] = usbaudio;
+      // reuse tmp audio buf for USB buffer
+      tmp_audio_buf[idx] = usbaudio;
 
-      //convert to unsigned value in range 0 to 500 to output to PWM
+      // convert to unsigned value in range 0 to 500 to output to PWM
       audio += INT16_MAX;
       audio /= pwm_scale;
 
@@ -304,7 +322,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       prev_audio = audio;
     }
 
-    bipbuf_offer(usb_rb, (uint8_t *)tmp_usb_buf, sizeof(int16_t) * (adc_block_size / decimation_rate));
+    bipbuf_offer(usb_rb, (uint8_t *)tmp_audio_buf, sizeof(int16_t) * (adc_block_size / decimation_rate));
     rolling_avg_int(bipbuf_used(usb_rb), &usb_buf_level_avg, &usb_lev_err);
 
     //average over the number of samples
@@ -578,6 +596,7 @@ rx_dsp :: rx_dsp()
   initialise_luts();
   swap_iq = 0;
   iq_correction = 0;
+  audio_denoiser = false;
 
   //initialise semaphore for spectrum
   set_mode(AM, 2);
@@ -603,6 +622,10 @@ rx_dsp :: rx_dsp()
 
   squelch_init(&squelch, (adc_sample_rate / adc_block_size) / 2); // 500ms squelch timeout
   squelch_enable(&squelch, 0);
+
+#ifndef __riscv
+  denoiser_init(&denoiser);
+#endif
 
   for(uint16_t i=0; i<256; i++) accumulator[i] = 0.0f;
 }
@@ -699,6 +722,11 @@ void rx_dsp :: set_swap_iq(uint8_t val)
 void rx_dsp :: set_iq_correction(uint8_t val)
 {
   iq_correction = val;
+}
+
+void rx_dsp :: set_audio_denoiser(bool val)
+{
+  audio_denoiser = val;
 }
 
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)

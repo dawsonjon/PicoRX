@@ -1066,6 +1066,7 @@ void ui::apply_settings(bool suspend)
   settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
   settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
+  settings_to_apply.audio_denoiser = settings[idx_rx_features] >> flag_audio_denoiser & 1;
   receiver.release();
 }
 
@@ -2861,6 +2862,7 @@ void ui::do_ui(event_t event)
       settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
       settings_to_apply.volume = settings[idx_volume];
       settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
+      settings_to_apply.audio_denoiser = settings[idx_rx_features] >> flag_audio_denoiser & 1;
       receiver.release();
     }
 
@@ -2893,7 +2895,7 @@ bool ui::top_menu(rx_settings & settings_to_apply)
         break;
       }
       if(!menu_entry("Menu",
-                     "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch\ntreshold#Squelch\ntimeout#Auto Notch#De-\nemphasis#IQ\ncorrection#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Scanner#Hardware\nConfig#",
+                     "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch\ntreshold#Squelch\ntimeout#Auto Notch#De-\nemphasis#IQ\ncorrection#Band Start#Band Stop#Frequency\nStep#CW Tone#Spectrum\nZoom Level#Audio\ndenoiser#Scanner#Hardware\nConfig#",
                      &setting)) 
         return rx_settings_changed;
 
@@ -2995,11 +2997,15 @@ bool ui::top_menu(rx_settings & settings_to_apply)
           settings[idx_bandwidth_spectrum] |= ( (spectrum_zoom << flag_spectrum) & mask_spectrum);
           break;
 
-        case 17 : 
-          rx_settings_changed |= scanner_menu();
+        case 17:
+          rx_settings_changed |= bit_entry("Audio\ndenoiser", "Off#On#", flag_audio_denoiser, &settings[idx_rx_features]);
           break;
 
         case 18 : 
+          rx_settings_changed |= scanner_menu();
+          break;
+
+        case 19 : 
           rx_settings_changed |= configuration_menu();
           break;
       }

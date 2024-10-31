@@ -6,6 +6,9 @@
 #include "pico/sem.h"
 #include "fft_filter.h"
 #include "squelch.h"
+#ifndef __riscv
+#include "denoiser.h"
+#endif
 
 class rx_dsp
 {
@@ -23,6 +26,7 @@ class rx_dsp
   void set_squelch_timeout_ms(uint32_t val);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
+  void set_audio_denoiser(bool val);
   void set_deemphasis(uint8_t deemphasis);
   void set_pwm_max(uint32_t pwm_max);
   void set_auto_notch(bool enable_auto_notch);
@@ -70,6 +74,7 @@ class rx_dsp
   int32_t dither;
   uint32_t phase;
   int32_t frequency;
+  bool audio_denoiser;
 
   //used to generate cw sidetone
   int16_t cw_i, cw_q;
@@ -107,6 +112,9 @@ class rx_dsp
 
   int32_t usb_buf_level_avg = 0;
 
+#ifndef __riscv
+  denoiser_t denoiser;
+#endif
 };
 
 #endif
