@@ -16,6 +16,7 @@ extern "C"
         q15_t prev_out_frame[DENOISER_FFT_SIZE / 2];
         q15_t tmp_in_buf[2 * DENOISER_FFT_SIZE];
         q15_t tmp_out_buf[2 * DENOISER_FFT_SIZE];
+        q31_t delta[DENOISER_FFT_SIZE / 4];
         arm_rfft_instance_q15 fft_i;
         arm_rfft_instance_q15 ifft_i;
     } denoiser_t;

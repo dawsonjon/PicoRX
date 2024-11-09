@@ -10,8 +10,8 @@ if __name__ == "__main__":
     print(f"#define ONE_MINUS_KFRAME ({32767 - kFrame})")
 
     print()
-    x = np.arange(1, 3000, 1)
-    y = 32767 * (((20 * np.log10(x)) * 0.02))
+    x = np.arange(1, 601, 1)
+    y = 32767 * (((20 * np.log10(x / 16)) * 0.01))
     print(f"static const q31_t db_lut[{len(y)}] = {{")
     y_str = list(map(lambda a: str(round(a)), y))
     lines = [y_str[i : i + 16] for i in range(0, len(y_str), 16)]
