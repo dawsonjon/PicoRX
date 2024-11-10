@@ -156,8 +156,9 @@ class ui
   void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
   void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
   void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
-  void display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7]);
-  void display_draw_volume(uint8_t v);
+  void display_draw_icon(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint16_t pixels[]);
+  void display_draw_volume(uint8_t v, uint8_t x);
+  void display_draw_battery(float v, uint8_t x);
 
   void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
   void display_show();
@@ -175,8 +176,9 @@ class ui
 
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
+  void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
-  void renderpage_bigtext(rx_status & status, rx & receiver);
+  void renderpage_status(rx_status & status, rx & receiver);
   void renderpage_fun(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_smeter(bool view_changed, rx_status & status, rx & receiver);
 
@@ -185,7 +187,7 @@ class ui
   int32_t dBm_to_63px(float power_dBm);
   void log_spectrum(float *min, float *max, int zoom = 1);
   void draw_h_tick_marks(uint16_t startY);
-  void draw_spectrum(uint16_t startY);
+  void draw_spectrum(uint16_t startY, uint16_t endY);
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);

@@ -222,32 +222,58 @@ void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, 
   display_print_str(buff, scale, style);
 }
 
-void ui::display_draw_icon7x8(uint8_t x, uint8_t y, const uint8_t (&data)[7])
+void ui::display_draw_icon(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint16_t pixels[])
 {
-  for (uint8_t i = 0; i < 8 * 7; i++)
+  for (uint8_t yy = 0; yy < h; ++yy)
   {
-    ssd1306_draw_pixel(&disp, x + (i / 8), y + i % 8, (data[i / 8] >> (i % 8)) & 1);
+    for (uint8_t xx = 0; xx < w; ++xx)
+    {
+      ssd1306_draw_pixel(&disp, x+h-xx-1, y+yy, (pixels[yy] >> xx) & 1);
+    }
   }
 }
 
-void ui::display_draw_volume(uint8_t v)
+void ui::display_draw_volume(uint8_t v, uint8_t x)
 {
+  const uint16_t mute_icon[15] = {0x0, 0xa, 0x1a, 0x38, 0x78, 0x6f8, 0x6f8, 0x6f8, 0x7f8, 0x6f8, 0x478, 0x838, 0x1018, 0x8, 0x0};
+  const uint8_t scaled_volume = (v+5)*12/9;
   if (v == 0)
   {
-    display_draw_icon7x8(67, 0, (uint8_t[7]){0x01, 0x1e, 0x1c, 0x3e, 0x7f, 0x20, 0x40});
+    display_draw_icon(x, 0, 16, 15, mute_icon);
   }
   else
   {
-    if (v > 9)
+    for (uint8_t i = 0; i < 16; i++)
     {
-      v = 9;
+      uint8_t h = i * 12/16;
+      if(scaled_volume >= i) u8g2_DrawVLine(&u8g2, x + i, 13-h, h);
     }
+  }
+}
 
-    const uint8_t ramp[2 * 9] = {1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
-    for (uint8_t i = 0; i < 2 * v; i++)
-    {
-      u8g2_DrawVLine(&u8g2, 62 + i, 6-ramp[i], ramp[i]);
-    }
+void ui::display_draw_battery(float v, uint8_t x)
+{
+  u8g2_DrawVLine(&u8g2, x+0 , 2, 12);
+  u8g2_DrawVLine(&u8g2, x+14, 2, 12);
+  u8g2_DrawVLine(&u8g2, x+15, 6,  4);
+
+  u8g2_DrawHLine(&u8g2, x+0, 2,  14);
+  u8g2_DrawHLine(&u8g2, x+0, 13, 14);
+
+
+  const bool vbus_present = gpio_get(24);
+
+  if(vbus_present)
+  {
+    const uint16_t power_icon[8] = {0x10, 0x18, 0x11C, 0xDC, 0xF6, 0x72, 0x31, 0x10};
+    display_draw_icon(x+4, 4, 9, 8, power_icon);
+  }
+  else
+  {
+    const float v_min = 1.8f;
+    const float v_max = 5.5f;
+    const uint8_t pixels = 11.0f*(v-v_min)/(v_max-v_min);
+    u8g2_DrawBox(&u8g2, x+2, 4, pixels, 8);
   }
 }
 
@@ -282,11 +308,6 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   receiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
-  const float temp_voltage = 3.3f * (status.temp/65535.0f);
-  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
-  const float block_time = (float)adc_block_size/(float)adc_sample_rate;
-  const float busy_time = ((float)status.busy_time*1e-6f);
-  const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
 
   const uint8_t buffer_size = 21;
@@ -303,95 +324,69 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
 
   u8g2_SetFont(&u8g2, font_seg_big);
   snprintf(buff, buffer_size, "%2lu", MHz);
-  u8g2_DrawStr(&u8g2, 0, 34, buff);
-
+  u8g2_DrawStr(&u8g2, 0, 42, buff);
   snprintf(buff, buffer_size, "%03lu", kHz);
-  u8g2_DrawStr(&u8g2, 39, 34, buff);
-
-  u8g2_DrawBox(&u8g2, 35, 31, 3, 3);
-
+  u8g2_DrawStr(&u8g2, 39, 42, buff);
+  u8g2_DrawBox(&u8g2, 35, 39, 3, 3);
   u8g2_SetFont(&u8g2, font_seg_mid);
   snprintf(buff, buffer_size, "%03lu", Hz);
-  u8g2_DrawStr(&u8g2, 94, 23, buff);
+  u8g2_DrawStr(&u8g2, 94, 31, buff);
+  u8g2_DrawBox(&u8g2, 90, 29, 3, 3);
 
-  u8g2_DrawBox(&u8g2, 90, 20, 3, 3);
 
   //mode
-  u8g2_SetFont(&u8g2, u8g2_font_5x7_tf);
-  u8g2_DrawStr(&u8g2, 4, 6, modes[settings[idx_mode]]);
+  const uint8_t text_height = 14u;
+  u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
+  u8g2_DrawStr(&u8g2, 0, text_height, modes[settings[idx_mode]]);
+  uint16_t x = u8g2_GetStrWidth(&u8g2, modes[0]) + 2;
 
-  //step
-  uint16_t w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
-  u8g2_DrawStr(&u8g2, 55 - w, 6, steps[settings[idx_step]]);
+  //volume
+  display_draw_volume(settings[idx_volume], x);
+  x += 18;
 
   //battery
-  snprintf(buff, buffer_size, "%2.1fV", battery_voltage);
-  w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 104 - w, 6, buff);
+  display_draw_battery(battery_voltage, x);
 
-  //temp
-  snprintf(buff, buffer_size, "%2.0f%cC", temp, '\xb0');
-  w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 127 - w, 6, buff);
+  //power
+  snprintf(buff, buffer_size, "% 4ddBm", (int)power_dBm);
+  uint16_t w = u8g2_GetStrWidth(&u8g2, buff);
+  u8g2_DrawStr(&u8g2, 127-w, text_height, buff);
 
-  display_draw_volume(settings[idx_volume]);
-
-  u8g2_DrawHLine(&u8g2, 0, 8, 128);
-
-  //signal strength
-  snprintf(buff, buffer_size, "% 4d", (int)power_dBm);
-  w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 111 - w, 32, buff);
-  w = u8g2_GetStrWidth(&u8g2, "dBm");
-  u8g2_DrawStr(&u8g2, 127 - w, 32, "dBm");
-
-  // way to make minus sign shorter
-  u8g2_SetDrawColor(&u8g2, 0);
-  u8g2_DrawPixel(&u8g2, 92, 29);
-
-  draw_spectrum(35);
+  //step size
+  u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+  w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
+  u8g2_DrawStr(&u8g2, 127 - w, 42, steps[settings[idx_step]]);
 
   int8_t power_s = dBm_to_S(power_dBm);
-
   const uint16_t seg_w = 8;
-  const uint16_t seg_h = 5;
+  const uint16_t seg_h = 12;
+  const uint16_t seg_y = 47;
+  const uint16_t seg_x = 3;
 
-  for (int8_t i = 0; i < 12; i++)
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w+1)*13+4, seg_h+5, 2);
+  for (int8_t i = 0; i < 13; i++)
   {
     u8g2_SetDrawColor(&u8g2, 0);
-    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1, 34, seg_w + 2, seg_h + 2, 2);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y+2, seg_w + 2, seg_h + 2, 2);
     u8g2_SetDrawColor(&u8g2, 1);
 
     if (i < power_s)
     {
-      u8g2_DrawRBox(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
-    }
-    else
-    {
-      u8g2_DrawRFrame(&u8g2, i * (seg_w + 1), 35, seg_w, seg_h, 2);
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
     }
   }
+  u8g2_DrawVLine(&u8g2, settings[idx_squelch] * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
 
+  const char smeter[13][6] = {"S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "+10", "+20", "+30"};
+  u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
+  w = u8g2_GetStrWidth(&u8g2, smeter[power_s]);
   u8g2_SetDrawColor(&u8g2, 0);
-  u8g2_DrawRBox(&u8g2, 127 - (seg_w + 8), 35, seg_w + 9, seg_h + 4, 2);
+  u8g2_DrawRBox(&u8g2, (128-(w+4))/2, 48, w+4, 14, 2);
   u8g2_SetDrawColor(&u8g2, 1);
-  snprintf(buff, buffer_size, "S%d", power_s);
-  u8g2_DrawStr(&u8g2, 127 - 13, 40, buff);
+  u8g2_DrawStr(&u8g2, (128-w)/2, 60, smeter[power_s]);
 
-  // load and USB buf level
-  u8g2_SetDrawColor(&u8g2, 0);
-  u8g2_DrawBox(&u8g2, 128 - 38, 56, 38, 8);
-  u8g2_SetDrawColor(&u8g2, 1);
-  u8g2_DrawFrame(&u8g2, 128 - 38, 56, 38, 8);
 
-  u8g2_SetFont(&u8g2, u8g2_font_tiny5_tf );
-  snprintf(buff, buffer_size, "%3.0f%%", (100.0f * busy_time) / block_time);
-  w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 108 - w, 63, buff);
-
-  snprintf(buff, buffer_size, "%3d%%", usb_buf_level);
-  w = u8g2_GetStrWidth(&u8g2, buff);
-  u8g2_DrawStr(&u8g2, 127 - w, 63, buff);
   display_show();
 }
 
@@ -402,7 +397,22 @@ void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
 {
   display_clear();
   draw_slim_status(0, status, receiver);
-  draw_spectrum(8);
+  draw_h_tick_marks(8);
+  draw_spectrum(13, 63);
+  display_show();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display with combined view
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver)
+{
+  if (view_changed) display_clear();
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 48, 0);
+  draw_waterfall(48);
+  draw_slim_status(0, status, receiver);
+  draw_h_tick_marks(8);
+  draw_spectrum(13, 47);
   display_show();
 }
 
@@ -412,8 +422,9 @@ void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
 void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver)
 {
   if (view_changed) display_clear();
-  ssd1306_fill_rectangle(&disp, 0, 0, 128, 8, 0);
-  draw_waterfall(8);
+  ssd1306_fill_rectangle(&disp, 0, 0, 128, 13, 0);
+  draw_waterfall(13);
+  draw_h_tick_marks(8);
   draw_slim_status(0, status, receiver);
   display_show();
 }
@@ -421,27 +432,48 @@ void ui::renderpage_waterfall(bool view_changed, rx_status & status, rx & receiv
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with big simple text
 ////////////////////////////////////////////////////////////////////////////////
-void ui::renderpage_bigtext(rx_status & status, rx & receiver)
+void ui::renderpage_status(rx_status & status, rx & receiver)
 {
-
   receiver.access(false);
-  const float power_dBm = status.signal_strength_dBm;
+  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
+  const float temp_voltage = 3.3f * (status.temp/65535.0f);
+  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
+  const float block_time = (float)adc_block_size/(float)adc_sample_rate;
+  const float busy_time = ((float)status.busy_time*1e-6f);
+  const uint8_t usb_buf_level = status.usb_buf_level;
   receiver.release();
 
   display_clear();
-  display_set_xy(0,0);
-  display_print_freq('.', settings[idx_frequency],2,style_centered);
+  draw_slim_status(0, status, receiver);
 
-  display_set_xy(0,24);
-  //mode and step size
-  display_print_str(modes[settings[idx_mode]],2);
-  display_print_str(steps[settings[idx_step]], 2, style_right);
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+  u8g2_DrawHLine(&u8g2, 0, 8, 128);
 
-  //signal strength
-  display_set_xy(0,48);
-  int8_t power_s = dBm_to_S(power_dBm);
+  const uint8_t buffer_size = 21;
+  char buff [buffer_size];
 
-  display_print_str(smeter[power_s],2);
+  //battery
+  uint16_t y = 8; //draw from left
+  y += 10;
+  snprintf(buff, buffer_size, "Battery : %2.1fV", battery_voltage);
+  u8g2_DrawStr(&u8g2, 0, y, buff);
+
+  //temp
+  y += 10;
+  snprintf(buff, buffer_size, "CPU Temp: %2.0f%cC", temp, '\xb0');
+  u8g2_DrawStr(&u8g2, 0, y, buff);
+
+  //cpu load
+  y += 10;
+  snprintf(buff, buffer_size, "CPU Load: %3.0f%%", (100.0f * busy_time) / block_time);
+  u8g2_DrawStr(&u8g2, 0, y, buff);
+
+  //usb buffer
+  y += 10;
+  snprintf(buff, buffer_size, "USB Buff: %3d%%", usb_buf_level);
+  u8g2_DrawStr(&u8g2, 0, y, buff);
+
   display_show();
 }
 
@@ -709,15 +741,13 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(uint16_t startY)
+void ui::draw_spectrum(uint16_t startY, uint16_t endY)
 {
-  //Display spectrum capture
-  draw_h_tick_marks(startY);
 
   //plot
   const uint8_t spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
   const uint8_t smoothing_factor = 1;
-  const uint8_t max_height = (64-startY-3);
+  const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
   int16_t y=0, smoothed_y=0;
 
@@ -728,15 +758,17 @@ void ui::draw_spectrum(uint16_t startY)
     else if(spectrum_zoom == 3) y = spectrum[96+(x>>1)]/scale;
     else if(spectrum_zoom == 4) y = spectrum[112+(x>>2)]/scale;
     smoothed_y = (smoothed_y - (smoothed_y>>smoothing_factor)) + (y>>smoothing_factor);
-    ssd1306_draw_line(&disp, x, 63-smoothed_y, x, 63, 1);
+    ssd1306_draw_line(&disp, x, endY-smoothed_y, x, endY, 1);
   }
 
-
-  for (int16_t y = 0; y < max_height; y += ((uint16_t)4*dB10/scale))
+  for (int16_t y = 0; y < max_height; ++y)
   {
-    for (uint8_t x = 0; x < 128; x += 4)
+    if (y == ((uint16_t)4*dB10/scale))
     {
-      ssd1306_draw_line(&disp, x, 63 - y, x + 1, 63 - y, 2);
+      for (uint8_t x = 0; x < 128; x += 4)
+      {
+        ssd1306_draw_line(&disp, x, endY - y, x + 1, endY - y, 2);
+      }
     }
   }
 }
@@ -762,10 +794,10 @@ void ui::draw_waterfall(uint16_t starty)
       // Simple Floyd-Steinberg dithering
       if(curr_line[x] > 32)
       {
-        ssd1306_draw_pixel(&disp, x, starty + 3, 1);
+        ssd1306_draw_pixel(&disp, x, starty, 1);
         err = curr_line[x] - 64;
       } else {
-        ssd1306_draw_pixel(&disp, x, starty + 3, 0);
+        ssd1306_draw_pixel(&disp, x, starty, 0);
         err = curr_line[x] - 0;
       }
 
@@ -781,7 +813,6 @@ void ui::draw_waterfall(uint16_t starty)
       }
   }
 
-  draw_h_tick_marks(starty);
 
 }
 
@@ -1577,7 +1608,9 @@ bool ui::memory_scan(bool &ok)
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
     if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
-      int8_t direction = scan_speed>0?1:-1;
+      int8_t direction = 1;
+      if(scan_speed == 0) direction = pos_change>0?1:-1;
+      else direction = scan_speed>0?1:-1;
 
       //skip blank channels
       for(uint16_t i = 0; i<num_chans; i++)
@@ -1778,7 +1811,9 @@ bool ui::frequency_scan(bool &ok)
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
     if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
-      int8_t direction = scan_speed>0?1:-1;
+      int8_t direction = 1;
+      if(scan_speed == 0) direction = pos_change>0?1:-1;
+      else direction = scan_speed>0?1:-1;
 
       //update frequency 
       settings[idx_frequency] += direction * step_sizes[settings[idx_step]];
@@ -2569,12 +2604,11 @@ bool ui::do_splash()
 ////////////////////////////////////////////////////////////////////////////////
 void ui::do_ui()
 {
-
     bool update_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
     static uint8_t display_option = 0;
-    const uint8_t num_display_options = 6;
+    const uint8_t num_display_options = 7;
     static bool view_changed = false;
 
     if(ui_state != idle) view_changed = true;
@@ -2668,12 +2702,13 @@ void ui::do_ui()
       
       switch(display_option)
       {
-        case 0: renderpage_original(status, receiver);break;
+        case 0: renderpage_original(status, receiver); break;
         case 1: renderpage_bigspectrum(status, receiver);break;
-        case 2: renderpage_waterfall(view_changed, status, receiver);break;
-        case 3: renderpage_bigtext(status, receiver);break;
-        case 4: renderpage_smeter(view_changed, status, receiver); break;
-        case 5: renderpage_fun(view_changed, status, receiver);break;
+        case 2: renderpage_combinedspectrum(view_changed, status, receiver);break;
+        case 3: renderpage_waterfall(view_changed, status, receiver);break;
+        case 4: renderpage_status(status, receiver);break;
+        case 5: renderpage_smeter(view_changed, status, receiver); break;
+        case 6: renderpage_fun(view_changed, status, receiver);break;
       }
       view_changed = false;
     }
@@ -2859,6 +2894,10 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
+  gpio_init(24);
+  gpio_set_dir(24, GPIO_IN);
+  gpio_pull_down(24);
+
   setup_display();
   setup_encoder();
   disp.buffer = u8g2.tile_buf_ptr;

@@ -8,6 +8,7 @@ add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
+
 project(picorx)
 pico_sdk_init()
 
@@ -66,6 +67,7 @@ if(PICO_BOARD STREQUAL "pico")
                                        tinyusb_device
                                        tinyusb_board
                                        u8g2)
+  target_compile_definitions(picorx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128)
 
   #battery check utility
   project(battery_check)
@@ -122,6 +124,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          tinyusb_device
                                          tinyusb_board
                                          u8g2)
+    target_compile_definitions(pico2rx-riscv PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128)
 
     #battery check utility
     project(battery_check_pico2-riscv)
@@ -174,6 +177,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          tinyusb_device
                                          tinyusb_board
                                          u8g2)
+    target_compile_definitions(pico2rx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128)
 
     #battery check utility
     project(battery_check_pico2)

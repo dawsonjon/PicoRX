@@ -88,3 +88,29 @@ Build Projects
   cmake -DPICO_SDK_PATH=~/pico/pico-sdk -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv ..
   make
 ```
+
+Credits
+-------
+
+Massive thanks to everybody who has contributed and given feedback on this project. Thanks to
+all your efforts, we’re closer than ever to making radio more accessible,
+innovative, and community-driven.
+
+The project uses the Universal 8-bit Graphics Library (u8g2) library by
+olikraus@gmail.com, the pico_ssd1306 display library by David Schramm and the
+ILI934X display driver by Darren Horrocks.
+
+Special Thanks to:
+
+Mariusz Ryndzionek for contributing IQ Imbalance Correction, De-emphasis
+filter, USB audio, U8G2 integration, Synronous AM Demodulation and many other
+enhancements.
+
+Penfold42 for Gain Calibration, Frequency Scanning, Spectrum Zoom, Multiple home screen
+views, Animated Splash Screen, Support for multiple displays/configurations and
+many other enhancements.
+
+Robert Nickels (W9RAN) and Jim Reagan (W0CHL) for their support and
+encouragements and for the enormous effort they have both put in testing,
+debugging, feedback and suggestions.
+
