@@ -23,10 +23,10 @@ int main()
     fc.start_bin = 0;
     fc.stop_bin = 32;
     fc.upper_sideband = true;
-    fc.lower_sideband = true;
+    fc.lower_sideband = false;
     fc.capture = false;
 
-    filt.process_sample(i, q, fc, NULL, NULL);
+    filt.process_sample(i, q, fc, NULL);
 
     for(uint16_t idx = 0; idx<64; ++idx)
     {

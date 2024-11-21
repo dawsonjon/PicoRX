@@ -153,11 +153,11 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 
           top_real         = reals[i];
           top_imaginary    = imaginaries[i];
-          bottom_real      = reals[ip];
-          bottom_imaginary = imaginaries[ip];
+          temp_real        = reals[ip];
+          temp_imaginary   = imaginaries[ip];
 
-          temp_real        = bottom_imaginary;
-          temp_imaginary   = -bottom_real;
+          temp_real        = temp_imaginary;
+          temp_imaginary   = -temp_real;
 
           bottom_real      = top_real - temp_real;
           bottom_imaginary = top_imaginary - temp_imaginary;
@@ -185,13 +185,13 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 
           top_real         = reals[i];
           top_imaginary    = imaginaries[i];
-          bottom_real      = reals[ip];
-          bottom_imaginary = imaginaries[ip];
+          temp_real        = reals[ip];
+          temp_imaginary   = imaginaries[ip];
 
-          temp_real      = product(bottom_real, real_twiddle) -
-                           product(bottom_imaginary, imaginary_twiddle);
-          temp_imaginary = product(bottom_real, imaginary_twiddle) +
-                           product(bottom_imaginary, real_twiddle);
+          temp_real      = product(temp_real, real_twiddle) -
+                           product(temp_imaginary, imaginary_twiddle);
+          temp_imaginary = product(temp_real, imaginary_twiddle) +
+                           product(temp_imaginary, real_twiddle);
 
           bottom_real      = top_real - temp_real;
           bottom_imaginary = top_imaginary - temp_imaginary;

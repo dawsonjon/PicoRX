@@ -4,7 +4,7 @@ import numpy as np
 from scipy import signal
 from subprocess import run
 
-run(["g++", "-DSIMULATION=true", "../utils.cpp", "../fft.cpp", "../fft_filter.cpp", "fft_filter_test.cpp", "-o", "fft_filter_test"])
+run(["g++", "-DSIMULATION=true", "../utils.cpp", "../cic_corrections.cpp", "../fft.cpp", "../fft_filter.cpp", "fft_filter_test.cpp", "-o", "fft_filter_test"])
 output = run("./fft_filter_test", capture_output=True)
 output = output.stdout.decode("utf8").strip()
 
