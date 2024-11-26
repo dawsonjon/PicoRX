@@ -57,7 +57,7 @@ class Memory:
       data = [
         int(frequency)&0xffffffff,           #0
         modes[mode],                         #1
-        agc_speeds[agc_speed],               #2
+        agc_speeds[agc_speed]|0x0a00,        #2 very slow, max gain
         steps[step],                         #3
         int(max_frequency)&0xffffffff,       #4
         int(min_frequency)&0xffffffff,       #5

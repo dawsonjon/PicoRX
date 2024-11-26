@@ -405,7 +405,8 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
       }
       else
       {
-        gain = setpoint/magnitude;
+        const int16_t agc_gain = setpoint/magnitude;
+        gain = std::min(agc_gain, manual_gain);
       }
       if(gain < 1) gain = 1;
       audio *= gain;
@@ -434,7 +435,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  set_agc_speed(3);
+  set_agc_control(3);
   filter_control.enable_auto_notch = false;
 
   //clear cic filter
@@ -459,7 +460,7 @@ void rx_dsp :: set_deemphasis(uint8_t deemph)
   deemphasis = deemph;
 }
 
-void rx_dsp :: set_agc_speed(uint8_t agc_setting)
+void rx_dsp :: set_agc_control(uint16_t agc_setting)
 {
   //input fs=480000.000000 Hz
   //decimation=32 x 2
@@ -472,10 +473,11 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
   //long        2.414          14       0.001      2    2s     30000
 
 
+  printf("%x\n", agc_setting);
   manual_gain_control = false;
-  manual_gain = 1;
+  manual_gain = 1 << (agc_setting >> 8);
 
-  switch(agc_setting)
+  switch(agc_setting & 0xff)
   {
       case 0: //fast
         attack_factor=2;
@@ -501,8 +503,7 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
         hang_time=30000;
         break;
 
-      default://4=6dB-60dB,
-        manual_gain = 1 << (agc_setting - 4);
+      default://manual
         manual_gain_control = true;
         break;
   }

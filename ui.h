@@ -41,7 +41,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define settings_to_store 6
 #define idx_frequency 0
 #define idx_mode 1
-#define idx_agc_speed 2
+#define idx_agc_control 2
 #define idx_step 3
 #define idx_max_frequency 4
 #define idx_min_frequency 5
@@ -54,6 +54,12 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_rx_features 12
 #define idx_band1 13
 #define idx_band2 14
+
+//flags for agc gain
+#define flag_agc_setting 0 // bits 0-7
+#define mask_agc_setting (0xff << flag_agc_setting)
+#define flag_agc_gain 8 // bits 8-15
+#define mask_agc_gain (0xff << flag_agc_gain)
 
 // bit flags for HW settings in idx_hw_setup
 #define flag_reverse_encoder 0

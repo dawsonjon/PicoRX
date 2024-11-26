@@ -13,7 +13,7 @@ class rx_dsp
   rx_dsp();
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
   void set_frequency_offset_Hz(double offset_frequency);
-  void set_agc_speed(uint8_t agc_setting);
+  void set_agc_control(uint16_t agc_setting);
   void set_mode(uint8_t mode, uint8_t bw);
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);

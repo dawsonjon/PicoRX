@@ -295,7 +295,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     {
       receiver.access(true);
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-      settings_to_apply.agc_speed = settings[idx_agc_speed];
+      settings_to_apply.agc_control = settings[idx_agc_control];
       settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
       settings_to_apply.mode = settings[idx_mode];
       settings_to_apply.volume = settings[idx_volume];
