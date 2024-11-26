@@ -17,7 +17,7 @@ class rx_dsp
   void set_mode(uint8_t mode, uint8_t bw);
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);
-  void set_squelch(uint8_t val);
+  void set_squelch(uint8_t threshold, uint8_t timeout);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
   void set_deemphasis(uint8_t deemphasis);
@@ -34,6 +34,7 @@ class rx_dsp
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   int16_t apply_deemphasis(int16_t x);
+  int16_t squelch(int16_t audio, int32_t amplitude);
   void iq_imbalance_correction(int16_t &i, int16_t &q);
 
   //capture samples for spectral analysis
@@ -84,6 +85,8 @@ class rx_dsp
   //squelch
   int16_t squelch_threshold=0;
   int16_t s9_threshold=0;
+  uint32_t squelch_time_ms = 0;
+  uint32_t squelch_timeout_ms = 0;
 
   //used in AGC
   uint8_t attack_factor;

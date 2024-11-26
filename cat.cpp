@@ -299,7 +299,8 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
       settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
       settings_to_apply.mode = settings[idx_mode];
       settings_to_apply.volume = settings[idx_volume];
-      settings_to_apply.squelch = settings[idx_squelch];
+      settings_to_apply.squelch_threshold = settings[idx_squelch]&0xff;
+      settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
       settings_to_apply.gain_cal = settings[idx_gain_cal];

@@ -178,9 +178,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     audio = automatic_gain_control(audio);
 
     //squelch
-    if(signal_amplitude < squelch_threshold) {
-      audio = 0;
-    }
+    audio = squelch(audio, signal_amplitude);
 
     //output raw audio
     audio_samples[idx] = audio;
@@ -346,6 +344,22 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
       const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
       const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((i * rotation_i) - (q * rotation_q)) >> 15;
+    }
+}
+
+int16_t __not_in_flash_func(rx_dsp::squelch)(int16_t audio, int32_t signal_amplitude)
+{
+    if(signal_amplitude > squelch_threshold) 
+      squelch_time_ms = to_ms_since_boot(get_absolute_time());
+    const uint32_t time_since_active = to_ms_since_boot(get_absolute_time())-squelch_time_ms;
+
+    if(time_since_active < squelch_timeout_ms) 
+    {
+      return audio;
+    }
+    else
+    {
+      return 0;
     }
 }
 
@@ -558,7 +572,7 @@ void rx_dsp :: set_gain_cal_dB(uint16_t val)
 }
 
 //set_squelch
-void rx_dsp :: set_squelch(uint8_t val)
+void rx_dsp :: set_squelch(uint8_t threshold, uint8_t timeout)
 {
   //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
   const int16_t thresholds[] = {
@@ -576,7 +590,11 @@ void rx_dsp :: set_squelch(uint8_t val)
     (int16_t)(s9_threshold*10), //s9+20dB
     (int16_t)(s9_threshold*31), //s9+30dB
   };
-  squelch_threshold = thresholds[val];
+  const uint16_t timeouts[] = {
+    50, 100, 200, 500, 1000, 2000, 3000, 5000
+  };
+  squelch_threshold = thresholds[threshold];
+  squelch_timeout_ms = timeouts[timeout];
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()

@@ -55,6 +55,12 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_band1 13
 #define idx_band2 14
 
+//flags for squelch
+#define flag_squelch_threshold 0 // bits 0-7
+#define mask_squelch_threshold (0xff << flag_squelch_threshold)
+#define flag_squelch_timeout 8 // bits 8-15
+#define mask_squelch_timeout (0xff << flag_squelch_timeout)
+
 //flags for agc gain
 #define flag_agc_setting 0 // bits 0-7
 #define mask_agc_setting (0xff << flag_agc_setting)

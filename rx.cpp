@@ -245,7 +245,7 @@ void rx::apply_settings()
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
 
       //apply squelch
-      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+      rx_dsp_inst.set_squelch(settings_to_apply.squelch_threshold, settings_to_apply.squelch_timeout);
 
       //apply swap iq
       rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);

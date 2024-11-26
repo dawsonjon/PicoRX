@@ -376,7 +376,7 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
       u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
     }
   }
-  u8g2_DrawVLine(&u8g2, settings[idx_squelch] * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
+  u8g2_DrawVLine(&u8g2, (settings[idx_squelch]&0xff) * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
 
   const char smeter[13][6] = {"S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "+10", "+20", "+30"};
   u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
@@ -1028,7 +1028,8 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
   settings_to_apply.mode = settings[idx_mode];
   settings_to_apply.volume = settings[idx_volume];
-  settings_to_apply.squelch = settings[idx_squelch];
+  settings_to_apply.squelch_threshold = settings[idx_squelch]&0xff;
+  settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
   settings_to_apply.gain_cal = settings[idx_gain_cal];
@@ -1517,7 +1518,7 @@ bool ui::memory_recall(bool &ok)
   if(abs(power_dBm - last_power_dBm) > 1.0f)
   {
     // draw vertical signal strength
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
     display_show();
   }
 
@@ -1572,7 +1573,7 @@ bool ui::memory_scan(bool &ok)
     power_dBm = status.signal_strength_dBm;
     receiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
-    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
+    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]&0xff));
 
     //hang for 3 seconds
     static uint32_t last_listen_time = 0u;
@@ -1712,7 +1713,7 @@ bool ui::memory_scan(bool &ok)
       display_print_str("Speed",2);
       display_print_speed(91, display_get_y(), 2, scan_speed);
     }
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
     display_show();
   }
 
@@ -1775,7 +1776,7 @@ bool ui::frequency_scan(bool &ok)
     power_dBm = status.signal_strength_dBm;
     receiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
-    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]));
+    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]&0xff));
 
     //hang for 3 seconds
     static uint32_t last_listen_time = 0u;
@@ -1902,7 +1903,7 @@ bool ui::frequency_scan(bool &ok)
         display_print_speed(91, display_get_y(), 2, scan_speed);
       }
 
-      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]));
+      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
       display_show();
   }
 
@@ -2360,7 +2361,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2425,43 +2426,53 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 8 :  
-            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings[idx_squelch], ok, changed);
+            settings_word = (settings[idx_squelch] & mask_squelch_threshold) >> flag_squelch_threshold;
+            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings_word, ok, changed);
+            settings[idx_squelch] &= ~(mask_squelch_threshold);
+            settings[idx_squelch] |= ((settings_word << flag_squelch_threshold) & mask_squelch_threshold);
             if(changed) apply_settings(false);
             break;
           case 9 :  
+            settings_word = (settings[idx_squelch] & mask_squelch_timeout) >> flag_squelch_timeout;
+            done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#", &settings_word, ok, changed);
+            settings[idx_squelch] &= ~(mask_squelch_timeout);
+            settings[idx_squelch] |= ((settings_word << flag_squelch_timeout) & mask_squelch_timeout);
+            if(changed) apply_settings(false);
+            break;
+          case 10 :  
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
-          case 10 :
+          case 11 :
             settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
             done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok, changed);
             settings[idx_rx_features] &= ~(mask_deemphasis);
             settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
             if(changed) apply_settings(false);
             break;
-          case 11 : 
+          case 12 : 
             done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
             break;
-          case 12 : 
+          case 13 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok, changed);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
-          case 13 :  
+          case 14 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 14 : 
+          case 15 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 15 : 
+          case 16 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok, changed);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 16 : 
+          case 17 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 17 : 
+          case 18 : 
             done = configuration_menu(ok);
             break;
         }
@@ -2673,8 +2684,11 @@ void ui::do_ui()
           }
           else if(back_button.is_held())
           {
-            settings[idx_step] += encoder_change;
-            settings[idx_step] %= 10u;
+            uint32_t squelch_setting = (settings[idx_squelch] & mask_squelch_threshold) >> flag_squelch_threshold;
+            squelch_setting += encoder_change;
+            squelch_setting %= 13u;
+            settings[idx_squelch] &= ~(mask_squelch_threshold);
+            settings[idx_squelch] |= ((squelch_setting << flag_squelch_threshold) & mask_squelch_threshold);
           }
           else
           {

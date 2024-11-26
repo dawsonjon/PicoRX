@@ -23,7 +23,8 @@ struct rx_settings
   uint16_t agc_control;
   uint8_t mode;
   uint8_t volume;
-  uint8_t squelch;
+  uint8_t squelch_threshold;
+  uint8_t squelch_timeout;
   uint8_t bandwidth;
   uint8_t deemphasis;
   uint16_t cw_sidetone_Hz;
