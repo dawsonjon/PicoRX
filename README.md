@@ -39,7 +39,7 @@ Pi Pico Rx is currently at the experimental prototyping stage, but it does work.
 Getting the Code
 ----------------
 
-You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonjon/PicoRX/actions?query=is%3Acompleted). If you want to build from the C++ source files, follow these instructions.
+You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonjon/PicoRX/releases). If you want to build from the C++ source files, follow these instructions.
 
 ```
   sudo apt install git
@@ -49,11 +49,16 @@ You can find a precompiled binary for PiPicoRx [here](https://github.com/dawsonj
   git submodule update
 ```
 
+User Manual
+-----------
+
+You can find the user manual for the PiPicoRx [here](https://github.com/dawsonjon/PicoRX/raw/master/user_manual/Pi%20Pico%20Rx%20User%20Manual.pdf).
+
 
 Install Pi Pico SDK
 -------------------
 
-Follow the `Getting started with the Raspberry Pi Pico <https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf>`_ quick start guide to install the C/C++ SDK.
+Follow the [Getting started with the Raspberry Pi Pico](https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf) quick start guide to install the C/C++ SDK.
 
 ```
   sudo apt install wget #if wget not installed
