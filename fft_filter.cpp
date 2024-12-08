@@ -166,10 +166,10 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   }
 
   // synthesis window
-  for (uint16_t i = 0; i < fft_size; i++) {
-    sample_real[i] = product(sample_real[i], window[i]);
-    sample_imag[i] = product(sample_imag[i], window[i]);
-  }
+  //for (uint16_t i = 0; i < fft_size; i++) {
+  //  sample_real[i] = product(sample_real[i], window[i]);
+  //  sample_imag[i] = product(sample_imag[i], window[i]);
+  //}
 
   // inverse FFT
   fixed_ifft(sample_real, sample_imag, 7);

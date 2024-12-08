@@ -5,12 +5,10 @@
 
 #ifndef SIMULATION
 #include "pico/stdlib.h"
-#include "pico/bit_ops.h"
 #endif
 
 static const uint16_t max_m = 8; // the largest size of FFT supported
 static const uint16_t max_n_over_2 = 1 << (max_m - 1);
-static const uint16_t max_n_over_4 = 1 << (max_m - 2);
 static int16_t fixed_cos_table[max_n_over_2];
 static int16_t fixed_sin_table[max_n_over_2];
 static const uint8_t fraction_bits = 14;
@@ -20,8 +18,7 @@ int16_t float2fixed(float float_value) {
         return round(float_value * (1 << fraction_bits));
 }
 int16_t product(int16_t a, int16_t b) {
-        //return ((static_cast<int32_t>(b) * a)+K) >> fraction_bits;
-        return ((static_cast<int32_t>(b) * a)) >> fraction_bits;
+        return ((static_cast<int32_t>(b) * a)+K) >> fraction_bits;
 }
 
 void fft_initialise() {
@@ -36,10 +33,7 @@ unsigned __not_in_flash_func(bit_reverse)(unsigned x, unsigned m) {
 #else
 unsigned bit_reverse(unsigned x, unsigned m) {
 #endif
-
-  #define BIT_REVERSE_LUT 1
-  #if BIT_REVERSE_LUT
-  static const unsigned char lookup[] = {
+    static const unsigned char lookup[] = {
         0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
         0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
         0x08, 0x88, 0x48, 0xc8, 0x28, 0xa8, 0x68, 0xe8,
@@ -75,10 +69,6 @@ unsigned bit_reverse(unsigned x, unsigned m) {
   };
   x = (lookup[x&0xff] << 8) | lookup[x>>8];
   return x >> (16-m);
-  #else
-  return __rev(x) >> (32-m);
-  #endif
-
 }
 
 #ifndef SIMULATION
@@ -87,9 +77,9 @@ void __not_in_flash_func(fixed_fft)(int16_t reals[], int16_t imaginaries[], unsi
 void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #endif
   uint16_t stage, subdft_size, span, j, i, ip;
-  int16_t bottom_real, bottom_imaginary;
-  int16_t top_real, top_imaginary;
   int16_t temp_real, temp_imaginary;
+  int16_t top_real, top_imaginary;
+  int16_t bottom_real, bottom_imaginary;
   int16_t imaginary_twiddle, real_twiddle;
   const unsigned n = 1 << m;
 
@@ -108,109 +98,109 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 
   // butterfly multiplies
   for (stage = 0; stage < m; ++stage) {
-    subdft_size = 2 << stage;
-    span = subdft_size >> 1;
-    uint16_t shift = (max_m - stage - 1);
-    uint16_t apply_scaling_this_stage = stage & 1;
-    uint16_t quarter_turn = 1 << (stage-1);
+     subdft_size = 2 << stage;
+     span = subdft_size >> 1;
+     uint16_t shift = (max_m - stage - 1);
+     uint16_t apply_scaling_this_stage = stage & 1;
+     uint16_t quarter_turn = 1 << (stage-1);
 
-    for (j = 0; j < span; ++j) {
+     for (j = 0; j < span; ++j) {
 
 
-      // Treat rotations by zero as a special case
-      if(j == 0)
-      {
-
-        for (i = j; i < n; i += subdft_size) {
-          ip = i + span;
-
-          top_real = reals[i];
-          top_imaginary = imaginaries[i];
-
-          temp_real = reals[ip];
-          temp_imaginary = imaginaries[ip];
-
-          bottom_real = top_real - temp_real;
-          bottom_imaginary = top_imaginary - temp_imaginary;
-
-          top_real = top_real + temp_real;
-          top_imaginary = top_imaginary + temp_imaginary;
-
-          reals[ip] = bottom_real>>apply_scaling_this_stage;
-          imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-          reals[i] = top_real>>apply_scaling_this_stage;
-          imaginaries[i] = top_imaginary>>apply_scaling_this_stage;
-        }
-
-      }
-
-      // Treat rotations by 1/4 as a special case
-      else if(j == quarter_turn)
-      {
-
-        for (i = j; i < n; i += subdft_size) {
-          ip = i + span;
-
-          top_real         = reals[i];
-          top_imaginary    = imaginaries[i];
-          bottom_real      = reals[ip];
-          bottom_imaginary = imaginaries[ip];
-
-          temp_real        = bottom_imaginary;
-          temp_imaginary   = -bottom_real;
-
-          bottom_real      = top_real - temp_real;
-          bottom_imaginary = top_imaginary - temp_imaginary;
-
-          top_real         = top_real + temp_real;
-          top_imaginary    = top_imaginary + temp_imaginary;
-
-          // after every second stage lose 1 bit
-          reals[ip]       = bottom_real>>apply_scaling_this_stage;
-          imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-          reals[i]        = top_real>>apply_scaling_this_stage;
-          imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
-        }
-
-      }
-
-      // Use full complex multiplier for other cases
-      else
-      {
-        real_twiddle = fixed_cos_table[j << shift];
-        imaginary_twiddle = -fixed_sin_table[j << shift];
-
-        for (i = j; i < n; i += subdft_size) {
-          ip = i + span;
-
-          top_real         = reals[i];
-          top_imaginary    = imaginaries[i];
-          bottom_real      = reals[ip];
-          bottom_imaginary = imaginaries[ip];
-
-          temp_real      = product(bottom_real, real_twiddle) -
-                           product(bottom_imaginary, imaginary_twiddle);
-          temp_imaginary = product(bottom_real, imaginary_twiddle) +
-                           product(bottom_imaginary, real_twiddle);
-
-          bottom_real      = top_real - temp_real;
-          bottom_imaginary = top_imaginary - temp_imaginary;
-
-          top_real         = top_real + temp_real;
-          top_imaginary    = top_imaginary + temp_imaginary;
-
-          // after every second stage lose 1 bit
-          reals[ip]       = bottom_real>>apply_scaling_this_stage;
-          imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-          reals[i]        = top_real>>apply_scaling_this_stage;
-          imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
-        }
-      }
+       // Treat rotations by zero as a special case
+       if(j == 0)
+       {
+ 
+         for (i = j; i < n; i += subdft_size) {
+           ip = i + span;
+ 
+           top_real = reals[i];
+           top_imaginary = imaginaries[i];
+ 
+           temp_real = reals[ip];
+           temp_imaginary = imaginaries[ip];
+ 
+           bottom_real = top_real - temp_real;
+           bottom_imaginary = top_imaginary - temp_imaginary;
+ 
+           top_real = top_real + temp_real;
+           top_imaginary = top_imaginary + temp_imaginary;
+ 
+           reals[ip] = bottom_real>>apply_scaling_this_stage;
+           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
+           reals[i] = top_real>>apply_scaling_this_stage;
+           imaginaries[i] = top_imaginary>>apply_scaling_this_stage;
+         }
+ 
+       }
+ 
+       // Treat rotations by 1/4 as a special case
+       else if(j == quarter_turn)
+       {
+ 
+         for (i = j; i < n; i += subdft_size) {
+           ip = i + span;
+ 
+           top_real         = reals[i];
+           top_imaginary    = imaginaries[i];
+           bottom_real      = reals[ip];
+           bottom_imaginary = imaginaries[ip];
+ 
+           temp_real        = bottom_imaginary;
+           temp_imaginary   = -bottom_real;
+ 
+           bottom_real      = top_real - temp_real;
+           bottom_imaginary = top_imaginary - temp_imaginary;
+  
+           top_real         = top_real + temp_real;
+           top_imaginary    = top_imaginary + temp_imaginary;
+ 
+           // after every second stage lose 1 bit
+           reals[ip]       = bottom_real>>apply_scaling_this_stage;
+           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
+           reals[i]        = top_real>>apply_scaling_this_stage;
+           imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
+         }
+ 
+       }
+ 
+       // Use full complex multiplier for other cases
+       else
+       {
+         real_twiddle = fixed_cos_table[j << shift];
+         imaginary_twiddle = -fixed_sin_table[j << shift];
+ 
+         for (i = j; i < n; i += subdft_size) {
+           ip = i + span;
+ 
+           top_real         = reals[i];
+           top_imaginary    = imaginaries[i];
+           bottom_real      = reals[ip];
+           bottom_imaginary = imaginaries[ip];
+ 
+           temp_real      = product(bottom_real, real_twiddle) -
+                            product(bottom_imaginary, imaginary_twiddle);
+           temp_imaginary = product(bottom_real, imaginary_twiddle) +
+                            product(bottom_imaginary, real_twiddle);
+ 
+           bottom_real      = top_real - temp_real;
+           bottom_imaginary = top_imaginary - temp_imaginary;
+ 
+           top_real         = top_real + temp_real;
+           top_imaginary    = top_imaginary + temp_imaginary;
+ 
+           // after every second stage lose 1 bit
+           reals[ip]       = bottom_real>>apply_scaling_this_stage;
+           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
+           reals[i]        = top_real>>apply_scaling_this_stage;
+           imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
+         }
+       }
+      
     }
-
   }
 }
-
+ 
 #ifndef SIMULATION
 void __not_in_flash_func(fixed_ifft)(int16_t reals[], int16_t imaginaries[], unsigned m) {
 #else

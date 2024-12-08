@@ -2362,7 +2362,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise Redution#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2441,7 +2441,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 10 :  
-            done = bit_entry("Noise Reduction", "Off#On#", flag_enable_noise_reduction, &settings[idx_rx_features], ok);
+            done = bit_entry("Noise\nReduction", "Off#On#", flag_enable_noise_reduction, &settings[idx_rx_features], ok);
             break;
           case 11 :  
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);

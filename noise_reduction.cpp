@@ -7,7 +7,7 @@
 
 const int8_t magnitude_smoothing = 3;
 const int8_t noise_smoothing = 10;
-const int16_t threshold = 3;
+const int16_t threshold = 1;
 const uint8_t fraction_bits = 14u;
 const int32_t scaling = 1<<fraction_bits;
 
