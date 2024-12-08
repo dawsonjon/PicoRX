@@ -97,6 +97,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_deemphasis (0x3 << flag_deemphasis)
 #define flag_iq_correction (3)
 #define mask_iq_correction (0x1 << flag_iq_correction)
+#define flag_enable_noise_reduction (4)
+#define mask_enable_noise_reduction (0x1 << flag_enable_noise_reduction)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

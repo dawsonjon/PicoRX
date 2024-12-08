@@ -14,6 +14,7 @@
 #include "fft_filter.h"
 #include "fft.h"
 #include "utils.h"
+#include "noise_reduction.h"
 #include "cic_corrections.h"
 #include <cmath>
 #include <cstdio>
@@ -39,7 +40,7 @@ void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_
 void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
 
-  // window
+  // analysis window
   for (uint16_t i = 0; i < fft_size; i++) {
     sample_real[i] = product(sample_real[i], window[i]);
     sample_imag[i] = product(sample_imag[i], window[i]);
@@ -88,6 +89,19 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+  //apply noise filtering to DC and positive frequencies
+  if(filter_control.enable_noise_reduction && filter_control.upper_sideband)
+  {
+    const uint16_t start_bin = std::max((uint16_t)2, filter_control.start_bin);
+    noise_reduction(
+      sample_real, 
+      sample_imag, 
+      positive_noise_estimate, 
+      positive_signal_estimate, 
+      start_bin, 
+      filter_control.stop_bin);
+  }
+
   //negative frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u)-1; i++) {
     const uint16_t bin = new_fft_size/2 - i - 1;
@@ -116,9 +130,22 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+  //apply noise filtering to negative frequencies
+  if(filter_control.enable_noise_reduction && filter_control.lower_sideband)
+  {
+    const uint16_t start_bin = std::max((uint16_t)2, filter_control.start_bin);
+    noise_reduction(
+      &sample_real[new_fft_size/2u], 
+      &sample_imag[new_fft_size/2u], 
+      negative_noise_estimate, 
+      negative_signal_estimate, 
+      new_fft_size/2u-1-filter_control.stop_bin, 
+      new_fft_size/2u-1-start_bin);
+  }
+
   if(filter_control.enable_auto_notch)
   {
-    //check for a consistent
+    //check for a consistent peak
     const uint8_t confirm_threshold = 255u;
     static uint8_t confirm_count = 0u;
     static uint8_t last_peak_bin = 0u;
@@ -138,6 +165,11 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+  // synthesis window
+  for (uint16_t i = 0; i < fft_size; i++) {
+    sample_real[i] = product(sample_real[i], window[i]);
+    sample_imag[i] = product(sample_imag[i], window[i]);
+  }
 
   // inverse FFT
   fixed_ifft(sample_real, sample_imag, 7);

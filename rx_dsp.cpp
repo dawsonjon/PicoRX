@@ -451,6 +451,7 @@ rx_dsp :: rx_dsp()
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_control(3);
   filter_control.enable_auto_notch = false;
+  filter_control.enable_noise_reduction = false;
 
   //clear cic filter
   decimate_count=0;
@@ -467,6 +468,11 @@ rx_dsp :: rx_dsp()
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
+}
+
+void rx_dsp :: set_noise_reduction(bool enable_noise_reduction)
+{
+  filter_control.enable_noise_reduction = enable_noise_reduction;
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)
