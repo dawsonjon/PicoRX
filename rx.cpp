@@ -261,9 +261,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10)
+void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 {
-  rx_dsp_inst.get_spectrum(spectrum, dB10);
+  rx_dsp_inst.get_spectrum(spectrum, dB10, zoom);
 }
 
 

@@ -24,7 +24,7 @@ class rx_dsp
   void set_auto_notch(bool enable_auto_notch);
   void set_noise_reduction(bool enable_noise_reduction);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
+  void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
 

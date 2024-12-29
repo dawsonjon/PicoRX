@@ -246,6 +246,7 @@ class ui
   rx &receiver;
   uint8_t *spectrum;
   uint8_t &dB10;
+  uint8_t &zoom;
   waterfall &waterfall_inst;
   void apply_settings(bool suspend, bool settings_changed=true);
 
@@ -256,7 +257,7 @@ class ui
   uint32_t * get_settings(){return &settings[0];};
   void autorestore();
   void do_ui();
-  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst);
+  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
 
 };
 

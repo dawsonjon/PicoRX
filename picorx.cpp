@@ -15,11 +15,12 @@
 
 uint8_t spectrum[256];
 uint8_t dB10=10;
+uint8_t zoom=1;
 static rx_settings settings_to_apply;
 static rx_status status;
 static rx receiver(settings_to_apply, status);
 waterfall waterfall_inst;
-static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10, waterfall_inst);
+static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10, zoom, waterfall_inst);
 
 void core1_main()
 {
@@ -47,7 +48,7 @@ int main()
     {
       last_ui_update = time_us_32();
       user_interface.do_ui();
-      receiver.get_spectrum(spectrum, dB10);
+      receiver.get_spectrum(spectrum, dB10, zoom);
     }
 
     else if(time_us_32() - last_cat_update > CAT_REFRESH_US)
@@ -55,7 +56,7 @@ int main()
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10);
+    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10, zoom);
 
   }
 }

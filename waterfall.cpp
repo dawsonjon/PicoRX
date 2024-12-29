@@ -142,23 +142,6 @@ void waterfall::draw()
     display->drawLine(319, 20, 319, 239, display->colour565(255,255,255));
     display->drawLine(0,   20, 0,   239, display->colour565(255,255,255));
     display->drawLine(27,  20, 27,  239, display->colour565(255,255,255));
-
-    //5kHz ticks
-    for(uint16_t fbin=0; fbin<256; ++fbin)
-    {
-      if((fbin-128)%42==0)
-      {
-        display->drawLine(32+fbin, 122, 32+fbin, 123, COLOUR_WHITE);
-      }
-    }
-    display->drawString(29,  127, font_8x5, "-15", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(70,  127, font_8x5, "-10", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(111, 127, font_8x5, "-5",  COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(154, 127, font_8x5, "-0",  COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(199, 127, font_8x5, "5",   COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(238, 127, font_8x5, "10",  COLOUR_WHITE, COLOUR_BLACK);
-    display->drawString(279, 127, font_8x5, "15",  COLOUR_WHITE, COLOUR_BLACK);
-
 }
 
 uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
@@ -208,9 +191,9 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     
     if(blend)
     {
-      r = (uint16_t)r-(r>>1) + (blend_r>>1);
-      g = (uint16_t)g-(g>>1) + (blend_g>>1);
-      b = (uint16_t)b-(b>>1) + (blend_b>>1);
+      r = (uint16_t)r-(r>>2) + (blend_r>>2);
+      g = (uint16_t)g-(g>>2) + (blend_g>>2);
+      b = (uint16_t)b-(b>>2) + (blend_b>>2);
     }
 
     if(highlight)
@@ -249,7 +232,7 @@ int waterfall::dBm_to_S(float power_dBm) {
   return (power_s);
 }
 
-void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10)
+void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
@@ -351,6 +334,30 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
         display->drawString(0, 0, font_16x12, modes[settings.mode], COLOUR_FUCHSIA, COLOUR_BLACK);
       }
 
+      static uint8_t last_zoom = 255;
+      if(zoom != last_zoom || refresh)
+      {
+        last_zoom = zoom;
+        display->fillRect(scope_x,  127, 8, 256, COLOUR_BLACK);
+
+        const int32_t kHz_per_tick = zoom>=3?1:5;
+        const int32_t bins_per_tick = (256*kHz_per_tick*zoom)/30;
+
+        uint16_t freq_kHz = 0;
+        for(uint16_t bin = 0; bin < 110; bin += bins_per_tick)
+        {
+          char buffer[7];
+          sprintf(buffer, "%i", freq_kHz);
+          uint16_t x = scope_x + 128 + bin - ((strlen(buffer)-1)*3);
+          display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+
+          sprintf(buffer, "%i", -freq_kHz);
+          x = scope_x + 128 - bin - ((strlen(buffer)-1)*6);
+          display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+          freq_kHz += kHz_per_tick;
+        }
+      }
+
       FSM_state = draw_waterfall;
     } else if(FSM_state == draw_waterfall ){
     
@@ -360,8 +367,8 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       for(uint16_t col=0; col<num_cols; ++col)
       {
          const int16_t fbin = col-128;
-         const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
-         const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
+         const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
+         const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
          const bool is_passband = is_usb_col || is_lsb_col;
 
          uint8_t heat = waterfall_buffer[row_address][col];
@@ -386,11 +393,19 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       uint16_t vline[scope_height];
   
       const int16_t fbin = scope_col-128;
-      const bool is_usb_col = (fbin > status.filter_config.start_bin) && (fbin < status.filter_config.stop_bin) && status.filter_config.upper_sideband;
-      const bool is_lsb_col = (-fbin > status.filter_config.start_bin) && (-fbin < status.filter_config.stop_bin) && status.filter_config.lower_sideband;
+      const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
+      const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
       const bool is_passband = is_usb_col || is_lsb_col;
-      const bool col_is_tick = (fbin%42 == 0) && fbin;
-
+      uint16_t tick_spacing;
+      if(zoom >= 3)
+      {
+        tick_spacing = 256*zoom/30; //place ticks at 1kHz steps
+      }
+      else
+      {
+        tick_spacing = 256*zoom*5/30; //place ticks at 5kHz steps
+      }
+      const bool col_is_tick = (fbin%tick_spacing == 0) && fbin;
 
       for(uint8_t row=0; row<scope_height; ++row)
       {

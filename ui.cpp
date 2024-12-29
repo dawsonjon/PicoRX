@@ -745,20 +745,14 @@ void ui::draw_spectrum(uint16_t startY, uint16_t endY)
 {
 
   //plot
-  const uint8_t spectrum_zoom = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
-  const uint8_t smoothing_factor = 1;
   const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
-  int16_t y=0, smoothed_y=0;
+  int16_t y=0;
 
   for(uint16_t x=0; x<128; x++)
   {
-    if(spectrum_zoom == 1) y = spectrum[x*2]/scale;
-    else if(spectrum_zoom == 2) y = spectrum[64+x]/scale;
-    else if(spectrum_zoom == 3) y = spectrum[96+(x>>1)]/scale;
-    else if(spectrum_zoom == 4) y = spectrum[112+(x>>2)]/scale;
-    smoothed_y = (smoothed_y - (smoothed_y>>smoothing_factor)) + (y>>smoothing_factor);
-    ssd1306_draw_line(&disp, x, endY-smoothed_y, x, endY, 1);
+    y = spectrum[x*2]/scale;
+    ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
   }
 
   for (int16_t y = 0; y < max_height; ++y)
@@ -1047,6 +1041,7 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
+  zoom = 1 << (((settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum)-1);
   receiver.release();
 }
 
@@ -2908,7 +2903,7 @@ void ui::update_display_type(void)
   }
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
@@ -2917,6 +2912,7 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   receiver(receiver), 
   spectrum(spectrum),
   dB10(dB10),
+  zoom(zoom),
   waterfall_inst(waterfall_inst)
 {
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
