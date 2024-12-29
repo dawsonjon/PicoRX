@@ -493,7 +493,6 @@ void rx_dsp :: set_agc_control(uint16_t agc_setting)
   //long        2.414          14       0.001      2    2s     30000
 
 
-  printf("%x\n", agc_setting);
   manual_gain_control = false;
   manual_gain = 1 << (agc_setting >> 8);
 

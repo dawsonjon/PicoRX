@@ -86,6 +86,25 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
               stdio_puts_raw("?;");
             }
         }
+    
+    } else if (strncmp(cmd, "FB", 2) == 0) {
+
+        // Handle mode set/get commands
+        if (cmd[2] == ';') {
+            printf("FA%011lu;", settings[idx_frequency]);
+        } else {
+            uint32_t frequency_Hz;
+            sscanf(cmd+2, "%lu", &frequency_Hz);
+            if(frequency_Hz <= 30000000)
+            {
+              settings[idx_frequency]=frequency_Hz;
+              settings_changed = true;
+            }
+            else
+            {
+              stdio_puts_raw("?;");
+            }
+        }
 
     } else if (strncmp(cmd, "SM", 2) == 0) {
 
@@ -178,6 +197,18 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     } else if (strncmp(cmd, "AC", 2) == 0) {
         if (cmd[2] == ';') {
             printf("AC010;");
+        }
+    } else if (strncmp(cmd, "SL", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SL00;");
+        }
+    } else if (strncmp(cmd, "SH", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SH00;");
+        }
+    } else if (strncmp(cmd, "IS", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("IS+0000;");
         }
     } else if (strncmp(cmd, "PR", 2) == 0) {
         if (cmd[2] == ';') {
