@@ -64,7 +64,7 @@ class Memory:
         0xffffffff,                    #c
         0xffffffff,                    #d
         0xffffffff,                    #e
-        0xffffffff,                    #f
+        0x00000000,                    #f
       ]
       self.memory.append(data)
 

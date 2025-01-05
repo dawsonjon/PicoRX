@@ -10,6 +10,10 @@
 #include "utils.h"
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
+#include "transmit/adc.h"
+#include "transmit/pwm.h"
+#include "transmit/transmit_nco.h"
+#include "transmit/modulator.h"
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
@@ -135,6 +139,8 @@ void rx::update_status()
      static uint16_t avg_level = 0;
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
+     status.audio_level = audio_level;
+     status.transmitting = ptt();
      sem_release(&settings_semaphore);
    }
 }
@@ -150,7 +156,6 @@ void rx::apply_settings()
       //apply frequency calibration
       tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
 
-      uint32_t system_clock_rate;
       nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
@@ -256,6 +261,14 @@ void rx::apply_settings()
       //apply iq imbalance correction
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
+      transmit_mode = settings_to_apply.mode;
+      test_tone_enable = settings_to_apply.test_tone_enable;
+      test_tone_frequency = settings_to_apply.test_tone_frequency;
+      cw_paddle = settings_to_apply.cw_paddle;
+      cw_speed = settings_to_apply.cw_speed;
+      mic_gain = settings_to_apply.mic_gain;
+      tx_modulation = settings_to_apply.tx_modulation;
+
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
@@ -281,7 +294,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
-    const uint PSU_PIN = 23;
+    const uint8_t PSU_PIN = 23;
     gpio_init(PSU_PIN);
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
@@ -294,6 +307,17 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_gpio_init(29);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
+
+    //Configure PTT
+    PTT_pin = 6;
+    gpio_init(PTT_pin);
+    gpio_set_function(PTT_pin, GPIO_FUNC_SIO);
+    gpio_set_dir(PTT_pin, GPIO_IN);
+    gpio_pull_up(PTT_pin);
+    LED_pin = 25;
+    gpio_init(LED_pin);
+    gpio_set_function(LED_pin, GPIO_FUNC_SIO);
+    gpio_set_dir(LED_pin, GPIO_OUT);
 
     //band select
     gpio_init(2);//band 0
@@ -470,6 +494,93 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
   return num_samples * interpolation_rate;
 }
 
+bool rx::ptt()
+{
+  return gpio_get(PTT_pin) == 0;
+}
+
+void __not_in_flash_func(rx::transmit)()
+{
+    const uint8_t mic_pin = 28;
+    const uint8_t magnitude_pin = 8;
+    const uint8_t rf_pin = 7;
+    const double clock_frequency_Hz = system_clock_rate;
+
+    const float sample_rates[] = {
+        12e3, //AM = 0u;
+        12e3, //AMSYNC = 1u;
+        10e3, //LSB = 2u;
+        10e3, //USB = 3u;
+        15e3, //FM = 4u;
+        10e3, //CW = 5u;
+    };
+
+    // Use ADC to capture MIC input
+    adc mic_adc(mic_pin, 2);
+
+    // Use PWM to output magnitude
+    pwm magnitude_pwm(magnitude_pin);
+
+    // Use PIO to output phase/frequency controlled oscillator
+    transmit_nco rf_nco(rf_pin, clock_frequency_Hz, tuned_frequency_Hz);
+    const double sample_frequency_Hz = sample_rates[transmit_mode];
+    const uint8_t waveforms_per_sample =
+        rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
+
+    // create modulator
+    modulator audio_modulator;
+
+    // scale FM deviation
+    const double fm_deviation_Hz = 2.5e3;
+    const uint32_t fm_deviation_f15 =
+        round(2 * 32768.0 * fm_deviation_Hz /
+              rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample));
+
+    //mic gain
+    uint16_t scaled_mic_gain = 16 << mic_gain;
+
+    //test tone
+    uint32_t test_tone_phase = 0;
+    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+
+    int32_t audio;
+    uint16_t magnitude;
+    int16_t phase;
+    int16_t i; // not used in this design
+    int16_t q; // not used in this design
+
+    gpio_put(LED_pin, 1);
+    while (ptt()) {
+
+      if(test_tone_enable)
+      {
+        audio = sin_table[test_tone_phase >> 21];
+        test_tone_phase += test_tone_frequency_steps;
+      }
+      else
+      {
+        // read audio from mic
+        audio = mic_adc.get_sample() * scaled_mic_gain;
+        audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+      }
+      audio_level = audio_level - (audio_level >> 5) + (abs(audio) >> 5);
+
+      // demodulate
+      audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+      // output magnitude
+      magnitude_pwm.output_sample(magnitude);
+
+      // output phase
+      rf_nco.output_sample(phase, waveforms_per_sample);
+
+      //update_status
+      update_status();
+    }
+    gpio_put(LED_pin, 0);
+
+}
+
 void rx::run()
 {
     usb_audio_device_init();
@@ -492,6 +603,7 @@ void rx::run()
         apply_settings();
         pwm_ramp_up();
       }
+
 
       //read other adc channels when streaming is not running
       uint32_t timeout = 15000;
@@ -518,7 +630,7 @@ void rx::run()
           update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend || settings_changed)
+          if(timeout-- == 0 || suspend || settings_changed || ptt())
           {
 
             dma_channel_cleanup(adc_dma_ping);
@@ -530,6 +642,7 @@ void rx::run()
             adc_fifo_drain();
             adc_set_round_robin(0);
             adc_fifo_setup(false, false, 1, false, false);
+
 
             if (settings_changed)
             {
@@ -550,15 +663,30 @@ void rx::run()
       }
 
       //suspended state
-      while(true)
+      if(suspend)
       {
-          update_status();
+        while(true)
+        {
+            update_status();
 
-          //wait here if receiver is suspended
-          if(!suspend)
-          {
-            break;
-          }
+            //wait here if receiver is suspended
+            if(!suspend)
+            {
+              break;
+            }
+        }
       }
+
+      if(ptt())
+      {
+        //disable RX NCO
+        pio_sm_set_enabled(pio, sm, false);
+
+        transmit();
+
+        //enable RX NCO
+        pio_sm_set_enabled(pio, sm, true);
+      }
+
     }
 }

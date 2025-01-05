@@ -42,6 +42,14 @@ struct rx_settings
   bool iq_correction;
   bool enable_auto_notch;
   bool enable_noise_reduction;
+
+  //transmit
+  bool test_tone_enable;
+  uint8_t test_tone_frequency;
+  bool cw_paddle;
+  uint8_t cw_speed;
+  uint8_t mic_gain;
+  bool tx_modulation;
 };
 
 struct rx_status
@@ -52,6 +60,8 @@ struct rx_status
   uint16_t battery;
   s_filter_control filter_config;
   uint8_t usb_buf_level;
+  uint16_t audio_level;
+  bool transmitting;
 };
 
 class rx
@@ -64,6 +74,7 @@ class rx
   void set_usb_callbacks();
 
   //receiver configuration
+  uint32_t system_clock_rate;
   double tuned_frequency_Hz;
   double nco_frequency_Hz;
   double offset_frequency_Hz;
@@ -113,6 +124,20 @@ class rx
 
   //volume control
   int16_t gain_numerator=0;
+
+  //Transmit
+  uint8_t PTT_pin;
+  uint8_t LED_pin;
+  uint8_t transmit_mode;
+  void transmit();
+  bool ptt();
+  bool test_tone_enable;
+  uint8_t test_tone_frequency;
+  bool cw_paddle;
+  uint8_t cw_speed;
+  uint8_t mic_gain;
+  bool tx_modulation;
+  uint16_t audio_level=0;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

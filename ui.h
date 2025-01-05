@@ -54,6 +54,7 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define idx_rx_features 12
 #define idx_band1 13
 #define idx_band2 14
+#define idx_tx_features 15
 
 //flags for squelch
 #define flag_squelch_threshold 0 // bits 0-7
@@ -99,6 +100,20 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_iq_correction (0x1 << flag_iq_correction)
 #define flag_enable_noise_reduction (4)
 #define mask_enable_noise_reduction (0x1 << flag_enable_noise_reduction)
+
+//flags for receiver features idx_tx_features
+#define flag_enable_test_tone (0) //bit 0
+#define mask_enable_test_tone (0x1 << flag_enable_test_tone)
+#define flag_test_tone_frequency (1) //bits 1 - 5
+#define mask_test_tone_frequency (0x1f << flag_test_tone_frequency)
+#define flag_cw_paddle (6) //bit 6
+#define mask_cw_paddle (0x1 << flag_cw_paddle)
+#define flag_cw_speed (7) //bits 7 - 12
+#define mask_cw_speed (0x3f << flag_cw_speed)
+#define flag_tx_modulation (13) //bit 13
+#define mask_tx_modulation (0x3f << flag_tx_modulation)
+#define flag_mic_gain 14 // bits 14-21
+#define mask_mic_gain (0xff << flag_mic_gain)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -188,6 +203,7 @@ class ui
   // Status                  
   float calculate_signal_strength(rx_status &status);
 
+  void renderpage_transmit(rx_status & status, rx & receiver);
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
   void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
@@ -220,6 +236,7 @@ class ui
   bool main_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
+  bool transmit_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);

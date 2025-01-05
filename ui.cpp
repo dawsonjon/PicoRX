@@ -299,6 +299,69 @@ void ui::display_show()
   u8g2_SendBuffer(&u8g2);
 }
 
+void ui::renderpage_transmit(rx_status & status, rx & receiver)
+{
+
+  receiver.access(false);
+  const uint16_t audio_level = status.audio_level;
+  receiver.release();
+
+  const uint8_t buffer_size = 21;
+  char buff [buffer_size];
+  display_clear();
+
+  const uint8_t text_height = 14u;
+  u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
+  u8g2_DrawStr(&u8g2, 0, text_height, "!TRANSMITTING!");
+
+  //frequency
+  uint32_t remainder, MHz, kHz, Hz;
+  MHz = (uint32_t)settings[idx_frequency]/1000000u;
+  remainder = (uint32_t)settings[idx_frequency]%1000000u; 
+  kHz = remainder/1000u;
+  remainder = remainder%1000u; 
+  Hz = remainder;
+
+  u8g2_SetFont(&u8g2, font_seg_big);
+  snprintf(buff, buffer_size, "%2lu", MHz);
+  u8g2_DrawStr(&u8g2, 0, 42, buff);
+  snprintf(buff, buffer_size, "%03lu", kHz);
+  u8g2_DrawStr(&u8g2, 39, 42, buff);
+  u8g2_DrawBox(&u8g2, 35, 39, 3, 3);
+  u8g2_SetFont(&u8g2, font_seg_mid);
+  snprintf(buff, buffer_size, "%03lu", Hz);
+  u8g2_DrawStr(&u8g2, 94, 31, buff);
+  u8g2_DrawBox(&u8g2, 90, 29, 3, 3);
+
+  //mode
+  u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+  uint16_t w = u8g2_GetStrWidth(&u8g2, modes[settings[idx_mode]]);
+  u8g2_DrawStr(&u8g2, 127 - w, 42, modes[settings[idx_mode]]);
+
+  //Microphone
+  int8_t mic_power = std::max(log2(audio_level)-2.0, 0.0);
+  const uint16_t seg_w = 8;
+  const uint16_t seg_h = 12;
+  const uint16_t seg_y = 47;
+  const uint16_t seg_x = 3;
+
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w+1)*13+4, seg_h+5, 2);
+  for (int8_t i = 0; i < 13; i++)
+  {
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y+2, seg_w + 2, seg_h + 2, 2);
+    u8g2_SetDrawColor(&u8g2, 1);
+
+    if (i < mic_power)
+    {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
+    }
+  }
+
+  display_show();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display (original)
 ////////////////////////////////////////////////////////////////////////////////
@@ -1041,6 +1104,14 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
+
+  settings_to_apply.test_tone_enable = settings[idx_tx_features] >> flag_enable_test_tone & mask_enable_test_tone;
+  settings_to_apply.test_tone_frequency = settings[idx_tx_features] >> flag_test_tone_frequency & mask_test_tone_frequency;
+  settings_to_apply.cw_paddle = settings[idx_tx_features] >> flag_cw_paddle & mask_cw_paddle;
+  settings_to_apply.cw_speed = settings[idx_tx_features] >> flag_cw_speed & mask_cw_speed;
+  settings_to_apply.mic_gain = settings[idx_tx_features] >> flag_mic_gain & mask_mic_gain;
+  settings_to_apply.tx_modulation = settings[idx_tx_features] >> flag_tx_modulation & mask_tx_modulation;
+
   zoom = 1 << (((settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum)-1);
   receiver.release();
 }
@@ -2199,6 +2270,89 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
 
 }
 
+bool ui::transmit_menu(bool &ok)
+{
+    enum e_ui_state{select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nEnable#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#", &menu_selection, ok))
+      {
+        if(ok) 
+        {
+          //OK button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+      bool done = false;
+      bool changed = false;
+      static uint32_t setting_word;
+      switch(menu_selection)
+      {
+
+        case 0 : 
+          setting_word = (settings[idx_tx_features] & mask_mic_gain) >> flag_mic_gain;
+          done = enumerate_entry("MIC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", &setting_word, ok, changed);
+          settings[idx_tx_features] &= ~(mask_mic_gain);
+          settings[idx_tx_features] |= ((setting_word << flag_mic_gain) & mask_mic_gain);
+          if(changed) apply_settings(false);
+          break;
+
+        case 1 : 
+          done = bit_entry("Test Tone\nEnable", "Off#On#", flag_enable_test_tone, &settings[idx_tx_features], ok);
+          break;
+
+        case 2 : 
+          setting_word = (settings[idx_tx_features] & mask_test_tone_frequency) >> flag_test_tone_frequency;
+          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&setting_word, ok, changed);
+          settings[idx_tx_features] &=  ~mask_test_tone_frequency;
+          settings[idx_tx_features] |=  setting_word << flag_test_tone_frequency;
+          break;
+
+        case 3 : 
+          done = bit_entry("CW Paddle", "Straight#Iambic#", flag_cw_paddle, &settings[idx_tx_features], ok);
+          break;
+
+        case 4 : 
+          setting_word = (settings[idx_tx_features] & mask_cw_speed) >> flag_cw_speed;
+          done = number_entry("CW Speed", "%iWPM", 1, 60, 1, (int32_t*)&setting_word, ok, changed);
+          settings[idx_tx_features] &=  ~mask_cw_speed;
+          settings[idx_tx_features] |=  setting_word << flag_cw_speed;
+          break;
+
+        case 5 : 
+          done = bit_entry("Modulation", "Polar#Rectangular#", flag_tx_modulation, &settings[idx_tx_features], ok);
+          break;
+
+      }
+      if(done)
+      {
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
+      }
+    }
+    return false;
+
+}
+
 bool ui::configuration_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};
@@ -2357,7 +2511,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#Transmit#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2473,6 +2627,9 @@ bool ui::main_menu(bool & ok)
             break;
           case 19 : 
             done = configuration_menu(ok);
+            break;
+          case 20 : 
+            done = transmit_menu(ok);
             break;
         }
         if(done)
@@ -2632,7 +2789,16 @@ void ui::do_ui()
     static bool view_changed = false;
 
     if(ui_state != idle) view_changed = true;
-    
+
+    receiver.access(false);
+    const bool transmitting = status.transmitting;
+    receiver.release();
+
+    if(transmitting)
+    {
+      renderpage_transmit(status, receiver);
+      return;
+    } 
     
     //gui is idle, just update the display
     if(ui_state == splash)

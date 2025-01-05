@@ -70,7 +70,7 @@ class Memory:
         0x00000000,                          #c rx_features
         0x10080402,                          #d band limits 1 (125kHz steps)
         0x00804020,                          #e band limits 2 (125kHz steps)
-        0xffffffff,                          #f
+        (10 << 1)|(20<<7)                    #f tone frequency 1000Hz, CW speed 20
       ]
       self.memory.append(data)
 
