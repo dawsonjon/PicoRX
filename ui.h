@@ -16,19 +16,13 @@
 #include "button.h"
 #include "logo.h"
 #include "u8g2.h"
+#include "pins.h"
 
 // vscode cant find it and flags a problem (but the compiler can)
 #ifndef M_PI
 #define M_PI 3.14159265
 #endif
 
-const uint8_t PIN_AB = 20;
-const uint8_t PIN_B  = 21;
-const uint8_t PIN_MENU = 22;
-const uint8_t PIN_BACK = 17;
-const uint8_t PIN_ENCODER_PUSH = 5;
-const uint8_t PIN_DISPLAY_SDA = 18;
-const uint8_t PIN_DISPLAY_SCL = 19;
 
 #define MODE_AM 0
 #define MODE_AMS 1

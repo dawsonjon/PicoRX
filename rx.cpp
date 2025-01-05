@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
+#include "pins.h"
 #include "transmit/adc.h"
 #include "transmit/pwm.h"
 #include "transmit/transmit_nco.h"
@@ -161,51 +162,51 @@ void rx::apply_settings()
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(BAND_0, 0);
+        gpio_put(BAND_1, 0);
+        gpio_put(BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(BAND_0, 1);
+        gpio_put(BAND_1, 0);
+        gpio_put(BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(BAND_0, 0);
+        gpio_put(BAND_1, 1);
+        gpio_put(BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(BAND_0, 1);
+        gpio_put(BAND_1, 1);
+        gpio_put(BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(BAND_0, 0);
+        gpio_put(BAND_1, 0);
+        gpio_put(BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(BAND_0, 1);
+        gpio_put(BAND_1, 0);
+        gpio_put(BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(BAND_0, 0);
+        gpio_put(BAND_1, 1);
+        gpio_put(BAND_2, 1);
       }
       else
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(BAND_0, 1);
+        gpio_put(BAND_1, 1);
+        gpio_put(BAND_2, 1);
       }
 
       //apply pwm_max
@@ -309,26 +310,24 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_set_clkdiv(99); //48e6/480e3
 
     //Configure PTT
-    PTT_pin = 6;
-    gpio_init(PTT_pin);
-    gpio_set_function(PTT_pin, GPIO_FUNC_SIO);
-    gpio_set_dir(PTT_pin, GPIO_IN);
-    gpio_pull_up(PTT_pin);
-    LED_pin = 25;
-    gpio_init(LED_pin);
-    gpio_set_function(LED_pin, GPIO_FUNC_SIO);
-    gpio_set_dir(LED_pin, GPIO_OUT);
+    gpio_init(PTT);
+    gpio_set_function(PTT, GPIO_FUNC_SIO);
+    gpio_set_dir(PTT, GPIO_IN);
+    gpio_pull_up(PTT);
+    gpio_init(LED);
+    gpio_set_function(LED, GPIO_FUNC_SIO);
+    gpio_set_dir(LED, GPIO_OUT);
 
     //band select
-    gpio_init(2);//band 0
-    gpio_init(3);//band 1
-    gpio_init(4);//band 2
-    gpio_set_function(2, GPIO_FUNC_SIO);
-    gpio_set_function(3, GPIO_FUNC_SIO);
-    gpio_set_function(4, GPIO_FUNC_SIO);
-    gpio_set_dir(2, GPIO_OUT);
-    gpio_set_dir(3, GPIO_OUT);
-    gpio_set_dir(4, GPIO_OUT);
+    gpio_init(BAND_0);//band 0
+    gpio_init(BAND_1);//band 1
+    gpio_init(BAND_2);//band 2
+    gpio_set_function(BAND_0, GPIO_FUNC_SIO);
+    gpio_set_function(BAND_1, GPIO_FUNC_SIO);
+    gpio_set_function(BAND_2, GPIO_FUNC_SIO);
+    gpio_set_dir(BAND_0, GPIO_OUT);
+    gpio_set_dir(BAND_1, GPIO_OUT);
+    gpio_set_dir(BAND_2, GPIO_OUT);
     
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
@@ -496,14 +495,11 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
 
 bool rx::ptt()
 {
-  return gpio_get(PTT_pin) == 0;
+  return gpio_get(PTT) == 0;
 }
 
 void __not_in_flash_func(rx::transmit)()
 {
-    const uint8_t mic_pin = 28;
-    const uint8_t magnitude_pin = 8;
-    const uint8_t rf_pin = 7;
     const double clock_frequency_Hz = system_clock_rate;
 
     const float sample_rates[] = {
@@ -516,13 +512,13 @@ void __not_in_flash_func(rx::transmit)()
     };
 
     // Use ADC to capture MIC input
-    adc mic_adc(mic_pin, 2);
+    adc mic_adc(MIC_PIN, 2);
 
     // Use PWM to output magnitude
-    pwm magnitude_pwm(magnitude_pin);
+    pwm magnitude_pwm(MAGNITUDE_PIN);
 
     // Use PIO to output phase/frequency controlled oscillator
-    transmit_nco rf_nco(rf_pin, clock_frequency_Hz, tuned_frequency_Hz);
+    transmit_nco rf_nco(RF_PIN, clock_frequency_Hz, tuned_frequency_Hz);
     const double sample_frequency_Hz = sample_rates[transmit_mode];
     const uint8_t waveforms_per_sample =
         rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
@@ -549,7 +545,7 @@ void __not_in_flash_func(rx::transmit)()
     int16_t i; // not used in this design
     int16_t q; // not used in this design
 
-    gpio_put(LED_pin, 1);
+    gpio_put(LED, 1);
     while (ptt()) {
 
       if(test_tone_enable)
@@ -577,7 +573,7 @@ void __not_in_flash_func(rx::transmit)()
       //update_status
       update_status();
     }
-    gpio_put(LED_pin, 0);
+    gpio_put(LED, 0);
 
 }
 

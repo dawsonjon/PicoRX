@@ -126,8 +126,6 @@ class rx
   int16_t gain_numerator=0;
 
   //Transmit
-  uint8_t PTT_pin;
-  uint8_t LED_pin;
   uint8_t transmit_mode;
   void transmit();
   bool ptt();
