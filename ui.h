@@ -160,7 +160,6 @@ class ui
   // Buttons
   button menu_button;
   button back_button;
-  button encoder_button;
 
   // Display
   void update_display_type(void);

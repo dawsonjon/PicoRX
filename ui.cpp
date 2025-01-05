@@ -944,7 +944,7 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
     draw_display = encoder_control(&select, 0, max)!=0;
 
     //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    if(menu_button.is_pressed()){
       *value = select;
       ok = true;
       state = idle;
@@ -999,7 +999,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
     draw_display = changed = encoder_control((int32_t*)value, 0, max)!=0;
 
     //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    if(menu_button.is_pressed()){
       ok = true;
       state = idle;
       return true;
@@ -1047,7 +1047,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
     draw_display = changed = encoder_control((int32_t*)value, min, max)!=0;
 
     //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    if(menu_button.is_pressed()){
       ok = true;
       state = idle;
       return true;
@@ -1371,7 +1371,7 @@ bool ui::memory_store(bool &ok)
       }
       display_show();
 
-      if(encoder_button.is_pressed()||menu_button.is_pressed()){
+      if(menu_button.is_pressed()){
         get_memory_name(name, select, false);
         state = enter_name;
       }
@@ -1518,7 +1518,7 @@ bool ui::memory_recall(bool &ok)
     }
 
     //ok
-    if(encoder_button.is_pressed()||menu_button.is_pressed()){
+    if(menu_button.is_pressed()){
       ok=true;
       state = idle;
       return true;
@@ -2040,7 +2040,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
       encoder_position = encoder_control(&position, 0, 19);
       if(encoder_position) draw_display = true;
 
-      if(menu_button.is_pressed() || encoder_button.is_pressed())
+      if(menu_button.is_pressed())
       {
         if(position==16)//yes
         {
@@ -2086,7 +2086,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
       encoder_position = encoder_control(&val, 0, 75);
       if(encoder_position) draw_display = true;
       string[position]=letters[val];
-      if(menu_button.is_pressed() || encoder_button.is_pressed())
+      if(menu_button.is_pressed())
       {
         state = select_position;
       }
@@ -2167,7 +2167,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
     //change between digits
     encoder_control(&digit, 0, 9);
 
-    if(menu_button.is_pressed() || encoder_button.is_pressed())
+    if(menu_button.is_pressed())
     {
       if(digit==8) //Yes, Ok
       {
@@ -2242,7 +2242,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
     //change the value of a digit 
     encoder_control(&digits[digit], 0, 9);
 
-    if(menu_button.is_pressed() || encoder_button.is_pressed())
+    if(menu_button.is_pressed())
     {
       state = digit_select;
     }
@@ -2805,7 +2805,7 @@ void ui::do_ui()
     {
       if(do_splash())
         ui_state = idle;
-      if(menu_button.is_pressed()||encoder_button.is_pressed()||back_button.is_pressed())
+      if(menu_button.is_pressed()||back_button.is_pressed())
         ui_state = idle;
     }
 
@@ -2817,11 +2817,6 @@ void ui::do_ui()
       if(menu_button.is_pressed())
       {
         ui_state = menu;
-        display_time = time_us_32();
-      }
-      else if(encoder_button.is_pressed())
-      {
-        ui_state = recall;
         display_time = time_us_32();
       }
       else if(back_button.is_pressed())
@@ -2840,52 +2835,27 @@ void ui::do_ui()
       {
         display_time = time_us_32();
 
-        if(encoder_button.is_held())
-        {
-          if(menu_button.is_held())
-          {
-            settings[idx_mode] += encoder_change;
-            settings[idx_mode] %= 6u;
-          }
-          else if(back_button.is_held())
-          {
-            uint32_t squelch_setting = (settings[idx_squelch] & mask_squelch_threshold) >> flag_squelch_threshold;
-            squelch_setting += encoder_change;
-            squelch_setting %= 13u;
-            settings[idx_squelch] &= ~(mask_squelch_threshold);
-            settings[idx_squelch] |= ((squelch_setting << flag_squelch_threshold) & mask_squelch_threshold);
-          }
-          else
-          {
-            settings[idx_volume] += encoder_change;
-            settings[idx_volume] %= 10u;
-          }
-          update_settings = true;
-        }
+        //very fast tuning
+        if(menu_button.is_held() && back_button.is_held())
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+        //fast tuning
+        else if(menu_button.is_held())
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
+        //slow tuning
+        else if(back_button.is_held())
+          settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+        //normal tuning
         else
-        {
-          //very fast tuning
-          if(menu_button.is_held() && back_button.is_held())
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
-          //fast tuning
-          else if(menu_button.is_held())
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
-          //slow tuning
-          else if(back_button.is_held())
-            settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
-          //normal tuning
-          else
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+          settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
 
-          //wrap frequency at band limits
-          if (settings[idx_frequency] > settings[idx_max_frequency])
-              settings[idx_frequency] = settings[idx_min_frequency];
-          if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
-              settings[idx_frequency] = settings[idx_max_frequency];
+        //wrap frequency at band limits
+        if (settings[idx_frequency] > settings[idx_max_frequency])
+            settings[idx_frequency] = settings[idx_min_frequency];
+        if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
+            settings[idx_frequency] = settings[idx_max_frequency];
 
-          //update settings now, but don't autosave until later
-          update_settings = true;
-        }
+        //update settings now, but don't autosave until later
+        update_settings = true;
 
       }
       
@@ -2951,7 +2921,7 @@ void ui::do_ui()
     //if display times out enter sleep mode
     else if(ui_state == sleep)
     {
-      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
+      if(menu_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
       {
         display_time = time_us_32();
         u8g2_SetPowerSave(&u8g2, 0);
@@ -3072,7 +3042,6 @@ void ui::update_display_type(void)
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
-  encoder_button(PIN_ENCODER_PUSH),
   settings_to_apply(settings_to_apply),
   status(status), 
   receiver(receiver), 
