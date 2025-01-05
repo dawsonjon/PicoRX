@@ -318,6 +318,14 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_set_function(LED, GPIO_FUNC_SIO);
     gpio_set_dir(LED, GPIO_OUT);
 
+    //drive RF and magnitude pin to zero to make sure they are switched off
+    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_SIO);
+    gpio_set_dir(MAGNITUDE_PIN, GPIO_OUT);
+    gpio_put(MAGNITUDE_PIN, 0);
+    gpio_set_function(RF_PIN, GPIO_FUNC_SIO);
+    gpio_set_dir(RF_PIN, GPIO_OUT);
+    gpio_put(RF_PIN, 0);
+
     //band select
     gpio_init(BAND_0);//band 0
     gpio_init(BAND_1);//band 1
@@ -500,6 +508,9 @@ bool rx::ptt()
 
 void __not_in_flash_func(rx::transmit)()
 {
+    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_PWM);
+    gpio_set_function(RF_PIN, GPIO_FUNC_PIO0);
+
     const double clock_frequency_Hz = system_clock_rate;
 
     const float sample_rates[] = {
@@ -574,6 +585,8 @@ void __not_in_flash_func(rx::transmit)()
       update_status();
     }
     gpio_put(LED, 0);
+    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_SIO);
+    gpio_set_function(RF_PIN, GPIO_FUNC_SIO);
 
 }
 
