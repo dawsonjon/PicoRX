@@ -56,6 +56,14 @@
 #define flag_squelch_timeout 8 // bits 8-15
 #define mask_squelch_timeout (0xff << flag_squelch_timeout)
 
+//flags for gain cal
+#define flag_gain_cal 0 // bits 0-15
+#define mask_gain_cal (0xffff << flag_gain_cal)
+#define flag_pwm_min 16 // bits 16-23
+#define mask_pwm_min (0xff << flag_pwm_min)
+#define flag_pwm_max 24 // bits 24-31
+#define mask_pwm_max (0xff << flag_pwm_max)
+
 //flags for agc gain
 #define flag_agc_setting 0 // bits 0-7
 #define mask_agc_setting (0xff << flag_agc_setting)
@@ -106,8 +114,10 @@
 #define mask_cw_speed (0x3f << flag_cw_speed)
 #define flag_tx_modulation (13) //bit 13
 #define mask_tx_modulation (0x3f << flag_tx_modulation)
-#define flag_mic_gain 14 // bits 14-21
-#define mask_mic_gain (0xff << flag_mic_gain)
+#define flag_mic_gain 14 // bits 14-17
+#define mask_mic_gain (0xf << flag_mic_gain)
+#define flag_pwm_threshold 18 //18-25
+#define mask_pwm_threshold (0xff << flag_pwm_threshold)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

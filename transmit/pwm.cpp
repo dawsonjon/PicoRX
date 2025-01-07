@@ -12,6 +12,7 @@
 //
 
 #include "pwm.h"
+#include "stdio.h"
 
 pwm::pwm(const uint8_t magnitude_pin) {
   m_magnitude_pin = magnitude_pin;
@@ -35,14 +36,29 @@ pwm::~pwm() {
   gpio_deinit(m_magnitude_pin + 1);
 }
 
-void pwm::output_sample(uint16_t magnitude) {
-  const bool balanced_mode = true;
-  if (balanced_mode) {
-    // remove 8 lsbs
+void pwm::output_sample(uint16_t magnitude, uint8_t pwm_min, uint8_t pwm_max, uint8_t pwm_threshold) {
     magnitude >>= 8;
+
+    //don't output anything unless magnitude exceeds threhold
+    static uint8_t hang_time=0;
+    if(magnitude > pwm_threshold)
+    {
+      hang_time = 255;
+    }
+    else if(hang_time)
+    {
+      hang_time--;
+    }
+
+    //scale PWM according to min/max values
+    if(hang_time)
+    {
+      magnitude = magnitude * (pwm_max - pwm_min) / 256;
+      magnitude += pwm_min;
+    }
+    else
+    {
+      magnitude = 0;
+    }
     pwm_set_gpio_level(m_magnitude_pin, magnitude);
-    pwm_set_gpio_level(m_magnitude_pin + 1, 255 - magnitude);
-  } else {
-    pwm_set_gpio_level(m_magnitude_pin, magnitude >> 8);
-  }
 }

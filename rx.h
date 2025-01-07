@@ -50,6 +50,9 @@ struct rx_settings
   uint8_t cw_speed;
   uint8_t mic_gain;
   bool tx_modulation;
+  uint8_t pwm_min;
+  uint8_t pwm_max;
+  uint8_t pwm_threshold;
 };
 
 struct rx_status
@@ -135,7 +138,10 @@ class rx
   uint8_t cw_speed;
   uint8_t mic_gain;
   bool tx_modulation;
-  uint16_t audio_level=0;
+  uint16_t tx_audio_level=0;
+  uint8_t tx_pwm_min;
+  uint8_t tx_pwm_max;
+  uint8_t tx_pwm_threshold;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

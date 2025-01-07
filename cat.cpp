@@ -328,13 +328,14 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
       settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
       settings_to_apply.agc_control = settings[idx_agc_control];
       settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
+      settings_to_apply.enable_noise_reduction = settings[idx_rx_features] >> flag_enable_noise_reduction & 1;
       settings_to_apply.mode = settings[idx_mode];
       settings_to_apply.volume = settings[idx_volume];
       settings_to_apply.squelch_threshold = settings[idx_squelch]&0xff;
       settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
       settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
       settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-      settings_to_apply.gain_cal = settings[idx_gain_cal];
+      settings_to_apply.gain_cal = (settings[idx_gain_cal] & mask_gain_cal) >> flag_gain_cal;
       settings_to_apply.suspend = false;
       settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
       settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
@@ -347,6 +348,17 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
       settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
       settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
       settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
+      settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
+
+      settings_to_apply.test_tone_enable = settings[idx_tx_features] >> flag_enable_test_tone & mask_enable_test_tone;
+      settings_to_apply.test_tone_frequency = settings[idx_tx_features] >> flag_test_tone_frequency & mask_test_tone_frequency;
+      settings_to_apply.cw_paddle = settings[idx_tx_features] >> flag_cw_paddle & mask_cw_paddle;
+      settings_to_apply.cw_speed = settings[idx_tx_features] >> flag_cw_speed & mask_cw_speed;
+      settings_to_apply.mic_gain = settings[idx_tx_features] >> flag_mic_gain & mask_mic_gain;
+      settings_to_apply.tx_modulation = settings[idx_tx_features] >> flag_tx_modulation & mask_tx_modulation;
+      settings_to_apply.pwm_min = (settings[idx_gain_cal] & mask_pwm_min) >> flag_pwm_min;
+      settings_to_apply.pwm_max = (settings[idx_gain_cal] & mask_pwm_max) >> flag_pwm_max;
+      settings_to_apply.pwm_threshold = (settings[idx_tx_features] & mask_pwm_threshold) >> flag_pwm_threshold;
       receiver.release();
     }
 

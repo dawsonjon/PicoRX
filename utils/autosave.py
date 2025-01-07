@@ -65,7 +65,7 @@ class Memory:
         volume,                              #7
         int(cw_sidetone),                    #8 (100Hz steps)
         0x00000780,                          #9	hw_setup
-        int(gain_cal),                       #a
+        int(gain_cal) | 0xff000000,          #a
         0x10 | filter_bandwidths[filter_bandwidth], #b zoom==1
         0x00000000,                          #c rx_features
         0x10080402,                          #d band limits 1 (125kHz steps)

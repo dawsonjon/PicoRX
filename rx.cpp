@@ -140,7 +140,7 @@ void rx::update_status()
      static uint16_t avg_level = 0;
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
-     status.audio_level = audio_level;
+     status.audio_level = tx_audio_level;
      status.transmitting = ptt();
      sem_release(&settings_semaphore);
    }
@@ -269,6 +269,9 @@ void rx::apply_settings()
       cw_speed = settings_to_apply.cw_speed;
       mic_gain = settings_to_apply.mic_gain;
       tx_modulation = settings_to_apply.tx_modulation;
+      tx_pwm_min = settings_to_apply.pwm_min;
+      tx_pwm_max = settings_to_apply.pwm_max;
+      tx_pwm_threshold = settings_to_apply.pwm_threshold;
 
       settings_changed = false;
       sem_release(&settings_semaphore);
@@ -570,13 +573,13 @@ void __not_in_flash_func(rx::transmit)()
         audio = mic_adc.get_sample() * scaled_mic_gain;
         audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
       }
-      audio_level = audio_level - (audio_level >> 5) + (abs(audio) >> 5);
+      tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
 
       // demodulate
       audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
 
       // output magnitude
-      magnitude_pwm.output_sample(magnitude);
+      magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
 
       // output phase
       rf_nco.output_sample(phase, waveforms_per_sample);
