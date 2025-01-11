@@ -7,6 +7,7 @@ class button
 {
   public:
   button(uint8_t gpio_num);
+  bool is_keyed();
   bool is_pressed();
   bool is_held();
   private:

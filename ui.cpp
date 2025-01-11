@@ -14,6 +14,17 @@
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
+uint32_t unpack(uint32_t word, uint32_t flag, uint32_t mask)
+{
+  return (word & mask) >> flag;
+}
+
+void pack(uint32_t &word, uint32_t value, uint32_t flag, uint32_t mask)
+{
+  word &=  ~mask;
+  word |=  value << flag;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1076,6 +1087,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
   return false;
 }
 
+
 //Apply settings
 void ui::apply_settings(bool suspend, bool settings_changed)
 {
@@ -1090,7 +1102,7 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
   settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
   settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-  settings_to_apply.gain_cal = settings[idx_gain_cal];
+  settings_to_apply.gain_cal = unpack(settings[idx_gain_cal], flag_gain_cal, mask_gain_cal);
   settings_to_apply.suspend = suspend;
   settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
   settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
@@ -1105,12 +1117,15 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
 
-  settings_to_apply.test_tone_enable = settings[idx_tx_features] >> flag_enable_test_tone & mask_enable_test_tone;
-  settings_to_apply.test_tone_frequency = settings[idx_tx_features] >> flag_test_tone_frequency & mask_test_tone_frequency;
-  settings_to_apply.cw_paddle = settings[idx_tx_features] >> flag_cw_paddle & mask_cw_paddle;
-  settings_to_apply.cw_speed = settings[idx_tx_features] >> flag_cw_speed & mask_cw_speed;
-  settings_to_apply.mic_gain = settings[idx_tx_features] >> flag_mic_gain & mask_mic_gain;
-  settings_to_apply.tx_modulation = settings[idx_tx_features] >> flag_tx_modulation & mask_tx_modulation;
+  settings_to_apply.test_tone_enable = unpack(settings[idx_tx_features], flag_enable_test_tone, mask_enable_test_tone);
+  settings_to_apply.test_tone_frequency = unpack(settings[idx_tx_features], flag_test_tone_frequency, mask_test_tone_frequency);
+  settings_to_apply.cw_paddle = unpack(settings[idx_tx_features], flag_cw_paddle, mask_cw_paddle);
+  settings_to_apply.cw_speed = unpack(settings[idx_tx_features], flag_cw_speed, mask_cw_speed);
+  settings_to_apply.mic_gain = unpack(settings[idx_tx_features], flag_mic_gain, mask_mic_gain);
+  settings_to_apply.tx_modulation = unpack(settings[idx_tx_features], flag_tx_modulation, mask_tx_modulation);
+  settings_to_apply.pwm_min = unpack(settings[idx_gain_cal], flag_pwm_min, mask_pwm_min);
+  settings_to_apply.pwm_max = unpack(settings[idx_gain_cal], flag_pwm_max, mask_pwm_max);
+  settings_to_apply.pwm_threshold = unpack(settings[idx_tx_features], flag_pwm_threshold, mask_pwm_threshold);
 
   zoom = 1 << (((settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum)-1);
   receiver.release();
@@ -2280,7 +2295,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Test Tone\nEnable#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nEnable#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2327,7 +2342,9 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 3 : 
-          done = bit_entry("CW Paddle", "Straight#Iambic#", flag_cw_paddle, &settings[idx_tx_features], ok);
+          setting_word = unpack(settings[idx_tx_features], flag_cw_paddle, mask_cw_paddle);
+          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", &setting_word, ok, changed);
+          pack(settings[idx_tx_features], setting_word, flag_cw_paddle, mask_cw_paddle);
           break;
 
         case 4 : 
@@ -2339,6 +2356,24 @@ bool ui::transmit_menu(bool &ok)
 
         case 5 : 
           done = bit_entry("Modulation", "Polar#Rectangular#", flag_tx_modulation, &settings[idx_tx_features], ok);
+          break;
+
+        case 6 : 
+          setting_word = unpack(settings[idx_gain_cal], flag_pwm_min, mask_pwm_min);
+          done = number_entry("PWM Min", "%i", 0, 255, 1, (int32_t*)&setting_word, ok, changed);
+          pack(settings[idx_gain_cal], setting_word, flag_pwm_min, mask_pwm_min);
+          break;
+
+        case 7 : 
+          setting_word = unpack(settings[idx_gain_cal], flag_pwm_max, mask_pwm_max);
+          done = number_entry("PWM Max", "%i", 0, 255, 1, (int32_t*)&setting_word, ok, changed);
+          pack(settings[idx_gain_cal], setting_word, flag_pwm_max, mask_pwm_max);
+          break;
+
+        case 8 : 
+          setting_word = unpack(settings[idx_tx_features], flag_pwm_threshold, mask_pwm_threshold);
+          done = number_entry("PWM Thresh", "%i", 0, 255, 1, (int32_t*)&setting_word, ok, changed);
+          pack(settings[idx_tx_features], setting_word, flag_pwm_threshold, mask_pwm_threshold);
           break;
 
       }
@@ -2417,7 +2452,9 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 5 : 
-          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&settings[idx_gain_cal], ok, changed);
+          setting_word = unpack(settings[idx_gain_cal], flag_gain_cal, mask_gain_cal);
+          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&setting_word, ok, changed);
+          pack(settings[idx_gain_cal], setting_word, flag_gain_cal, mask_gain_cal);
           break;
 
         case 6 : 

@@ -56,6 +56,14 @@
 #define flag_squelch_timeout 8 // bits 8-15
 #define mask_squelch_timeout (0xff << flag_squelch_timeout)
 
+//flags for gain cal
+#define flag_gain_cal 0 // bits 0-15
+#define mask_gain_cal (0xffff << flag_gain_cal)
+#define flag_pwm_min 16 // bits 16-23
+#define mask_pwm_min (0xff << flag_pwm_min)
+#define flag_pwm_max 24 // bits 24-31
+#define mask_pwm_max (0xff << flag_pwm_max)
+
 //flags for agc gain
 #define flag_agc_setting 0 // bits 0-7
 #define mask_agc_setting (0xff << flag_agc_setting)
@@ -100,14 +108,16 @@
 #define mask_enable_test_tone (0x1 << flag_enable_test_tone)
 #define flag_test_tone_frequency (1) //bits 1 - 5
 #define mask_test_tone_frequency (0x1f << flag_test_tone_frequency)
-#define flag_cw_paddle (6) //bit 6
-#define mask_cw_paddle (0x1 << flag_cw_paddle)
-#define flag_cw_speed (7) //bits 7 - 12
+#define flag_cw_paddle (6) //bit 6 - 7
+#define mask_cw_paddle (0x3 << flag_cw_paddle)
+#define flag_cw_speed (8) //bits 8 - 13
 #define mask_cw_speed (0x3f << flag_cw_speed)
-#define flag_tx_modulation (13) //bit 13
+#define flag_tx_modulation (14) //bit 14
 #define mask_tx_modulation (0x3f << flag_tx_modulation)
-#define flag_mic_gain 14 // bits 14-21
-#define mask_mic_gain (0xff << flag_mic_gain)
+#define flag_mic_gain 15 // bits 15-18
+#define mask_mic_gain (0xf << flag_mic_gain)
+#define flag_pwm_threshold 19 //19-26
+#define mask_pwm_threshold (0xff << flag_pwm_threshold)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -155,7 +165,6 @@ class ui
   int32_t old_position = 0;
   const uint32_t sm = 0;
   const PIO pio = pio1;
-
 
   // Buttons
   button menu_button;

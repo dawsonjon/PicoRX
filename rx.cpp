@@ -15,6 +15,7 @@
 #include "transmit/pwm.h"
 #include "transmit/transmit_nco.h"
 #include "transmit/modulator.h"
+#include "transmit/cw_keyer.h"
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
@@ -140,7 +141,7 @@ void rx::update_status()
      static uint16_t avg_level = 0;
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
-     status.audio_level = audio_level;
+     status.audio_level = tx_audio_level;
      status.transmitting = ptt();
      sem_release(&settings_semaphore);
    }
@@ -265,10 +266,13 @@ void rx::apply_settings()
       transmit_mode = settings_to_apply.mode;
       test_tone_enable = settings_to_apply.test_tone_enable;
       test_tone_frequency = settings_to_apply.test_tone_frequency;
-      cw_paddle = settings_to_apply.cw_paddle;
-      cw_speed = settings_to_apply.cw_speed;
-      mic_gain = settings_to_apply.mic_gain;
+      tx_cw_paddle = settings_to_apply.cw_paddle;
+      tx_cw_speed = settings_to_apply.cw_speed;
+      tx_mic_gain = settings_to_apply.mic_gain;
       tx_modulation = settings_to_apply.tx_modulation;
+      tx_pwm_min = settings_to_apply.pwm_min;
+      tx_pwm_max = settings_to_apply.pwm_max;
+      tx_pwm_threshold = settings_to_apply.pwm_threshold;
 
       settings_changed = false;
       sem_release(&settings_semaphore);
@@ -281,7 +285,7 @@ void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 }
 
 
-rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
+rx::rx(rx_settings & settings_to_apply, rx_status & status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(settings_to_apply), status(status)
 {
 
     settings_to_apply.suspend = false;
@@ -501,13 +505,31 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
   return num_samples * interpolation_rate;
 }
 
-bool rx::ptt()
+bool __not_in_flash_func(rx::ptt)()
 {
+  static uint16_t timer = 0;
+  
+  //while transmitting this gets called about 10000 times per second
+  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5000;
+  else if(timer) timer--;
+
+  if(timer != 0) //force ptt because dit/dah is recently keyed
+  {
+    gpio_set_dir(PTT, GPIO_OUT);
+    gpio_put(PTT, 0);
+  }
+  else
+  {
+    gpio_set_dir(PTT, GPIO_IN);
+  }
+  sleep_us(1);
+
   return gpio_get(PTT) == 0;
 }
 
 void __not_in_flash_func(rx::transmit)()
 {
+
     gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_PWM);
     gpio_set_function(RF_PIN, GPIO_FUNC_PIO0);
 
@@ -543,22 +565,24 @@ void __not_in_flash_func(rx::transmit)()
         round(2 * 32768.0 * fm_deviation_Hz /
               rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample));
 
+    //create CW keyer
+    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample), dit, dah);
+
     //mic gain
-    uint16_t scaled_mic_gain = 16 << mic_gain;
+    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
 
     //test tone
     uint32_t test_tone_phase = 0;
     uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
 
-    int32_t audio;
-    uint16_t magnitude;
-    int16_t phase;
-    int16_t i; // not used in this design
-    int16_t q; // not used in this design
+    int32_t audio = 0;
+    uint16_t magnitude = 0;
+    int16_t phase = 0;
+    int16_t i = 0; // not used in this design
+    int16_t q = 0; // not used in this design
 
     gpio_put(LED, 1);
     while (ptt()) {
-
       if(test_tone_enable)
       {
         audio = sin_table[test_tone_phase >> 21];
@@ -566,17 +590,24 @@ void __not_in_flash_func(rx::transmit)()
       }
       else
       {
-        // read audio from mic
-        audio = mic_adc.get_sample() * scaled_mic_gain;
-        audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+        if(transmit_mode == CW)
+        {
+          audio = keyer.get_sample();
+        }
+        else
+        {
+          // read audio from mic
+          audio = mic_adc.get_sample() * scaled_mic_gain;
+          audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+        }
       }
-      audio_level = audio_level - (audio_level >> 5) + (abs(audio) >> 5);
+      tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
 
       // demodulate
       audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
 
       // output magnitude
-      magnitude_pwm.output_sample(magnitude);
+      magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
 
       // output phase
       rf_nco.output_sample(phase, waveforms_per_sample);

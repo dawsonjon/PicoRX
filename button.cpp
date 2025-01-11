@@ -12,6 +12,11 @@ button :: button(uint8_t gpio_num):gpio_num(gpio_num)
     gpio_pull_up(gpio_num);
 }
 
+bool button :: is_keyed()
+{
+  return !gpio_get(gpio_num);
+}
+
 void button :: update_state()
 {
   if(button_state == up)
