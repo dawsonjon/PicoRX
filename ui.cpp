@@ -1117,12 +1117,12 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
 
-  settings_to_apply.test_tone_enable = settings[idx_tx_features] >> flag_enable_test_tone & mask_enable_test_tone;
-  settings_to_apply.test_tone_frequency = settings[idx_tx_features] >> flag_test_tone_frequency & mask_test_tone_frequency;
-  settings_to_apply.cw_paddle = settings[idx_tx_features] >> flag_cw_paddle & mask_cw_paddle;
-  settings_to_apply.cw_speed = settings[idx_tx_features] >> flag_cw_speed & mask_cw_speed;
-  settings_to_apply.mic_gain = settings[idx_tx_features] >> flag_mic_gain & mask_mic_gain;
-  settings_to_apply.tx_modulation = settings[idx_tx_features] >> flag_tx_modulation & mask_tx_modulation;
+  settings_to_apply.test_tone_enable = unpack(settings[idx_tx_features], flag_enable_test_tone, mask_enable_test_tone);
+  settings_to_apply.test_tone_frequency = unpack(settings[idx_tx_features], flag_test_tone_frequency, mask_test_tone_frequency);
+  settings_to_apply.cw_paddle = unpack(settings[idx_tx_features], flag_cw_paddle, mask_cw_paddle);
+  settings_to_apply.cw_speed = unpack(settings[idx_tx_features], flag_cw_speed, mask_cw_speed);
+  settings_to_apply.mic_gain = unpack(settings[idx_tx_features], flag_mic_gain, mask_mic_gain);
+  settings_to_apply.tx_modulation = unpack(settings[idx_tx_features], flag_tx_modulation, mask_tx_modulation);
   settings_to_apply.pwm_min = unpack(settings[idx_gain_cal], flag_pwm_min, mask_pwm_min);
   settings_to_apply.pwm_max = unpack(settings[idx_gain_cal], flag_pwm_max, mask_pwm_max);
   settings_to_apply.pwm_threshold = unpack(settings[idx_tx_features], flag_pwm_threshold, mask_pwm_threshold);
@@ -2342,7 +2342,9 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 3 : 
-          done = bit_entry("CW Paddle", "Straight#Iambic#", flag_cw_paddle, &settings[idx_tx_features], ok);
+          setting_word = unpack(settings[idx_tx_features], flag_cw_paddle, mask_cw_paddle);
+          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", &setting_word, ok, changed);
+          pack(settings[idx_tx_features], setting_word, flag_cw_paddle, mask_cw_paddle);
           break;
 
         case 4 : 
@@ -3105,8 +3107,8 @@ void ui::update_display_type(void)
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
-  menu_button(PIN_MENU), 
-  back_button(PIN_BACK), 
+  menu_button(PIN_MENU, PIN_PADDLE), 
+  back_button(PIN_BACK, PIN_PADDLE), 
   encoder_button(PIN_ENCODER_PUSH),
   settings_to_apply(settings_to_apply),
   status(status), 

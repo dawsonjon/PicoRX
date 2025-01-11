@@ -14,6 +14,7 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
+#include "charlieplexed_button.h"
 #include "logo.h"
 #include "u8g2.h"
 #include "pins.h"
@@ -108,15 +109,15 @@
 #define mask_enable_test_tone (0x1 << flag_enable_test_tone)
 #define flag_test_tone_frequency (1) //bits 1 - 5
 #define mask_test_tone_frequency (0x1f << flag_test_tone_frequency)
-#define flag_cw_paddle (6) //bit 6
-#define mask_cw_paddle (0x1 << flag_cw_paddle)
-#define flag_cw_speed (7) //bits 7 - 12
+#define flag_cw_paddle (6) //bit 6 - 7
+#define mask_cw_paddle (0x3 << flag_cw_paddle)
+#define flag_cw_speed (8) //bits 8 - 13
 #define mask_cw_speed (0x3f << flag_cw_speed)
-#define flag_tx_modulation (13) //bit 13
+#define flag_tx_modulation (14) //bit 14
 #define mask_tx_modulation (0x3f << flag_tx_modulation)
-#define flag_mic_gain 14 // bits 14-17
+#define flag_mic_gain 15 // bits 15-18
 #define mask_mic_gain (0xf << flag_mic_gain)
-#define flag_pwm_threshold 18 //18-25
+#define flag_pwm_threshold 19 //19-26
 #define mask_pwm_threshold (0xff << flag_pwm_threshold)
 
 // define wait macros
@@ -166,10 +167,9 @@ class ui
   const uint32_t sm = 0;
   const PIO pio = pio1;
 
-
   // Buttons
-  button menu_button;
-  button back_button;
+  charlieplexed_button menu_button;
+  charlieplexed_button back_button;
   button encoder_button;
 
   // Display

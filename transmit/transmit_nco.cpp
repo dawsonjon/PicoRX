@@ -12,7 +12,6 @@
 //
 
 #include "transmit_nco.h"
-
 void transmit_nco::initialise_waveform_buffer(uint32_t buffer[],
                                      uint32_t waveform_length_words,
                                      double normalised_frequency) {
@@ -108,6 +107,9 @@ transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, doub
   channel_config_set_write_increment(
       &chain_dma_cfg, false); // always writes to data DMA read address
   dma_channel_start(nco_dma);
+
+  gpio_set_dir(2, GPIO_OUT); 
+  gpio_set_function(2, GPIO_FUNC_SIO); 
 }
 
 transmit_nco::~transmit_nco() {
@@ -146,6 +148,8 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
 
   assert(waveforms_per_sample < max_waveforms_per_sample);
 
+  gpio_put(2, 1);
+
   // null transfer at the end of each 32 address block
   buffer_addresses[ping_pong][waveforms_per_sample] = NULL;
 
@@ -170,9 +174,11 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
       index_f24 -= wrap_f24;
     }
   }
+  gpio_put(2, 0);
 
   // check for PIO stalls
   if (pio->fdebug) {
+    //printf("pio stall, potential lost samples debug: %lx\n", pio->fdebug);
     pio->fdebug = 0xffffffff; // clear all
   }
 

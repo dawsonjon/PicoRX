@@ -12,21 +12,28 @@
 //
 
 #include <cmath>
+#include "pico/stdlib.h"
 
 #include "cordic.h"
 #include "modulator.h"
 
 modulator ::modulator() { cordic_init(); }
 
-void modulator ::process_sample(uint8_t mode, int16_t audio, int16_t &i,
+void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio, int16_t &i,
                                 int16_t &q, uint16_t &magnitude, int16_t &phase,
                                 uint32_t fm_deviation_f15) {
 
-  audio = (int32_t)audio * 65200 >> 16;
-  audio_filter.filter(audio);
+  if(mode != CW)
+  {
+    audio = (int32_t)audio * 65200 >> 16;
+    audio_filter.filter(audio);
+  }
 
-  if (mode == AM) {
+  if (mode == AM || mode == AMSYNC) {
     magnitude = audio + 32767;
+    phase = 0;
+  } else if (mode == CW) {
+    magnitude = audio * 2;
     phase = 0;
   } else if (mode == FM) {
     magnitude = 65535;

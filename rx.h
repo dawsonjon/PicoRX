@@ -12,6 +12,7 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
+#include "charlieplexed_button.h"
 
 #include "rx_definitions.h"
 #include "rx_dsp.h"
@@ -46,7 +47,7 @@ struct rx_settings
   //transmit
   bool test_tone_enable;
   uint8_t test_tone_frequency;
-  bool cw_paddle;
+  uint8_t cw_paddle;
   uint8_t cw_speed;
   uint8_t mic_gain;
   bool tx_modulation;
@@ -129,14 +130,16 @@ class rx
   int16_t gain_numerator=0;
 
   //Transmit
+  charlieplexed_button dit;
+  charlieplexed_button dah;
   uint8_t transmit_mode;
   void transmit();
   bool ptt();
   bool test_tone_enable;
   uint8_t test_tone_frequency;
-  bool cw_paddle;
-  uint8_t cw_speed;
-  uint8_t mic_gain;
+  uint8_t tx_cw_paddle;
+  uint8_t tx_cw_speed;
+  uint8_t tx_mic_gain;
   bool tx_modulation;
   uint16_t tx_audio_level=0;
   uint8_t tx_pwm_min;

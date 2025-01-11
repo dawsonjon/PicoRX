@@ -5,6 +5,7 @@ const uint8_t PIN_AB = 20;
 const uint8_t PIN_B  = 21;
 const uint8_t PIN_MENU = 22;
 const uint8_t PIN_BACK = 17;
+const uint8_t PIN_PADDLE = 9;
 const uint8_t PIN_ENCODER_PUSH = 5;
 const uint8_t PIN_DISPLAY_SDA = 18;
 const uint8_t PIN_DISPLAY_SCL = 19;

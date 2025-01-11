@@ -4,7 +4,8 @@ include(pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 11)
 
-add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
+#add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
+add_compile_options(-Wall -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
@@ -42,6 +43,7 @@ if(PICO_BOARD STREQUAL "pico")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
       usb_audio_device.c
@@ -54,6 +56,7 @@ if(PICO_BOARD STREQUAL "pico")
       transmit/pwm.cpp
       transmit/modulator.cpp
       transmit/signal_generator.cpp
+      transmit/cw_keyer.cpp
   )
 
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -109,6 +112,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
       usb_audio_device.c
@@ -121,6 +125,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       transmit/pwm.cpp
       transmit/modulator.cpp
       transmit/signal_generator.cpp
+      transmit/cw_keyer.cpp
     )
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -172,6 +177,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
       usb_audio_device.c
@@ -184,6 +190,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       transmit/pwm.cpp
       transmit/modulator.cpp
       transmit/signal_generator.cpp
+      transmit/cw_keyer.cpp
     )
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)

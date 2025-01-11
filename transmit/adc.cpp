@@ -20,7 +20,7 @@ adc::adc(const uint8_t mic_pin, const uint8_t adc_input) {
   adc_select_input(adc_input);
 }
 
-int16_t adc::get_sample() {
+int16_t __not_in_flash_func(adc::get_sample)() {
   int32_t adc_audio = adc_read();
   dc = dc + ((adc_audio - dc) >> 1);
   return (adc_audio - dc);
