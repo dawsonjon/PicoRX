@@ -20,4 +20,9 @@ const uint8_t MIC_PIN = 28;
 const uint8_t MAGNITUDE_PIN = 12;
 const uint8_t RF_PIN = 5;
 
+//pins for W9RAN HW
+const uint8_t MIC_PIN = 28;
+const uint8_t MAGNITUDE_PIN = 12;
+const uint8_t RF_PIN = 5;
+
 #endif
