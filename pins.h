@@ -19,6 +19,6 @@ const uint8_t LED = 25;
 
 const uint8_t MIC_PIN = 28;
 const uint8_t MAGNITUDE_PIN = 8;
-const uint8_t RF_PIN = 7;
+const uint8_t RF_PIN = 12; //must be HSTX capable
 
 #endif

@@ -13,7 +13,15 @@
 #include "pins.h"
 #include "transmit/adc.h"
 #include "transmit/pwm.h"
-#include "transmit/transmit_nco.h"
+
+#if PICO_PLATFORM==rp2350-arm-s
+  #include "transmit/transmit_pico2_nco.h"
+#elif PICO_PLATFORM==rp2350-riscv
+  #include "transmit/transmit_pico2_nco.h"
+#else
+  #include "transmit/transmit_nco.h"
+#endif
+
 #include "transmit/modulator.h"
 #include "transmit/cw_keyer.h"
 

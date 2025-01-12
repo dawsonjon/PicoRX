@@ -118,7 +118,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       usb_audio_device.c
       ring_buffer_lib.c
       transmit/adc.cpp
-      transmit/transmit_nco.cpp
+      transmit/transmit_pico2_nco.cpp
       transmit/half_band_filter.cpp
       transmit/half_band_filter2.cpp
       transmit/cordic.cpp
@@ -183,7 +183,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       usb_audio_device.c
       ring_buffer_lib.c
       transmit/adc.cpp
-      transmit/transmit_nco.cpp
+      transmit/transmit_pico2_nco.cpp
       transmit/half_band_filter.cpp
       transmit/half_band_filter2.cpp
       transmit/cordic.cpp

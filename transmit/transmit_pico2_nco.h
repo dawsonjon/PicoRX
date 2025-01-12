@@ -15,7 +15,6 @@
 #define NCO_H__
 
 #include "hardware/dma.h"
-#include "hardware/pio.h"
 #include "hardware/sync.h"
 #include "stream_bits.pio.h"
 #include <cmath>
@@ -45,23 +44,22 @@ private:
   uint8_t m_rf_pin;
   bool m_dither;
 
-  PIO pio = pio0;
   uint32_t nco_dma, chain_dma, sm;
   dma_channel_config nco_dma_cfg;
   dma_channel_config chain_dma_cfg;
-  static const uint8_t max_waveforms_per_sample = 100u;
-  int32_t index_f24 = 0u;
+  static const uint8_t max_waveforms_per_sample = 200u;
+  int64_t index_f32 = 0u;
   uint8_t ping_pong = 0u;
-  uint32_t interrupts;
+  uint64_t interrupts;
   bool dma_started = false;
   static const uint8_t bits_per_word = 32u;
-  static const uint16_t waveform_length_bits = 256u;
+  static const uint16_t waveform_length_bits = 512u;
   static const uint16_t waveform_length_words =
       waveform_length_bits / bits_per_word;
-  static const uint32_t fraction_bits = 24u;
-  int32_t index_increment_f24;
-  int32_t wrap_f24;
-  int32_t phase_step_clocks_f24;
+  static const uint32_t fraction_bits = 32u;
+  int64_t index_increment_f32;
+  int64_t wrap_f32;
+  int64_t phase_step_clocks_f32;
   uint offset;
   const uint32_t *buffer_addresses[2][max_waveforms_per_sample + 1];
   uint32_t buffer[bits_per_word * waveform_length_words * 2]
