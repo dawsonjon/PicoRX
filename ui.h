@@ -18,107 +18,12 @@
 #include "logo.h"
 #include "u8g2.h"
 #include "pins.h"
+#include "settings.h"
 
 // vscode cant find it and flags a problem (but the compiler can)
 #ifndef M_PI
 #define M_PI 3.14159265
 #endif
-
-
-#define MODE_AM 0
-#define MODE_AMS 1
-#define MODE_LSB 2
-#define MODE_USB 3
-#define MODE_FM 4
-#define MODE_CW 5
-
-// settings that get stored in eeprom
-#define settings_to_store 6
-#define idx_frequency 0
-#define idx_mode 1
-#define idx_agc_control 2
-#define idx_step 3
-#define idx_max_frequency 4
-#define idx_min_frequency 5
-#define idx_squelch 6
-#define idx_volume 7
-#define idx_cw_sidetone 8
-#define idx_hw_setup 9
-#define idx_gain_cal 10
-#define idx_bandwidth_spectrum 11
-#define idx_rx_features 12
-#define idx_band1 13
-#define idx_band2 14
-#define idx_tx_features 15
-
-//flags for squelch
-#define flag_squelch_threshold 0 // bits 0-7
-#define mask_squelch_threshold (0xff << flag_squelch_threshold)
-#define flag_squelch_timeout 8 // bits 8-15
-#define mask_squelch_timeout (0xff << flag_squelch_timeout)
-
-//flags for gain cal
-#define flag_gain_cal 0 // bits 0-15
-#define mask_gain_cal (0xffff << flag_gain_cal)
-#define flag_pwm_min 16 // bits 16-23
-#define mask_pwm_min (0xff << flag_pwm_min)
-#define flag_pwm_max 24 // bits 24-31
-#define mask_pwm_max (0xff << flag_pwm_max)
-
-//flags for agc gain
-#define flag_agc_setting 0 // bits 0-7
-#define mask_agc_setting (0xff << flag_agc_setting)
-#define flag_agc_gain 8 // bits 8-15
-#define mask_agc_gain (0xff << flag_agc_gain)
-
-// bit flags for HW settings in idx_hw_setup
-#define flag_reverse_encoder 0
-#define flag_swap_iq 1
-#define flag_flip_oled 2
-#define flag_oled_type 3
-#define flag_display_timeout 4  // bits 4-6
-#define mask_display_timeout (0x7 << flag_display_timeout)
-#define flag_display_contrast 7   // bits 7-10
-#define mask_display_contrast (0xf << flag_display_contrast)
-#define flag_tft_settings 11   // bits 11-14
-#define mask_tft_settings (0xf << flag_tft_settings)
-#define flag_tft_colour 15   // bits 15
-#define mask_tft_colour (0x1 << flag_tft_colour)
-#define flag_encoder_res 16
-#define flag_ppm 24   // bits 24-31
-#define mask_ppm (0xff << flag_ppm)
-
-//flags for idx_bandwidth_spectrum
-#define flag_bandwidth 0 // bits 0-3
-#define mask_bandwidth (0xf << flag_bandwidth)
-#define flag_spectrum 4 // bits 4-7
-#define mask_spectrum (0xf << flag_spectrum)
-
-//flags for receiver features idx_rx_features
-#define flag_enable_auto_notch (0)
-#define mask_enable_auto_notch (0x1 << flag_enable_auto_notch)
-#define flag_deemphasis (1)
-#define mask_deemphasis (0x3 << flag_deemphasis)
-#define flag_iq_correction (3)
-#define mask_iq_correction (0x1 << flag_iq_correction)
-#define flag_enable_noise_reduction (4)
-#define mask_enable_noise_reduction (0x1 << flag_enable_noise_reduction)
-
-//flags for receiver features idx_tx_features
-#define flag_enable_test_tone (0) //bit 0
-#define mask_enable_test_tone (0x1 << flag_enable_test_tone)
-#define flag_test_tone_frequency (1) //bits 1 - 5
-#define mask_test_tone_frequency (0x1f << flag_test_tone_frequency)
-#define flag_cw_paddle (6) //bit 6 - 7
-#define mask_cw_paddle (0x3 << flag_cw_paddle)
-#define flag_cw_speed (8) //bits 8 - 13
-#define mask_cw_speed (0x3f << flag_cw_speed)
-#define flag_tx_modulation (14) //bit 14
-#define mask_tx_modulation (0x3f << flag_tx_modulation)
-#define flag_mic_gain 15 // bits 15-18
-#define mask_mic_gain (0xf << flag_mic_gain)
-#define flag_pwm_threshold 19 //19-26
-#define mask_pwm_threshold (0xff << flag_pwm_threshold)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -138,20 +43,15 @@ enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 #define style_bordered    (1<<4)
 #define style_xor         (1<<5)
 
-const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
 
 class ui
 {
 
   private:
 
-  uint32_t settings[16];
+  s_settings settings;
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
-  const char steps[11][8]  = {
-    "10Hz", "50Hz", "100Hz", "1kHz",
-    "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz",
-    "50kHz", "100kHz"};
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
     "S4---|",      "S5----|",     "S6-----|",    "S7------|",
@@ -161,7 +61,7 @@ class ui
   // Encoder
   void setup_encoder(void);
   int32_t get_encoder_change(void);
-  int32_t encoder_control(int32_t *value, int32_t min, int32_t max);
+  int32_t encoder_control(int32_t &value, int32_t min, int32_t max);
   int32_t new_position = 0;
   int32_t old_position = 0;
   const uint32_t sm = 0;
@@ -245,10 +145,12 @@ class ui
   void print_menu_option(const char options[], uint8_t option);
 
   bool menu_entry(const char title[], const char options[], uint32_t *value, bool &ok);
-  bool enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok, bool &changed);
-  bool bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok, bool &changed);
-  bool frequency_entry(const char title[], uint32_t which_setting, bool &ok);
+  bool enumerate_entry(const char title[], const char options[], uint8_t &value, bool &ok, bool &changed);
+  bool bit_entry(const char title[], const char options[], bool &value, bool &ok);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed);
+  bool frequency_entry(const char title[], uint32_t &which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);
   bool memory_recall(bool &ok);
   bool memory_store(bool &ok);
@@ -273,7 +175,7 @@ class ui
 
   public:
 
-  uint32_t * get_settings(){return &settings[0];};
+  s_settings & get_settings(){return settings;};
   void autorestore();
   void do_ui();
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);

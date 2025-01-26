@@ -220,7 +220,7 @@ void rx::apply_settings()
       rx_dsp_inst.set_gain_cal_dB(settings_to_apply.gain_cal);
 
       //apply AGC control
-      rx_dsp_inst.set_agc_control(settings_to_apply.agc_control);
+      rx_dsp_inst.set_agc_control(settings_to_apply.agc_setting, settings_to_apply.agc_gain);
 
       //apply Automatic Notch Filter
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);

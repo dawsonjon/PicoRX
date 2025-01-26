@@ -1,11 +1,12 @@
 #include "cat.h"
-#include "ui.h"
-
+#include "settings.h"
+#include <cstdint>
+#include <cstring>
 #include <algorithm>
 
 #include "pico/stdlib.h"
 
-void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint32_t settings[])
+void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, s_settings &settings)
 {
     const uint16_t buffer_length = 64;
     static char buf[buffer_length];
@@ -72,13 +73,13 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
         // Handle mode set/get commands
         if (cmd[2] == ';') {
-            printf("FA%011lu;", settings[idx_frequency]);
+            printf("FA%011lu;", settings.channel.frequency);
         } else {
             uint32_t frequency_Hz;
             sscanf(cmd+2, "%lu", &frequency_Hz);
             if(frequency_Hz <= 30000000)
             {
-              settings[idx_frequency]=frequency_Hz;
+              settings.channel.frequency=frequency_Hz;
               settings_changed = true;
             }
             else
@@ -91,13 +92,13 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
         // Handle mode set/get commands
         if (cmd[2] == ';') {
-            printf("FA%011lu;", settings[idx_frequency]);
+            printf("FA%011lu;", settings.channel.frequency);
         } else {
             uint32_t frequency_Hz;
             sscanf(cmd+2, "%lu", &frequency_Hz);
             if(frequency_Hz <= 30000000)
             {
-              settings[idx_frequency]=frequency_Hz;
+              settings.channel.frequency=frequency_Hz;
               settings_changed = true;
             }
             else
@@ -125,28 +126,28 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
         // Handle mode set/get commands
         if (cmd[2] == ';') {
-            char mode_status = mode_translation[settings[idx_mode]];
+            char mode_status = mode_translation[settings.channel.mode];
             printf("MD%c;", mode_status);
         } else if (cmd[2] == '1') {
             settings_changed = true;
-            settings[idx_mode] = MODE_LSB;
+            settings.channel.mode = MODE_LSB;
         } else if (cmd[2] == '2') {
             settings_changed = true;
-            settings[idx_mode] = MODE_USB;
+            settings.channel.mode = MODE_USB;
         } else if (cmd[2] == '3') {
             settings_changed = true;
-            settings[idx_mode] = MODE_CW;
+            settings.channel.mode = MODE_CW;
         } else if (cmd[2] == '4') {
             settings_changed = true;
-            settings[idx_mode] = MODE_FM;
+            settings.channel.mode = MODE_FM;
         } else if (cmd[2] == '5') {
             settings_changed = true;
-            settings[idx_mode] = MODE_AM;
+            settings.channel.mode = MODE_AM;
         }
 
     } else if (strncmp(cmd, "IF", 2) == 0) {
         if (cmd[2] == ';') {
-            printf("IF%011lu00000+0000000000%c0000000;", settings[idx_frequency], mode_translation[settings[idx_mode]]);
+            printf("IF%011lu00000+0000000000%c0000000;", settings.channel.frequency, mode_translation[settings.channel.mode]);
         }
 
     //fake TX for now
@@ -322,34 +323,6 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     }
 
     //apply settings to receiver
-    if(settings_changed)
-    {
-      receiver.access(true);
-      settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-      settings_to_apply.agc_control = settings[idx_agc_control];
-      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-      settings_to_apply.enable_noise_reduction = settings[idx_rx_features] >> flag_enable_noise_reduction & 1;
-      settings_to_apply.mode = settings[idx_mode];
-      settings_to_apply.volume = settings[idx_volume];
-      settings_to_apply.squelch_threshold = settings[idx_squelch]&0xff;
-      settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
-      settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-      settings_to_apply.gain_cal = (settings[idx_gain_cal] & mask_gain_cal) >> flag_gain_cal;
-      settings_to_apply.suspend = false;
-      settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-      settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
-      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-      settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
-      settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
-      settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
-      settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
-      settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
-      settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
-      settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
-      settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
-      settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
-      receiver.release();
-    }
+    apply_settings_to_rx(receiver, settings_to_apply, settings, false, settings_changed);
 
 }

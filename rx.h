@@ -21,7 +21,8 @@ struct rx_settings
 {
   double tuned_frequency_Hz;
   int step_Hz;
-  uint16_t agc_control;
+  uint8_t agc_setting;
+  uint8_t agc_gain;
   uint8_t mode;
   uint8_t volume;
   uint8_t squelch_threshold;

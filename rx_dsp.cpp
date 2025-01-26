@@ -449,7 +449,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  set_agc_control(3);
+  set_agc_control(3, 0);
   filter_control.enable_auto_notch = false;
   filter_control.enable_noise_reduction = false;
 
@@ -480,7 +480,7 @@ void rx_dsp :: set_deemphasis(uint8_t deemph)
   deemphasis = deemph;
 }
 
-void rx_dsp :: set_agc_control(uint16_t agc_setting)
+void rx_dsp :: set_agc_control(uint8_t agc_control, uint8_t agc_gain)
 {
   //input fs=480000.000000 Hz
   //decimation=32 x 2
@@ -494,9 +494,9 @@ void rx_dsp :: set_agc_control(uint16_t agc_setting)
 
 
   manual_gain_control = false;
-  manual_gain = 1 << (agc_setting >> 8);
+  manual_gain = 1 << (agc_gain);
 
-  switch(agc_setting & 0xff)
+  switch(agc_control)
   {
       case 0: //fast
         attack_factor=2;

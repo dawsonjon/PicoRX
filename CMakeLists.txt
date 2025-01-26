@@ -4,7 +4,7 @@ include(pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 11)
 
-#add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
+add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
 add_compile_options(-Wall -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
@@ -39,6 +39,7 @@ if(PICO_BOARD STREQUAL "pico")
       noise_reduction.cpp
       cic_corrections.cpp
       ui.cpp
+      settings.cpp
       utils.cpp
       ili934x.cpp
       waterfall.cpp
@@ -103,6 +104,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      settings.cpp
       charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
@@ -154,6 +156,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       fft_filter.cpp
       noise_reduction.cpp
       cic_corrections.cpp
+      settings.cpp
       ui.cpp
       utils.cpp
       ili934x.cpp

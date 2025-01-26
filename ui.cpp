@@ -8,6 +8,7 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 #include "fonts.h"
+#include "settings.h"
 
 #include <algorithm>
 
@@ -34,7 +35,7 @@ void ui::setup_encoder()
     gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
     uint offset = pio_add_program(pio, &quadrature_encoder_program);
     quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+    if (settings.global.encoder_resolution) {
       new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
     } else {
       new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
@@ -44,14 +45,14 @@ void ui::setup_encoder()
 
 int32_t ui::get_encoder_change(void)
 {
-    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
+    if (settings.global.encoder_resolution) {
       new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
     } else {
       new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
     }
     int32_t delta = new_position - old_position;
     old_position = new_position;
-    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
+    if(settings.global.reverse_encoder)
     {
       return -delta;
     } else {
@@ -59,12 +60,12 @@ int32_t ui::get_encoder_change(void)
     }
 }
 
-int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
+int32_t ui::encoder_control(int32_t &value, int32_t min, int32_t max)
 {
 	int32_t position_change = get_encoder_change();
-	*value += position_change;
-	if(*value > max) *value = min;
-	if(*value < min) *value = max;
+	value += position_change;
+	if(value > max) value = min;
+	if(value < min) value = max;
 	return position_change;
 }
 
@@ -327,8 +328,8 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
 
   //frequency
   uint32_t remainder, MHz, kHz, Hz;
-  MHz = (uint32_t)settings[idx_frequency]/1000000u;
-  remainder = (uint32_t)settings[idx_frequency]%1000000u; 
+  MHz = settings.channel.frequency/1000000u;
+  remainder = settings.channel.frequency%1000000u; 
   kHz = remainder/1000u;
   remainder = remainder%1000u; 
   Hz = remainder;
@@ -348,11 +349,11 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   //mode
   const uint8_t text_height = 14u;
   u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
-  u8g2_DrawStr(&u8g2, 0, text_height, modes[settings[idx_mode]]);
+  u8g2_DrawStr(&u8g2, 0, text_height, modes[settings.channel.mode]);
   uint16_t x = u8g2_GetStrWidth(&u8g2, modes[0]) + 2;
 
   //volume
-  display_draw_volume(settings[idx_volume], x);
+  display_draw_volume(settings.global.volume, x);
   x += 18;
 
   //battery
@@ -365,8 +366,8 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
 
   //step size
   u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
-  w = u8g2_GetStrWidth(&u8g2, steps[settings[idx_step]]);
-  u8g2_DrawStr(&u8g2, 127 - w, 42, steps[settings[idx_step]]);
+  w = u8g2_GetStrWidth(&u8g2, steps[settings.channel.step]);
+  u8g2_DrawStr(&u8g2, 127 - w, 42, steps[settings.channel.step]);
 
   int8_t power_s = dBm_to_S(power_dBm);
   const uint16_t seg_w = 8;
@@ -387,7 +388,7 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
       u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
     }
   }
-  u8g2_DrawVLine(&u8g2, (settings[idx_squelch]&0xff) * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
+  u8g2_DrawVLine(&u8g2, settings.global.squelch_threshold * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
 
   const char smeter[13][6] = {"S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "+10", "+20", "+30"};
   u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
@@ -512,11 +513,11 @@ void ui::draw_slim_status(uint16_t y, rx_status & status, rx & receiver)
   receiver.release();
 
   display_set_xy(0,y);
-  display_print_freq(',', settings[idx_frequency],1);
+  display_print_freq(',', settings.channel.frequency,1);
   display_add_xy(4,0);
 
   //mode
-  display_print_str(modes[settings[idx_mode]],1);
+  display_print_str(modes[settings.channel.mode],1);
 
   //signal strength dBm
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
@@ -851,17 +852,12 @@ void ui::print_enum_option(const char options[], uint8_t option){
   }
 }
 
-bool ui::bit_entry(const char title[], const char options[], uint8_t bit_position, uint32_t *value, bool &ok)
+bool ui::bit_entry(const char title[], const char options[], bool &value, bool &ok)
 {
-    uint32_t bit = (*value >> bit_position) & 1;
     bool changed = false;
-    bool done = enumerate_entry(title, options, &bit, ok, changed);
-    if(bit)
-    {
-     *value |= (1 << bit_position);
-    } else {
-     *value &= ~(1 << bit_position);
-    }
+    uint8_t input = (uint8_t)value;
+    bool done = enumerate_entry(title, options, input, ok, changed);
+    value = input;
     return done;
 }
 
@@ -889,7 +885,7 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = encoder_control(&select, 0, max)!=0;
+    draw_display = encoder_control(select, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -921,7 +917,7 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
 }
 
 //choose from an enumerate list of settings
-bool ui::enumerate_entry(const char title[], const char options[], uint32_t *value, bool &ok, bool &changed)
+bool ui::enumerate_entry(const char title[], const char options[], uint8_t &value, bool &ok, bool &changed)
 {
   enum e_state{idle, active};
   static e_state state = idle;
@@ -931,7 +927,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
   if(state == idle)
   {
     draw_display = true;
-    original_value = *value;
+    original_value = value;
     state = active;
   }
   else if(state == active)
@@ -944,7 +940,9 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = changed = encoder_control((int32_t*)value, 0, max)!=0;
+    int32_t control = value;
+    draw_display = changed = encoder_control(control, 0, max)!=0;
+    value = control;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -955,7 +953,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
 
     //cancel
     if(back_button.is_pressed()){
-      *value = original_value;
+      value = original_value;
       changed = true;
       ok = false;
       state = idle;
@@ -969,7 +967,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
       display_print_str(title, 2, style_centered);
       display_draw_separator(40,1);
       display_linen(6);
-      print_enum_option(options, *value);
+      print_enum_option(options, value);
       display_show();
   }
 
@@ -977,7 +975,21 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
 }
 
 //select a number in a range
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t *value, bool &ok, bool &changed)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed)
+{
+  int32_t extended_value = value;
+  bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
+  value = (uint8_t)extended_value;
+  return return_value;
+}
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed)
+{
+  int32_t extended_value = value;
+  bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
+  value = (int8_t)extended_value;
+  return return_value;
+}
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed)
 {
   enum e_state{idle, active};
   static e_state state = idle;
@@ -987,12 +999,12 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
   if(state == idle)
   {
     draw_display = true;
-    old_value=*value;
+    old_value=value;
     state = active;
   }
   else if(state == active)
   {
-    draw_display = changed = encoder_control((int32_t*)value, min, max)!=0;
+    draw_display = changed = encoder_control(value, min, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -1003,7 +1015,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
 
     //cancel
     if(back_button.is_pressed()){
-      *value = old_value;
+      value = old_value;
       changed = true;
       ok = false;
       state = idle;
@@ -1017,192 +1029,44 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
       display_print_str(title, 2, style_centered);
       display_draw_separator(40,1);
       display_linen(6);
-      display_print_num(format, (*value)*multiple, 2, style_centered);
+      display_print_num(format, value*multiple, 2, style_centered);
       display_show();
   }
 
   return false;
 }
 
-
-//Apply settings
-void ui::apply_settings(bool suspend, bool settings_changed)
-{
-  receiver.access(settings_changed);
-  settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-  settings_to_apply.agc_control = settings[idx_agc_control];
-  settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-  settings_to_apply.enable_noise_reduction = settings[idx_rx_features] >> flag_enable_noise_reduction & 1;
-  settings_to_apply.mode = settings[idx_mode];
-  settings_to_apply.volume = settings[idx_volume];
-  settings_to_apply.squelch_threshold = settings[idx_squelch]&0xff;
-  settings_to_apply.squelch_timeout = settings[idx_squelch]>>8;
-  settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-  settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-  settings_to_apply.gain_cal = unpack(settings[idx_gain_cal], flag_gain_cal, mask_gain_cal);
-  settings_to_apply.suspend = suspend;
-  settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-  settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
-  settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-  settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
-  settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
-  settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
-  settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
-  settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
-  settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
-  settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
-  settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
-  settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
-
-  zoom = 1 << (((settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum)-1);
-  receiver.release();
-}
-
 //remember settings across power cycles
 void ui::autosave()
 {
-  //The flash endurance may not be more than 100000 erase cycles.
-  //Cycle through 512 locations, only erasing the flash when they have all been used.
-  //This should give an endurance of 51,200,000 cycles.
-
-  //find the next unused channel, an unused channel will be 0xffffffff
-  uint16_t empty_channel = 0;
-  bool empty_channel_found = false;
-  for(uint16_t i=0; i<512; i++)
-  {
-    if(autosave_memory[i][0] == 0xffffffff)
-    {
-      empty_channel = i;
-      empty_channel_found = true;
-      break;
-    } 
-  }
-
-  //check whether data differs
-  if(empty_channel > 0)
-  {
-    bool difference_found = false;
-    for(uint8_t i=0; i<16; i++){
-      if(autosave_memory[empty_channel - 1][i] != settings[i])
-      {
-        difference_found = true;
-        break;
-      }
-    }
-    //data hasn't changed, no need to save
-    if(!difference_found)
-    {
-      return;
-    }
-  }
-
-  //if there are no free channels, erase all the pages
-  if(!empty_channel_found)
-  {
-    const uint32_t address = (uint32_t)&(autosave_memory[0]);
-    const uint32_t flash_address = address - XIP_BASE; 
-    //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    apply_settings(true, false);                         //suspend rx to disable all DMA transfers
-    WAIT_100MS                                           //wait for suspension to take effect
-    multicore_lockout_start_blocking();                  //halt the second core
-    const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
-
-    //safe to erase flash here
-    //--------------------------------------------------------------------------------------------
-    flash_range_erase(flash_address, sizeof(int)*16*512);
-    //--------------------------------------------------------------------------------------------
-
-    restore_interrupts (ints);                           //restore interrupts
-    multicore_lockout_end_blocking();                    //restart the second core
-    apply_settings(false, false);                        //resume rx operation
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //!!! Normal operation resumed
-  }
-
-  //work out which flash sector the channel sits in.
-  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
-  const uint32_t first_channel_in_sector = num_channels_per_sector * (empty_channel/num_channels_per_sector);
-  const uint32_t channel_offset_in_sector = empty_channel%num_channels_per_sector;
-
-  //copy sector to RAM
-  static uint32_t sector_copy[num_channels_per_sector][chan_size];
-  for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
-  {
-    for(uint16_t location=0; location<chan_size; location++)
-    {
-      if(channel+first_channel_in_sector < num_chans)
-      {
-        sector_copy[channel][location] = autosave_memory[channel+first_channel_in_sector][location];
-      }
-    }
-  }
-    
-  //modify the selected channel
-  for(uint8_t i=0; i<16; i++)
-  {
-    sector_copy[channel_offset_in_sector][i] = settings[i];
-  }
-
-  //write sector to flash
-  const uint32_t address = (uint32_t)&(autosave_memory[first_channel_in_sector]);
-  const uint32_t flash_address = address - XIP_BASE; 
-
-  //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
-  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  apply_settings(true, false);                         //suspend rx to disable all DMA transfers
-  WAIT_100MS                                           //wait for suspension to take effect
-  multicore_lockout_start_blocking();                  //halt the second core
-  const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
-
-  //safe to erase flash here
-  //--------------------------------------------------------------------------------------------
-  flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
-  //--------------------------------------------------------------------------------------------
-
-  restore_interrupts (ints);                           //restore interrupts
-  multicore_lockout_end_blocking();                    //restart the second core
-  apply_settings(false, false);                        //resume rx operation
-  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  //!!! Normal operation resumed
-
+  autosave_store_settings(settings, receiver, settings_to_apply);
 }
 
 //remember settings across power cycles
 void ui::autorestore()
 {
-
-  //find the next unused channel, an unused channel will be 0xffffffff
-  uint16_t empty_channel = 0;
-  bool empty_channel_found = false;
-  for(uint16_t i=0; i<512; i++)
-  {
-    if(autosave_memory[i][0] == 0xffffffff)
-    {
-      empty_channel = i;
-      empty_channel_found = true;
-      break;
-    } 
-  }
-
-  uint16_t last_channel_written = 255;
-  if(empty_channel > 0) last_channel_written = empty_channel - 1;
-  if(!empty_channel_found) last_channel_written = 255;
-  for(uint8_t i=0; i<16; i++){
-    settings[i] = autosave_memory[last_channel_written][i];
-  }
-
+  autosave_restore_settings(settings);
   apply_settings(false);
-  uint8_t display_timeout_setting = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-  display_timeout_max = timeout_lookup[display_timeout_setting];
-  display_time = time_us_32();
-  u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
-  update_display_type();
-  u8g2_SetContrast(&u8g2, 17 * (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast);
-  waterfall_inst.configure_display(
-      (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings,
-      (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour);
 
+  //reset display timeout
+  display_timeout_max = timeout_lookup[settings.global.display_timeout];
+  display_time = time_us_32();
+
+  //set restored display settings
+  u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
+  update_display_type();
+  u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
+  waterfall_inst.configure_display(
+      settings.global.tft_rotation,
+      settings.global.tft_colour);
+
+  //reset the zoom setting
+  zoom = settings.global.spectrum_zoom; 
+}
+
+void ui::apply_settings(bool suspend, bool settings_changed)
+{
+  apply_settings_to_rx(receiver, settings_to_apply, settings, suspend, settings_changed);
 }
 
 //Upload memories via USB interface
@@ -1286,6 +1150,8 @@ bool ui::upload_memory()
 //save current settings to memory
 bool ui::memory_store(bool &ok)
 {
+
+  /*
 
   //encoder loops through memories
   const int32_t min = 0;
@@ -1410,11 +1276,15 @@ bool ui::memory_store(bool &ok)
 
   }
   return false;
+  */
+  ok=true;
+  return true;
 }
 
 //load a channel from memory
 bool ui::memory_recall(bool &ok)
 {
+  /*
 
   //encoder loops through memories
   const int32_t min = 0;
@@ -1533,11 +1403,15 @@ bool ui::memory_recall(bool &ok)
 
 
   return false; 
+  */
+  ok=true;
+  return true;
 }
 
 // Scan across the stored memories
 bool ui::memory_scan(bool &ok)
 {
+  /*
 
   const int32_t min = 0;
   const int32_t max = num_chans-1;
@@ -1727,6 +1601,10 @@ bool ui::memory_scan(bool &ok)
   }
 
   return false; 
+
+  */
+  ok = true;
+  return true;
 }
 
 // print pause, play, reverse play with extra > or < based on speed
@@ -1785,7 +1663,7 @@ bool ui::frequency_scan(bool &ok)
     power_dBm = status.signal_strength_dBm;
     receiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
-    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]&0xff));
+    listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
     //hang for 3 seconds
     static uint32_t last_listen_time = 0u;
@@ -1826,12 +1704,12 @@ bool ui::frequency_scan(bool &ok)
       else direction = scan_speed>0?1:-1;
 
       //update frequency 
-      settings[idx_frequency] += direction * step_sizes[settings[idx_step]];
+      settings.channel.frequency += direction * step_sizes[settings.channel.step];
 
-      if (settings[idx_frequency] > settings[idx_max_frequency])
-          settings[idx_frequency] = settings[idx_min_frequency];
-      if (settings[idx_frequency] < settings[idx_min_frequency])
-          settings[idx_frequency] = settings[idx_max_frequency];
+      if (settings.channel.frequency > settings.channel.max_frequency)
+          settings.channel.frequency = settings.channel.min_frequency;
+      if (settings.channel.frequency < settings.channel.min_frequency)
+          settings.channel.frequency = settings.channel.max_frequency;
 
       update_display = true;
       apply_settings(false);
@@ -1869,27 +1747,27 @@ bool ui::frequency_scan(bool &ok)
       display_clear();
       display_print_str("Scanner");
 
-      const char *p = steps[settings[idx_step]];
+      const char *p = steps[settings.channel.step];
       uint16_t x_center = (display_get_x()+120-24)/2;
       display_set_xy(x_center - 6*strlen(p)/2, 0);
       display_print_str(p ,1 );
 
       // print mode
-      const char* mode_ptr = modes[settings[idx_mode]];
+      const char* mode_ptr = modes[settings.channel.mode];
       display_set_xy(120-6*strlen(mode_ptr), display_get_y());
       display_print_str(mode_ptr);
       display_print_str("\n");
 
       //frequency
-      display_print_freq('.', settings[idx_frequency],2);
+      display_print_freq('.', settings.channel.frequency,2);
       display_print_str("\n",2);
 
       display_print_str("From:  ", 1);
-      display_print_freq(',', settings[idx_min_frequency], 1);
+      display_print_freq(',', settings.channel.min_frequency, 1);
       display_print_str(" Hz\n",1);
 
       display_print_str("  To:  ", 1);
-      display_print_freq(',', settings[idx_max_frequency], 1);
+      display_print_freq(',', settings.channel.max_frequency, 1);
       display_print_str(" Hz\n",1);
 
       //draw scanning speed
@@ -1912,7 +1790,7 @@ bool ui::frequency_scan(bool &ok)
         display_print_speed(91, display_get_y(), 2, scan_speed);
       }
 
-      draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
+      draw_vertical_dBm(124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
       display_show();
   }
 
@@ -1979,7 +1857,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_position)
   {
       //change between chars
-      encoder_position = encoder_control(&position, 0, 19);
+      encoder_position = encoder_control(position, 0, 19);
       if(encoder_position) draw_display = true;
 
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -2025,7 +1903,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_char)
   {
       //change value of char
-      encoder_position = encoder_control(&val, 0, 75);
+      encoder_position = encoder_control(val, 0, 75);
       if(encoder_position) draw_display = true;
       string[position]=letters[val];
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -2084,7 +1962,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
+bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
 
   static int32_t digit=0;
   static int32_t digits[8];
@@ -2094,7 +1972,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
   if(state == idle)
   {
     //convert to BCD representation
-    uint32_t frequency = settings[which_setting];
+    uint32_t frequency = which_setting;
     uint32_t digit_val = 10000000;
     for(uint8_t i=0; i<8; i++){
         digits[i] = frequency / digit_val;
@@ -2107,7 +1985,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
   else if(state == digit_select)
   {
     //change between digits
-    encoder_control(&digit, 0, 9);
+    encoder_control(digit, 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -2116,40 +1994,17 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
 
         //convert back to a binary representation
         uint32_t digit_val = 10000000;
-        settings[which_setting] = 0;
+        which_setting = 0;
         for(uint8_t i=0; i<8; i++)
         {
-          settings[which_setting] += (digits[i] * digit_val);
+          which_setting += (digits[i] * digit_val);
           digit_val /= 10;
         }
 
-        //force max frequency to be larger than min frequency
-        if (settings[idx_max_frequency] < settings[idx_min_frequency]){
-          settings[idx_max_frequency] = settings[idx_min_frequency];
-        }
-
-        switch (which_setting) {
-          case idx_frequency:
-            //when manually changing to a frequency outside the current band, remove any band limits
-            if((settings[idx_frequency] > settings[idx_max_frequency]) || (settings[idx_frequency] < settings[idx_max_frequency]))
-            {
-              settings[idx_min_frequency] = 0;
-              settings[idx_max_frequency] = 30000000;
-            }
-          case idx_max_frequency:
-            //when changing band limits, force frequency within
-            if(settings[idx_frequency] > settings[idx_max_frequency])
-            {
-              settings[idx_frequency] = settings[idx_max_frequency];
-            }
-            break;
-          case idx_min_frequency:
-            //when changing band limits, force frequency within
-            if(settings[idx_frequency] < settings[idx_min_frequency])
-            {
-              settings[idx_frequency] = settings[idx_min_frequency];
-            }
-            break;
+        if((settings.channel.frequency > settings.channel.max_frequency) || (settings.channel.frequency < settings.channel.max_frequency))
+        {
+          settings.channel.min_frequency = 0;
+          settings.channel.max_frequency = 30000000;
         }
 
         state = idle;
@@ -2182,7 +2037,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
   else if(state == digit_change)
   {
     //change the value of a digit 
-    encoder_control(&digits[digit], 0, 9);
+    encoder_control(digits[digit], 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -2245,111 +2100,89 @@ bool ui::configuration_menu(bool &ok)
     {
       bool done = false;
       bool changed = false;
-      static uint32_t setting_word;
       switch(menu_selection)
       {
         case 0: 
-          setting_word = (settings[idx_hw_setup] & mask_display_timeout) >> flag_display_timeout;
-          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", &setting_word, ok, changed);
-          settings[idx_hw_setup] &=  ~mask_display_timeout;
-          settings[idx_hw_setup] |=  setting_word << flag_display_timeout;
+          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", settings.global.display_timeout, ok, changed);
           display_time = time_us_32();
-          display_timeout_max = timeout_lookup[setting_word];
+          display_timeout_max = timeout_lookup[settings.global.display_timeout];
           break;
 
         case 1 : 
-          done = enumerate_entry("PSU Mode", "FM#PWM#", &regmode, ok, changed);
+          done = enumerate_entry("PSU Mode", "FM#PWM#", settings.global.regmode, ok, changed);
           gpio_set_dir(23, GPIO_OUT);
-          gpio_put(23, regmode);
+          gpio_put(23, settings.global.regmode);
           break;
 
         case 2 : 
-          done = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
+          done = bit_entry("Reverse\nEncoder", "Off#On#", settings.global.reverse_encoder, ok);
           break;
 
         case 3: 
-          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res, &settings[idx_hw_setup], ok);
+          done = bit_entry("Encoder\nResolution", "Low#High#", settings.global.encoder_resolution, ok);
           break;
 
         case 4 : 
-          done = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
+          done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
           break;
 
         case 5 : 
-          setting_word = unpack(settings[idx_gain_cal], flag_gain_cal, mask_gain_cal);
-          done = number_entry("Gain Cal", "%idB", 1, 100, 1, (int32_t*)&setting_word, ok, changed);
-          pack(settings[idx_gain_cal], setting_word, flag_gain_cal, mask_gain_cal);
+          done = number_entry("Gain Cal", "%idB", 1, 100, 1, settings.global.gain_cal, ok, changed);
           break;
 
         case 6 : 
-          setting_word = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
-          if(setting_word & 0x80) setting_word |= 0xffffff00;
-          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, (int32_t*)&setting_word, ok, changed);
-          settings[idx_hw_setup] &= ~mask_ppm;
-          settings[idx_hw_setup] |= setting_word << flag_ppm;
+          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
           break;
 
         case 7 : 
-          done = bit_entry("Flip OLED", "Off#On#", flag_flip_oled, &settings[idx_hw_setup], ok);
-          u8g2_SetFlipMode(&u8g2, (settings[idx_hw_setup] >> flag_flip_oled) & 1);
+          done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
+          u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
           update_display_type();
           break;
 
         case 8: 
-          done = bit_entry("OLED Type", "SSD1306#SH1106#", flag_oled_type, &settings[idx_hw_setup], ok);
+          done = bit_entry("OLED Type", "SSD1306#SH1106#", settings.global.oled_type, ok);
           update_display_type();
           break;
 
         case 9:
-          setting_word = (settings[idx_hw_setup] & mask_display_contrast) >> flag_display_contrast;
-          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, (int32_t*)&setting_word, ok, changed);
-          u8g2_SetContrast(&u8g2, 17 * setting_word);
-          settings[idx_hw_setup] &= ~mask_display_contrast;
-          settings[idx_hw_setup] |= setting_word << flag_display_contrast;
+          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, settings.global.display_contrast, ok, changed);
+          u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
           break;
 
         case 10:
-	  {
-          static uint32_t rotation, colour;
-          rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
-          colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", &rotation, ok, changed);
-          settings[idx_hw_setup] &= ~mask_tft_settings;
-          settings[idx_hw_setup] |= rotation << flag_tft_settings;
-          if(changed) waterfall_inst.configure_display(rotation, colour);
-          if(done && ok) waterfall_inst.configure_display(rotation, colour);
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
           break;
-	  }
 
         case 11:
-	  {
-          static uint32_t rotation, colour;
-          rotation = (settings[idx_hw_setup] & mask_tft_settings) >> flag_tft_settings;
-          colour = (settings[idx_hw_setup] & mask_tft_colour) >> flag_tft_colour;
-          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", &colour, ok, changed);
-          settings[idx_hw_setup] &= ~mask_tft_colour;
-          settings[idx_hw_setup] |= colour << flag_tft_colour;
-          if(changed) waterfall_inst.configure_display(rotation, colour);
-          if(done && ok) waterfall_inst.configure_display(rotation, colour);
+          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
           break;
-	  }
 
         case 12:
           done = bands_menu(ok);
           break;
 
         case 13: 
-          setting_word = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok, changed);
-          if(setting_word==1) {
-            upload_memory();
-          } else if (setting_word==2) {
-            display_clear();
-            display_print_str("Ready for\nfirmware",2, style_centered);
-            display_show();
-            reset_usb_boot(0,0);
+        {
+          uint8_t usb_upload = 0;
+          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", usb_upload, ok, changed);
+          if(done && ok)
+          {
+            if(usb_upload==1) {
+              upload_memory();
+            } else if (usb_upload==2) {
+              display_clear();
+              display_print_str("Ready for\nfirmware",2, style_centered);
+              display_show();
+              reset_usb_boot(0,0);
+            }
           }
           break;
+        }
       }
       if(done)
       {
@@ -2395,11 +2228,10 @@ bool ui::main_menu(bool & ok)
     {
        bool done = false;
        bool changed = false;
-       uint32_t settings_word;
        switch(menu_selection)
         {
           case 0 :  
-            done = frequency_entry("frequency", idx_frequency, ok);
+            done = frequency_entry("frequency", settings.channel.frequency, ok);
             break;
           case 1 : 
             done = memory_recall(ok);
@@ -2408,82 +2240,62 @@ bool ui::main_menu(bool & ok)
             done = memory_store(ok); 
             break;
           case 3 :  
-            done = number_entry("Volume", "%i", 0, 9, 1, (int32_t*)&settings[idx_volume], ok, changed);
+            done = number_entry("Volume", "%i", 0, 9, 1, settings.global.volume, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 4 :  
-            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", &settings[idx_mode], ok, changed);
+            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", settings.channel.mode, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 5 :
-            settings_word = (settings[idx_agc_control] & mask_agc_setting) >> flag_agc_setting;
-            done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual", &settings_word, ok, changed);
-            settings[idx_agc_control] &= ~(mask_agc_setting);
-            settings[idx_agc_control] |= ((settings_word << flag_agc_setting) & mask_agc_setting);
+            done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual", settings.channel.agc_setting, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 6 :
-            settings_word = (settings[idx_agc_control] & mask_agc_gain) >> flag_agc_gain;
-            done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", &settings_word, ok, changed);
-            settings[idx_agc_control] &= ~(mask_agc_gain);
-            settings[idx_agc_control] |= ((settings_word << flag_agc_gain) & mask_agc_gain);
+            done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.channel.agc_gain, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 7 :  
-            settings_word = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
-            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", &settings_word, ok, changed);
-            settings[idx_bandwidth_spectrum] &= ~(mask_bandwidth);
-            settings[idx_bandwidth_spectrum] |= ((settings_word << flag_bandwidth) & mask_bandwidth);
+            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", settings.channel.bandwidth, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 8 :  
-            settings_word = (settings[idx_squelch] & mask_squelch_threshold) >> flag_squelch_threshold;
-            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", &settings_word, ok, changed);
-            settings[idx_squelch] &= ~(mask_squelch_threshold);
-            settings[idx_squelch] |= ((settings_word << flag_squelch_threshold) & mask_squelch_threshold);
+            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", settings.global.squelch_threshold, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 9 :  
-            settings_word = (settings[idx_squelch] & mask_squelch_timeout) >> flag_squelch_timeout;
-            done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#", &settings_word, ok, changed);
-            settings[idx_squelch] &= ~(mask_squelch_timeout);
-            settings[idx_squelch] |= ((settings_word << flag_squelch_timeout) & mask_squelch_timeout);
+            done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#", settings.global.squelch_timeout, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 10 :  
-            done = bit_entry("Noise\nReduction", "Off#On#", flag_enable_noise_reduction, &settings[idx_rx_features], ok);
+            done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
             break;
           case 11 :  
-            done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
+            done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
             break;
           case 12 :
-            settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok, changed);
-            settings[idx_rx_features] &= ~(mask_deemphasis);
-            settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
+            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", settings.global.deemphasis, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 13 : 
-            done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
+            done = bit_entry("IQ\ncorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
           case 14 : 
-            settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
-            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok, changed);
-            settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
-            settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
+            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
+            zoom = settings.global.spectrum_zoom; 
             break;
           case 15 :  
-            done = frequency_entry("Band Start", idx_min_frequency, ok);
+            done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
           case 16 : 
-            done = frequency_entry("Band Stop", idx_max_frequency, ok);
+            done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
           case 17 : 
-            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok, changed);
-            settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
+            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
+            settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
           case 18 : 
-            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok, changed);
+            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 19 : 
@@ -2533,50 +2345,28 @@ bool ui::bands_menu(bool &ok)
     {
        bool done = false;
        bool changed = false;
-       uint32_t band_settings;
        switch(menu_selection)
         {
           case 0 :
-            band_settings = settings[idx_band1] & 0xff;
-            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xffffff00;
-            settings[idx_band1] |= band_settings;
+            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, settings.global.band1, ok, changed);
             break;
           case 1 : 
-            band_settings = (settings[idx_band1] >> 8) & 0xff;
-            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xffff00ff;
-            settings[idx_band1] |= band_settings << 8;
+            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, settings.global.band2, ok, changed);
             break;
           case 2 :  
-            band_settings = (settings[idx_band1] >> 16) & 0xff;
-            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xff00ffff;
-            settings[idx_band1] |= band_settings << 16;
+            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, settings.global.band3, ok, changed);
             break;
           case 3 : 
-            band_settings = (settings[idx_band1] >> 24) & 0xff;
-            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0x00ffffff;
-            settings[idx_band1] |= band_settings << 24;
+            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, settings.global.band4, ok, changed);
             break;
           case 4 :
-            band_settings = settings[idx_band2] & 0xff;
-            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xffffff00;
-            settings[idx_band1] |= band_settings;
+            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, settings.global.band5, ok, changed);
             break;
           case 5 : 
-            band_settings = (settings[idx_band2] >> 8) & 0xff;
-            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xffff00ff;
-            settings[idx_band1] |= band_settings << 8;
+            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, settings.global.band6, ok, changed);
             break;
           case 6 :  
-            band_settings = (settings[idx_band2] >> 16) & 0xff;
-            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, (int32_t*)&band_settings, ok, changed);
-            settings[idx_band1] &= 0xff00ffff;
-            settings[idx_band1] |= band_settings << 16;
+            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, settings.global.band7, ok, changed);
             break;
         }
         if(done)
@@ -2692,21 +2482,18 @@ void ui::do_ui()
         {
           if(menu_button.is_held())
           {
-            settings[idx_mode] += encoder_change;
-            settings[idx_mode] %= 6u;
+            settings.channel.mode += encoder_change;
+            settings.channel.mode %= 6u;
           }
           else if(back_button.is_held())
           {
-            uint32_t squelch_setting = (settings[idx_squelch] & mask_squelch_threshold) >> flag_squelch_threshold;
-            squelch_setting += encoder_change;
-            squelch_setting %= 13u;
-            settings[idx_squelch] &= ~(mask_squelch_threshold);
-            settings[idx_squelch] |= ((squelch_setting << flag_squelch_threshold) & mask_squelch_threshold);
+            settings.global.squelch_threshold += encoder_change;
+            settings.global.squelch_threshold %= 13;
           }
           else
           {
-            settings[idx_volume] += encoder_change;
-            settings[idx_volume] %= 10u;
+            settings.global.volume += encoder_change;
+            settings.global.volume %= 10u;
           }
           update_settings = true;
         }
@@ -2714,22 +2501,22 @@ void ui::do_ui()
         {
           //very fast tuning
           if(menu_button.is_held() && back_button.is_held())
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 100;
+            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 100;
           //fast tuning
           else if(menu_button.is_held())
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]] * 10;
+            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 10;
           //slow tuning
           else if(back_button.is_held())
-            settings[idx_frequency] += encoder_change * (step_sizes[settings[idx_step]] / 10);
+            settings.channel.frequency += encoder_change * (step_sizes[settings.channel.step] / 10);
           //normal tuning
           else
-            settings[idx_frequency] += encoder_change * step_sizes[settings[idx_step]];
+            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step];
 
           //wrap frequency at band limits
-          if (settings[idx_frequency] > settings[idx_max_frequency])
-              settings[idx_frequency] = settings[idx_min_frequency];
-          if ((int)settings[idx_frequency] < (int)settings[idx_min_frequency])
-              settings[idx_frequency] = settings[idx_max_frequency];
+          if (settings.channel.frequency > settings.channel.max_frequency)
+              settings.channel.frequency = settings.channel.min_frequency;
+          if ((int)settings.channel.frequency < (int)settings.channel.min_frequency)
+              settings.channel.frequency = settings.channel.max_frequency;
 
           //update settings now, but don't autosave until later
           update_settings = true;
@@ -2909,7 +2696,7 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
 
 void ui::update_display_type(void)
 {
-  if((settings[idx_hw_setup] >> flag_oled_type) & 1)
+  if(settings.global.oled_type)
   {
     u8g2_GetU8x8(&u8g2)->x_offset = 2;
   } else {
