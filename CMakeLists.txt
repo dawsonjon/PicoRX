@@ -48,15 +48,6 @@ if(PICO_BOARD STREQUAL "pico")
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
-      transmit/adc.cpp
-      transmit/transmit_nco.cpp
-      transmit/half_band_filter.cpp
-      transmit/half_band_filter2.cpp
-      transmit/cordic.cpp
-      transmit/pwm.cpp
-      transmit/modulator.cpp
-      transmit/signal_generator.cpp
-      transmit/cw_keyer.cpp
   )
 
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -117,15 +108,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
-      transmit/adc.cpp
-      transmit/transmit_pico2_nco.cpp
-      transmit/half_band_filter.cpp
-      transmit/half_band_filter2.cpp
-      transmit/cordic.cpp
-      transmit/pwm.cpp
-      transmit/modulator.cpp
-      transmit/signal_generator.cpp
-      transmit/cw_keyer.cpp
     )
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -182,15 +164,6 @@ elseif(PICO_BOARD STREQUAL "pico2")
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
-      transmit/adc.cpp
-      transmit/transmit_pico2_nco.cpp
-      transmit/half_band_filter.cpp
-      transmit/half_band_filter2.cpp
-      transmit/cordic.cpp
-      transmit/pwm.cpp
-      transmit/modulator.cpp
-      transmit/signal_generator.cpp
-      transmit/cw_keyer.cpp
     )
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)

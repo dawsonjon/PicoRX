@@ -44,16 +44,6 @@ struct rx_settings
   bool enable_auto_notch;
   bool enable_noise_reduction;
 
-  //transmit
-  bool test_tone_enable;
-  uint8_t test_tone_frequency;
-  uint8_t cw_paddle;
-  uint8_t cw_speed;
-  uint8_t mic_gain;
-  bool tx_modulation;
-  uint8_t pwm_min;
-  uint8_t pwm_max;
-  uint8_t pwm_threshold;
 };
 
 struct rx_status
@@ -129,23 +119,6 @@ class rx
 
   //volume control
   int16_t gain_numerator=0;
-
-  //Transmit
-  charlieplexed_button dit;
-  charlieplexed_button dah;
-  uint8_t transmit_mode;
-  void transmit();
-  bool ptt();
-  bool test_tone_enable;
-  uint8_t test_tone_frequency;
-  uint8_t tx_cw_paddle;
-  uint8_t tx_cw_speed;
-  uint8_t tx_mic_gain;
-  bool tx_modulation;
-  uint16_t tx_audio_level=0;
-  uint8_t tx_pwm_min;
-  uint8_t tx_pwm_max;
-  uint8_t tx_pwm_threshold;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

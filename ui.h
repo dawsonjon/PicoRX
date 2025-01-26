@@ -207,7 +207,6 @@ class ui
   // Status                  
   float calculate_signal_strength(rx_status &status);
 
-  void renderpage_transmit(rx_status & status, rx & receiver);
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
   void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
@@ -240,7 +239,6 @@ class ui
   bool main_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
-  bool transmit_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);
