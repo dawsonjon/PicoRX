@@ -21,11 +21,13 @@ bool __not_in_flash_func(charlieplexed_button) :: is_keyed()
 
   gpio_set_dir(gpio_enable_num, GPIO_OUT);
   gpio_put(gpio_enable_num, 0);
-
-  sleep_us(10);
+  sleep_us(1);
 
   bool is_keyed = !gpio_get(gpio_num);
 
+  //drive high before disabling is faster
+  gpio_put(gpio_enable_num, 1);
+  sleep_us(1);
   gpio_set_dir(gpio_enable_num, GPIO_IN);
 
   mutex_exit(&button_mutex);

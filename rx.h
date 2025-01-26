@@ -75,6 +75,7 @@ class rx
   void pwm_ramp_down();
   void pwm_ramp_up();
   void update_status();
+  void tx_update_status();
   void set_usb_callbacks();
 
   //receiver configuration

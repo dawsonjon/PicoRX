@@ -5,7 +5,7 @@
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
 //                                  |___/
 //
-// Copyright (c) Jonathan P Dawson 2023
+// Copyright (c) Jonathan P Dawson 2025
 // filename: transmit_nco.cpp
 // description: HSTX based NCO for Pi Pico
 // License: MIT
@@ -122,8 +122,6 @@ transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, doub
       &chain_dma_cfg, false); // always writes to data DMA read address
   dma_channel_start(nco_dma);
 
-  gpio_set_dir(2, GPIO_OUT); 
-  gpio_set_function(2, GPIO_FUNC_SIO); 
 }
 
 transmit_nco::~transmit_nco() {
@@ -157,10 +155,8 @@ double transmit_nco::get_sample_frequency_Hz(double clock_frequency_Hz, uint8_t 
 // gives 4.8kHz
 
 void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t waveforms_per_sample) {
-  gpio_put(2, 0);
 
   assert(waveforms_per_sample < max_waveforms_per_sample);
-
 
   // null transfer at the end of each 32 address block
   buffer_addresses[ping_pong][waveforms_per_sample] = NULL;
@@ -218,5 +214,4 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
   restore_interrupts(interrupts);
   ping_pong ^= 1;
   dma_started = true;
-  gpio_put(2, 1);
 }

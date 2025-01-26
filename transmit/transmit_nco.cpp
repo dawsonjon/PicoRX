@@ -148,7 +148,6 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
 
   assert(waveforms_per_sample < max_waveforms_per_sample);
 
-  gpio_put(2, 1);
 
   // null transfer at the end of each 32 address block
   buffer_addresses[ping_pong][waveforms_per_sample] = NULL;
@@ -174,7 +173,6 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
       index_f24 -= wrap_f24;
     }
   }
-  gpio_put(2, 0);
 
   // check for PIO stalls
   if (pio->fdebug) {

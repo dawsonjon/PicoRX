@@ -134,9 +134,23 @@ void rx::pwm_ramp_up()
   }
 }
 
+void rx::tx_update_status()
+{
+
+   const bool sem_acquired = sem_try_acquire(&settings_semaphore);
+   if(sem_acquired)
+   {
+     status.audio_level = tx_audio_level;
+     status.transmitting = true;
+     sem_release(&settings_semaphore);
+   }
+}
+
 void rx::update_status()
 {
-   if(sem_try_acquire(&settings_semaphore))
+
+   const bool sem_acquired = sem_try_acquire(&settings_semaphore);
+   if(sem_acquired)
    {
      suspend = settings_to_apply.suspend;
 
@@ -150,7 +164,8 @@ void rx::update_status()
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
      status.audio_level = tx_audio_level;
-     status.transmitting = ptt();
+     status.transmitting = false;
+
      sem_release(&settings_semaphore);
    }
 }
@@ -518,7 +533,7 @@ bool __not_in_flash_func(rx::ptt)()
   static uint16_t timer = 0;
   
   //while transmitting this gets called about 10000 times per second
-  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5000;
+  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5;
   else if(timer) timer--;
 
   if(timer != 0) //force ptt because dit/dah is recently keyed
@@ -591,37 +606,41 @@ void __not_in_flash_func(rx::transmit)()
 
     gpio_put(LED, 1);
     while (ptt()) {
-      if(test_tone_enable)
+
+      for(uint16_t idx=0; idx<1000; idx++)
       {
-        audio = sin_table[test_tone_phase >> 21];
-        test_tone_phase += test_tone_frequency_steps;
-      }
-      else
-      {
-        if(transmit_mode == CW)
+        if(test_tone_enable)
         {
-          audio = keyer.get_sample();
+          audio = sin_table[test_tone_phase >> 21];
+          test_tone_phase += test_tone_frequency_steps;
         }
         else
         {
-          // read audio from mic
-          audio = mic_adc.get_sample() * scaled_mic_gain;
-          audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+          if(transmit_mode == CW)
+          {
+            audio = keyer.get_sample();
+          }
+          else
+          {
+            // read audio from mic
+            audio = mic_adc.get_sample() * scaled_mic_gain;
+            audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+          }
         }
+        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+
+        // demodulate
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+        // output magnitude
+        magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
+
+        // output phase
+        rf_nco.output_sample(phase, waveforms_per_sample);
       }
-      tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
-
-      // demodulate
-      audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
-
-      // output magnitude
-      magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
-
-      // output phase
-      rf_nco.output_sample(phase, waveforms_per_sample);
 
       //update_status
-      update_status();
+      tx_update_status();
     }
     gpio_put(LED, 0);
     gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_SIO);
