@@ -137,5 +137,6 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
 void autosave_restore_settings(s_settings &settings);
 void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & rx_settings);
 s_memory_channel get_channel(uint16_t channel_number);
+void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, rx & receiver, rx_settings & rx_settings);
 
 #endif

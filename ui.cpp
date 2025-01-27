@@ -15,15 +15,22 @@
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
-uint32_t unpack(uint32_t word, uint32_t flag, uint32_t mask)
+void strip_trailing_space(const char *x, char *y)
 {
-  return (word & mask) >> flag;
-}
 
-void pack(uint32_t &word, uint32_t value, uint32_t flag, uint32_t mask)
-{
-  word &=  ~mask;
-  word |=  value << flag;
+  uint8_t stripped_len = 0;
+  for(uint8_t i=0; i<16; i++)
+  {
+    if(x[15-i] != ' ')
+    {
+      stripped_len = 15 - i + 1;
+      break;
+    }
+  }
+
+  memcpy(y, x, stripped_len);
+  y[stripped_len] = 0;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1151,8 +1158,6 @@ bool ui::upload_memory()
 bool ui::memory_store(bool &ok)
 {
 
-  /*
-
   //encoder loops through memories
   const int32_t min = 0;
   const int32_t max = num_chans-1;
@@ -1164,13 +1169,14 @@ bool ui::memory_store(bool &ok)
 
   if(state == select_channel)
   {
-      encoder_control(&select, min, max);
-      get_memory_name(name, select, true);
+      encoder_control(select, min, max);
+      s_memory_channel memory_channel = get_channel(select);
 
       display_clear();
       display_print_str("Store");
       display_print_num(" %03i ", select, 1, style_centered);
       display_print_str("\n", 1);
+      strip_trailing_space(memory_channel.label, name);
       if (12*strlen(name) > 128) {
         display_add_xy(0,4);
         display_print_str(name,1,style_nowrap|style_centered);
@@ -1180,7 +1186,8 @@ bool ui::memory_store(bool &ok)
       display_show();
 
       if(encoder_button.is_pressed()||menu_button.is_pressed()){
-        get_memory_name(name, select, false);
+        memcpy(name, memory_channel.label, 16);
+        name[16] = 0;
         state = enter_name;
       }
 
@@ -1218,57 +1225,11 @@ bool ui::memory_store(bool &ok)
   }
   else if(state == save_channel)
   {
-      //work out which flash sector the channel sits in.
-      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
-      const uint32_t first_channel_in_sector = num_channels_per_sector * (select/num_channels_per_sector);
-      const uint32_t channel_offset_in_sector = select%num_channels_per_sector;
-
-      //copy sector to RAM
-      static uint32_t sector_copy[num_channels_per_sector][chan_size];
-      for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
-      {
-        for(uint16_t location=0; location<chan_size; location++)
-        {
-          if(channel+first_channel_in_sector < num_chans)
-          {
-            sector_copy[channel][location] = radio_memory[channel+first_channel_in_sector][location];
-          }
-        }
-      }
-    
-      // pack string into uint32 array
-      for(uint8_t lw=0; lw<4; lw++)
-      {
-        sector_copy[channel_offset_in_sector][lw+6] = (name[lw*4+0] << 24 | name[lw*4+1] << 16 | name[lw*4+2] << 8 | name[lw*4+3]);
-      }
-      for(uint8_t i=0; i<settings_to_store; i++){
-        sector_copy[channel_offset_in_sector][i] = settings[i];
-      }
-
-      //write sector to flash
-      const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
-      const uint32_t flash_address = address - XIP_BASE; 
-
-      //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      apply_settings(true);                                //suspend rx to disable all DMA transfers
-		  WAIT_100MS                                           //wait for suspension to take effect
-      multicore_lockout_start_blocking();                  //halt the second core
-      const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
-
-      //safe to erase flash here
-      //--------------------------------------------------------------------------------------------
-      flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
-      flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
-      //--------------------------------------------------------------------------------------------
-
-      restore_interrupts (ints);                           //restore interrupts
-      multicore_lockout_end_blocking();                    //restart the second core
-      apply_settings(false);                               //resume rx operation
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      //!!! Normal operation resumed
-
-      //ssd1306_invert( &disp, 0);
+      s_memory_channel memory_channel;
+      memory_channel.channel = settings.channel;
+      memcpy(memory_channel.label, name, 16);
+      memory_store_channel(memory_channel, select, settings, receiver, settings_to_apply);
+      ssd1306_invert( &disp, 0);
 
       ok = true;
       state = select_channel;
@@ -1276,9 +1237,6 @@ bool ui::memory_store(bool &ok)
 
   }
   return false;
-  */
-  ok=true;
-  return true;
 }
 
 //load a channel from memory
@@ -1290,9 +1248,9 @@ bool ui::memory_recall(bool &ok)
   static int32_t select = 0;
   static s_channel_settings stored_settings;
   bool load_and_update_display = false;
-
   enum e_frequency_state{idle, active};
   static e_frequency_state state = idle;
+  s_memory_channel memory_channel;
 
   if(state == idle)
   {
@@ -1303,7 +1261,8 @@ bool ui::memory_recall(bool &ok)
     load_and_update_display = true;
     for(uint16_t i = 0; i<num_chans; i++)
     {
-      if(get_channel(select).channel.frequency != 0xffffffff) break;
+      memory_channel = get_channel(select);
+      if(memory_channel.channel.frequency != 0) break;
       select++;
       if(select > max) select = min;
     }
@@ -1319,7 +1278,8 @@ bool ui::memory_recall(bool &ok)
     //skip blank channels
     for(uint16_t i = 0; i<num_chans; i++)
     {
-      if(get_channel(select).channel.frequency != 0xffffffff) break;
+      memory_channel = get_channel(select);
+      if(memory_channel.channel.frequency != 0) break;
       select += encoder_position>0?1:-1;
       if(select < min) select = max;
       if(select > max) select = min;
@@ -1345,36 +1305,39 @@ bool ui::memory_recall(bool &ok)
 
   if(load_and_update_display)
   {
-    s_memory_channel channel = get_channel(select);
-
     //(temporarily) apply lodaed settings to RX
-    settings.channel = channel.channel;
+    settings.channel = memory_channel.channel;
     apply_settings(false);
 
     //print selected menu item
     display_clear();
     display_print_str("Recall");
     display_print_num(" %03i ", select, 1, style_centered);
-    const char* mode_ptr = modes[channel.channel.mode];
+    const char* mode_ptr = modes[settings.channel.mode];
     display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
     display_print_str(mode_ptr,1);
     display_print_str("\n", 1);
-    if (12*strlen(channel.label) > 128) {
+
+    char name[17];
+    strip_trailing_space(memory_channel.label, name);
+    if (12*strlen(name) > 128) {
+      //use small font
       display_add_xy(0,4);
-      display_print_str(channel.label,1,style_nowrap|style_centered);
+      display_print_str(name,1,style_nowrap|style_centered);
     } else {
-      display_print_str(channel.label,2,style_nowrap|style_centered);
+      //use large font
+      display_print_str(name,2,style_nowrap|style_centered);
     }
 
     //draw frequency
     display_set_xy(0,27);
-    display_print_freq('.', channel.channel.frequency, 2);
+    display_print_freq('.', settings.channel.frequency, 2);
     display_print_str("\n",2);
     display_print_str("from: ", 1);
-    display_print_freq(',', channel.channel.min_frequency, 1);
+    display_print_freq(',', settings.channel.min_frequency, 1);
     display_print_str(" Hz\n",1);
     display_print_str("  To: ", 1);
-    display_print_freq(',', channel.channel.max_frequency, 1);
+    display_print_freq(',', settings.channel.max_frequency, 1);
     display_print_str(" Hz\n",1);
     display_show();
   }
@@ -1397,12 +1360,10 @@ bool ui::memory_recall(bool &ok)
 // Scan across the stored memories
 bool ui::memory_scan(bool &ok)
 {
-  /*
-
   const int32_t min = 0;
   const int32_t max = num_chans-1;
   static int32_t select = 0;
-  static uint32_t stored_settings[settings_to_store];
+  static s_channel_settings stored_settings;
   bool load = false;
   bool update_display = false;
   bool listen = false;
@@ -1412,19 +1373,16 @@ bool ui::memory_scan(bool &ok)
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
   float power_dBm = 0;
-  char name[17];
 
   if(state == idle)
   {
     //remember where we were incase we need to cancel
-    for(uint8_t i=0; i<settings_to_store; i++){
-      stored_settings[i] = settings[i];
-    }
+    stored_settings = settings.channel;
 
     //skip blank channels
     for(uint16_t i = 0; i<num_chans; i++)
     {
-      if(radio_memory[select][9] != 0xffffffff) break;
+      if(get_channel(select).channel.frequency != 0) break;
       select++;
       if(select > max) select = min;
     }
@@ -1442,7 +1400,7 @@ bool ui::memory_scan(bool &ok)
     power_dBm = status.signal_strength_dBm;
     receiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
-    listen = (power_dBm >= S_to_dBm(settings[idx_squelch]&0xff));
+    listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
     //hang for 3 seconds
     static uint32_t last_listen_time = 0u;
@@ -1488,7 +1446,7 @@ bool ui::memory_scan(bool &ok)
         select += direction;      
         if(select < min) select = max;
         if(select > max) select = min;
-        if(radio_memory[select][9] != 0xffffffff) break;
+        if(get_channel(select).channel.frequency != 0) break;
       }
       update_display = true;
       load = true;
@@ -1502,9 +1460,7 @@ bool ui::memory_scan(bool &ok)
     //cancel
     if(back_button.is_pressed()){
       //put things back how they were to start with
-      for(uint8_t i=0; i<settings_to_store; i++){
-        settings[i] = stored_settings[i];
-      }
+      settings.channel = stored_settings;
       apply_settings(false);
       ok=false;
       state = idle;
@@ -1529,29 +1485,29 @@ bool ui::memory_scan(bool &ok)
 
   if(load)
   {
-    get_memory_name(name, select, true);
-
+    s_memory_channel memory_channel = get_channel(select);
+    
     //(temporarily) apply lodaed settings to RX
-    for(uint8_t i=0; i<settings_to_store; i++){
-      settings[i] = radio_memory[select][i];
-    }
+    settings.channel = memory_channel.channel;
     apply_settings(false);
   }
 
   if(update_display)
   {
-    get_memory_name(name, select, true);
+    s_memory_channel memory_channel = get_channel(select);
 
     //draw screen
     display_clear();
     display_print_str("Scanner");
     display_print_num(" %03i ", select, 1, style_centered);
 
-    const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+    const char* mode_ptr = modes[settings.channel.mode];
     display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
     display_print_str(mode_ptr,1);
 
     display_print_str("\n", 1);
+    char name[17];
+    strip_trailing_space(memory_channel.label, name);
     if (12*strlen(name) > 128) {
       display_add_xy(0,4);
       display_print_str(name,1,style_nowrap);
@@ -1561,7 +1517,7 @@ bool ui::memory_scan(bool &ok)
 
     //draw frequency
     display_set_xy(0,27);
-    display_print_freq('.', radio_memory[select][idx_frequency], 2);
+    display_print_freq('.', settings.channel.frequency, 2);
     display_print_str("\n",2);
 
     if (listen) {
@@ -1582,15 +1538,12 @@ bool ui::memory_scan(bool &ok)
       display_print_str("Speed",2);
       display_print_speed(91, display_get_y(), 2, scan_speed);
     }
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
     display_show();
   }
 
   return false; 
 
-  */
-  ok = true;
-  return true;
 }
 
 // print pause, play, reverse play with extra > or < based on speed
@@ -1781,43 +1734,6 @@ bool ui::frequency_scan(bool &ok)
   }
 
   return false; 
-}
-
-
-int ui::get_memory_name(char* name, int select, bool strip_spaces)
-{
-      if(radio_memory[select][9] != 0xffffffff)
-      {
-        //load name from memory
-        name[0] = radio_memory[select][6] >> 24;
-        name[1] = radio_memory[select][6] >> 16;
-        name[2] = radio_memory[select][6] >> 8;
-        name[3] = radio_memory[select][6];
-        name[4] = radio_memory[select][7] >> 24;
-        name[5] = radio_memory[select][7] >> 16;
-        name[6] = radio_memory[select][7] >> 8;
-        name[7] = radio_memory[select][7];
-        name[8] = radio_memory[select][8] >> 24;
-        name[9] = radio_memory[select][8] >> 16;
-        name[10] = radio_memory[select][8] >> 8;
-        name[11] = radio_memory[select][8];
-        name[12] = radio_memory[select][9] >> 24;
-        name[13] = radio_memory[select][9] >> 16;
-        name[14] = radio_memory[select][9] >> 8;
-        name[15] = radio_memory[select][9];
-        name[16] = 0;
-      } else {
-        strcpy(name, "BLANK           ");
-      }
-
-      // strip trailing spaces
-      if (strip_spaces) {
-        for (int i=15; i>=0; i--) {
-          if (name[i] != ' ') break;
-          name[i] = 0;
-        }
-      }
-      return (strlen(name));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

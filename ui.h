@@ -156,7 +156,6 @@ class ui
   bool memory_store(bool &ok);
   bool memory_scan(bool &ok);
 
-  int get_memory_name(char* name, int select, bool strip_spaces);
   bool upload_memory();
   void autosave();
   bool display_timeout(bool encoder_change);

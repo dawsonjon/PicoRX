@@ -44,6 +44,57 @@ s_memory_channel get_channel(uint16_t channel_number)
   return memory_channel;
 }
 
+void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, rx & receiver, rx_settings & rx_settings)
+{
+  static_assert(sizeof(s_memory_channel) < 64);
+
+  //work out which flash sector the channel sits in.
+  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+  const uint32_t first_channel_in_sector = num_channels_per_sector * (channel_number/num_channels_per_sector);
+  const uint32_t channel_offset_in_sector = channel_number%num_channels_per_sector;
+
+  //copy sector to RAM
+  static uint32_t sector_copy[num_channels_per_sector][chan_size];
+  for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
+  {
+    for(uint16_t location=0; location<chan_size; location++)
+    {
+      if(channel+first_channel_in_sector < num_chans)
+      {
+        sector_copy[channel][location] = radio_memory[channel+first_channel_in_sector][location];
+      }
+    }
+  }
+    
+  //update the relevant part of the sector
+  memcpy(sector_copy[channel_offset_in_sector], &memory_channel, sizeof(s_memory_channel));
+
+  //write sector to flash
+  const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
+  const uint32_t flash_address = address - XIP_BASE; 
+
+  //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
+  sleep_us(100000);                                    //wait for suspension to take effect
+  multicore_lockout_start_blocking();                  //halt the second core
+  const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
+
+  //safe to erase flash here
+  //--------------------------------------------------------------------------------------------
+  flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
+  flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+  //--------------------------------------------------------------------------------------------
+
+  restore_interrupts (ints);                           //restore interrupts
+  multicore_lockout_end_blocking();                    //restart the second core
+  apply_settings_to_rx(receiver, rx_settings, settings, false, false); //resume rx operation
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  //!!! Normal operation resumed
+      
+}
+
+
 void autosave_restore_settings(s_settings &settings)
 {
 
