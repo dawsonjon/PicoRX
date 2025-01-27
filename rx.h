@@ -44,6 +44,8 @@ struct rx_settings
   bool iq_correction;
   bool enable_auto_notch;
   bool enable_noise_reduction;
+  uint8_t if_frequency_hz_over_100;
+  uint8_t if_mode;
 
 };
 
@@ -79,6 +81,8 @@ class rx
   bool suspend;
   uint16_t temp;
   uint16_t battery;
+  uint8_t if_frequency_hz_over_100;
+  uint8_t if_mode;
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;

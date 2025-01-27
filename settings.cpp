@@ -33,6 +33,8 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.band_7_limit = settings.global.band7;
   rx_settings.ppm = settings.global.ppm;
   rx_settings.iq_correction = settings.global.iq_correction;
+  rx_settings.if_mode = settings.global.if_mode;
+  rx_settings.if_frequency_hz_over_100 = settings.global.if_frequency_hz_over_100;
   receiver.release();
 }
 

@@ -60,6 +60,8 @@ struct s_global_settings
   uint8_t cw_speed;
   uint8_t mic_gain;
   uint8_t pwm_threshold;
+  uint8_t if_frequency_hz_over_100;
+  uint8_t if_mode;
   bool    enable_auto_notch;
   bool    iq_correction;
   bool    enable_noise_reduction;
@@ -93,7 +95,7 @@ const s_settings default_settings = {
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
   0,  //squelch_timeout = never
-  0,  //spectrum_zoom
+  1,  //spectrum_zoom
   0,  //deemphasis
   0,  //regmode
   0,  //display_timeout = never
@@ -116,6 +118,8 @@ const s_settings default_settings = {
   0,    //cw_speed;
   0,    //mic_gain;
   0,    //pwm_threshold;
+  45,    //if_frequency_hz_over_100 = 4500Hz
+  2,    //if_mode = nearest
   0,  //enable_auto_notch
   0,  //iq_correction
   0,  //enable_noise_reduction

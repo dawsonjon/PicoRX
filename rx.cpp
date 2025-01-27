@@ -152,8 +152,9 @@ void rx::apply_settings()
 
       //apply frequency calibration
       tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
-
-      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
+      if_mode = settings_to_apply.if_mode;
+      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
@@ -230,6 +231,7 @@ void rx::apply_settings()
 
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
+
 
       //apply volume
       static const int16_t gain[] = {

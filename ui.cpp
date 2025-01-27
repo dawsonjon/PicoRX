@@ -1979,7 +1979,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#IF Mode#IF\nFrequency#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2068,7 +2068,17 @@ bool ui::configuration_menu(bool &ok)
           done = bands_menu(ok);
           break;
 
-        case 13: 
+        case 13:
+          done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 14:
+          done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 15: 
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", usb_upload, ok, changed);

@@ -4,8 +4,9 @@
 #include "hardware/pio.h"
 #include "pico/stdlib.h"
 #include <cmath>
+#include <cstdio>
 
-float nco_set_frequency(PIO pio, uint sm, float tuned_frequency, uint32_t &system_clock_frequency_out) {
+float nco_set_frequency(PIO pio, uint sm, float tuned_frequency, uint32_t &system_clock_frequency_out, uint8_t if_frequency_hz_over_100, uint8_t if_mode) {
 
     //We can get closer to the derired frequency if we allow small adjustments
     //to the system clock. system clocks in the range 125 - 133 MHz are fast
@@ -149,8 +150,8 @@ float nco_set_frequency(PIO pio, uint sm, float tuned_frequency, uint32_t &syste
 
     };
 
-    double adjusted_frequency_up = tuned_frequency + 4500.0;
-    double adjusted_frequency_down = tuned_frequency - 4500.0;
+    double adjusted_frequency_up = tuned_frequency + (if_frequency_hz_over_100*100);
+    double adjusted_frequency_down = tuned_frequency - (if_frequency_hz_over_100*100);
     PLLSettings best_settings = {0};
     double best_frequency = 1.0;
     double best_divider = 0.0;
@@ -160,31 +161,43 @@ float nco_set_frequency(PIO pio, uint sm, float tuned_frequency, uint32_t &syste
     {
 
       uint32_t system_clock_frequency = possible_frequencies[idx].frequency;
+      double ideal_divider;
+      double nearest_divider;
+      double actual_frequency;
+      double error;
 
-      double ideal_divider = system_clock_frequency/(4.0*adjusted_frequency_up);
-      double nearest_divider = round(256.0*ideal_divider)/256.0;
-      double actual_frequency = system_clock_frequency/nearest_divider;
-      double error = abs(actual_frequency - 4.0*adjusted_frequency_up);
-      if(error < best_error)
+      //upper or nearest
+      if(if_mode == 1 || if_mode == 2)
       {
-        best_frequency = actual_frequency;
-        best_settings = possible_frequencies[idx];
-        best_divider = nearest_divider;
-        best_error = error;
-        system_clock_frequency_out = system_clock_frequency;
+        ideal_divider = system_clock_frequency/(4.0*adjusted_frequency_up);
+        nearest_divider = round(256.0*ideal_divider)/256.0;
+        actual_frequency = system_clock_frequency/nearest_divider;
+        error = abs(actual_frequency - 4.0*adjusted_frequency_up);
+        if(error < best_error)
+        {
+          best_frequency = actual_frequency;
+          best_settings = possible_frequencies[idx];
+          best_divider = nearest_divider;
+          best_error = error;
+          system_clock_frequency_out = system_clock_frequency;
+        }
       }
 
-      ideal_divider = system_clock_frequency/(4.0*adjusted_frequency_down);
-      nearest_divider = round(256.0*ideal_divider)/256.0;
-      actual_frequency = system_clock_frequency/nearest_divider;
-      error = abs(actual_frequency - 4.0*adjusted_frequency_down);
-      if(error < best_error)
+      //lower or nearest
+      if(if_mode == 0 || if_mode == 2)
       {
-        best_frequency = actual_frequency;
-        best_settings = possible_frequencies[idx];
-        best_divider = nearest_divider;
-        best_error = error;
-        system_clock_frequency_out = system_clock_frequency;
+        ideal_divider = system_clock_frequency/(4.0*adjusted_frequency_down);
+        nearest_divider = round(256.0*ideal_divider)/256.0;
+        actual_frequency = system_clock_frequency/nearest_divider;
+        error = abs(actual_frequency - 4.0*adjusted_frequency_down);
+        if(error < best_error)
+        {
+          best_frequency = actual_frequency;
+          best_settings = possible_frequencies[idx];
+          best_divider = nearest_divider;
+          best_error = error;
+          system_clock_frequency_out = system_clock_frequency;
+        }
       }
     }
 
