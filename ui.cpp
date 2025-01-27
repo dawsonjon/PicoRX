@@ -1284,13 +1284,11 @@ bool ui::memory_store(bool &ok)
 //load a channel from memory
 bool ui::memory_recall(bool &ok)
 {
-  /*
-
   //encoder loops through memories
   const int32_t min = 0;
   const int32_t max = num_chans-1;
   static int32_t select = 0;
-  static uint32_t stored_settings[settings_to_store];
+  static s_channel_settings stored_settings;
   bool load_and_update_display = false;
 
   enum e_frequency_state{idle, active};
@@ -1299,15 +1297,13 @@ bool ui::memory_recall(bool &ok)
   if(state == idle)
   {
     //remember where we were incase we need to cancel
-    for(uint8_t i=0; i<settings_to_store; i++){
-      stored_settings[i] = settings[i];
-    }
+    stored_settings = settings.channel;
 
     //skip blank channels
     load_and_update_display = true;
     for(uint16_t i = 0; i<num_chans; i++)
     {
-      if(radio_memory[select][9] != 0xffffffff) break;
+      if(get_channel(select).channel.frequency != 0xffffffff) break;
       select++;
       if(select > max) select = min;
     }
@@ -1317,13 +1313,13 @@ bool ui::memory_recall(bool &ok)
   else if(state == active)
   {
 
-    int32_t encoder_position = encoder_control(&select, min, max);
+    int32_t encoder_position = encoder_control(select, min, max);
     load_and_update_display = encoder_position != 0;
 
     //skip blank channels
     for(uint16_t i = 0; i<num_chans; i++)
     {
-      if(radio_memory[select][9] != 0xffffffff) break;
+      if(get_channel(select).channel.frequency != 0xffffffff) break;
       select += encoder_position>0?1:-1;
       if(select < min) select = max;
       if(select > max) select = min;
@@ -1339,9 +1335,7 @@ bool ui::memory_recall(bool &ok)
     //cancel
     if(back_button.is_pressed()){
       //put things back how they were to start with
-      for(uint8_t i=0; i<settings_to_store; i++){
-        settings[i] = stored_settings[i];
-      }
+      settings.channel = stored_settings;
       apply_settings(false);
       ok=false;
       state = idle;
@@ -1351,40 +1345,36 @@ bool ui::memory_recall(bool &ok)
 
   if(load_and_update_display)
   {
-    //draw screen
-    char name[17];
-    get_memory_name(name, select, true);
+    s_memory_channel channel = get_channel(select);
 
     //(temporarily) apply lodaed settings to RX
-    for(uint8_t i=0; i<settings_to_store; i++){
-      settings[i] = radio_memory[select][i];
-    }
+    settings.channel = channel.channel;
     apply_settings(false);
 
     //print selected menu item
     display_clear();
     display_print_str("Recall");
     display_print_num(" %03i ", select, 1, style_centered);
-    const char* mode_ptr = modes[radio_memory[select][idx_mode]];
+    const char* mode_ptr = modes[channel.channel.mode];
     display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
     display_print_str(mode_ptr,1);
     display_print_str("\n", 1);
-    if (12*strlen(name) > 128) {
+    if (12*strlen(channel.label) > 128) {
       display_add_xy(0,4);
-      display_print_str(name,1,style_nowrap|style_centered);
+      display_print_str(channel.label,1,style_nowrap|style_centered);
     } else {
-      display_print_str(name,2,style_nowrap|style_centered);
+      display_print_str(channel.label,2,style_nowrap|style_centered);
     }
 
     //draw frequency
     display_set_xy(0,27);
-    display_print_freq('.', radio_memory[select][idx_frequency], 2);
+    display_print_freq('.', channel.channel.frequency, 2);
     display_print_str("\n",2);
     display_print_str("from: ", 1);
-    display_print_freq(',', radio_memory[select][idx_min_frequency], 1);
+    display_print_freq(',', channel.channel.min_frequency, 1);
     display_print_str(" Hz\n",1);
     display_print_str("  To: ", 1);
-    display_print_freq(',', radio_memory[select][idx_max_frequency], 1);
+    display_print_freq(',', channel.channel.max_frequency, 1);
     display_print_str(" Hz\n",1);
     display_show();
   }
@@ -1397,15 +1387,11 @@ bool ui::memory_recall(bool &ok)
   if(abs(power_dBm - last_power_dBm) > 1.0f)
   {
     // draw vertical signal strength
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings[idx_squelch]&0xff));
+    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
     display_show();
   }
 
-
   return false; 
-  */
-  ok=true;
-  return true;
 }
 
 // Scan across the stored memories

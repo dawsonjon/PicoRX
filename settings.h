@@ -19,57 +19,54 @@ enum e_mode
 struct s_channel_settings
 {
   uint32_t frequency;
+  uint32_t max_frequency;
+  uint32_t min_frequency;
   uint8_t  mode;
   uint8_t  agc_setting;
   uint8_t  agc_gain;
   uint8_t  step;
   uint8_t  bandwidth;
-  uint32_t max_frequency;
-  uint32_t min_frequency;
 };
 
 struct s_global_settings
 {
   uint8_t volume;
-  uint8_t  cw_sidetone;
-  uint8_t  squelch_threshold;
-  uint8_t  squelch_timeout;
-  uint8_t  spectrum_zoom;
-  bool     enable_auto_notch;
-  uint8_t  deemphasis;
-  bool     iq_correction;
-  bool     enable_noise_reduction;
-
-  uint8_t  regmode;
-  bool     reverse_encoder;
-  bool     encoder_resolution;
-  bool     swap_iq;
-  bool     flip_oled;
-  bool     oled_type;
-  uint8_t  display_timeout;
-  uint8_t  display_contrast;
-  uint8_t  tft_rotation;
-  uint8_t  tft_colour;
-  uint8_t  gain_cal;
-  int8_t   ppm;
-
-  uint8_t  band1;
-  uint8_t  band2;
-  uint8_t  band3;
-  uint8_t  band4;
-  uint8_t  band5;
-  uint8_t  band6;
-  uint8_t  band7;
-
-  uint8_t  pwm_min;
-  uint8_t  pwm_max;
-  bool     enable_test_tone;
-  uint8_t  test_tone_frequency;
-  uint8_t  cw_paddle;
-  uint8_t  cw_speed;
-  bool     tx_modulation;
-  uint8_t  mic_gain;
-  uint8_t  pwm_threshold;
+  uint8_t cw_sidetone;
+  uint8_t squelch_threshold;
+  uint8_t squelch_timeout;
+  uint8_t spectrum_zoom;
+  uint8_t deemphasis;
+  uint8_t regmode;
+  uint8_t display_timeout;
+  uint8_t display_contrast;
+  uint8_t tft_rotation;
+  uint8_t tft_colour;
+  uint8_t gain_cal;
+  int8_t  ppm;
+  uint8_t band1;
+  uint8_t band2;
+  uint8_t band3;
+  uint8_t band4;
+  uint8_t band5;
+  uint8_t band6;
+  uint8_t band7;
+  uint8_t pwm_min;
+  uint8_t pwm_max;
+  uint8_t test_tone_frequency;
+  uint8_t cw_paddle;
+  uint8_t cw_speed;
+  uint8_t mic_gain;
+  uint8_t pwm_threshold;
+  bool    enable_auto_notch;
+  bool    iq_correction;
+  bool    enable_noise_reduction;
+  bool    reverse_encoder;
+  bool    encoder_resolution;
+  bool    swap_iq;
+  bool    flip_oled;
+  bool    oled_type;
+  bool    enable_test_tone;
+  bool    tx_modulation;
 };
 
 struct s_settings
@@ -81,29 +78,21 @@ struct s_settings
 const s_settings default_settings = {
 {
   1413000,  //frequency
+  30000000, //max_frequency
+  0,        //min_frequency
   0,        //mode = AM
   3,        //agc_setting = very_slow
   10,       //agc_gain
   3,        //step = 1kHz
   2,        //bandwidth = normal
-  30000000, //max_frequency
-  0,        //min_frequency
 }, {
   5,  //volume
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
   0,  //squelch_timeout = never
   0,  //spectrum_zoom
-  0,  //enable_auto_notch
   0,  //deemphasis
-  0,  //iq_correction
-  0,  //enable_noise_reduction
   0,  //regmode
-  0,  //reverse_encoder
-  0,  //encoder_resolution
-  0,  //swap_iq
-  0,  //flip_oled
-  0,  //oled_type = ssd1306
   0,  //display_timeout = never
   17, //display_contrast = 255
   0,  //tft_rotation
@@ -119,12 +108,34 @@ const s_settings default_settings = {
   0x80, //band7
   0x00, //pwm_min
   0x55, //pwm_max
-  0,    //enable_test_tone
   10,   //test_tone_frequency
+  0,    //cw_paddle;
+  0,    //cw_speed;
+  0,    //mic_gain;
+  0,    //pwm_threshold;
+  0,  //enable_auto_notch
+  0,  //iq_correction
+  0,  //enable_noise_reduction
+  0,  //reverse_encoder
+  0,  //encoder_resolution
+  0,  //swap_iq
+  0,  //flip_oled
+  0,  //oled_type = ssd1306
+  0,  //enable_test_tone
+  0,  //tx_modulation
 }};
+
+
+struct s_memory_channel
+{
+  s_channel_settings channel;
+  char label[17]; //16 characters + null terminator
+};
+
 
 void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings & settings, bool suspend, bool settings_changed);
 void autosave_restore_settings(s_settings &settings);
 void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & rx_settings);
+s_memory_channel get_channel(uint16_t channel_number);
 
 #endif

@@ -35,10 +35,17 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   receiver.release();
 }
 
+s_memory_channel get_channel(uint16_t channel_number)
+{
+  static_assert(sizeof(s_memory_channel) < 64);
+  s_memory_channel memory_channel;
+  memcpy(&memory_channel.channel, radio_memory[channel_number], sizeof(s_memory_channel));
+  memory_channel.label[16] = 0; //add null terminator
+  return memory_channel;
+}
+
 void autosave_restore_settings(s_settings &settings)
 {
-
-  sleep_us(10000000);
 
   //make sure that the memory channels are large enough to store the struct
   static_assert(sizeof(s_settings) < 64);
