@@ -1088,14 +1088,14 @@ bool ui::upload_memory()
       //work out which flash sector the channel sits in.
       const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
 
-      //copy sector to RAM
+      //copy memory to RAM
       bool done = false;
       const uint32_t num_sectors = num_chans/num_channels_per_sector;
       for(uint8_t sector = 0; sector < num_sectors; sector++)
       {
 
         const uint32_t first_channel_in_sector = num_channels_per_sector * sector;
-        static uint32_t sector_copy[num_channels_per_sector][chan_size];
+        static uint32_t memory_copy[num_channels_per_sector][chan_size];
         for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
         {
           for(uint16_t location=0; location<chan_size; location++)
@@ -1108,17 +1108,17 @@ bool ui::upload_memory()
               fgets(line, 256, stdin);
               if(line[0] == 'q' || line[0] == 'Q')
               {
-                sector_copy[channel][location] = 0xffffffffu;
+                memory_copy[channel][location] = radio_memory[first_channel_in_sector + channel][location];
                 done = true;
               }
               if (sscanf(line, " %lx", &data))
               {
-                sector_copy[channel][location] = data;
+                memory_copy[channel][location] = data;
               }
             }
             else
             {
-              sector_copy[channel][location] = 0xffffffffu;
+              memory_copy[channel][location] = radio_memory[first_channel_in_sector + channel][location];
             }
           }
         }
@@ -1140,7 +1140,7 @@ bool ui::upload_memory()
         //safe to erase flash here
         //--------------------------------------------------------------------------------------------
         flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
-        flash_range_program(flash_address, (const uint8_t*)&sector_copy, FLASH_SECTOR_SIZE);
+        flash_range_program(flash_address, (const uint8_t*)&memory_copy, FLASH_SECTOR_SIZE);
         //--------------------------------------------------------------------------------------------
 
         restore_interrupts (ints);                           //restore interrupts
@@ -2070,7 +2070,7 @@ bool ui::configuration_menu(bool &ok)
 
         case 13: 
         {
-          uint8_t usb_upload = 0;
+          static uint8_t usb_upload = 0;
           done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", usb_upload, ok, changed);
           if(done && ok)
           {

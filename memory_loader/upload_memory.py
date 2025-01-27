@@ -2,6 +2,7 @@ import sys
 import serial
 import serial.tools.list_ports
 import struct
+from channel_to_words import channel_to_words
 
 
 def read_csv(filename):
@@ -14,42 +15,9 @@ def read_csv(filename):
       channels.append(line)
   return channels
 
-def pack(string):
-    return (ord(string[0]) << 24) + (ord(string[1]) << 16) + (ord(string[2]) << 8) + ord(string[3])
-
-def convert_channel_to_hex(channel):
-  name, frequency, min_frequency, max_frequency, mode, agc_speed, step = channel
-
-  if len(name) < 16:
-    name += " " * (16-len(name))
-
-  modes = { "AM" :0, "LSB":1, "USB":2, "NFM":3, "CW" :4 }
-  agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3}
-  steps = { "10Hz": 0, "50Hz": 1, "100Hz": 2, "1kHz": 3, "5kHz": 4, "10kHz": 5, "12.5kHz": 6, "25kHz": 7, "50kHz": 8, "100kHz": 9,}
-
-  data = [
-    int(frequency)&0xffffffff,     #0
-    modes[mode],                   #1
-    agc_speeds[agc_speed],         #2
-    steps[step],                   #3
-    int(max_frequency)&0xffffffff, #4
-    int(min_frequency)&0xffffffff, #5
-    pack(name[0:4]),               #6
-    pack(name[4:8]),               #7
-    pack(name[8:12]),              #8
-    pack(name[12:16]),             #9
-    0xffffffff,                    #a
-    0xffffffff,                    #b
-    0xffffffff,                    #c
-    0xffffffff,                    #d
-    0xffffffff,                    #e
-    0xffffffff,                    #f
-  ]
-  return data
-
 def read_memory(filename):
   data = read_csv(filename)[1:]
-  data = [convert_channel_to_hex(i) for i in data]
+  data = [channel_to_words(*i) for i in data]
   data = data[:512]
   return data
     
@@ -100,8 +68,9 @@ with serial.Serial(port, 12000000, rtscts=1) as ser:
 
     with open(filename, 'rb') as input_file:
       for channel in buffer:
+        i=0
         for location in channel:
+          i+=1
           ser.write(bytes("%x\n"%(location), "utf8"))
-          ser.readline()
       ser.write(bytes("q\n", "utf8"))
 

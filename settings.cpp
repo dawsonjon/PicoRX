@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "autosave_memory.h"
+#include "memory.h"
 #include <hardware/flash.h>
 #include "pico/multicore.h"
 #include <cstring>

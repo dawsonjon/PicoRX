@@ -6,6 +6,9 @@
 const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
 const char steps[11][8]  = { "10Hz", "50Hz", "100Hz", "1kHz", "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz", "50kHz", "100kHz"};
 
+const uint8_t chan_size = 16;
+const uint16_t num_chans = 512;
+
 enum e_mode
 {
   MODE_AM = 0,

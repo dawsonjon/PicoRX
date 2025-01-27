@@ -40,6 +40,8 @@ if(PICO_BOARD STREQUAL "pico")
       cic_corrections.cpp
       ui.cpp
       settings.cpp
+      memory.cpp
+      autosave_memory.cpp
       utils.cpp
       ili934x.cpp
       waterfall.cpp
@@ -105,6 +107,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
       waterfall.cpp
       button.cpp
       settings.cpp
+      autosave_memory.cpp
+      memory.cpp
       charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
@@ -157,6 +161,8 @@ elseif(PICO_BOARD STREQUAL "pico2")
       noise_reduction.cpp
       cic_corrections.cpp
       settings.cpp
+      memory.cpp
+      autosave_memory.cpp
       ui.cpp
       utils.cpp
       ili934x.cpp
