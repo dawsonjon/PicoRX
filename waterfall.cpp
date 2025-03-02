@@ -24,8 +24,8 @@ waterfall::waterfall()
     #define PIN_DC   11
     #define PIN_RST  10
     #define SPI_PORT spi1
-    //spi_init(SPI_PORT, 62500000);
-    spi_init(SPI_PORT, 40000000);
+    spi_init(SPI_PORT, 75000000);
+    //spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
@@ -247,221 +247,189 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     const uint16_t scope_y = 21u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
-    enum FSM_states{
-      update_waterfall,
-      draw_smeter,
-      draw_status,
-      draw_waterfall, 
-      draw_scope, 
-      draw_frequency
-    };
     static uint16_t top_row = 0u;
-    static uint8_t waterfall_row = 0u;
-    static uint8_t scope_col = 0u;
-    static uint8_t stored_dB10 = 0u;
-    static FSM_states FSM_state = update_waterfall;
 
-    static bool refresh_started = false;
+    //scroll waterfall
+    top_row = top_row?top_row-1:waterfall_height-1;
 
-    if(FSM_state == update_waterfall)
+    //add new line to waterfall
+    for(uint16_t col=0; col<num_cols; col++)
     {
-      //scroll waterfall
-      top_row = top_row?top_row-1:waterfall_height-1;
+      waterfall_buffer[top_row][col] = spectrum[col];
+    }
 
-      //add new line to waterfall
-      for(uint16_t col=0; col<num_cols; col++)
+    //draw_smeter
+    const uint16_t smeter_height = 237-43;
+    const uint16_t smeter_width = 24;
+
+    receiver.access(false);
+    const int16_t power_dBm = status.signal_strength_dBm;
+    receiver.release();
+
+    static float filtered_power = power_dBm;
+    filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
+
+    static float last_filtered_power = 0;
+    static uint8_t last_squelch = 255;
+    if(abs(filtered_power - last_filtered_power) > 1 || settings.squelch_threshold != last_squelch|| refresh)
+    {
+      last_filtered_power = filtered_power;
+      last_squelch = settings.squelch_threshold;
+      uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
+      uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch_threshold), smeter_height);
+
+      uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
+      display->fillRect(294, 43+smeter_height-power_px, power_px, smeter_width, colour);
+      display->fillRect(294, 43, smeter_height-power_px, smeter_width, COLOUR_BLACK);
+      display->drawLine(294, 43+smeter_height-squelch_px, 316, 43+smeter_height-squelch_px, COLOUR_WHITE);
+
+      char buffer[9];
+      snprintf(buffer, 9, "%4.0fdBm", filtered_power);
+      display->drawString(236, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
+
+      uint16_t power_s = dBm_to_S(filtered_power);
+      if(power_s >= 0 && power_s <= 9)
       {
-        waterfall_buffer[top_row][col] = spectrum[col];
-      }
-
-      if(refresh) refresh_started = true;
-
-      FSM_state = draw_smeter;
-
-    } else if(FSM_state == draw_smeter ){
-
-      const uint16_t smeter_height = 237-43;
-      const uint16_t smeter_width = 24;
-
-      receiver.access(false);
-      const int16_t power_dBm = status.signal_strength_dBm;
-      receiver.release();
-
-      static float filtered_power = power_dBm;
-      filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
-
-      static float last_filtered_power = 0;
-      static uint8_t last_squelch = 255;
-      if(abs(filtered_power - last_filtered_power) > 1 || settings.squelch_threshold != last_squelch|| refresh)
-      {
-        last_filtered_power = filtered_power;
-        last_squelch = settings.squelch_threshold;
-        uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
-        uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch_threshold), smeter_height);
-
-        uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
-        display->fillRect(294, 43+smeter_height-power_px, power_px, smeter_width, colour);
-        display->fillRect(294, 43, smeter_height-power_px, smeter_width, COLOUR_BLACK);
-        display->drawLine(294, 43+smeter_height-squelch_px, 316, 43+smeter_height-squelch_px, COLOUR_WHITE);
-
-        char buffer[9];
-        snprintf(buffer, 9, "%4.0fdBm", filtered_power);
-        display->drawString(236, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
-
-        uint16_t power_s = dBm_to_S(filtered_power);
-        if(power_s >= 0 && power_s <= 9)
-        {
-          snprintf(buffer, 9, "S%1u", power_s);
-          display->drawString(293, 22, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
-          display->drawString(296, 38, font_8x5, "   ", COLOUR_WHITE, COLOUR_BLACK);
-        }
-        else
-        {
-          display->drawString(293, 22, font_16x12, "S9", COLOUR_WHITE, COLOUR_BLACK);
-          snprintf(buffer, 9, "+%1u", (power_s-9)*10);
-          display->drawString(296, 38, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-        }
-      }
-
-      FSM_state = draw_status;
-    } else if(FSM_state == draw_status){
-
-      static int16_t last_mode = -1;
-      if(settings.mode != last_mode || refresh)
-      {
-        last_mode = settings.mode;
-        const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
-        display->drawString(0, 0, font_16x12, modes[settings.mode], COLOUR_FUCHSIA, COLOUR_BLACK);
-      }
-
-      static uint8_t last_zoom = 255;
-      if(zoom != last_zoom || refresh)
-      {
-        last_zoom = zoom;
-        display->fillRect(scope_x,  127, 8, 256, COLOUR_BLACK);
-
-        const int32_t kHz_per_tick = zoom>=3?1:5;
-        const int32_t bins_per_tick = (256*kHz_per_tick*zoom)/30;
-
-        uint16_t freq_kHz = 0;
-        for(uint16_t bin = 0; bin < 110; bin += bins_per_tick)
-        {
-          char buffer[7];
-          sprintf(buffer, "%i", freq_kHz);
-          uint16_t x = scope_x + 128 + bin - ((strlen(buffer)-1)*3);
-          display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-
-          sprintf(buffer, "%i", -freq_kHz);
-          x = scope_x + 128 - bin - ((strlen(buffer)-1)*6);
-          display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-          freq_kHz += kHz_per_tick;
-        }
-      }
-
-      FSM_state = draw_waterfall;
-    } else if(FSM_state == draw_waterfall ){
-    
-      //draw one line of waterfall
-      uint16_t line[num_cols];
-      uint16_t row_address = (top_row+waterfall_row)%waterfall_height;
-      for(uint16_t col=0; col<num_cols; ++col)
-      {
-         const int16_t fbin = col-128;
-         const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
-         const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
-         const bool is_passband = is_usb_col || is_lsb_col;
-
-         uint8_t heat = waterfall_buffer[row_address][col];
-         uint16_t colour=heatmap(heat, is_passband, fbin==0);
-         line[col] = colour;
-      }
-      display->writeHLine(waterfall_x, waterfall_row+waterfall_y, num_cols, line);
-
-      if(waterfall_row == waterfall_height-1)
-      {
-        FSM_state = draw_scope;
-        stored_dB10 = dB10;
-        waterfall_row = 0;
-      } else {
-        ++waterfall_row;
-      }
-
-    } else if(FSM_state == draw_scope) {
-
-      //draw scope one bar at a time
-      uint8_t data_point = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
-      uint16_t vline[scope_height];
-  
-      const int16_t fbin = scope_col-128;
-      const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
-      const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
-      const bool is_passband = is_usb_col || is_lsb_col;
-      uint16_t tick_spacing;
-      if(zoom >= 3)
-      {
-        tick_spacing = 256*zoom/30; //place ticks at 1kHz steps
+        snprintf(buffer, 9, "S%1u", power_s);
+        display->drawString(293, 22, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        display->drawString(296, 38, font_8x5, "   ", COLOUR_WHITE, COLOUR_BLACK);
       }
       else
       {
-        tick_spacing = 256*zoom*5/30; //place ticks at 5kHz steps
+        display->drawString(293, 22, font_16x12, "S9", COLOUR_WHITE, COLOUR_BLACK);
+        snprintf(buffer, 9, "+%1u", (power_s-9)*10);
+        display->drawString(296, 38, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
       }
-      const bool col_is_tick = (fbin%tick_spacing == 0) && fbin;
-
-      for(uint8_t row=0; row<scope_height; ++row)
-      {
-        const bool row_is_tick = (row%(4*scope_height*stored_dB10/270)) == 0;
-        if(row < data_point)
-        {
-          vline[scope_height - 1 - row] = heatmap((uint16_t)row*256/scope_height, is_passband, fbin==0);
-        }
-        else if(row == data_point)
-        {
-          vline[scope_height - 1 - row] = scope_fg;
-        }
-        else
-        {
-          uint16_t colour = heatmap(0, is_passband, fbin==0);
-          colour = col_is_tick?COLOUR_GRAY:colour;
-          colour = row_is_tick?COLOUR_GRAY:colour;
-          vline[scope_height - 1 - row] = colour;
-        }
-      }
-      display->writeVLine(scope_x+scope_col, scope_y, scope_height, vline);
-
-      if(scope_col == num_cols-1)
-      {
-        //scroll waterfall
-        FSM_state = draw_frequency;
-        scope_col = 0;
-      } else {
-        ++scope_col;
-      }
-
-    } else if(FSM_state == draw_frequency) {
-
-      //extract frequency from status
-      uint32_t remainder, MHz, kHz, Hz;
-      MHz = (uint32_t)settings.tuned_frequency_Hz/1000000u;
-      remainder = (uint32_t)settings.tuned_frequency_Hz%1000000u; 
-      kHz = remainder/1000u;
-      remainder = remainder%1000u; 
-      Hz = remainder;
-
-      //update frequency if changed
-      static uint32_t lastMHz = 0;
-      static uint32_t lastkHz = 0;
-      static uint32_t lastHz = 0;
-      if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz || refresh)
-      {
-        char buffer[20];
-        snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
-        display->drawString(100, 0, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
-        lastMHz = MHz;
-        lastkHz = kHz;
-        lastHz = Hz;
-      }
-      FSM_state = update_waterfall;
-      if(refresh_started){ refresh_started = false; refresh = false; }
     }
+
+    //draw status
+    static int16_t last_mode = -1;
+    if(settings.mode != last_mode || refresh)
+    {
+      last_mode = settings.mode;
+      const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
+      display->drawString(0, 0, font_16x12, modes[settings.mode], COLOUR_FUCHSIA, COLOUR_BLACK);
+    }
+
+    static uint8_t last_zoom = 255;
+    if(zoom != last_zoom || refresh)
+    {
+      last_zoom = zoom;
+      display->fillRect(scope_x,  127, 8, 256, COLOUR_BLACK);
+
+      const int32_t kHz_per_tick = zoom>=3?1:5;
+      const int32_t bins_per_tick = (256*kHz_per_tick*zoom)/30;
+
+      uint16_t freq_kHz = 0;
+      for(uint16_t bin = 0; bin < 110; bin += bins_per_tick)
+      {
+        char buffer[7];
+        sprintf(buffer, "%i", freq_kHz);
+        uint16_t x = scope_x + 128 + bin - ((strlen(buffer)-1)*3);
+        display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+
+        sprintf(buffer, "%i", -freq_kHz);
+        x = scope_x + 128 - bin - ((strlen(buffer)-1)*6);
+        display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        freq_kHz += kHz_per_tick;
+      }
+    }
+
+    uint32_t start = time_us_32();
+
+
+    //draw scope
+    uint8_t data_points[num_cols];
+    for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
+    {
+      data_points[scope_col] = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
+    }
+    uint16_t tick_spacing;
+    if(zoom >= 3)
+    {
+      tick_spacing = 256*zoom/30; //place ticks at 1kHz steps
+    }
+    else
+    {
+      tick_spacing = 256*zoom*5/30; //place ticks at 5kHz steps
+    }
+    for(uint16_t scope_row = 0; scope_row < scope_height; ++scope_row)
+    {
+       uint16_t hline[num_cols];
+       uint16_t waterfall_line[num_cols];
+       uint16_t row_address = (top_row+scope_row)%waterfall_height;
+
+       uint16_t scope_row_colour = heatmap((uint16_t)scope_row*256/scope_height, false, false);
+       uint16_t scope_row_colour_passband = heatmap((uint16_t)scope_row*256/scope_height, true, false);
+       uint16_t scope_row_colour_cursor = heatmap((uint16_t)scope_row*256/scope_height, true, true);
+       const bool row_is_tick = (scope_row%(4*scope_height*dB10/270)) == 0;
+
+       for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
+       {
+ 
+         //draw scope one bar at a time
+         uint8_t data_point = data_points[scope_col];//(scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
+
+         const int16_t fbin = scope_col-128;
+         const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
+         const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
+         const bool is_passband = is_usb_col || is_lsb_col;
+         const bool col_is_tick = (fbin%tick_spacing == 0) && fbin;
+ 
+         if(scope_row < data_point)
+         {
+           uint16_t colour = scope_row_colour;
+           colour = is_passband?scope_row_colour_passband:colour;
+           colour = fbin==0?scope_row_colour_cursor:colour;
+           hline[scope_col] = colour;
+         }
+         else if(scope_row == data_point)
+         {
+           hline[scope_col] = scope_fg;
+         }
+         else
+         {
+           uint16_t colour = heatmap(0, is_passband, fbin==0);
+           colour = col_is_tick?COLOUR_GRAY:colour;
+           colour = row_is_tick?COLOUR_GRAY:colour;
+           hline[scope_col] = colour;
+         }
+
+         //draw 1 line of waterfall
+         uint8_t heat = waterfall_buffer[row_address][scope_col];
+         uint16_t colour=heatmap(heat, is_passband, fbin==0);
+         waterfall_line[scope_col] = colour;
+       }
+
+       display->writeHLine(waterfall_x, scope_row+waterfall_y, num_cols, waterfall_line);
+       display->writeHLine(scope_x, scope_y+scope_height-1-scope_row, num_cols, hline);
+     }
+     printf("elapsed: %lu\n", time_us_32()-start);
+
+
+    //draw frequency
+    //extract frequency from status
+    uint32_t remainder, MHz, kHz, Hz;
+    MHz = (uint32_t)settings.tuned_frequency_Hz/1000000u;
+    remainder = (uint32_t)settings.tuned_frequency_Hz%1000000u; 
+    kHz = remainder/1000u;
+    remainder = remainder%1000u; 
+    Hz = remainder;
+    //update frequency if changed
+    static uint32_t lastMHz = 0;
+    static uint32_t lastkHz = 0;
+    static uint32_t lastHz = 0;
+    if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz || refresh)
+    {
+      char buffer[20];
+      snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
+      display->drawString(100, 0, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
+      lastMHz = MHz;
+      lastkHz = kHz;
+      lastHz = Hz;
+    }
+
+    refresh = false;
+
 }
 
