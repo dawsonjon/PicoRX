@@ -335,10 +335,10 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       }
     }
 
-    uint32_t start = time_us_32();
 
 
     //draw scope
+    uint32_t start = time_us_32();
     uint8_t data_points[num_cols];
     for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
     {
@@ -364,10 +364,10 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
        uint16_t scope_row_colour_cursor = heatmap((uint16_t)scope_row*256/scope_height, true, true);
        const bool row_is_tick = (scope_row%(4*scope_height*dB10/270)) == 0;
 
+       //draw one line of scope
        for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
        {
  
-         //draw scope one bar at a time
          uint8_t data_point = data_points[scope_col];//(scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
 
          const int16_t fbin = scope_col-128;
@@ -394,16 +394,27 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
            colour = row_is_tick?COLOUR_GRAY:colour;
            hline[scope_col] = colour;
          }
+       }
+       display->dmaFlush();
+       display->writeHLine(scope_x, scope_y+scope_height-1-scope_row, num_cols, hline);
 
-         //draw 1 line of waterfall
+       //draw 1 line of waterfall
+       for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
+       {
+         const int16_t fbin = scope_col-128;
+         const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
+         const bool is_lsb_col = (-fbin > (status.filter_config.start_bin * zoom)) && (-fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.lower_sideband;
+         const bool is_passband = is_usb_col || is_lsb_col;
+ 
          uint8_t heat = waterfall_buffer[row_address][scope_col];
          uint16_t colour=heatmap(heat, is_passband, fbin==0);
          waterfall_line[scope_col] = colour;
        }
-
+       display->dmaFlush();
        display->writeHLine(waterfall_x, scope_row+waterfall_y, num_cols, waterfall_line);
-       display->writeHLine(scope_x, scope_y+scope_height-1-scope_row, num_cols, hline);
+
      }
+     display->dmaFlush();
      printf("elapsed: %lu\n", time_us_32()-start);
 
 

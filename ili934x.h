@@ -124,6 +124,9 @@ public:
     void drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg);
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
     void powerOn(bool power_on);
+    void dmaData(uint8_t *data, size_t dataLen);
+    void dmaFlush();
+
 private:
     void _setRotation(ILI934X_ROTATION rotation, bool invert_colours);
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);

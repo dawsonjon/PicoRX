@@ -655,8 +655,8 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  max=max - (max >> 1) + (new_max >> 1);
-  min=min - (min >> 1) + (new_min >> 1);
+  max=max - (max >> 3) + (new_max >> 3);
+  min=min - (min >> 3) + (new_min >> 3);
   const float logmin = log10f(min);
   const float logmax = log10f(std::max(max, lowest_max));
 

@@ -185,12 +185,12 @@ void ILI934X::_setRotation(ILI934X_ROTATION rotation, bool invert_colours)
 void ILI934X::writeHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t line[])
 {
     _writeBlock(x, y, x+w-1, y);
-    _data((uint8_t *)line, w * 2);
+    dmaData((uint8_t *)line, w * 2);
 }
 void ILI934X::writeVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t line[])
 {
     _writeBlock(x, y, x, y+h-1);
-    _data((uint8_t *)line, h * 2);
+    dmaData((uint8_t *)line, h * 2);
 }
 
 void ILI934X::setPixel(uint16_t x, uint16_t y, uint16_t colour)
@@ -366,18 +366,30 @@ void ILI934X::_data(uint8_t *data, size_t dataLen)
     gpio_put(_dc, 1);
     gpio_put(_cs, 0);
     sleep_us(1);
-
-    //dma_channel_configure(dma_tx, &dma_config,
-    //                      &spi_get_hw(_spi)->dr,
-    //                      data,
-    //                      dataLen,
-    //                      true);
-
     spi_write_blocking(_spi, data, dataLen);
-    //dma_channel_wait_for_finish_blocking(dma_tx);
     sleep_us(1);
     gpio_put(_cs, 1);
 
+}
+
+void ILI934X::dmaData(uint8_t *data, size_t dataLen)
+{
+    gpio_put(_dc, 1);
+    gpio_put(_cs, 0);
+    sleep_us(5);
+
+    dma_channel_configure(dma_tx, &dma_config,
+                          &spi_get_hw(_spi)->dr,
+                          data,
+                          dataLen,
+                          true);
+}
+
+void ILI934X::dmaFlush()
+{
+    dma_channel_wait_for_finish_blocking(dma_tx);
+    sleep_us(5);
+    gpio_put(_cs, 1);
 }
 
 void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data, size_t dataLen)
