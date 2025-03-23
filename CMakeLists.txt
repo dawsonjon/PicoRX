@@ -46,6 +46,7 @@ if(PICO_BOARD STREQUAL "pico")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      quadrature_si5351.cpp
       charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
@@ -110,6 +111,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       autosave_memory.cpp
       memory.cpp
       charlieplexed_button.cpp
+      quadrature_si5351.cpp
       cat.cpp
       usb_descriptors.c
       usb_audio_device.c
@@ -168,6 +170,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       ili934x.cpp
       waterfall.cpp
       button.cpp
+      quadrature_si5351.cpp
       charlieplexed_button.cpp
       cat.cpp
       usb_descriptors.c
