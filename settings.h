@@ -95,13 +95,13 @@ const s_settings default_settings = {
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
   0,  //squelch_timeout = never
-  1,  //spectrum_zoom
+  2,  //spectrum_zoom
   0,  //deemphasis
   0,  //regmode
   0,  //display_timeout = never
   17, //display_contrast = 255
-  0,  //tft_rotation
-  0,  //tft_colour
+  5,  //tft_rotation
+  1,  //tft_colour
   62, //gain_cal
   0,  //ppm
   0x02, //band1

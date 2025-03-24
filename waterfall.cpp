@@ -118,30 +118,66 @@ void waterfall::powerOn(bool state)
     }
 }
 
+const uint16_t smeter_height = 200;
+const uint16_t smeter_width = 56;
+const uint16_t smeter_bar_width = 4;
+const uint16_t smeter_x = 263;
+const uint16_t smeter_y = 30;
+
 void waterfall::draw()
 {
     display->clear();
 
     //draw borders
     //Horizontal
-    display->drawLine(31, 135, 288, 135, display->colour565(255,255,255));
-    display->drawLine(31, 122, 288, 122, display->colour565(255,255,255));
-    display->drawLine(31, 20,   288, 20, display->colour565(255,255,255));
-    display->drawLine(31, 239, 288, 239, display->colour565(255,255,255));
-    display->drawLine(292,  20, 319,  20, display->colour565(255,255,255));
-    display->drawLine(292, 239, 319, 239, display->colour565(255,255,255));
-    display->drawLine(0,  20, 27,  20, display->colour565(255,255,255));
-    display->drawLine(0, 239, 27, 239, display->colour565(255,255,255));
+    display->drawLine(0, 135, 257, 135, display->colour565(255,255,255));
+    display->drawLine(0, 122, 257, 122, display->colour565(255,255,255));
+    display->drawLine(0, 20,  257, 20, display->colour565(255,255,255));
+    display->drawLine(0, 239, 257, 239, display->colour565(255,255,255));
 
     //Vertical
-    display->drawLine(31,  20, 31,  122, display->colour565(255,255,255));
-    display->drawLine(288, 20, 288, 122, display->colour565(255,255,255));
-    display->drawLine(31,  135, 31,  239, display->colour565(255,255,255));
-    display->drawLine(288, 135, 288, 239, display->colour565(255,255,255));
-    display->drawLine(292, 20, 292, 239, display->colour565(255,255,255));
-    display->drawLine(319, 20, 319, 239, display->colour565(255,255,255));
-    display->drawLine(0,   20, 0,   239, display->colour565(255,255,255));
-    display->drawLine(27,  20, 27,  239, display->colour565(255,255,255));
+    display->drawLine(0,  20, 0,  122, display->colour565(255,255,255));
+    display->drawLine(257, 20, 257, 122, display->colour565(255,255,255));
+    display->drawLine(0,  135, 0,  239, display->colour565(255,255,255));
+    display->drawLine(257, 135, 257, 239, display->colour565(255,255,255));
+
+    //smeter outline
+    //uint16_t power_px = dBm_to_px(-85, smeter_height);
+    //uint16_t y = smeter_y + 1 + smeter_height - power_px - 4;
+    //display->drawString(smeter_x-3, y, font_8x5, "(dBm)", COLOUR_WHITE, COLOUR_BLACK);
+    display->drawLine(smeter_x+28, smeter_y,                 smeter_x+33, smeter_y,                 display->colour565(255,255,255));
+    display->drawLine(smeter_x+28, smeter_y+smeter_height+3, smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawLine(smeter_x+28, smeter_y+1,               smeter_x+28, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawLine(smeter_x+33, smeter_y+1,               smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
+
+    const char smeter[13][4]  = {"s0 ", "s1 ", "s2 ", "s3 ", "s4 ", "s5 ", "s6 ", "s7 ", "s8 ", "s9 ", "+10", "+20", "+30"};
+
+    for(int16_t s=0; s<13; s++)
+    {
+      uint16_t s_px = dBm_to_px(S_to_dBm(s), smeter_height);
+      uint16_t y = smeter_y+1 + smeter_height - s_px;
+      display->drawLine(smeter_x+33, y, smeter_x+35,  y, display->colour565(255,255,255));
+      uint16_t colour;
+      switch(s)
+      {
+        case 12: colour = COLOUR_RED; break;
+        case 11: colour = COLOUR_YELLOW; break;
+        case 10: colour = COLOUR_GREEN; break;
+        default: colour = COLOUR_WHITE; break;
+      }
+      display->drawString(smeter_x+smeter_width-18,  y-4, font_8x5, smeter[s], colour, COLOUR_BLACK);
+    }
+
+    for(int16_t dbm=-120; dbm<-40; dbm+=10)
+    {
+      uint16_t power_px = dBm_to_px(dbm, smeter_height);
+      uint16_t y = smeter_y+1 + smeter_height - power_px;
+      display->drawLine(smeter_x+26,  y, smeter_x+28,  y, display->colour565(255,255,255));
+      char buffer[9];
+      snprintf(buffer, 9, "%4i", dbm);
+      display->drawString(smeter_x,  y-4, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+    }
+
 }
 
 uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
@@ -239,11 +275,11 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     if(!power_state) return;
 
     const uint16_t waterfall_height = 100u;
-    const uint16_t waterfall_x = 32u;
+    const uint16_t waterfall_x = 1u;
     const uint16_t waterfall_y = 136u;
     const uint16_t num_cols = 256u;
     const uint16_t scope_height = 100u;
-    const uint16_t scope_x = 32u;
+    const uint16_t scope_x = 1u;
     const uint16_t scope_y = 21u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
@@ -257,10 +293,6 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     {
       waterfall_buffer[top_row][col] = spectrum[col];
     }
-
-    //draw_smeter
-    const uint16_t smeter_height = 237-43;
-    const uint16_t smeter_width = 24;
 
     receiver.access(false);
     const int16_t power_dBm = status.signal_strength_dBm;
@@ -279,27 +311,14 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch_threshold), smeter_height);
 
       uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
-      display->fillRect(294, 43+smeter_height-power_px, power_px, smeter_width, colour);
-      display->fillRect(294, 43, smeter_height-power_px, smeter_width, COLOUR_BLACK);
-      display->drawLine(294, 43+smeter_height-squelch_px, 316, 43+smeter_height-squelch_px, COLOUR_WHITE);
+      display->fillRect(smeter_x+29, smeter_y+1+smeter_height-power_px, power_px, smeter_bar_width, colour);
+      display->fillRect(smeter_x+29, smeter_y+1,    smeter_height-power_px, smeter_bar_width, COLOUR_BLACK);
+      display->drawLine(smeter_x+29, smeter_y+1+smeter_height-squelch_px, smeter_x+32, smeter_y+1+smeter_height-squelch_px, COLOUR_RED);
 
       char buffer[9];
       snprintf(buffer, 9, "%4.0fdBm", filtered_power);
-      display->drawString(236, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
+      display->drawString(233, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
 
-      uint16_t power_s = dBm_to_S(filtered_power);
-      if(power_s >= 0 && power_s <= 9)
-      {
-        snprintf(buffer, 9, "S%1u", power_s);
-        display->drawString(293, 22, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
-        display->drawString(296, 38, font_8x5, "   ", COLOUR_WHITE, COLOUR_BLACK);
-      }
-      else
-      {
-        display->drawString(293, 22, font_16x12, "S9", COLOUR_WHITE, COLOUR_BLACK);
-        snprintf(buffer, 9, "+%1u", (power_s-9)*10);
-        display->drawString(296, 38, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-      }
     }
 
     //draw status
