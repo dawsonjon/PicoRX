@@ -75,6 +75,7 @@ struct s_global_settings
   bool    oled_type;
   bool    enable_test_tone;
   bool    tx_modulation;
+  bool    enable_external_nco;
 };
 
 struct s_settings
@@ -135,6 +136,7 @@ const s_settings default_settings = {
   0,  //oled_type = ssd1306
   0,  //enable_test_tone
   0,  //tx_modulation
+  0,  //enable_external_nco
 }};
 
 

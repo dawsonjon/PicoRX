@@ -29,7 +29,7 @@
 #include "quadrature_si5351.h"
 #include "pico/stdlib.h"
 
-quad_si5351 :: quad_si5351(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
+void quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
 {
     i2c_init(i2c, 400 * 1000);
     gpio_set_function(sda_pin, GPIO_FUNC_I2C);

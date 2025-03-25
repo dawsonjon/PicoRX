@@ -49,6 +49,7 @@ struct rx_settings
   uint8_t noise_threshold;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
+  bool enable_external_nco;
 
 };
 
@@ -128,6 +129,10 @@ class rx
 
   //volume control
   int16_t gain_numerator=0;
+
+  //(optional) external oscillator
+  quad_si5351 external_nco;
+  bool external_nco_initialised = false;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

@@ -46,7 +46,7 @@ class quad_si5351
    
 
   public:
-  quad_si5351(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_hz);
+  void initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_hz);
   void write_reg(uint8_t address, uint8_t data);
 
   double set_frequency_hz(uint32_t frequency);
