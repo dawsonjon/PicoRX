@@ -44,6 +44,8 @@ struct rx_settings
   bool iq_correction;
   bool enable_auto_notch;
   bool enable_noise_reduction;
+  uint8_t noise_estimation;
+  uint8_t noise_threshold;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
 

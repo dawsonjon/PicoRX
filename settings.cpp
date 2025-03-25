@@ -35,12 +35,14 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.iq_correction = settings.global.iq_correction;
   rx_settings.if_mode = settings.global.if_mode;
   rx_settings.if_frequency_hz_over_100 = settings.global.if_frequency_hz_over_100;
+  rx_settings.noise_estimation = settings.global.noise_estimation + 8;
+  rx_settings.noise_threshold = settings.global.noise_threshold + 1;
   receiver.release();
 }
 
 s_memory_channel get_channel(uint16_t channel_number)
 {
-  static_assert(sizeof(s_memory_channel) < 64);
+  static_assert(sizeof(s_memory_channel) < memory_chan_size*4);
   s_memory_channel memory_channel;
   memcpy(&memory_channel.channel, radio_memory[channel_number], sizeof(s_memory_channel));
   memory_channel.label[16] = 0; //add null terminator
@@ -49,18 +51,18 @@ s_memory_channel get_channel(uint16_t channel_number)
 
 void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, rx & receiver, rx_settings & rx_settings)
 {
-  static_assert(sizeof(s_memory_channel) < 64);
+  static_assert(sizeof(s_memory_channel) < memory_chan_size*4);
 
   //work out which flash sector the channel sits in.
-  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*memory_chan_size);
   const uint32_t first_channel_in_sector = num_channels_per_sector * (channel_number/num_channels_per_sector);
   const uint32_t channel_offset_in_sector = channel_number%num_channels_per_sector;
 
   //copy sector to RAM
-  static uint32_t sector_copy[num_channels_per_sector][chan_size];
+  static uint32_t sector_copy[num_channels_per_sector][memory_chan_size];
   for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
   {
-    for(uint16_t location=0; location<chan_size; location++)
+    for(uint16_t location=0; location<memory_chan_size; location++)
     {
       if(channel+first_channel_in_sector < num_chans)
       {
@@ -102,7 +104,7 @@ void autosave_restore_settings(s_settings &settings)
 {
 
   //make sure that the memory channels are large enough to store the struct
-  static_assert(sizeof(s_settings) < 64);
+  static_assert(sizeof(s_settings) < autosave_chan_size*4);
 
   uint16_t latest_channel = 0xffff;
   for(uint16_t i=0; i<512; i++)
@@ -128,10 +130,10 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
 {
 
   //make sure that the memory channels are large enough to store the struct
-  static_assert(sizeof(s_settings) < 64);
+  static_assert(sizeof(s_settings) < autosave_chan_size*4);
 
   //copy settings to an array
-  uint32_t data_to_save[16] = {0xffffffff};
+  uint32_t data_to_save[autosave_chan_size] = {0xffffffff};
   memcpy(data_to_save, &settings, sizeof(s_settings));
 
   //The flash endurance may not be more than 100000 erase cycles.
@@ -166,7 +168,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
 
     //safe to erase flash here
     //--------------------------------------------------------------------------------------------
-    flash_range_erase(flash_address, sizeof(int)*16*512);
+    flash_range_erase(flash_address, sizeof(int)*autosave_chan_size*512);
     //--------------------------------------------------------------------------------------------
 
     restore_interrupts (ints);                           //restore interrupts
@@ -177,15 +179,15 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
   }
 
   //work out which flash sector the channel sits in.
-  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+  const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*autosave_chan_size);
   const uint32_t first_channel_in_sector = num_channels_per_sector * (empty_channel/num_channels_per_sector);
   const uint32_t channel_offset_in_sector = empty_channel%num_channels_per_sector;
 
   //copy sector to RAM
-  static uint32_t sector_copy[num_channels_per_sector][chan_size];
+  static uint32_t sector_copy[num_channels_per_sector][autosave_chan_size];
   for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
   {
-    for(uint16_t location=0; location<chan_size; location++)
+    for(uint16_t location=0; location<autosave_chan_size; location++)
     {
       if(channel+first_channel_in_sector < num_chans)
       {
@@ -195,7 +197,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
   }
     
   //modify the selected channel
-  for(uint8_t i=0; i<chan_size; i++)
+  for(uint8_t i=0; i<autosave_chan_size; i++)
   {
     sector_copy[channel_offset_in_sector][i] = data_to_save[i];
   }

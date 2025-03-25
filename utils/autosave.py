@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import struct
 
-channel_size = 16
+channel_size = 32
 num_channels = 512
 class Memory:
   def __init__(self):

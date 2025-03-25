@@ -137,6 +137,7 @@ class ui
 
   // Menu                    
   bool main_menu(bool &ok);
+  bool noise_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
 

@@ -12,6 +12,7 @@
 #include "rx_definitions.h"
 #include "ui.h"
 
+
 waterfall::waterfall()
 {
     //using ili9341 library from here:
@@ -123,6 +124,13 @@ const uint16_t smeter_width = 56;
 const uint16_t smeter_bar_width = 4;
 const uint16_t smeter_x = 263;
 const uint16_t smeter_y = 30;
+const uint16_t waterfall_height = 80u;
+const uint16_t waterfall_x = 1u;
+const uint16_t waterfall_y = 157u;
+const uint16_t num_cols = 256u;
+const uint16_t scope_height = 80u;
+const uint16_t scope_x = 1u;
+const uint16_t scope_y = 61u;
 
 void waterfall::draw()
 {
@@ -130,16 +138,16 @@ void waterfall::draw()
 
     //draw borders
     //Horizontal
-    display->drawLine(0, 135, 257, 135, display->colour565(255,255,255));
-    display->drawLine(0, 122, 257, 122, display->colour565(255,255,255));
-    display->drawLine(0, 20,  257, 20, display->colour565(255,255,255));
-    display->drawLine(0, 239, 257, 239, display->colour565(255,255,255));
+    display->drawLine(0, waterfall_y-1, num_cols+1, waterfall_y-1, display->colour565(255,255,255));
+    display->drawLine(0, waterfall_y+waterfall_height+1, num_cols+1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
+    display->drawLine(0, scope_y+scope_height+1, num_cols+1, scope_y+scope_height+1, display->colour565(255,255,255));
+    display->drawLine(0, scope_y-1,  num_cols+1, scope_y-1, display->colour565(255,255,255));
 
     //Vertical
-    display->drawLine(0,  20, 0,  122, display->colour565(255,255,255));
-    display->drawLine(257, 20, 257, 122, display->colour565(255,255,255));
-    display->drawLine(0,  135, 0,  239, display->colour565(255,255,255));
-    display->drawLine(257, 135, 257, 239, display->colour565(255,255,255));
+    display->drawLine(0,  scope_y-1, 0,  scope_y+scope_height+1, display->colour565(255,255,255));
+    display->drawLine(num_cols+1, scope_y-1, num_cols+1, scope_y+scope_height+1, display->colour565(255,255,255));
+    display->drawLine(0,  waterfall_y-1, 0,  waterfall_y+waterfall_height+1, display->colour565(255,255,255));
+    display->drawLine(num_cols+1, waterfall_y-1, num_cols+1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
 
     //smeter outline
     //uint16_t power_px = dBm_to_px(-85, smeter_height);
@@ -274,13 +282,6 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     if(!enabled) return;
     if(!power_state) return;
 
-    const uint16_t waterfall_height = 100u;
-    const uint16_t waterfall_x = 1u;
-    const uint16_t waterfall_y = 136u;
-    const uint16_t num_cols = 256u;
-    const uint16_t scope_height = 100u;
-    const uint16_t scope_x = 1u;
-    const uint16_t scope_y = 21u;
     const uint16_t scope_fg = display->colour565(255, 255, 255);
 
     static uint16_t top_row = 0u;
@@ -334,7 +335,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     if(zoom != last_zoom || refresh)
     {
       last_zoom = zoom;
-      display->fillRect(scope_x,  127, 8, 256, COLOUR_BLACK);
+      display->fillRect(waterfall_x,  waterfall_y-12, 8, 256, COLOUR_BLACK);
 
       const int32_t kHz_per_tick = zoom>=3?1:5;
       const int32_t bins_per_tick = (256*kHz_per_tick*zoom)/30;
@@ -344,20 +345,30 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       {
         char buffer[7];
         sprintf(buffer, "%i", freq_kHz);
-        uint16_t x = scope_x + 128 + bin - ((strlen(buffer)-1)*3);
-        display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        uint16_t x = waterfall_x + num_cols/2 + bin - ((strlen(buffer)-1)*3);
+        display->drawString(x,  waterfall_y-11, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
 
         sprintf(buffer, "%i", -freq_kHz);
-        x = scope_x + 128 - bin - ((strlen(buffer)-1)*6);
-        display->drawString(x,  127, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+        x = waterfall_x + num_cols/2 - bin - ((strlen(buffer)-1)*6);
+        display->drawString(x,  waterfall_y-11, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
         freq_kHz += kHz_per_tick;
       }
+    }
+
+    uint16_t scale_y = scope_y-14;
+    display->fillRect(1, scale_y+10, 1, num_cols, COLOUR_WHITE);
+    for(uint16_t bin=0; bin<num_cols; bin+=3)
+    {
+      display->fillRect(bin+1, scale_y+5, 5, 1, COLOUR_WHITE);
+    }
+    for(uint16_t bin=0; bin<num_cols; bin+=30)
+    {
+      display->fillRect(bin+1, scale_y, 10, 1, COLOUR_WHITE);
     }
 
 
 
     //draw scope
-    uint32_t start = time_us_32();
     uint8_t data_points[num_cols];
     for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
     {
@@ -434,7 +445,6 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
      }
      display->dmaFlush();
-     printf("elapsed: %lu\n", time_us_32()-start);
 
 
     //draw frequency

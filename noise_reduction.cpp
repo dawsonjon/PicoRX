@@ -6,13 +6,11 @@
 #include "noise_reduction.h"
 
 const int8_t magnitude_smoothing = 3;
-const int8_t noise_smoothing = 10;
-const int16_t threshold = 1;
 const uint8_t fraction_bits = 14u;
 const int32_t scaling = 1<<fraction_bits;
 
 
-void noise_reduction(int16_t i[], int16_t q[], int32_t noise_estimate[], int16_t signal_estimate[], uint16_t start, uint16_t stop)
+void noise_reduction(int16_t i[], int16_t q[], int32_t noise_estimate[], int16_t signal_estimate[], uint16_t start, uint16_t stop, const int8_t noise_smoothing, const int8_t threshold)
 {
     for(uint16_t idx = start; idx <= stop; ++idx)
     {

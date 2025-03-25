@@ -227,7 +227,7 @@ void rx::apply_settings()
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
 
       //apply Noise Reduction
-      rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction);
+      rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction, settings_to_apply.noise_estimation, settings_to_apply.noise_threshold);
 
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);

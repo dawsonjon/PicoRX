@@ -99,7 +99,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       positive_noise_estimate, 
       positive_signal_estimate, 
       start_bin, 
-      filter_control.stop_bin);
+      filter_control.stop_bin,
+      filter_control.noise_smoothing,
+      filter_control.noise_threshold);
   }
 
   //negative frequencies
@@ -140,7 +142,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       negative_noise_estimate, 
       negative_signal_estimate, 
       new_fft_size/2u-1-filter_control.stop_bin, 
-      new_fft_size/2u-1-start_bin);
+      new_fft_size/2u-1-start_bin,
+      filter_control.noise_smoothing,
+      filter_control.noise_threshold);
   }
 
   if(filter_control.enable_auto_notch)

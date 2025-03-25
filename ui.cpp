@@ -1086,7 +1086,7 @@ bool ui::upload_memory()
       uint8_t progress_ctr=0;
 
       //work out which flash sector the channel sits in.
-      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*chan_size);
+      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*memory_chan_size);
 
       //copy memory to RAM
       bool done = false;
@@ -1095,10 +1095,10 @@ bool ui::upload_memory()
       {
 
         const uint32_t first_channel_in_sector = num_channels_per_sector * sector;
-        static uint32_t memory_copy[num_channels_per_sector][chan_size];
+        static uint32_t memory_copy[num_channels_per_sector][memory_chan_size];
         for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
         {
-          for(uint16_t location=0; location<chan_size; location++)
+          for(uint16_t location=0; location<memory_chan_size; location++)
           {
             if(!done)
             {
@@ -2107,6 +2107,64 @@ bool ui::configuration_menu(bool &ok)
 
 }
 
+bool ui::noise_menu(bool & ok)
+{
+
+    enum e_ui_state {select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Noise", "Enable#Noise\nEstimation#Noise\nThreshold#", &menu_selection, ok))
+      {
+        if(ok) 
+        {
+          //ok button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+       bool done = false;
+       bool changed = false;
+       switch(menu_selection)
+        {
+          case 0 :  
+            done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
+            break;
+          case 1 : 
+            done = enumerate_entry("Noise\nEstimation", "Very Fast#Fast#Medium#Slow#Very Slow#", settings.global.noise_estimation, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+          case 2 : 
+            done = enumerate_entry("Noise\nThreshold", "Normal#High#Very High#", settings.global.noise_threshold, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+        }
+        if(done)
+        {
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+    }
+
+    return false;
+}
+
 bool ui::main_menu(bool & ok)
 {
 
@@ -2180,7 +2238,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 10 :  
-            done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
+            done = noise_menu(ok);
             break;
           case 11 :  
             done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
