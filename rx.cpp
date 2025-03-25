@@ -72,6 +72,8 @@ void rx::dma_handler() {
 
 }
 
+quad_si5351 external_nco(i2c1, 16, 17, 0x60, 25000000);
+
 void rx::access(bool s)
 {
   sem_acquire_blocking(&settings_semaphore);
@@ -154,7 +156,8 @@ void rx::apply_settings()
       tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
       if_mode = settings_to_apply.if_mode;
       if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      //nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      nco_frequency_Hz = external_nco.set_frequency_hz(tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
@@ -277,11 +280,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     settings_to_apply.suspend = false;
     suspend = false;
 
-    //Configure PIO to act as quadrature oscilator
-    pio = pio0;
-    offset = pio_add_program(pio, &nco_program);
-    sm = pio_claim_unused_sm(pio, true);
-    nco_program_init(pio, sm, offset);
+
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
@@ -385,6 +384,11 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     dma_set_irq0_channel_mask_enabled((1u<<adc_dma_ping) | (1u<<adc_dma_pong), true);
     irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
+
+    // external nco
+    external_nco.set_drive(3);
+    external_nco.crystal_load(3);
+    external_nco.start();
 
 }
 

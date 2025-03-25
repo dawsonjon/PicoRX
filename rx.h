@@ -13,6 +13,7 @@
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
 #include "charlieplexed_button.h"
+#include "quadrature_si5351.h"
 
 #include "rx_definitions.h"
 #include "rx_dsp.h"
@@ -90,6 +91,7 @@ class rx
   PIO pio;
   uint offset;
   uint sm;
+
 
   //capture buffer DMA
   static int capture_dma;
