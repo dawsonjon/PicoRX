@@ -4,6 +4,7 @@
 #include <string.h>
 #include <algorithm>
 
+#include "hardware.h"
 #include "rx.h"
 #include "nco.h"
 #include "fft_filter.h"
@@ -97,7 +98,7 @@ void rx::pwm_ramp_down()
     level = std::min(level, (int16_t)pwm_max);
     level = std::max(level, (int16_t)0);
     phase += phase_increment;
-    pwm_set_gpio_level(16, level);
+    pwm_set_gpio_level(AUDIO_PIN, level);
   }
 }
 
@@ -116,7 +117,7 @@ void rx::pwm_ramp_up()
     level = std::min(level, (int16_t)pwm_max);
     level = std::max(level, (int16_t)0);
     phase += phase_increment;
-    pwm_set_gpio_level(16, level);
+    pwm_set_gpio_level(AUDIO_PIN, level);
   }
 }
 
@@ -156,51 +157,51 @@ void rx::apply_settings()
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 1);
       }
       else
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 1);
       }
 
       //apply pwm_max
@@ -278,7 +279,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
-    const uint PSU_PIN = 23;
+//    const uint PSU_PIN = 23;
     gpio_init(PSU_PIN);
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
@@ -286,22 +287,22 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     
     //ADC Configuration
     adc_init();
-    adc_gpio_init(26);//I channel (0) - configure pin for ADC use
-    adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
-    adc_gpio_init(29);//Battery - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_BATT);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 
     //band select
-    gpio_init(2);//band 0
-    gpio_init(3);//band 1
-    gpio_init(4);//band 2
-    gpio_set_function(2, GPIO_FUNC_SIO);
-    gpio_set_function(3, GPIO_FUNC_SIO);
-    gpio_set_function(4, GPIO_FUNC_SIO);
-    gpio_set_dir(2, GPIO_OUT);
-    gpio_set_dir(3, GPIO_OUT);
-    gpio_set_dir(4, GPIO_OUT);
+    gpio_init(PIN_BAND_A);//band 0
+    gpio_init(PIN_BAND_B);//band 1
+    gpio_init(PIN_BAND_C);//band 2
+    gpio_set_function(PIN_BAND_A, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_B, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_C, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_BAND_A, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_B, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_C, GPIO_OUT);
     
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
@@ -325,7 +326,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     sem_init(&settings_semaphore, 1, 1);
 
     //audio output
-    const uint AUDIO_PIN = 16;
+//    const uint AUDIO_PIN = 16;
     gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
     gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
     audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);

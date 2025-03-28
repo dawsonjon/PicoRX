@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "hardware.h"
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include "fft_filter.h"
@@ -17,6 +18,7 @@ waterfall::waterfall()
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
 
+/*
     #define PIN_MISO 12
     #define PIN_CS   13
     #define PIN_SCK  14
@@ -25,6 +27,7 @@ waterfall::waterfall()
     #define PIN_RST  10
     #define SPI_PORT spi1
     //spi_init(SPI_PORT, 62500000);
+*/
     spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
