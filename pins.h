@@ -10,6 +10,8 @@ const uint8_t PIN_ENCODER_PUSH = 5;
 const uint8_t PIN_DISPLAY_SDA = 18;
 const uint8_t PIN_DISPLAY_SCL = 19;
 
+const uint8_t PIN_NCO_1 = 0;
+const uint8_t PIN_NCO_2 = 1;
 const uint8_t BAND_0 = 2;
 const uint8_t BAND_1 = 3;
 const uint8_t BAND_2 = 4;

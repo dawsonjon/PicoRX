@@ -26,10 +26,11 @@
 //
 
 #include <cmath>
+#include <cstdio>
 #include "quadrature_si5351.h"
 #include "pico/stdlib.h"
 
-void quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
+bool quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
 {
     i2c_init(i2c, 400 * 1000);
     gpio_set_function(sda_pin, GPIO_FUNC_I2C);
@@ -53,7 +54,9 @@ void quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin
       static_cast<uint8_t>(0x80),
       static_cast<uint8_t>(0x80)
     };
-    i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);  
+    int ret = i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);  
+    return ret != PICO_ERROR_GENERIC;
+
 }
 
 void quad_si5351 :: start()

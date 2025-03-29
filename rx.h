@@ -133,6 +133,9 @@ class rx
   //(optional) external oscillator
   quad_si5351 external_nco;
   bool external_nco_initialised = false;
+  bool external_nco_good = false;
+  bool external_nco_active = false;
+  bool internal_nco_active = true;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);
@@ -146,6 +149,7 @@ class rx
   void read_batt_temp();
   void access(bool settings_changed);
   void release();
+  bool get_raw_data(int16_t &i, int16_t &q);
 };
 
 #endif

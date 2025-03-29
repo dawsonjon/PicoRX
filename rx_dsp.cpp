@@ -163,6 +163,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     int16_t i = real[idx];
     int16_t q = imag[idx];
 
+    uint32_t complex_sample = (uint32_t)i << 16 | (uint32_t)q;
+    queue_try_add(&data_queue, (void*)&complex_sample);
+
     //Measure amplitude (for signal strength indicator)
     int32_t amplitude = rectangular_2_magnitude(i, q);
     magnitude_sum += amplitude;
@@ -449,6 +452,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
+  queue_init(&data_queue, 4, 2048);
   set_agc_control(3, 0);
   filter_control.enable_auto_notch = false;
   filter_control.enable_noise_reduction = false;
@@ -659,8 +663,10 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  max=max - (max >> 3) + (new_max >> 3);
-  min=min - (min >> 3) + (new_min >> 3);
+  //max=max - (max >> 3) + (new_max >> 3);
+  //min=min - (min >> 3) + (new_min >> 3);
+  max=new_max;
+  min=new_min;
   const float logmin = log10f(min);
   const float logmax = log10f(std::max(max, lowest_max));
 
@@ -695,4 +701,13 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 
   //number steps representing 10dB
   dB10 = 256/(2*logf(max/min));
+}
+
+bool rx_dsp::get_raw_data(int16_t &i, int16_t &q)
+{
+  uint32_t data;
+  bool success = queue_try_remove(&data_queue, &data);
+  i = data & 0xffff;
+  q = (data >> 16) & 0xffff;
+  return success;
 }

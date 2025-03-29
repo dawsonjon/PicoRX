@@ -295,12 +295,10 @@ void ILI934X::drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint
     const uint8_t font_space  = font[2];
     const uint8_t first_char  = font[3];
     const uint8_t last_char   = font[4];
-    const uint16_t bytes_per_char = font_width*font_height/8;
-
+    const uint16_t bytes_per_char = (font_width*font_height+4)/8;
     if(c<first_char||c>last_char) return;
 
-    fillRect(x, y, font_height, font_width+font_space, bg);
-
+    uint16_t buffer[font_height][font_width+font_space];
     uint16_t font_index = ((c-first_char)*bytes_per_char) + 5u;
     uint8_t data = font[font_index++];
     uint8_t bits_left = 8;
@@ -309,8 +307,13 @@ void ILI934X::drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint
     {
       for(uint8_t yy = 0; yy<font_height; ++yy)
       {
-        if(data & 0x01){
-          setPixel(x+xx, y+yy, fg);
+        if(data & 0x01)
+        {
+          buffer[yy][xx] = fg;
+        }
+        else
+        {
+          buffer[yy][xx] = bg;
         }
         data >>= 1;
         bits_left--;
@@ -321,6 +324,15 @@ void ILI934X::drawChar(uint32_t x, uint32_t y, const uint8_t *font, char c, uint
         }
       }
     }
+    for(uint8_t xx = 0; xx<font_space; ++xx)
+    {
+      for(uint8_t yy = 0; yy<font_height; ++yy)
+      {
+        buffer[yy][font_width+xx] = bg;
+      }
+    }
+
+    _writeBlock(x, y, x+font_width+font_space-1, y+font_height-1, (uint8_t *)buffer, sizeof(buffer));
 }
 
 void ILI934X::drawString(uint32_t x, uint32_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t bg) {

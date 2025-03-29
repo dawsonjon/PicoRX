@@ -88,27 +88,70 @@ void rx::release()
   {
     if(settings_to_apply.enable_external_nco)
     {
+
+      //disable internal nco
+      if(internal_nco_active)
+      {
+        pio_sm_set_enabled(pio, sm, false);
+        gpio_set_function(PIN_NCO_1, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_NCO_1, GPIO_IN);
+        gpio_set_function(PIN_NCO_2, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_NCO_2, GPIO_IN);
+        internal_nco_active = false;
+        //use a fixed clock frequency when using external NCO
+        //133MHz
+        set_sys_clock_pll(1596000000, 6, 2);
+        system_clock_rate = 133000000;
+      }
+
       //initialise external nco before first use
       if(!external_nco_initialised)
       {
-        external_nco.initialise(i2c1, 16, 17, 0x60, 25000000);
+        external_nco_good = external_nco.initialise(i2c1, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
         external_nco.set_drive(3);
         external_nco.crystal_load(3);
         external_nco.start();
         external_nco_initialised = true;
       }
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
-      if_mode = settings_to_apply.if_mode;
-      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-      nco_frequency_Hz = external_nco.set_frequency_hz(tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
-      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+
+      //start external oscillator each time it is enabled
+      if(!external_nco_active)
+      {
+        external_nco.start();
+        external_nco_active = true;
+      }
+
+      if(external_nco_good)
+      {
+        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+        tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
+        if_mode = settings_to_apply.if_mode;
+        if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+        nco_frequency_Hz = external_nco.set_frequency_hz(tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+        printf("tuned_frequency: %f\n", tuned_frequency_Hz);
+        printf("nco_frequency: %f\n", nco_frequency_Hz);
+        offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+      }
     }
     else
     {
-      if(external_nco_initialised)
+
+      //disable external nco
+      if(external_nco_initialised && external_nco_active)
       {
         external_nco.stop();
+        external_nco_active = false;
+      }
+
+      //enable internal nco
+      if(!internal_nco_active)
+      {
+        gpio_set_function(PIN_NCO_1, GPIO_FUNC_PIO0);
+        gpio_set_dir(PIN_NCO_1, GPIO_OUT);
+        gpio_set_function(PIN_NCO_2, GPIO_FUNC_PIO0);
+        gpio_set_dir(PIN_NCO_2, GPIO_OUT);
+        pio_sm_set_enabled(pio, sm, true);
+        internal_nco_active = true;
       }
     }
   }
@@ -313,6 +356,11 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     settings_to_apply.suspend = false;
     suspend = false;
 
+    //Configure PIO to act as quadrature oscilator
+    pio = pio0;
+    offset = pio_add_program(pio, &nco_program);
+    sm = pio_claim_unused_sm(pio, true);
+    nco_program_init(pio, sm, offset);
 
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
@@ -474,6 +522,11 @@ static void on_usb_audio_tx_ready()
   usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
+//thread safe method to get raw IQ data
+bool rx::get_raw_data(int16_t &i, int16_t &q)
+{
+  return rx_dsp_inst.get_raw_data(i, q);
+}
 
 uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t pwm_audio[])
 {
@@ -544,7 +597,7 @@ void rx::run()
       if (settings_changed)
       {
         apply_settings();
-        pwm_ramp_up();
+        if(internal_nco_active) pwm_ramp_up();
       }
 
 
@@ -590,7 +643,7 @@ void rx::run()
             if (settings_changed)
             {
               // slowly ramp down PWM to avoid pops
-              pwm_ramp_down();
+              if(internal_nco_active) pwm_ramp_down();
             }
 
             break;

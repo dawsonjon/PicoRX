@@ -7,6 +7,7 @@
 #include "hardware/spi.h"
 #include "fft_filter.h"
 #include "ili934x.h"
+#include "font_seven_segment_25x15.h"
 #include "font_16x12.h"
 #include "font_8x5.h"
 #include "rx_definitions.h"
@@ -119,11 +120,11 @@ void waterfall::powerOn(bool state)
     }
 }
 
-const uint16_t smeter_height = 200;
+const uint16_t smeter_height = 165;
 const uint16_t smeter_width = 56;
 const uint16_t smeter_bar_width = 4;
 const uint16_t smeter_x = 263;
-const uint16_t smeter_y = 30;
+const uint16_t smeter_y = 65;
 const uint16_t waterfall_height = 80u;
 const uint16_t waterfall_x = 1u;
 const uint16_t waterfall_y = 157u;
@@ -131,6 +132,7 @@ const uint16_t num_cols = 256u;
 const uint16_t scope_height = 80u;
 const uint16_t scope_x = 1u;
 const uint16_t scope_y = 61u;
+const uint16_t dial_width = 320u;
 
 void waterfall::draw()
 {
@@ -150,16 +152,14 @@ void waterfall::draw()
     display->drawLine(num_cols+1, waterfall_y-1, num_cols+1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
 
     //smeter outline
-    //uint16_t power_px = dBm_to_px(-85, smeter_height);
-    //uint16_t y = smeter_y + 1 + smeter_height - power_px - 4;
-    //display->drawString(smeter_x-3, y, font_8x5, "(dBm)", COLOUR_WHITE, COLOUR_BLACK);
-    display->drawLine(smeter_x+28, smeter_y,                 smeter_x+33, smeter_y,                 display->colour565(255,255,255));
+    display->drawLine(smeter_x+28, smeter_y-2,               smeter_x+33, smeter_y-2,               display->colour565(255,255,255));
     display->drawLine(smeter_x+28, smeter_y+smeter_height+3, smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
-    display->drawLine(smeter_x+28, smeter_y+1,               smeter_x+28, smeter_y+smeter_height+3, display->colour565(255,255,255));
-    display->drawLine(smeter_x+33, smeter_y+1,               smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawLine(smeter_x+28, smeter_y-1,               smeter_x+28, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawLine(smeter_x+33, smeter_y-1,               smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
 
+
+    //draw smeter
     const char smeter[13][4]  = {"s0 ", "s1 ", "s2 ", "s3 ", "s4 ", "s5 ", "s6 ", "s7 ", "s8 ", "s9 ", "+10", "+20", "+30"};
-
     for(int16_t s=0; s<13; s++)
     {
       uint16_t s_px = dBm_to_px(S_to_dBm(s), smeter_height);
@@ -175,7 +175,6 @@ void waterfall::draw()
       }
       display->drawString(smeter_x+smeter_width-18,  y-4, font_8x5, smeter[s], colour, COLOUR_BLACK);
     }
-
     for(int16_t dbm=-120; dbm<-40; dbm+=10)
     {
       uint16_t power_px = dBm_to_px(dbm, smeter_height);
@@ -308,17 +307,18 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     {
       last_filtered_power = filtered_power;
       last_squelch = settings.squelch_threshold;
-      uint16_t power_px = dBm_to_px(filtered_power, smeter_height);
+      uint16_t power_px = dBm_to_px(filtered_power, smeter_height+6);
       uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch_threshold), smeter_height);
 
       uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
-      display->fillRect(smeter_x+29, smeter_y+1+smeter_height-power_px, power_px, smeter_bar_width, colour);
+      display->fillRect(smeter_x+29, smeter_y+4+smeter_height-power_px, power_px, smeter_bar_width, colour);
       display->fillRect(smeter_x+29, smeter_y+1,    smeter_height-power_px, smeter_bar_width, COLOUR_BLACK);
-      display->drawLine(smeter_x+29, smeter_y+1+smeter_height-squelch_px, smeter_x+32, smeter_y+1+smeter_height-squelch_px, COLOUR_RED);
+      display->fillRect(smeter_x+29, smeter_y+0+smeter_height-squelch_px, 3, smeter_bar_width, COLOUR_RED);
+      display->fillRect(smeter_x+29, smeter_y+1+smeter_height-squelch_px, 1, smeter_bar_width, COLOUR_WHITE);
 
       char buffer[9];
       snprintf(buffer, 9, "%4.0fdBm", filtered_power);
-      display->drawString(233, 0, font_16x12, buffer, COLOUR_FUCHSIA, COLOUR_BLACK);
+      display->drawString(233, 31, font_16x12, buffer, COLOUR_GREEN, COLOUR_BLACK);
 
     }
 
@@ -328,7 +328,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     {
       last_mode = settings.mode;
       const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
-      display->drawString(0, 0, font_16x12, modes[settings.mode], COLOUR_FUCHSIA, COLOUR_BLACK);
+      display->drawString(165, 31, font_16x12, modes[settings.mode], COLOUR_YELLOW, COLOUR_BLACK);
     }
 
     static uint8_t last_zoom = 255;
@@ -355,18 +355,50 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
       }
     }
 
-    uint16_t scale_y = scope_y-14;
-    display->fillRect(1, scale_y+10, 1, num_cols, COLOUR_WHITE);
-    for(uint16_t bin=0; bin<num_cols; bin+=3)
-    {
-      display->fillRect(bin+1, scale_y+5, 5, 1, COLOUR_WHITE);
-    }
-    for(uint16_t bin=0; bin<num_cols; bin+=30)
-    {
-      display->fillRect(bin+1, scale_y, 10, 1, COLOUR_WHITE);
-    }
+    //draw dial
+    const uint8_t pixels_per_kHz = 5;
+    const uint16_t scale_y = 0;
+
+    static uint32_t last_frequency =0;
+    if(settings.tuned_frequency_Hz != last_frequency || refresh)
+    { 
+      last_frequency = settings.tuned_frequency_Hz;
+
+      display->fillRect(0, scale_y, 25, dial_width, COLOUR_BLACK);
+      display->fillRect(0, scale_y+25, 1, dial_width, COLOUR_WHITE);
+      display->fillRect(0, scale_y, 1, dial_width, COLOUR_WHITE);
+      for(uint16_t x = 0; x<dial_width; x++)
+      {
+        uint32_t rounded_frequency_Hz = round(settings.tuned_frequency_Hz / 1000)*1000;
+        uint32_t pixel_frequency_Hz = rounded_frequency_Hz + (((x-(dial_width/2))*1000)/pixels_per_kHz);
+        //draw 1kHz tick Marks
+        if(pixel_frequency_Hz%1000 == 0)
+        {
+          display->fillRect(x, scale_y+20, 5, 1, COLOUR_WHITE);
+        }
+        //draw 5kHz tick Marks
+        if(pixel_frequency_Hz%5000 == 0)
+        {
+          display->fillRect(x, scale_y+17, 5, 1, COLOUR_WHITE);
+        }
+        //draw 10kHz tick Marks
+        if(pixel_frequency_Hz%10000 == 0)
+        {
+          if(x > 20 && (x + 20) < dial_width)
+          {
+            char buffer[10];
+            snprintf(buffer, 10, "%2lu.%02lu", pixel_frequency_Hz/1000000, ((pixel_frequency_Hz%1000000)/10000));
+            display->drawString(x-18,  scale_y+5, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+          }
+          display->fillRect(x, scale_y+15, 10, 1, COLOUR_WHITE);
+          display->fillRect(x, scale_y, 2, 1, COLOUR_WHITE);
+        }
+      }
+      display->fillRect(dial_width/2-1, scale_y, 25, 3, COLOUR_RED);
+      display->fillRect(dial_width/2, scale_y, 25, 1, COLOUR_WHITE);
 
 
+    }
 
     //draw scope
     uint8_t data_points[num_cols];
@@ -392,7 +424,7 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
        uint16_t scope_row_colour = heatmap((uint16_t)scope_row*256/scope_height, false, false);
        uint16_t scope_row_colour_passband = heatmap((uint16_t)scope_row*256/scope_height, true, false);
        uint16_t scope_row_colour_cursor = heatmap((uint16_t)scope_row*256/scope_height, true, true);
-       const bool row_is_tick = (scope_row%(4*scope_height*dB10/270)) == 0;
+       const bool row_is_tick = (scope_row%(scope_height*dB10/270)) == 0;
 
        //draw one line of scope
        for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
@@ -462,8 +494,8 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
     if(lastMHz!=MHz || lastkHz!=kHz || lastHz!=Hz || refresh)
     {
       char buffer[20];
-      snprintf(buffer, 20, "%2lu.%03lu.%03lu", MHz, kHz, Hz);
-      display->drawString(100, 0, font_16x12, buffer, COLOUR_WHITE, COLOUR_BLACK);
+      snprintf(buffer, 20, "%02lu:%03lu:%03lu", MHz, kHz, Hz);
+      display->drawString(0, 31, font_seven_segment_25x15, buffer, COLOUR_RED, COLOUR_BLACK);
       lastMHz = MHz;
       lastkHz = kHz;
       lastHz = Hz;

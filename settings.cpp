@@ -37,6 +37,7 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.if_frequency_hz_over_100 = settings.global.if_frequency_hz_over_100;
   rx_settings.noise_estimation = settings.global.noise_estimation + 8;
   rx_settings.noise_threshold = settings.global.noise_threshold + 1;
+  rx_settings.enable_external_nco = settings.global.enable_external_nco;
   receiver.release();
 }
 

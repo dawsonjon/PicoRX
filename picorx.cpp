@@ -39,6 +39,7 @@ int main()
   receiver.set_alarm_pool(alarm_pool_create(0, 16));
   user_interface.autorestore();
 
+
   uint32_t last_ui_update = 0;
   uint32_t last_cat_update = 0;
   while(1)

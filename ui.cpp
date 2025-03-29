@@ -1052,6 +1052,7 @@ void ui::autosave()
 //remember settings across power cycles
 void ui::autorestore()
 {
+  printf("restoring settings\n");
   autosave_restore_settings(settings);
   apply_settings(false);
 
@@ -1979,7 +1980,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#IF Mode#IF\nFrequency#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2076,9 +2077,12 @@ bool ui::configuration_menu(bool &ok)
         case 14:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
+
+        case 15:
+          done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 15: 
+        case 16: 
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", usb_upload, ok, changed);
@@ -2402,7 +2406,6 @@ void ui::do_ui()
     bool update_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
-    static uint8_t display_option = 0;
     const uint8_t num_display_options = 7;
     static bool view_changed = false;
 
@@ -2435,11 +2438,12 @@ void ui::do_ui()
       else if(back_button.is_pressed())
       {
         view_changed = true;
-        display_option++;
-        if(display_option==num_display_options){
-          display_option = 0;
+        settings.global.view++;
+        if(settings.global.view==num_display_options){
+          settings.global.view = 0;
           ui_state = memory_scanner;
         }
+        autosave();
       }
 
       //adjust frequency when encoder is turned
@@ -2494,7 +2498,7 @@ void ui::do_ui()
 
       }
       
-      switch(display_option)
+      switch(settings.global.view)
       {
         case 0: renderpage_original(status, receiver); break;
         case 1: renderpage_bigspectrum(status, receiver);break;

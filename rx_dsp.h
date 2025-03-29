@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "rx_definitions.h"
 #include "pico/sem.h"
+#include "pico/util/queue.h"
 #include "fft_filter.h"
 
 class rx_dsp
@@ -27,6 +28,7 @@ class rx_dsp
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
+  bool get_raw_data(int16_t &i, int16_t &q);
 
   private:
   
@@ -37,6 +39,9 @@ class rx_dsp
   int16_t apply_deemphasis(int16_t x);
   int16_t squelch(int16_t audio, int32_t amplitude);
   void iq_imbalance_correction(int16_t &i, int16_t &q);
+
+  //capture samples for decoding
+  queue_t data_queue;
 
   //capture samples for spectral analysis
   int16_t capture[256];
