@@ -12,6 +12,7 @@
 #include "font_8x5.h"
 #include "rx_definitions.h"
 #include "ui.h"
+#include "codecs/decode_sstv.h"
 
 
 waterfall::waterfall()
@@ -278,6 +279,9 @@ int waterfall::dBm_to_S(float power_dBm) {
 void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
 {
 
+    decode_sstv(receiver);
+    return;
+
     if(!enabled) return;
     if(!power_state) return;
 
@@ -505,3 +509,162 @@ void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &
 
 }
 
+
+  //sstv_decoder.set_auto_slant_correction(ENABLE_SLANT_CORRECTION);
+  //sstv_decoder.set_timeout_seconds(LOST_SIGNAL_TIMEOUT_SECONDS);
+
+#define STRETCH true
+void waterfall::decode_sstv(rx &receiver)
+{
+  int16_t i, q;
+  static uint16_t last_pixel_y=0;
+  static uint8_t line_rgb[320][4];
+  static c_sstv_decoder sstv_decoder(15000);
+  static s_sstv_mode *modes = sstv_decoder.get_modes();
+
+  //uint32_t start_time = time_us_32();
+  uint16_t samples_processed = 0;
+  while(receiver.get_raw_data(i, q))
+  {
+      samples_processed++;
+      uint16_t pixel_y;
+      uint16_t pixel_x;
+      uint8_t pixel_colour;
+      uint8_t pixel;
+      int16_t frequency;
+      const bool new_pixel = sstv_decoder.decode_iq(i, q, pixel_y, pixel_x, pixel_colour, pixel, frequency);
+
+      if(new_pixel)
+      {
+          e_sstv_mode mode = sstv_decoder.get_mode();
+
+          if(pixel_y > last_pixel_y)
+          {
+
+            //convert from 24 bit to 16 bit colour
+            uint16_t line_rgb565[320];
+            uint16_t scaled_pixel_y = 0;
+
+            if(mode == pd_50 || mode == pd_90 || mode == pd_120 || mode == pd_180)
+            {
+
+              //rescale imaagesto fit on screen
+              if(mode == pd_120 || mode == pd_180)
+              {
+                scaled_pixel_y = (uint32_t)last_pixel_y * 240 / 496; 
+              }
+              else
+              {
+                scaled_pixel_y = last_pixel_y;
+              }
+
+              for(uint16_t x=0; x<320; ++x)
+              {
+                int16_t y  = line_rgb[x][0];
+                int16_t cr = line_rgb[x][1];
+                int16_t cb = line_rgb[x][2];
+                cr = cr - 128;
+                cb = cb - 128;
+                int16_t r = y + 45 * cr / 32;
+                int16_t g = y - (11 * cb + 23 * cr) / 32;
+                int16_t b = y + 113 * cb / 64;
+                r = r<0?0:(r>255?255:r);
+                g = g<0?0:(g>255?255:g);
+                b = b<0?0:(b>255?255:b);
+                line_rgb565[x] = display->colour565(r, g, b);
+              }
+              display->writeHLine(0, scaled_pixel_y*2, 320, line_rgb565);
+              for(uint16_t x=0; x<320; ++x)
+              {
+                int16_t y  = line_rgb[x][3];
+                int16_t cr = line_rgb[x][1];
+                int16_t cb = line_rgb[x][2];
+                cr = cr - 128;
+                cb = cb - 128;
+                int16_t r = y + 45 * cr / 32;
+                int16_t g = y - (11 * cb + 23 * cr) / 32;
+                int16_t b = y + 113 * cb / 64;
+                r = r<0?0:(r>255?255:r);
+                g = g<0?0:(g>255?255:g);
+                b = b<0?0:(b>255?255:b);
+                line_rgb565[x] = display->colour565(r, g, b);
+              }
+              display->writeHLine(0, scaled_pixel_y*2 + 1, 320, line_rgb565);
+            }
+            else
+            {
+              for(uint16_t x=0; x<320; ++x)
+              {
+                line_rgb565[x] = display->colour565(line_rgb[x][0], line_rgb[x][1], line_rgb[x][2]);
+              }
+              display->writeHLine(0, last_pixel_y, 320, line_rgb565);
+              
+            }
+            for(uint16_t x=0; x<320; ++x) line_rgb[x][0] = line_rgb[x][1] = line_rgb[x][2] = 0;
+
+            //update progress
+            display->fillRect(320-(21*6)-2, 240-10, 10, 21*6+2, COLOUR_BLACK);
+            char buffer[30];
+            if(mode==martin_m1)
+            {
+              snprintf(buffer, 30, "Martin M1: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==martin_m2)
+            {
+              snprintf(buffer, 30, "Martin M2: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==scottie_s1)
+            {
+              snprintf(buffer, 30, "Scottie S1: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==scottie_s2)
+            {
+              snprintf(buffer, 30, "Scottie S2: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==sc2_120)
+            {
+              snprintf(buffer, 30, "SC2 120: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_50)
+            {
+              snprintf(buffer, 30, "PD 50: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_90)
+            {
+              snprintf(buffer, 30, "PD 90: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_120)
+            {
+              snprintf(buffer, 30, "PD 120: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_180)
+            {
+              snprintf(buffer, 30, "PD 180: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+
+          }
+          last_pixel_y = pixel_y;
+          
+
+          if(pixel_x < 320 && pixel_y < 256 && pixel_colour < 4) {
+            if(STRETCH && modes[mode].width==160)
+            {
+              if(pixel_x < 160)
+              {
+                line_rgb[pixel_x*2][pixel_colour] = pixel;
+                line_rgb[pixel_x*2+1][pixel_colour] = pixel;
+              }
+            }
+            else
+            {
+              line_rgb[pixel_x][pixel_colour] = pixel;
+            }
+
+          }
+          
+      }
+   }
+  //uint32_t duration = time_us_32() - start_time;
+  //printf("time: %u %lu\n", samples_processed, duration);
+}

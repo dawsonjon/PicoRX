@@ -26,6 +26,7 @@ class waterfall
   bool enabled = false;
   bool power_state = true;
   bool refresh = true;
+  void decode_sstv(rx &receiver);
 
 };
 

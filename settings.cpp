@@ -82,7 +82,7 @@ void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_numb
   //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
-  sleep_us(100000);                                    //wait for suspension to take effect
+  sleep_us(10000);                                    //wait for suspension to take effect
   multicore_lockout_start_blocking();                  //halt the second core
   const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
 
@@ -163,7 +163,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
     //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
-    sleep_us(100000);                                    //wait for suspension to take effect
+    sleep_us(10000);                                    //wait for suspension to take effect
     multicore_lockout_start_blocking();                  //halt the second core
     const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
 
@@ -210,7 +210,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
   //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
-  sleep_us(100000);                                    //wait for suspension to take effect
+  sleep_us(10000);                                    //wait for suspension to take effect
   multicore_lockout_start_blocking();                  //halt the second core
   const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
 
