@@ -2077,6 +2077,7 @@ bool ui::configuration_menu(bool &ok)
         case 14:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
+          break;
 
         case 15:
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
