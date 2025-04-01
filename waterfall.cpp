@@ -276,17 +276,42 @@ int waterfall::dBm_to_S(float power_dBm) {
   return (power_s);
 }
 
-void waterfall::update_spectrum(rx &receiver, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
+void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
 {
-
-    decode_sstv(receiver);
-    return;
-
     if(!enabled) return;
     if(!power_state) return;
 
-    const uint16_t scope_fg = display->colour565(255, 255, 255);
+    //state machine to select other display options
+    enum e_aux_display_state{waterfall_active, sstv_active};
+    static e_aux_display_state aux_display_state = waterfall_active;
+    switch(aux_display_state)
+    {
+      case waterfall_active:
+        if(ui_settings.global.aux_view == 1)
+        {
+          display->clear();
+          display->drawString(0, 0, font_16x12, "SSTV Decoder", COLOUR_WHITE, COLOUR_BLACK);
+          aux_display_state = sstv_active;
+        }
+        break;
 
+      case sstv_active:
+        if(ui_settings.global.aux_view == 0)
+        {
+          draw();
+          refresh = true;
+          aux_display_state = waterfall_active;
+        }
+        break;
+    }
+    if(aux_display_state == sstv_active)
+    {
+      decode_sstv(receiver);
+      return;
+    }
+
+    //update spectrum and waterfall display
+    const uint16_t scope_fg = display->colour565(255, 255, 255);
     static uint16_t top_row = 0u;
 
     //scroll waterfall

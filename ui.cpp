@@ -2180,7 +2180,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2259,21 +2259,24 @@ bool ui::main_menu(bool & ok)
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
             zoom = settings.global.spectrum_zoom; 
             break;
-          case 15 :  
+          case 15 : 
+            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#", settings.global.aux_view, ok, changed);
+            break;
+          case 16 :  
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
-          case 16 : 
+          case 17 : 
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
-          case 17 : 
+          case 18 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
-          case 18 : 
+          case 19 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 19 : 
+          case 20 : 
             done = configuration_menu(ok);
             break;
         }

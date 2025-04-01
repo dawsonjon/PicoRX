@@ -58,7 +58,7 @@ int main()
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10, zoom);
+    waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
 
   }
 }

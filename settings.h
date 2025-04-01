@@ -66,6 +66,7 @@ struct s_global_settings
   uint8_t noise_estimation;
   uint8_t noise_threshold;
   uint8_t view;
+  uint8_t aux_view;
   bool    enable_auto_notch;
   bool    iq_correction;
   bool    enable_noise_reduction;
@@ -128,6 +129,7 @@ const s_settings default_settings = {
   2,  //noise_estimation very_fast, fast, normal, slow, very_slow
   0,  //noise_threshold normal, high, very_high
   0,  //view
+  0,  //aux_view
   0,  //enable_auto_notch
   0,  //iq_correction
   0,  //enable_noise_reduction
