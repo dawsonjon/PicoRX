@@ -128,8 +128,6 @@ void rx::release()
         if_mode = settings_to_apply.if_mode;
         if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
         nco_frequency_Hz = external_nco.set_frequency_hz(tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
-        printf("tuned_frequency: %f\n", tuned_frequency_Hz);
-        printf("nco_frequency: %f\n", nco_frequency_Hz);
         offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
       }
     }
@@ -213,6 +211,7 @@ void rx::update_status()
      static uint16_t avg_level = 0;
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
+     status.tuning_offset_Hz = rx_dsp_inst.get_tuning_offset_Hz();
 
      sem_release(&settings_semaphore);
    }

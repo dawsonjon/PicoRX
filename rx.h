@@ -62,6 +62,7 @@ struct rx_status
   s_filter_control filter_config;
   uint8_t usb_buf_level;
   uint16_t audio_level;
+  float tuning_offset_Hz;
   bool transmitting;
 };
 

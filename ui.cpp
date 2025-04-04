@@ -460,6 +460,7 @@ void ui::renderpage_status(rx_status & status, rx & receiver)
   const float block_time = (float)adc_block_size/(float)adc_sample_rate;
   const float busy_time = ((float)status.busy_time*1e-6f);
   const uint8_t usb_buf_level = status.usb_buf_level;
+  const float tuning_offset_Hz = status.tuning_offset_Hz;
   receiver.release();
 
   display_clear();
@@ -469,28 +470,33 @@ void ui::renderpage_status(rx_status & status, rx & receiver)
   u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
   u8g2_DrawHLine(&u8g2, 0, 8, 128);
 
-  const uint8_t buffer_size = 21;
+  const uint8_t buffer_size = 23;
   char buff [buffer_size];
 
   //battery
   uint16_t y = 8; //draw from left
   y += 10;
-  snprintf(buff, buffer_size, "Battery : %2.1fV", battery_voltage);
+  snprintf(buff, buffer_size, "Battery    : %2.1fV", battery_voltage);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
   //temp
   y += 10;
-  snprintf(buff, buffer_size, "CPU Temp: %2.0f%cC", temp, '\xb0');
+  snprintf(buff, buffer_size, "CPU Temp   : %2.0f%cC", temp, '\xb0');
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
   //cpu load
   y += 10;
-  snprintf(buff, buffer_size, "CPU Load: %3.0f%%", (100.0f * busy_time) / block_time);
+  snprintf(buff, buffer_size, "CPU Load   : %3.0f%%", (100.0f * busy_time) / block_time);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
   //usb buffer
   y += 10;
-  snprintf(buff, buffer_size, "USB Buff: %3d%%", usb_buf_level);
+  snprintf(buff, buffer_size, "USB Buff   : %3d%%", usb_buf_level);
+  u8g2_DrawStr(&u8g2, 0, y, buff);
+
+  //usb buffer
+  y += 10;
+  snprintf(buff, buffer_size, "Freq offset: %4.0fHz", tuning_offset_Hz);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
   display_show();
@@ -2034,8 +2040,24 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 6 : 
+        {
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
+          receiver.access(false);
+          const float tuning_offset_Hz = status.tuning_offset_Hz;
+          receiver.release();
+          ssd1306_fill_rectangle(&disp, 0, 64-16, 12, 16, 0);
+          ssd1306_fill_rectangle(&disp, 128-12, 64-16, 12, 16, 0);
+          if(tuning_offset_Hz > 0.5) ssd1306_draw_char_with_font(&disp, 0, 64-16, 1, font_16x12, '<', true);
+          else if(tuning_offset_Hz < 0.5) ssd1306_draw_char_with_font(&disp, 128-12, 64-16, 1, font_16x12, '>', true);
+          else
+          {
+            ssd1306_draw_char_with_font(&disp, 128-12, 64-16, 1, font_16x12, '=', true);
+            ssd1306_draw_char_with_font(&disp, 0, 64-16, 1, font_16x12, '=', true);
+          }
+          display_show();
+          if(changed) apply_settings(false);
           break;
+        }
 
         case 7 : 
           done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
@@ -2266,7 +2288,7 @@ bool ui::main_menu(bool & ok)
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
           case 17 : 
-            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
+            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
           case 18 : 

@@ -3,8 +3,8 @@
 
 #include "rx.h"
 
-const uint32_t step_sizes[11] = {10, 50, 100, 1000, 5000, 9000, 10000, 12500, 25000, 50000, 100000};
-const char steps[11][8]  = { "10Hz", "50Hz", "100Hz", "1kHz", "5kHz", "9kHz", "10kHz", "12.5kHz", "25kHz", "50kHz", "100kHz"};
+const uint32_t step_sizes[13] = {10, 50, 100, 500, 1000, 5000, 6250, 9000, 10000, 12500, 25000, 50000, 100000};
+const char steps[13][8]  = { "10Hz", "50Hz", "100Hz", "500Hz", "1kHz", "5kHz", "6.25kHz", "9kHz", "10kHz", "12.5kHz", "25kHz", "50kHz", "100kHz"};
 
 const uint8_t  autosave_chan_size = 32;
 const uint8_t  memory_chan_size = 16;
@@ -93,7 +93,7 @@ const s_settings default_settings = {
   0,        //mode = AM
   3,        //agc_setting = very_slow
   10,       //agc_gain
-  3,        //step = 1kHz
+  4,        //step = 1kHz
   2,        //bandwidth = normal
 }, {
   5,  //volume

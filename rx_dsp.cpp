@@ -265,8 +265,15 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
 {
-   static int32_t phi_locked = 0;
-   static int32_t freq_locked = 0;
+    static int32_t phi_locked = 0;
+    static int32_t freq_locked = 0;
+
+    int16_t phase = rectangular_2_phase(i, q);
+    int16_t frequency = phase - last_phase;
+    last_phase = phase;
+
+    frequency_accumulator += frequency;
+    frequency_count ++;
 
     if(mode == AM)
     {
@@ -331,9 +338,6 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
     }
     else if(mode == FM)
     {
-        int16_t phase = rectangular_2_phase(i, q);
-        int16_t frequency = phase - last_phase;
-        last_phase = phase;
 
         return frequency;
     }
@@ -710,4 +714,17 @@ bool rx_dsp::get_raw_data(int16_t &i, int16_t &q)
   i = data & 0xffff;
   q = (data >> 16) & 0xffff;
   return success;
+}
+
+float rx_dsp::get_tuning_offset_Hz()
+{
+
+  if(frequency_count > 30000)
+  {
+    float average_frequency = (float)frequency_accumulator/(float)frequency_count;
+    frequency_offset_Hz = (audio_sample_rate * average_frequency)/(32767.0f * decimation_rate);
+    frequency_accumulator = 0;
+    frequency_count = 0;
+  }
+  return -frequency_offset_Hz;
 }

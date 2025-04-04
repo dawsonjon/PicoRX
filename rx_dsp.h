@@ -29,6 +29,7 @@ class rx_dsp
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
   bool get_raw_data(int16_t &i, int16_t &q);
+  float get_tuning_offset_Hz();
 
   private:
   
@@ -71,6 +72,9 @@ class rx_dsp
   int32_t dither;
   uint32_t phase;
   int32_t frequency;
+  int64_t frequency_accumulator = 0;
+  int32_t frequency_count = 0;
+  float frequency_offset_Hz = 0.0f;
 
   //used to generate cw sidetone
   int16_t cw_i, cw_q;
