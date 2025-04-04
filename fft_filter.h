@@ -28,6 +28,7 @@ struct s_filter_control
   int16_t fft_bin;
   int8_t noise_smoothing;
   int8_t noise_threshold;
+  uint8_t spectrum_smoothing;
   bool lower_sideband; 
   bool upper_sideband; 
   bool capture;

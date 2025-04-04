@@ -33,7 +33,7 @@ int main()
 
     std::cerr << "input frame" << frame << std::endl;
 
-    noise_reduction(i, q, noise_estimate, signal_estimate, 0, 127);
+    noise_reduction(i, q, noise_estimate, signal_estimate, 0, 127, 11, 4);
 
     std::cerr << "output frame" << frame++ << std::endl;
 

@@ -140,6 +140,7 @@ class ui
   bool noise_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
+  bool spectrum_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);

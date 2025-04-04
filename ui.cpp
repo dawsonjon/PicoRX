@@ -1058,7 +1058,6 @@ void ui::autosave()
 //remember settings across power cycles
 void ui::autorestore()
 {
-  printf("restoring settings\n");
   autosave_restore_settings(settings);
   apply_settings(false);
 
@@ -2202,7 +2201,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2278,8 +2277,7 @@ bool ui::main_menu(bool & ok)
             done = bit_entry("IQ\ncorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
           case 14 : 
-            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
-            zoom = settings.global.spectrum_zoom; 
+            done = spectrum_menu(ok);
             break;
           case 15 :  
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
@@ -2297,6 +2295,61 @@ bool ui::main_menu(bool & ok)
             break;
           case 19 : 
             done = configuration_menu(ok);
+            break;
+        }
+        if(done)
+        {
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+    }
+
+    return false;
+}
+
+bool ui::spectrum_menu(bool & ok)
+{
+
+    enum e_ui_state {select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#", &menu_selection, ok))
+      {
+        if(ok) 
+        {
+          //ok button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+       bool done = false;
+       bool changed = false;
+       switch(menu_selection)
+        {
+          case 0 : 
+            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
+            zoom = settings.global.spectrum_zoom; 
+            break;
+          case 1 : 
+            done = number_entry("Spectrum\nSmoothing", "%i", 1, 4, 1, settings.global.spectrum_smoothing, ok, changed);
+            if(changed) apply_settings(false);
             break;
         }
         if(done)

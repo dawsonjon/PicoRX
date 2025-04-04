@@ -49,6 +49,7 @@ struct rx_settings
   uint8_t noise_threshold;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
+  uint8_t spectrum_smoothing;
   bool enable_external_nco;
 
 };

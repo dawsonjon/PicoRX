@@ -462,6 +462,7 @@ rx_dsp :: rx_dsp()
   filter_control.enable_noise_reduction = false;
   filter_control.noise_smoothing = 10;
   filter_control.noise_threshold = 1;
+  filter_control.spectrum_smoothing = 1;
 
   //clear cic filter
   decimate_count=0;
@@ -478,6 +479,11 @@ rx_dsp :: rx_dsp()
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
+}
+
+void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
+{
+  filter_control.spectrum_smoothing = spectrum_smoothing;
 }
 
 void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold)

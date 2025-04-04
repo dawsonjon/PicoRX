@@ -53,13 +53,13 @@ with open("test.wav", "rb") as inf:
       outf.write(audio.tobytes())
     
 
-if True:
+if False:
   f, ax = plt.subplots(2,1)
   time = 64*np.arange(len(plot_bin))/Fs
   ax[0].plot(time, 20*np.log10(np.array(plot_bin)))
   ax[0].plot(time, 20*np.log10(np.array(noise_bin)))
   ax[0].plot(time, 20*np.log10(np.array(signal_bin)))
-  ax[1].plot(time, np.array(gain_bin))
+  #ax[1].plot(time, np.array(gain_bin))
   #plt.plot(time, np.array(snr_bin)*100000)
   plt.show()
 

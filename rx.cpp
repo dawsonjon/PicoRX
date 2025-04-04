@@ -304,6 +304,9 @@ void rx::apply_settings()
       //apply Automatic Notch Filter
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
 
+      //apply Spectrum Smoothing
+      rx_dsp_inst.set_spectrum_smoothing(settings_to_apply.spectrum_smoothing);
+
       //apply Noise Reduction
       rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction, settings_to_apply.noise_estimation, settings_to_apply.noise_threshold);
 
