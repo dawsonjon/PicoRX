@@ -19,12 +19,11 @@ waterfall::waterfall()
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
 
-    #define PIN_MISO 12
+    #define PIN_MISO 8
     #define PIN_CS   13
     #define PIN_SCK  14
     #define PIN_MOSI 15 
     #define PIN_DC   11
-    #define PIN_RST  10
     #define SPI_PORT spi1
     spi_init(SPI_PORT, 75000000);
     //spi_init(SPI_PORT, 40000000);
@@ -35,9 +34,7 @@ waterfall::waterfall()
     gpio_set_dir(PIN_CS, GPIO_OUT);
     gpio_init(PIN_DC);
     gpio_set_dir(PIN_DC, GPIO_OUT);
-    gpio_init(PIN_RST);
-    gpio_set_dir(PIN_RST, GPIO_OUT);
-    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, PIN_RST, 320, 240, R0DEG);
+    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240, R0DEG);
 }
 
 waterfall::~waterfall()

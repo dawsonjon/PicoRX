@@ -54,12 +54,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     a = a + (~b) + 1;
 #endif
 
-ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t width, uint16_t height, ILI934X_ROTATION rotation)
+ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width, uint16_t height, ILI934X_ROTATION rotation)
 {
     _spi = spi;
     _cs = cs;
     _dc = dc;
-    _rst = rst;
     _init_width = _width = width;
     _init_height = _height = height;
     _rotation = rotation;
@@ -72,17 +71,8 @@ ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t 
     channel_config_set_write_increment(&dma_config, false);
 }
 
-void ILI934X::reset()
-{
-    //gpio_put(_rst, 0);
-    //sleep_us(100);
-    gpio_put(_rst, 1);
-}
-
 void ILI934X::init()
 {
-    reset();
-
     _write(_SWRST, NULL, 0);
     sleep_ms(5);
     _write(_RDDSDR, (uint8_t *)"\x03\x80\x02", 3);

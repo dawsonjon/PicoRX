@@ -109,9 +109,8 @@ enum ILI934X_ROTATION
 class ILI934X
 {
 public:
-    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint8_t rst, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG);
+    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG);
 
-    void reset();
     void init();
     void setRotation(ILI934X_ROTATION rotation, bool invert_colours);
     void setPixel(uint16_t x, uint16_t y, uint16_t colour);
@@ -139,7 +138,6 @@ private:
     spi_inst_t *_spi = NULL;
     uint8_t _cs;
     uint8_t _dc;
-    uint8_t _rst;
     uint16_t _width;
     uint16_t _height;
     ILI934X_ROTATION _rotation;
