@@ -12,7 +12,7 @@
 #include "ring_buffer_lib.h"
 
 //ring buffer for USB data
-#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
+#define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_ring_buffer;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
@@ -407,14 +407,16 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
 
 static void on_usb_audio_tx_ready()
 {
-  uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
+  uint16_t usb_in_buf[SAMPLE_BUFFER_SIZE / 2] = {0};
+  uint16_t usb_out_buf[SAMPLE_BUFFER_SIZE] = {0};
 
-  // Callback from TinyUSB library when all data is ready
-  // to be transmitted.
-  //
-  // Write local buffer to the USB microphone
-  ring_buffer_pop(&usb_ring_buffer, usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, sizeof(usb_buf));
+  ring_buffer_pop(&usb_ring_buffer, (uint8_t *)usb_in_buf, sizeof(usb_in_buf));
+  // intersperse stereo channels 
+  for (size_t i = 0; i < SAMPLE_BUFFER_SIZE / 2; i++) {
+    usb_out_buf[2 * i] = usb_in_buf[i];
+    usb_out_buf[2 * i + 1] = usb_in_buf[i];
+  }
+  usb_audio_device_write(usb_out_buf, sizeof(usb_out_buf));
 }
 
 

@@ -11,7 +11,8 @@
 #include "tusb.h"
 
 #define USB_A_SAMPLE_RATE (CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE)
-#define SAMPLE_BUFFER_SIZE ((CFG_TUD_AUDIO_EP_SZ_IN / 2) - 1)
+#define SAMPLE_BUFFER_SIZE \
+  ((CFG_TUD_AUDIO_EP_SZ_IN / 2) - CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX)
 
 #ifdef __cplusplus
 extern "C"
