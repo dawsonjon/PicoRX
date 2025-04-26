@@ -40,6 +40,7 @@ struct rx_settings
   bool swap_iq;
   bool iq_correction;
   bool enable_auto_notch;
+  bool stream_raw_iq;
 };
 
 struct rx_status
@@ -111,6 +112,9 @@ class rx
 
   //volume control
   int16_t gain_numerator=0;
+
+  // USB streaming mode
+  uint8_t stream_raw_iq;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

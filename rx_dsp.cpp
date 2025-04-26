@@ -92,7 +92,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
   uint16_t decimated_index = 0;
   int32_t magnitude_sum = 0;
-  int16_t iq[sizeof(int16_t) * adc_block_size / cic_decimation_rate];
+  int16_t iq[2 * adc_block_size / cic_decimation_rate];
 
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
