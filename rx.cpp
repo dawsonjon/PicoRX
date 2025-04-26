@@ -430,7 +430,7 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
 
   //process adc IQ samples to produce raw audio
   int16_t usb_audio[adc_block_size/decimation_rate];
-  uint16_t num_samples = rx_dsp_inst.process_block(adc_samples, usb_audio);
+  uint16_t num_samples = rx_dsp_inst.process_block(adc_samples, usb_audio, NULL);
   
   //post process audio for USB and PWM
   uint16_t odx = 0;

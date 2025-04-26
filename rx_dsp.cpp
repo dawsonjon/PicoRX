@@ -87,7 +87,7 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
     }
 }
 
-uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
+uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[], ring_buffer_t *iq_samples)
 {
 
   uint16_t decimated_index = 0;
@@ -156,6 +156,12 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   capture_filter_control = filter_control;
   fft_filter_inst.process_sample(iq, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
+
+  if (iq_samples) {
+    ring_buffer_push_ovr(
+        iq_samples, (uint8_t *)iq,
+        2 * sizeof(int16_t) * adc_block_size / decimation_rate);
+  }
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
