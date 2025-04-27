@@ -59,7 +59,7 @@ class fft_filter
       last_output_imag[i] = 0;
     }
   }
-  void process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]);
+  void process_sample(int16_t sample_iq[], s_filter_control &filter_control, int16_t capture[]);
 
 };
 

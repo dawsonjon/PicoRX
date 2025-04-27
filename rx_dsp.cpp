@@ -87,13 +87,12 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
     }
 }
 
-uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[])
+uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[], ring_buffer_t *iq_samples)
 {
 
   uint16_t decimated_index = 0;
   int32_t magnitude_sum = 0;
-  int16_t real[adc_block_size/cic_decimation_rate];
-  int16_t imag[adc_block_size/cic_decimation_rate];
+  int16_t iq[2 * adc_block_size / cic_decimation_rate];
 
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
@@ -145,9 +144,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         } 
         #endif 
 
-        real[decimated_index] = i;
-        imag[decimated_index] = q;
-        ++decimated_index;
+        iq[decimated_index] = i;
+        iq[decimated_index + 1] = q;
+        decimated_index+=2;
       }
   }
 
@@ -155,13 +154,19 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   //if the capture buffer isn't in use, fill it
   filter_control.capture = sem_try_acquire(&spectrum_semaphore);
   capture_filter_control = filter_control;
-  fft_filter_inst.process_sample(real, imag, filter_control, capture);
+  fft_filter_inst.process_sample(iq, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
+
+  if (iq_samples) {
+    ring_buffer_push_ovr(
+        iq_samples, (uint8_t *)iq,
+        2 * sizeof(int16_t) * adc_block_size / decimation_rate);
+  }
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
-    int16_t i = real[idx];
-    int16_t q = imag[idx];
+    const int16_t i = iq[2 * idx];
+    const int16_t q = iq[2 * idx + 1];
 
     //Measure amplitude (for signal strength indicator)
     int32_t amplitude = rectangular_2_magnitude(i, q);

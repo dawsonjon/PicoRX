@@ -5,13 +5,14 @@
 #include "rx_definitions.h"
 #include "pico/sem.h"
 #include "fft_filter.h"
+#include "ring_buffer_lib.h"
 
 class rx_dsp
 {
   public:
 
   rx_dsp();
-  uint16_t process_block(uint16_t samples[], int16_t audio_samples[]);
+  uint16_t process_block(uint16_t samples[], int16_t audio_samples[], ring_buffer_t *iq_samples);
   void set_frequency_offset_Hz(double offset_frequency);
   void set_agc_speed(uint8_t agc_setting);
   void set_mode(uint8_t mode, uint8_t bw);
