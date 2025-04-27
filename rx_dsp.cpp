@@ -9,6 +9,21 @@
 #include <cstdio>
 #include <algorithm>
 
+static void agc_cc(int16_t *i_out, int16_t *q_out) {
+  static int32_t K = 3276;
+  const int32_t M = 327600 * 2;
+  const int16_t R = 10 * 327;
+  const int16_t r = 22936;
+
+  *i_out = *i_out * (K >> 16);
+  *q_out = *q_out * (K >> 16);
+
+  K += (R * (r - rectangular_2_magnitude(*i_out, *q_out))) >> 16;
+  if (K > M) {
+    K = M;
+  }
+}
+
 static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
@@ -157,12 +172,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(iq, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
-  if (iq_samples) {
-    ring_buffer_push_ovr(
-        iq_samples, (uint8_t *)iq,
-        2 * sizeof(int16_t) * adc_block_size / decimation_rate);
-  }
-
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
     const int16_t i = iq[2 * idx];
@@ -189,6 +198,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //output raw audio
     audio_samples[idx] = audio;
+    agc_cc(&iq[2 * idx], &iq[2 * idx + 1]);
+  }
+
+  if (iq_samples) {
+    ring_buffer_push_ovr(
+        iq_samples, (uint8_t *)iq,
+        2 * sizeof(int16_t) * adc_block_size / decimation_rate);
   }
 
   //average over the number of samples
