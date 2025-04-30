@@ -2,6 +2,7 @@
 #include <float.h>
 #include <math.h>
 
+#include "hardware.h"
 #include "pico/multicore.h"
 #include "ui.h"
 #include "fft_filter.h"
@@ -261,7 +262,7 @@ void ui::display_draw_battery(float v, uint8_t x)
   u8g2_DrawHLine(&u8g2, x+0, 13, 14);
 
 
-  const bool vbus_present = gpio_get(24);
+  const bool vbus_present = gpio_get(PIN_VBUS);
 
   if(vbus_present)
   {
@@ -2250,8 +2251,8 @@ bool ui::configuration_menu(bool &ok)
 
         case 1 : 
           done = enumerate_entry("PSU Mode", "FM#PWM#", &regmode, ok, changed);
-          gpio_set_dir(23, GPIO_OUT);
-          gpio_put(23, regmode);
+          gpio_set_dir(PSU_PIN, GPIO_OUT);
+          gpio_put(PSU_PIN, regmode);
           break;
 
         case 2 : 
@@ -2791,10 +2792,12 @@ void ui::do_ui()
     }
 }
 
+/*
 #define OLED_I2C_SDA_PIN (18)
 #define OLED_I2C_SCL_PIN (19)
 #define OLED_I2C_SPEED (400UL)
 #define OLED_I2C_INST (i2c1)
+*/
 
 static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
 {
@@ -2843,11 +2846,11 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
         break;
 
     case U8X8_MSG_BYTE_INIT:
-        i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
-        gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
-        gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
-        gpio_pull_up(OLED_I2C_SDA_PIN);
-        gpio_pull_up(OLED_I2C_SCL_PIN);
+        i2c_init(I2C_INST, I2C_SPEED * 1000);
+        gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+        gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
+        gpio_pull_up(I2C_SDA_PIN);
+        gpio_pull_up(I2C_SCL_PIN);
         break;
 
     case U8X8_MSG_BYTE_SET_DC:
@@ -2860,7 +2863,7 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
     case U8X8_MSG_BYTE_END_TRANSFER:
     {
         uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
-        int ret = i2c_write_blocking(OLED_I2C_INST, addr, buffer, buf_idx, false);
+        int ret = i2c_write_blocking(I2C_INST, addr, buffer, buf_idx, false);
         if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
         {
             return 0;
@@ -2898,9 +2901,9 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
-  gpio_init(24);
-  gpio_set_dir(24, GPIO_IN);
-  gpio_pull_down(24);
+  gpio_init(PIN_VBUS);
+  gpio_set_dir(PIN_VBUS, GPIO_IN);
+  gpio_pull_down(PIN_VBUS);
 
   setup_display();
   setup_encoder();
