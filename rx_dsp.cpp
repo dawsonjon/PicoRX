@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "pico/stdlib.h"
 #include "cic_corrections.h"
+#include "noise_canceler.h"
 
 #include <math.h>
 #include <cstdio>
@@ -457,6 +458,7 @@ rx_dsp :: rx_dsp()
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_speed(3);
   filter_control.enable_auto_notch = false;
+  filter_control.enable_noise_canceler = false;
 
   //clear cic filter
   decimate_count=0;
@@ -468,11 +470,18 @@ rx_dsp :: rx_dsp()
   delayi1=0; delayq1=0;
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
+
+  noise_canceler_init();
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
+}
+
+void rx_dsp :: set_noise_canceler(bool enable_noise_canceler)
+{
+  filter_control.enable_noise_canceler = enable_noise_canceler;
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)

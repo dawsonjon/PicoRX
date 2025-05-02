@@ -41,6 +41,7 @@ struct rx_settings
   bool iq_correction;
   bool enable_auto_notch;
   bool stream_raw_iq;
+  bool enable_noise_canceler;
 };
 
 struct rx_status
