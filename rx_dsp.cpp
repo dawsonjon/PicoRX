@@ -479,9 +479,15 @@ void rx_dsp :: set_auto_notch(bool enable_auto_notch)
   filter_control.enable_auto_notch = enable_auto_notch;
 }
 
-void rx_dsp :: set_noise_canceler(bool enable_noise_canceler)
+void rx_dsp :: set_noise_canceler(uint8_t noise_canceler_mode)
 {
-  filter_control.enable_noise_canceler = enable_noise_canceler;
+  if (noise_canceler_mode) {
+    filter_control.enable_noise_canceler = true;
+    noise_canceler_set_mode((nc_mode_e)noise_canceler_mode);
+    noise_canceler_init();
+  } else {
+    filter_control.enable_noise_canceler = false;
+  }
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)

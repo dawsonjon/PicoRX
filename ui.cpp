@@ -1026,7 +1026,7 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
   settings_to_apply.agc_speed = settings[idx_agc_speed];
   settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-  settings_to_apply.enable_noise_canceler = settings[idx_rx_features] >> flag_enable_noise_canceler & 1;
+  settings_to_apply.noise_canceler_mode = settings[idx_rx_features] >> flag_noise_canceler_mode & 3;
   settings_to_apply.mode = settings[idx_mode];
   settings_to_apply.volume = settings[idx_volume];
   settings_to_apply.squelch = settings[idx_squelch];
@@ -2423,8 +2423,12 @@ bool ui::main_menu(bool & ok)
           case 8 :  
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
-          case 9 :  
-            done = bit_entry("Noise\nCanceler", "Off#On#", flag_enable_noise_canceler, &settings[idx_rx_features], ok);
+          case 9 :
+            settings_word = (settings[idx_rx_features] & mask_noise_canceler_mode) >> flag_noise_canceler_mode;
+            done = enumerate_entry("Noise\nCanceler", "Off#Soft#Hard#", &settings_word, ok, changed);
+            settings[idx_rx_features] &= ~(mask_noise_canceler_mode);
+            settings[idx_rx_features] |= ((settings_word << flag_noise_canceler_mode) & mask_noise_canceler_mode);
+            if(changed) apply_settings(false);
             break;
           case 10 :
             settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
