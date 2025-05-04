@@ -91,6 +91,11 @@ void noise_canceler_set_mode(nc_mode_e m) { mode = m; }
 
 void noise_canceler_update(uint16_t mags[]) {
   for (uint16_t i = 0; i < MAG_SIZE; i++) {
+    // Omit zero magnitudes from the analysis completely,
+    // as they are not meaningful
+    if (mags[i] == 0) {
+      continue;
+    }
     if (mode == nc_mode_soft) {
       lpf_mags[i] = ((one_minus_k * (uint32_t)mags[i]) >> 16) +
                     ((k * (uint32_t)lpf_mags[i]) >> 16);
@@ -105,27 +110,25 @@ void noise_canceler_update(uint16_t mags[]) {
       mmse = mag_min(mmse, frames[j][i]);
     }
 
-    if (mags[i] > 0) {
-      uint32_t snr = mmse > 0 ? ((mags[i] << 16) / mmse) : SNR_LIN_HIGH + 1;
-      uint32_t a_alpha;
-      if (snr < SNR_LIN_LOW) {
-        a_alpha = ALPHA_HIGH;
-      } else if (snr > SNR_LIN_HIGH) {
-        a_alpha = ALPHA_LOW;
-      } else {
-        uint16_t idx = (snr - SNR_LIN_LOW) / SNR_LUT_SCALE;
-        a_alpha = alpha_lut[idx];
-      }
+    uint32_t snr = mmse > 0 ? ((mags[i] << 16) / mmse) : SNR_LIN_HIGH + 1;
+    uint32_t adaptive_alpha;
+    if (snr < SNR_LIN_LOW) {
+      adaptive_alpha = ALPHA_HIGH;
+    } else if (snr > SNR_LIN_HIGH) {
+      adaptive_alpha = ALPHA_LOW;
+    } else {
+      uint16_t idx = (snr - SNR_LIN_LOW) / SNR_LUT_SCALE;
+      adaptive_alpha = alpha_lut[idx];
+    }
 
-      const uint32_t alpha = (mode == nc_mode_soft) ? a_alpha : (100 * FIX_ONE);
-      const uint32_t r = (alpha * mmse) / mags[i];
-      const uint32_t s =
-          (mode == nc_mode_soft) ? ((LAMBDA * mmse) / mags[i]) : LAMBDA;
-      if (r > (FIX_ONE - s)) {
-        mags[i] = s;
-      } else {
-        mags[i] = FIX_ONE - r;
-      }
+    const uint32_t alpha =
+        (mode == nc_mode_soft) ? adaptive_alpha : (50 * FIX_ONE);
+    const uint32_t r = (alpha * mmse) / mags[i];
+    const uint32_t s = LAMBDA;
+    if (r > (FIX_ONE - s)) {
+      mags[i] = s;
+    } else {
+      mags[i] = FIX_ONE - r;
     }
   }
 
