@@ -1271,6 +1271,11 @@ bool ui::upload_memory()
 
       }
 
+      display_clear();
+      display_print_str("Memories\nuploaded!",2, style_centered);
+      display_show();
+      sleep_ms(3000);
+
       return false;
 }
 
@@ -2328,15 +2333,18 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 13: 
-          setting_word = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok, changed);
-          if(setting_word==1) {
-            upload_memory();
-          } else if (setting_word==2) {
-            display_clear();
-            display_print_str("Ready for\nfirmware",2, style_centered);
-            display_show();
-            reset_usb_boot(0,0);
+          static uint32_t upload_type = 0;
+          done = enumerate_entry("USB Upload", "Memory#Firmware#", &upload_type, ok, changed);
+          if (done && ok) {
+            if (upload_type == 0) {
+              upload_memory();
+            } else if (upload_type == 1) {
+              display_clear();
+              display_print_str("Ready for\nfirmware", 2, style_centered);
+              display_show();
+              reset_usb_boot(0, 0);
+            }
+            upload_type = 0;
           }
           break;
       }
