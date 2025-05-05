@@ -5,7 +5,6 @@
 
 #include "pico/bootrom.h"
 #include "hardware/i2c.h"
-#include "quadrature_encoder.pio.h"
 #include "ssd1306.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
@@ -14,6 +13,7 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
+#include "rotary_encoder.h"
 #include "logo.h"
 #include "u8g2.h"
 
@@ -22,8 +22,6 @@
 #define M_PI 3.14159265
 #endif
 
-const uint8_t PIN_AB = 20;
-const uint8_t PIN_B  = 21;
 const uint8_t PIN_MENU = 22;
 const uint8_t PIN_BACK = 17;
 const uint8_t PIN_ENCODER_PUSH = 5;
@@ -127,13 +125,7 @@ class ui
     "S9+30dB---|"};
 
   // Encoder
-  void setup_encoder(void);
-  int32_t get_encoder_change(void);
-  int32_t encoder_control(int32_t *value, int32_t min, int32_t max);
-  int32_t new_position = 0;
-  int32_t old_position = 0;
-  const uint32_t sm = 0;
-  const PIO pio = pio1;
+  rotary_encoder main_encoder;
 
 
   // Buttons
