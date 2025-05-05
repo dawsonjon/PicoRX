@@ -8,54 +8,12 @@
 #include <hardware/flash.h>
 #include "pico/util/queue.h"
 #include "fonts.h"
+#include "rotary_encoder.h"
 
 #include <algorithm>
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
-
-////////////////////////////////////////////////////////////////////////////////
-// Encoder 
-////////////////////////////////////////////////////////////////////////////////
-void ui::setup_encoder()
-{
-    gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
-    gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
-    uint offset = pio_add_program(pio, &quadrature_encoder_program);
-    quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
-    } else {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    }
-    old_position = new_position;
-}
-
-int32_t ui::get_encoder_change(void)
-{
-    if ((settings[idx_hw_setup] >> flag_encoder_res) & 1) {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
-    } else {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    }
-    int32_t delta = new_position - old_position;
-    old_position = new_position;
-    if((settings[idx_hw_setup] >> flag_reverse_encoder) & 1)
-    {
-      return -delta;
-    } else {
-      return delta;
-    }
-}
-
-int32_t ui::encoder_control(int32_t *value, int32_t min, int32_t max)
-{
-	int32_t position_change = get_encoder_change();
-	*value += position_change;
-	if(*value > max) *value = min;
-	if(*value < min) *value = max;
-	return position_change;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Display
@@ -884,7 +842,7 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = encoder_control(&select, 0, max)!=0;
+    draw_display = main_encoder.control(&select, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -939,7 +897,7 @@ bool ui::enumerate_entry(const char title[], const char options[], uint32_t *val
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = changed = encoder_control((int32_t*)value, 0, max)!=0;
+    draw_display = changed = main_encoder.control((int32_t*)value, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -987,7 +945,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
   }
   else if(state == active)
   {
-    draw_display = changed = encoder_control((int32_t*)value, min, max)!=0;
+    draw_display = changed = main_encoder.control((int32_t*)value, min, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -1289,7 +1247,7 @@ bool ui::memory_store(bool &ok)
 
   if(state == select_channel)
   {
-      encoder_control(&select, min, max);
+      main_encoder.control(&select, min, max);
       get_memory_name(name, select, true);
 
       display_clear();
@@ -1438,7 +1396,7 @@ bool ui::memory_recall(bool &ok)
   else if(state == active)
   {
 
-    int32_t encoder_position = encoder_control(&select, min, max);
+    int32_t encoder_position = main_encoder.control(&select, min, max);
     load_and_update_display = encoder_position != 0;
 
     //skip blank channels
@@ -1581,7 +1539,7 @@ bool ui::memory_scan(bool &ok)
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
-    int32_t pos_change = get_encoder_change();
+    int32_t pos_change = main_encoder.get_change();
     if(listen || wait)
     {
       //if scanning is stopped, nudge (and possibly change direction)
@@ -1784,7 +1742,7 @@ bool ui::frequency_scan(bool &ok)
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
-    int32_t pos_change = get_encoder_change();
+    int32_t pos_change = main_encoder.get_change();
     if(listen)
     {
       //if scanning is stopped, nudge (and possibly change direction)
@@ -1970,7 +1928,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_position)
   {
       //change between chars
-      encoder_position = encoder_control(&position, 0, 19);
+      encoder_position = main_encoder.control(&position, 0, 19);
       if(encoder_position) draw_display = true;
 
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -2016,7 +1974,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_char)
   {
       //change value of char
-      encoder_position = encoder_control(&val, 0, 75);
+      encoder_position = main_encoder.control(&val, 0, 75);
       if(encoder_position) draw_display = true;
       string[position]=letters[val];
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -2098,7 +2056,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
   else if(state == digit_select)
   {
     //change between digits
-    encoder_control(&digit, 0, 9);
+    main_encoder.control(&digit, 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -2173,7 +2131,7 @@ bool ui::frequency_entry(const char title[], uint32_t which_setting, bool &ok){
   else if(state == digit_change)
   {
     //change the value of a digit 
-    encoder_control(&digits[digit], 0, 9);
+    main_encoder.control(&digits[digit], 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -2653,7 +2611,7 @@ void ui::do_ui()
       }
 
       //adjust frequency when encoder is turned
-      uint32_t encoder_change = get_encoder_change();
+      uint32_t encoder_change = main_encoder.get_change();
       if(encoder_change != 0)
       {
         display_time = time_us_32();
@@ -2766,7 +2724,7 @@ void ui::do_ui()
     //if display times out enter sleep mode
     else if(ui_state == sleep)
     {
-      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
+      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || main_encoder.get_change())
       {
         display_time = time_us_32();
         u8g2_SetPowerSave(&u8g2, 0);
@@ -2885,6 +2843,7 @@ void ui::update_display_type(void)
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 
+  main_encoder(settings),
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
@@ -2903,7 +2862,6 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   gpio_pull_down(24);
 
   setup_display();
-  setup_encoder();
   disp.buffer = u8g2.tile_buf_ptr;
 
   u8g2_SetI2CAddress(&u8g2, 0x78);
