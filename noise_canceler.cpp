@@ -97,8 +97,9 @@ void noise_canceler_update(uint16_t mags[]) {
       continue;
     }
     if (mode == nc_mode_soft) {
-      lpf_mags[i] = ((one_minus_k * (uint32_t)mags[i]) >> 16) +
-                    ((k * (uint32_t)lpf_mags[i]) >> 16);
+      lpf_mags[i] =
+          ((one_minus_k * (uint32_t)mags[i]) + (k * (uint32_t)lpf_mags[i])) >>
+          15;
       mags[i] = lpf_mags[i];
     }
 
