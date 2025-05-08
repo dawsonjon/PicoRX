@@ -5,10 +5,11 @@
 #include "rx_definitions.h"
 
 #define MAG_SIZE (new_fft_size)
-#define NUM_FRAMES (10)
+#define NUM_BINS (10)
 
 #define LAMBDA (1638)    // 0.05
 #define FIX_ONE (32767)  // 1.0
+#define ALPHA (50 * FIX_ONE)  // 50.0
 
 #define ALPHA_LOW (32767)    // 1
 #define ALPHA_HIGH (196602)  // 6
@@ -69,9 +70,9 @@ const float tau = 30e-3;  // 30ms
 const uint16_t k = FIX_ONE * expf(-tframe / tau);
 const uint16_t one_minus_k = FIX_ONE - k;
 
-static uint16_t frames[NUM_FRAMES][MAG_SIZE];
+static uint16_t mmse_bins[NUM_BINS][MAG_SIZE];
 static uint16_t lpf_mags[MAG_SIZE];
-static uint16_t frame_idx;
+static uint16_t bin_idx;
 static uint16_t count;
 static nc_mode_e mode = nc_mode_soft;
 
@@ -80,9 +81,9 @@ static inline uint16_t mag_min(uint16_t m1, uint16_t m2) {
 }
 
 void noise_canceler_init(void) {
-  for (uint16_t i = 0; i < NUM_FRAMES; i++) {
+  for (uint16_t i = 0; i < NUM_BINS; i++) {
     for (uint16_t j = 0; j < MAG_SIZE; j++) {
-      frames[i][j] = FIX_ONE;
+      mmse_bins[i][j] = FIX_ONE;
     }
   }
 }
@@ -103,15 +104,15 @@ void noise_canceler_update(uint16_t mags[]) {
       mags[i] = lpf_mags[i];
     }
 
-    frames[frame_idx][i] = mag_min(frames[frame_idx][i], mags[i]);
+    mmse_bins[bin_idx][i] = mag_min(mmse_bins[bin_idx][i], mags[i]);
 
     // Minimum Magnitude Spectral Estimate
-    uint32_t mmse = frames[0][i];
-    for (uint16_t j = 1; j < NUM_FRAMES; j++) {
-      mmse = mag_min(mmse, frames[j][i]);
+    uint32_t mmse = mmse_bins[0][i];
+    for (uint16_t j = 1; j < NUM_BINS; j++) {
+      mmse = mag_min(mmse, mmse_bins[j][i]);
     }
 
-    uint32_t snr = mmse > 0 ? ((mags[i] << 16) / mmse) : SNR_LIN_HIGH + 1;
+    const uint32_t snr = mmse > 0 ? ((mags[i] << 16) / mmse) : SNR_LIN_HIGH + 1;
     uint32_t adaptive_alpha;
     if (snr < SNR_LIN_LOW) {
       adaptive_alpha = ALPHA_HIGH;
@@ -122,8 +123,7 @@ void noise_canceler_update(uint16_t mags[]) {
       adaptive_alpha = alpha_lut[idx];
     }
 
-    const uint32_t alpha =
-        (mode == nc_mode_soft) ? adaptive_alpha : (50 * FIX_ONE);
+    const uint32_t alpha = (mode == nc_mode_soft) ? adaptive_alpha : ALPHA;
     const uint32_t r = (alpha * mmse) / mags[i];
     const uint32_t s = LAMBDA;
     if (r > (FIX_ONE - s)) {
@@ -135,10 +135,10 @@ void noise_canceler_update(uint16_t mags[]) {
 
   count++;
   if (count == frame_switch_tres) {
-    frame_idx = (frame_idx + 1) % NUM_FRAMES;
+    bin_idx = (bin_idx + 1) % NUM_BINS;
     count = 0;
     for (uint16_t i = 0; i < MAG_SIZE; i++) {
-      frames[frame_idx][i] = FIX_ONE;
+      mmse_bins[bin_idx][i] = FIX_ONE;
     }
   }
 }
