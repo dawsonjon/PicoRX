@@ -12,13 +12,23 @@
 static void agc_cc(int16_t *i_out, int16_t *q_out) {
   static int32_t K = 3276;
   const int32_t M = 327600 * 2;
-  const int16_t R = 10 * 327;
-  const int16_t r = 22936;
+  const int16_t r = 32767 / 2;
+  const int16_t decay_rate = 328;
+  const int16_t attack_rate = 3277;
 
-  *i_out = *i_out * (K >> 16);
-  *q_out = *q_out * (K >> 16);
+  const int16_t g = (K >> 16) > 0 ? K >> 16 : 1;
 
-  K += (R * (r - rectangular_2_magnitude(*i_out, *q_out))) >> 16;
+  *i_out = *i_out * g;
+  *q_out = *q_out * g;
+
+  const int16_t tmp = -r + rectangular_2_magnitude(*i_out, *q_out);
+  const int16_t rate = (tmp > K) ? attack_rate : decay_rate;
+
+  K -= (tmp * rate) >> 16;
+  if (K < 0) {
+    K = 0;
+  }
+
   if (K > M) {
     K = M;
   }
