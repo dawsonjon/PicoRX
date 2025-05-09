@@ -4,13 +4,32 @@
 
 int16_t sin_table[2048];
 
-//from: http://dspguru.com/dsp/tricks/magnitude-estimator/
-uint16_t rectangular_2_magnitude(int16_t i, int16_t q)
-{
-  //Measure magnitude
-  const int16_t absi = i>0?i:-i;
-  const int16_t absq = q>0?q:-q;
-  return absi > absq ? absi + absq / 4 : absq + absi / 4;
+static const uint32_t GAIN = roundf(0.610334f * (1 << 16));
+
+uint16_t rectangular_2_magnitude(int16_t i, int16_t q) {
+  int16_t tempI;
+
+  if (i < 0 && q >= 0) {
+    i = std::abs(i);
+  } else if (i < 0 && q < 0) {
+    i = std::abs(i);
+    q = std::abs(q);
+  }
+
+  for (uint16_t k = 0; k < 4; k++) {
+    tempI = i;
+    if (q > 0) {
+      /* Rotate clockwise */
+      i += (q >> k);
+      q -= (tempI >> k);
+    } else {
+      /* Rotate counterclockwise */
+      i -= (q >> k);
+      q += (tempI >> k);
+    }
+  }
+  uint16_t m = ((uint32_t)i * GAIN) >> 16;
+  return m;
 }
 
 //from: https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
