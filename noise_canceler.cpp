@@ -2,13 +2,14 @@
 
 #include <string.h>
 
+#include "fft_filter.h"
 #include "rx_definitions.h"
 
 #define MAG_SIZE (new_fft_size)
 #define NUM_BINS (10)
 
-#define LAMBDA (1638)    // 0.05
-#define FIX_ONE (32767)  // 1.0
+#define LAMBDA (1638)         // 0.05
+#define FIX_ONE (32767)       // 1.0
 #define ALPHA (50 * FIX_ONE)  // 50.0
 
 #define ALPHA_LOW (32767)    // 1
@@ -81,6 +82,7 @@ static inline uint16_t mag_min(uint16_t m1, uint16_t m2) {
 }
 
 void noise_canceler_init(void) {
+  mode = nc_mode_soft;
   for (uint16_t i = 0; i < NUM_BINS; i++) {
     for (uint16_t j = 0; j < MAG_SIZE; j++) {
       mmse_bins[i][j] = FIX_ONE;
@@ -92,16 +94,16 @@ void noise_canceler_set_mode(nc_mode_e m) { mode = m; }
 
 void noise_canceler_update(uint16_t mags[]) {
   for (uint16_t i = 0; i < MAG_SIZE; i++) {
-    // Omit zero magnitudes from the analysis completely,
-    // as they are not meaningful
-    if (mags[i] == 0) {
-      continue;
-    }
     if (mode == nc_mode_soft) {
       lpf_mags[i] =
           ((one_minus_k * (uint32_t)mags[i]) + (k * (uint32_t)lpf_mags[i])) >>
           15;
       mags[i] = lpf_mags[i];
+    }
+    // Omit zero magnitudes from the analysis completely,
+    // as they are not meaningful
+    if (mags[i] == 0) {
+      continue;
     }
 
     mmse_bins[bin_idx][i] = mag_min(mmse_bins[bin_idx][i], mags[i]);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fft_filter.h"
+#include <stdint.h>
 
 typedef enum {
   nc_mode_soft = 1,
