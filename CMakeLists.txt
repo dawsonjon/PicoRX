@@ -42,6 +42,7 @@ if(PICO_BOARD STREQUAL "pico")
       waterfall.cpp
       button.cpp
       cat.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -100,6 +101,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       waterfall.cpp
       button.cpp
       cat.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -154,6 +156,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       waterfall.cpp
       button.cpp
       cat.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
