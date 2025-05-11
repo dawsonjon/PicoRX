@@ -21,7 +21,9 @@ class rx_dsp
   void set_squelch(uint8_t val);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
-  void set_deemphasis(uint8_t deemphasis);
+  void set_deemphasis(uint8_t deemph);
+  void set_treble(uint8_t tr);
+  void set_bass(uint8_t bs);
   void set_auto_notch(bool enable_auto_notch);
   void set_noise_canceler(uint8_t noise_canceler_mode);
   int16_t get_signal_strength_dBm();
@@ -36,6 +38,8 @@ class rx_dsp
   int16_t demodulate(int16_t i, int16_t q);
   int16_t automatic_gain_control(int16_t audio);
   int16_t apply_deemphasis(int16_t x);
+  int16_t apply_treble(int16_t x);
+  int16_t apply_bass(int16_t x);
   void iq_imbalance_correction(int16_t &i, int16_t &q);
 
   //capture samples for spectral analysis
@@ -82,6 +86,12 @@ class rx_dsp
 
   // de-emphasis
   uint8_t deemphasis=0;
+
+  // treble
+  uint8_t treble = 0;
+
+  //bass
+  uint8_t bass = 0;
 
   //squelch
   int16_t squelch_threshold=0;
