@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
+#include "pwm_audio_sink.h"
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
@@ -24,17 +25,7 @@ dma_channel_config rx::pong_cfg;
 uint16_t rx::ping_samples[adc_block_size];
 uint16_t rx::pong_samples[adc_block_size];
 
-//buffers and dma for PWM audio output
-int rx::audio_pwm_slice_num;
-int rx::pwm_dma_ping;
-int rx::pwm_dma_pong;
-dma_channel_config rx::audio_ping_cfg;
-dma_channel_config rx::audio_pong_cfg;
-int16_t rx::ping_audio[adc_block_size];
-int16_t rx::pong_audio[adc_block_size];
 bool rx::audio_running;
-uint16_t rx::num_ping_samples;
-uint16_t rx::num_pong_samples;
 
 //dma for capture
 int rx::capture_dma;
@@ -52,20 +43,13 @@ void rx::dma_handler() {
 
     if(dma_hw->ints0 & (1u << adc_dma_ping))
     {
-      dma_channel_configure(adc_dma_ping, &ping_cfg, ping_samples, &adc_hw->fifo, adc_block_size, false);
-      if(audio_running){
-        dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio, num_pong_samples, true);
-      }
+      dma_channel_set_write_addr(adc_dma_ping, ping_samples, false);
       dma_hw->ints0 = 1u << adc_dma_ping;
     }
 
     if(dma_hw->ints0 & (1u << adc_dma_pong))
     {
-      dma_channel_configure(adc_dma_pong, &pong_cfg, pong_samples, &adc_hw->fifo, adc_block_size, false);
-      dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio, num_ping_samples, true);
-      if(!audio_running){
-        audio_running = true;
-      }
+      dma_channel_set_write_addr(adc_dma_pong, pong_samples, false);
       dma_hw->ints0 = 1u << adc_dma_pong;
     }
 
@@ -80,44 +64,6 @@ void rx::access(bool s)
 void rx::release()
 {
   sem_release(&settings_semaphore);
-}
-
-void rx::pwm_ramp_down()
-{
-  //generated a raised cosine slope to move between VCC/2 and 0
-  uint32_t frequency_Hz = 1u;
-  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
-  uint32_t phase = (1u<<30u); //90 degrees
-  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
-
-  int16_t level;
-  for(uint32_t sample = 0; sample<num_samples; sample++)
-  {
-    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
-    level = std::min(level, (int16_t)pwm_max);
-    level = std::max(level, (int16_t)0);
-    phase += phase_increment;
-    pwm_set_gpio_level(16, level);
-  }
-}
-
-void rx::pwm_ramp_up()
-{
-  //generated a raised cosine slope to move between 0 and VCC/2
-  uint32_t frequency_Hz = 1u;
-  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
-  uint32_t phase = -(1u<<30u); //90 degrees
-  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
-
-  int16_t level;
-  for(uint32_t sample = 0; sample<num_samples; sample++)
-  {
-    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
-    level = std::min(level, (int16_t)pwm_max);
-    level = std::max(level, (int16_t)0);
-    phase += phase_increment;
-    pwm_set_gpio_level(16, level);
-  }
 }
 
 void rx::update_status()
@@ -151,6 +97,7 @@ void rx::apply_settings()
       tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
 
       uint32_t system_clock_rate;
+      pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
       nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
@@ -204,9 +151,7 @@ void rx::apply_settings()
       }
 
       //apply pwm_max
-      pwm_max = (system_clock_rate/audio_sample_rate)-1;
-      pwm_scale = 1+((INT16_MAX * 2)/pwm_max);
-      pwm_set_wrap(audio_pwm_slice_num, pwm_max); 
+      pwm_audio_sink_update_pwm_max((system_clock_rate/audio_sample_rate)-1);
 
       //apply frequency offset
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
@@ -336,32 +281,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     //settings semaphore
     sem_init(&settings_semaphore, 1, 1);
 
-    //audio output
-    const uint AUDIO_PIN = 16;
-    gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
-    gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
-    audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
-    pwm_config config = pwm_get_default_config();
-    pwm_config_set_clkdiv(&config, 1.f);
-    pwm_max = 520;
-    pwm_config_set_wrap(&config, pwm_max);
-    pwm_init(audio_pwm_slice_num, &config, true);
-
-    //configure DMA for audio transfers
-    pwm_dma_ping = dma_claim_unused_channel(true);
-    pwm_dma_pong = dma_claim_unused_channel(true);
-    audio_ping_cfg = dma_channel_get_default_config(pwm_dma_ping);
-    audio_pong_cfg = dma_channel_get_default_config(pwm_dma_pong);
-
-    channel_config_set_transfer_data_size(&audio_ping_cfg, DMA_SIZE_16);
-    channel_config_set_read_increment(&audio_ping_cfg, true);
-    channel_config_set_write_increment(&audio_ping_cfg, false);
-    channel_config_set_dreq(&audio_ping_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
-
-    channel_config_set_transfer_data_size(&audio_pong_cfg, DMA_SIZE_16);
-    channel_config_set_read_increment(&audio_pong_cfg, true);
-    channel_config_set_write_increment(&audio_pong_cfg, false);
-    channel_config_set_dreq(&audio_pong_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+    pwm_audio_sink_init();
 
     //configure DMA for audio transfers
     capture_dma = dma_claim_unused_channel(true);
@@ -426,7 +346,7 @@ static void on_usb_audio_tx_ready()
 }
 
 
-uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t pwm_audio[])
+void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audio[])
 {
   //capture usb volume and mute settings
   critical_section_enter_blocking(&usb_volumute);
@@ -437,37 +357,15 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
   //process adc IQ samples to produce raw audio
   int16_t usb_audio[adc_block_size/decimation_rate];
   uint16_t num_samples = rx_dsp_inst.process_block(
-      adc_samples, usb_audio, stream_raw_iq ? &usb_ring_buffer : NULL);
+      adc_samples, audio, stream_raw_iq ? &usb_ring_buffer : NULL);
 
-  //post process audio for USB and PWM
-  uint16_t odx = 0;
   for(uint16_t idx=0; idx<num_samples; ++idx)
   {
-    int16_t audio = usb_audio[idx];
-
-    //digital volume control
-    audio = ((int32_t)audio * gain_numerator) >> 8;
-
-    //convert to unsigned value in range 0 to 500 to output to PWM
-    audio += INT16_MAX;
-    audio = (uint16_t)audio/pwm_scale;
-
-    //interpolate to PWM rate
-    static int16_t last_audio = 0;
-    int32_t comb = audio - last_audio;
-    last_audio = audio;
-    for(uint8_t subsample = 0; subsample < interpolation_rate; ++subsample)
-    {
-      static int32_t integrator = 0;
-      integrator += comb;
-      pwm_audio[odx++] = integrator >> 4;
-    }
-
     //usb audio volume is controlled from usb
     if (safe_usb_mute) {
       usb_audio[idx] = 0;
     } else {
-      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume) / 32767;
+      usb_audio[idx] = (audio[idx] * safe_usb_volume) / 32767;
     }
   }
 
@@ -481,8 +379,6 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
     ring_buffer_push_ovr(&usb_ring_buffer, (uint8_t *)tmp_audio,
                          sizeof(int16_t) * 2 * num_samples);
   }
-
-  return num_samples * interpolation_rate;
 }
 
 void rx::run()
@@ -505,7 +401,6 @@ void rx::run()
       if (settings_changed)
       {
         apply_settings();
-        pwm_ramp_up();
       }
 
       //read other adc channels when streaming is not running
@@ -527,6 +422,8 @@ void rx::run()
       dma_start_channel_mask(1u << adc_dma_ping);
       adc_run(true);
 
+      pwm_audio_sink_start();
+
       while(true)
       {
           //exchange data with UI (runing in core 0)
@@ -538,30 +435,25 @@ void rx::run()
 
             dma_channel_cleanup(adc_dma_ping);
             dma_channel_cleanup(adc_dma_pong);
-            dma_channel_cleanup(pwm_dma_ping);
-            dma_channel_cleanup(pwm_dma_pong);
+            pwm_audio_sink_stop();
 
             adc_run(false);
             adc_fifo_drain();
             adc_set_round_robin(0);
             adc_fifo_setup(false, false, 1, false, false);
-
-            if (settings_changed)
-            {
-              // slowly ramp down PWM to avoid pops
-              pwm_ramp_down();
-            }
-
             break;
           }
 
           //process adc data as each block completes
+          int16_t audio[PWM_AUDIO_NUM_SAMPLES];
           dma_channel_wait_for_finish_blocking(adc_dma_ping);
           uint32_t start_time = time_us_32();
-          num_ping_samples = process_block(ping_samples, ping_audio);
+          process_block(ping_samples, audio);
           busy_time = time_us_32()-start_time;
+          pwm_audio_sink_push(audio, gain_numerator);
           dma_channel_wait_for_finish_blocking(adc_dma_pong);
-          num_pong_samples = process_block(pong_samples, pong_audio);
+          process_block(pong_samples, audio);
+          pwm_audio_sink_push(audio, gain_numerator);
       }
 
       //suspended state
