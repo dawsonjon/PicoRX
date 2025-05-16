@@ -1026,6 +1026,7 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
   settings_to_apply.agc_speed = settings[idx_agc_speed];
   settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
+  settings_to_apply.noise_canceler_mode = settings[idx_rx_features] >> flag_noise_canceler_mode & 3;
   settings_to_apply.mode = settings[idx_mode];
   settings_to_apply.volume = settings[idx_volume];
   settings_to_apply.squelch = settings[idx_squelch];
@@ -1270,6 +1271,11 @@ bool ui::upload_memory()
         //!!! Normal operation resumed
 
       }
+
+      display_clear();
+      display_print_str("Memories\nuploaded!",2, style_centered);
+      display_show();
+      sleep_ms(3000);
 
       return false;
 }
@@ -2258,9 +2264,18 @@ bool ui::configuration_menu(bool &ok)
           done = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
           break;
 
-        case 3: 
-          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res, &settings[idx_hw_setup], ok);
-          break;
+        case 3: {
+          static uint32_t value = settings[idx_hw_setup];
+          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res,
+                           &value, ok);
+          if (done) {
+            if (ok) {
+              settings[idx_hw_setup] = value;
+            } else {
+              value = settings[idx_hw_setup];
+            }
+          }
+        } break;
 
         case 4 : 
           done = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
@@ -2328,15 +2343,18 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 13: 
-          setting_word = 0;
-          enumerate_entry("USB Upload", "Back#Memory#Firmware#", &setting_word, ok, changed);
-          if(setting_word==1) {
-            upload_memory();
-          } else if (setting_word==2) {
-            display_clear();
-            display_print_str("Ready for\nfirmware",2, style_centered);
-            display_show();
-            reset_usb_boot(0,0);
+          static uint32_t upload_type = 0;
+          done = enumerate_entry("USB Upload", "Memory#Firmware#", &upload_type, ok, changed);
+          if (done && ok) {
+            if (upload_type == 0) {
+              upload_memory();
+            } else if (upload_type == 1) {
+              display_clear();
+              display_print_str("Ready for\nfirmware", 2, style_centered);
+              display_show();
+              reset_usb_boot(0, 0);
+            }
+            upload_type = 0;
           }
           break;
       }
@@ -2361,7 +2379,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#De-\nEmphasis#IQ\nCorrection#USB\nStream#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC Speed#Bandwidth#Squelch#Auto Notch#Noise\nCanceler#De-\nEmphasis#IQ\nCorrection#USB\nStream#Spectrum\nZoom#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2423,39 +2441,46 @@ bool ui::main_menu(bool & ok)
             done = bit_entry("Auto Notch", "Off#On#", flag_enable_auto_notch, &settings[idx_rx_features], ok);
             break;
           case 9 :
+            settings_word = (settings[idx_rx_features] & mask_noise_canceler_mode) >> flag_noise_canceler_mode;
+            done = enumerate_entry("Noise\nCanceler", "Off#Soft#Hard#", &settings_word, ok, changed);
+            settings[idx_rx_features] &= ~(mask_noise_canceler_mode);
+            settings[idx_rx_features] |= ((settings_word << flag_noise_canceler_mode) & mask_noise_canceler_mode);
+            if(changed) apply_settings(false);
+            break;
+          case 10 :
             settings_word = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
             done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", &settings_word, ok, changed);
             settings[idx_rx_features] &= ~(mask_deemphasis);
             settings[idx_rx_features] |= ((settings_word << flag_deemphasis) & mask_deemphasis);
             if(changed) apply_settings(false);
             break;
-          case 10 : 
+          case 11 : 
             done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
             break;
-          case 11 : 
+          case 12 : 
             done = bit_entry("USB\nstream", "Audio#Raw IQ#", flag_stream_raw_iq, &settings[idx_rx_features], ok);
             break;
-          case 12 : 
+          case 13 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok, changed);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
-          case 13 :  
+          case 14 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 14 : 
+          case 15 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 15 : 
+          case 16 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok, changed);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 16 : 
+          case 17 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 17 : 
+          case 18 : 
             done = configuration_menu(ok);
             break;
         }
@@ -2882,6 +2907,13 @@ void ui::update_display_type(void)
   } else {
     u8g2_GetU8x8(&u8g2)->x_offset = 0;
   }
+}
+
+void ui::update_buttons(void)
+{
+  menu_button.update_state();
+  back_button.update_state();
+  encoder_button.update_state();
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 

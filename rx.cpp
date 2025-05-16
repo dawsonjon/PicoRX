@@ -223,6 +223,9 @@ void rx::apply_settings()
       //apply Automatic Notch Filter
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
 
+      //apply Noise Canceler
+      rx_dsp_inst.set_noise_canceler(settings_to_apply.noise_canceler_mode);
+
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
 
@@ -356,7 +359,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     //configure DMA for audio transfers
     capture_dma = dma_claim_unused_channel(true);
-    capture_cfg = dma_channel_get_default_config(pwm_dma_ping);
+    capture_cfg = dma_channel_get_default_config(capture_dma);
     channel_config_set_transfer_data_size(&capture_cfg, DMA_SIZE_16);
     channel_config_set_read_increment(&capture_cfg, true);
     channel_config_set_write_increment(&capture_cfg, true);
@@ -395,15 +398,15 @@ void rx::set_alarm_pool(alarm_pool_t *p)
 }
 
 critical_section_t usb_volumute;
-static int16_t usb_volume=180;  // usb volume
-static bool usb_mute = false;   // usb mute control
+static int16_t usb_volume = 32767;  // usb volume
+static bool usb_mute = false;     // usb mute control
 
 // usb mute setting = true is muted
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
-  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
 }
@@ -458,7 +461,7 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
     if (safe_usb_mute) {
       usb_audio[idx] = 0;
     } else {
-      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume)/180;
+      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume) / 32767;
     }
   }
 

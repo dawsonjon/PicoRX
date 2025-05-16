@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "pico/stdlib.h"
 #include "cic_corrections.h"
+#include "noise_canceler.h"
 
 #include <math.h>
 #include <cstdio>
@@ -12,13 +13,23 @@
 static void agc_cc(int16_t *i_out, int16_t *q_out, uint16_t m) {
   static int32_t K = 3276;
   const int32_t M = 327600 * 2;
-  const int16_t R = 10 * 327;
-  const int16_t r = 22936;
+  const int16_t r = 32767 / 2;
+  const int16_t decay_rate = 328;
+  const int16_t attack_rate = 3277;
 
-  *i_out = *i_out * (K >> 16);
-  *q_out = *q_out * (K >> 16);
+  const int16_t g = (K >> 16) > 0 ? K >> 16 : 1;
 
-  K += (R * (r - m)) >> 16;
+  *i_out = *i_out * g;
+  *q_out = *q_out * g;
+
+  const int16_t tmp = -r + rectangular_2_magnitude(*i_out, *q_out);
+  const int16_t rate = (tmp > K) ? attack_rate : decay_rate;
+
+  K -= (tmp * rate) >> 16;
+  if (K < 0) {
+    K = 0;
+  }
+
   if (K > M) {
     K = M;
   }
@@ -457,6 +468,7 @@ rx_dsp :: rx_dsp()
   sem_init(&spectrum_semaphore, 1, 1);
   set_agc_speed(3);
   filter_control.enable_auto_notch = false;
+  filter_control.enable_noise_canceler = false;
 
   //clear cic filter
   decimate_count=0;
@@ -468,11 +480,24 @@ rx_dsp :: rx_dsp()
   delayi1=0; delayq1=0;
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
+
+  noise_canceler_init();
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 {
   filter_control.enable_auto_notch = enable_auto_notch;
+}
+
+void rx_dsp :: set_noise_canceler(uint8_t noise_canceler_mode)
+{
+  if (noise_canceler_mode) {
+    filter_control.enable_noise_canceler = true;
+    noise_canceler_set_mode((nc_mode_e)noise_canceler_mode);
+    noise_canceler_init();
+  } else {
+    filter_control.enable_noise_canceler = false;
+  }
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)
