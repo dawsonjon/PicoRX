@@ -359,7 +359,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     //configure DMA for audio transfers
     capture_dma = dma_claim_unused_channel(true);
-    capture_cfg = dma_channel_get_default_config(pwm_dma_ping);
+    capture_cfg = dma_channel_get_default_config(capture_dma);
     channel_config_set_transfer_data_size(&capture_cfg, DMA_SIZE_16);
     channel_config_set_read_increment(&capture_cfg, true);
     channel_config_set_write_increment(&capture_cfg, true);
