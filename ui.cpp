@@ -2259,9 +2259,18 @@ bool ui::configuration_menu(bool &ok)
           done = bit_entry("Reverse\nEncoder", "Off#On#", flag_reverse_encoder, &settings[idx_hw_setup], ok);
           break;
 
-        case 3: 
-          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res, &settings[idx_hw_setup], ok);
-          break;
+        case 3: {
+          static uint32_t value = settings[idx_hw_setup];
+          done = bit_entry("Encoder\nResolution", "Low#High#", flag_encoder_res,
+                           &value, ok);
+          if (done) {
+            if (ok) {
+              settings[idx_hw_setup] = value;
+            } else {
+              value = settings[idx_hw_setup];
+            }
+          }
+        } break;
 
         case 4 : 
           done = bit_entry("Swap IQ", "Off#On#", flag_swap_iq, &settings[idx_hw_setup], ok);
