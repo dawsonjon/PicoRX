@@ -2901,6 +2901,13 @@ void ui::update_display_type(void)
   }
 }
 
+void ui::update_buttons(void)
+{
+  menu_button.update_state();
+  back_button.update_state();
+  encoder_button.update_state();
+}
+
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst) : 
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 

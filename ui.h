@@ -246,6 +246,7 @@ class ui
   uint32_t * get_settings(){return &settings[0];};
   void autorestore();
   void do_ui();
+  void update_buttons(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst);
 
 };
