@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <algorithm>
 
-static void agc_cc(int16_t *i_out, int16_t *q_out) {
+static void agc_cc(int16_t *i_out, int16_t *q_out, uint16_t m) {
   static int32_t K = 3276;
   const int32_t M = 327600 * 2;
   const int16_t r = 32767 / 2;
@@ -193,7 +193,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     magnitude_sum += amplitude;
 
     //Demodulate to give audio sample
-    int32_t audio = demodulate(i, q);
+    int32_t audio = demodulate(i, q, amplitude);
 
     //De-emphasis
     audio = apply_deemphasis(audio);
@@ -209,7 +209,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //output raw audio
     audio_samples[idx] = audio;
-    agc_cc(&iq[2 * idx], &iq[2 * idx + 1]);
+    agc_cc(&iq[2 * idx], &iq[2 * idx + 1], amplitude);
   }
 
   if (iq_samples) {
@@ -294,14 +294,14 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 #define AMSYNC_F_MAX (218)
 #define AMSYNC_FIX_MAX (32767)
 
-int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q)
+int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t m)
 {
    static int32_t phi_locked = 0;
    static int32_t freq_locked = 0;
 
     if(mode == AM)
     {
-        int16_t amplitude = rectangular_2_magnitude(i, q);
+        const int16_t amplitude = m;
         //measure DC using first order IIR low-pass filter
         audio_dc = amplitude+(audio_dc - (audio_dc >> 5));
         //subtract DC component
