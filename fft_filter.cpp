@@ -12,12 +12,15 @@
 //
 
 #include "fft_filter.h"
-#include "fft.h"
-#include "utils.h"
-#include "cic_corrections.h"
+
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <algorithm>
+
+#include "cic_corrections.h"
+#include "fft.h"
+#include "noise_canceler.h"
+#include "utils.h"
 
 #ifndef SIMULATION
 #include "pico/stdlib.h"
@@ -38,6 +41,8 @@ void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_
 #else
 void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
+
+  uint16_t magnitudes[new_fft_size] = {0};
 
   // window
   for (uint16_t i = 0; i < fft_size; i++) {
@@ -75,6 +80,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
       //capture highest and second highest peak
       uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+      magnitudes[i] = magnitude;
+
       if(magnitude > peak)
       {
         peak = magnitude; 
@@ -104,6 +111,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
       //capture highest and second highest peak
       uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+      magnitudes[new_idx] = magnitude;
       if(magnitude > peak)
       {
         peak = magnitude; 
@@ -138,6 +146,14 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+  if (filter_control.enable_noise_canceler) {
+    noise_canceler_update(magnitudes);
+    // 4 - -4 is for preserving the AM carrier
+    for (uint16_t i = 4; i < new_fft_size - 4; i++) {
+      sample_real[i] = ((int32_t)sample_real[i] * magnitudes[i]) >> 16;
+      sample_imag[i] = ((int32_t)sample_imag[i] * magnitudes[i]) >> 16;
+    }
+  }
 
   // inverse FFT
   fixed_ifft(sample_real, sample_imag, 7);

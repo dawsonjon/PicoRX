@@ -43,6 +43,7 @@ if(PICO_BOARD STREQUAL "pico")
       button.cpp
       cat.cpp
       rotary_encoder.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -102,6 +103,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       button.cpp
       cat.cpp
       rotary_encoder.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -157,6 +159,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       button.cpp
       cat.cpp
       rotary_encoder.cpp
+      noise_canceler.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c

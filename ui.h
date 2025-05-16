@@ -85,6 +85,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_iq_correction (0x1 << flag_iq_correction)
 #define flag_stream_raw_iq (4)
 #define mask_stream_raw_iq (0x1 << flag_stream_raw_iq)
+#define flag_noise_canceler_mode (5)
+#define mask_noise_canceler_mode (0x3 << flag_noise_canceler_mode)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);
@@ -236,6 +238,7 @@ class ui
   uint32_t * get_settings(){return &settings[0];};
   void autorestore();
   void do_ui();
+  void update_buttons(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, waterfall &waterfall_inst);
 
 };

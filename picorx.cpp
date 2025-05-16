@@ -12,6 +12,7 @@
 #define UI_REFRESH_HZ (10UL)
 #define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
 #define CAT_REFRESH_US (10000UL)
+#define BUTTONS_REFRESH_US (50000UL) // 50ms <=> 20Hz
 
 uint8_t spectrum[256];
 uint8_t dB10=10;
@@ -40,9 +41,16 @@ int main()
 
   uint32_t last_ui_update = 0;
   uint32_t last_cat_update = 0;
+  uint32_t last_buttons_update = 0;
+
   while(1)
   {
     //schedule tasks
+    if (time_us_32() - last_buttons_update > BUTTONS_REFRESH_US) {
+      last_buttons_update = time_us_32();
+      user_interface.update_buttons();
+    }
+
     if(time_us_32() - last_ui_update > UI_REFRESH_US)
     {
       last_ui_update = time_us_32();
