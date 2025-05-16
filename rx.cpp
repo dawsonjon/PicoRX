@@ -223,6 +223,9 @@ void rx::apply_settings()
       //apply Automatic Notch Filter
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
 
+      //apply Noise Canceler
+      rx_dsp_inst.set_noise_canceler(settings_to_apply.noise_canceler_mode);
+
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
 
