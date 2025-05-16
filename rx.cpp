@@ -398,15 +398,15 @@ void rx::set_alarm_pool(alarm_pool_t *p)
 }
 
 critical_section_t usb_volumute;
-static int16_t usb_volume=180;  // usb volume
-static bool usb_mute = false;   // usb mute control
+static int16_t usb_volume = 32767;  // usb volume
+static bool usb_mute = false;     // usb mute control
 
 // usb mute setting = true is muted
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
-  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
 }
@@ -461,7 +461,7 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
     if (safe_usb_mute) {
       usb_audio[idx] = 0;
     } else {
-      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume)/180;
+      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume) / 32767;
     }
   }
 
