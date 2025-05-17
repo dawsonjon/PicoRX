@@ -398,6 +398,11 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 #define AMSYNC_FRACTION_BITS (16)
 #define AMSYNC_BASE_FRACTION_BITS (15)
 
+inline int32_t wrap(int32_t x) {
+  const int32_t out = (((int64_t)x + (2 * AMSYNC_PI)) % (4 * AMSYNC_PI)) - (2 * AMSYNC_PI);
+  return out;
+}
+
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t m)
 {
    static int32_t phi_locked = 0;
@@ -441,13 +446,7 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
       x1 = err;
       phi_locked += y0;
 
-      if (phi_locked > (2 * AMSYNC_PI)) {
-        phi_locked -= 2 * AMSYNC_PI;
-      }
-
-      if (phi_locked < (-2 * AMSYNC_PI)) {
-        phi_locked += 2 * AMSYNC_PI;
-      }
+      phi_locked = wrap(phi_locked);
 
       // measure DC using first order IIR low-pass filter
       audio_dc = synced_i + (audio_dc - (audio_dc >> 5));
