@@ -11,14 +11,17 @@
 // License: MIT
 //
 
+#include <cmath>
+#include <cstdio>
+#include <algorithm>
+
 #include "fft_filter.h"
 #include "fft.h"
 #include "utils.h"
 #include "noise_reduction.h"
 #include "cic_corrections.h"
-#include <cmath>
-#include <cstdio>
-#include <algorithm>
+#include "fft.h"
+#include "utils.h"
 
 #ifndef SIMULATION
 #include "pico/stdlib.h"
@@ -92,7 +95,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   //apply noise filtering to DC and positive frequencies
   if(filter_control.enable_noise_reduction && filter_control.upper_sideband)
   {
-    const uint16_t start_bin = std::max((uint16_t)2, filter_control.start_bin);
+    const uint16_t start_bin = std::max((uint16_t)4, filter_control.start_bin);
     noise_reduction(
       sample_real, 
       sample_imag, 
@@ -169,12 +172,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
-  // synthesis window
-  //for (uint16_t i = 0; i < fft_size; i++) {
-  //  sample_real[i] = product(sample_real[i], window[i]);
-  //  sample_imag[i] = product(sample_imag[i], window[i]);
-  //}
-
   // inverse FFT
   fixed_ifft(sample_real, sample_imag, 7);
 
@@ -182,9 +179,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
 
 #ifndef SIMULATION
-void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
+void __not_in_flash_func(fft_filter::process_sample)(int16_t sample_iq[], s_filter_control &filter_control, int16_t capture[]) {
 #else
-void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
+void fft_filter::process_sample(int16_t sample_iq[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
 
   int16_t real[fft_size];
@@ -193,18 +190,18 @@ void fft_filter::process_sample(int16_t sample_real[], int16_t sample_imag[], s_
   for (uint16_t i = 0; i < (fft_size/2u); i++) {
     real[i] = last_input_real[i];
     imag[i] = last_input_imag[i];
-    real[fft_size/2u + i] = sample_real[i];
-    imag[fft_size/2u + i] = sample_imag[i];
-    last_input_real[i] = sample_real[i];
-    last_input_imag[i] = sample_imag[i];
+    real[fft_size/2u + i] = sample_iq[2 * i];
+    imag[fft_size/2u + i] = sample_iq[2 * i + 1];
+    last_input_real[i] = sample_iq[2 * i];
+    last_input_imag[i] = sample_iq[2 * i + 1];
   }
 
   //filter combined block
   filter_block(real, imag, filter_control, capture);
 
   for (uint16_t i = 0; i < (new_fft_size/2u); i++) {
-    sample_real[i] = real[i] + last_output_real[i];
-    sample_imag[i] = imag[i] + last_output_imag[i];
+    sample_iq[2 * i] = real[i] + last_output_real[i];
+    sample_iq[2 * i + 1] = imag[i] + last_output_imag[i];
     last_output_real[i] = real[new_fft_size/2u + i];
     last_output_imag[i] = imag[new_fft_size/2u + i];
   }

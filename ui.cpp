@@ -9,6 +9,7 @@
 #include "pico/util/queue.h"
 #include "fonts.h"
 #include "settings.h"
+#include "rotary_encoder.h"
 
 #include <algorithm>
 
@@ -31,49 +32,6 @@ void strip_trailing_space(const char *x, char *y)
   memcpy(y, x, stripped_len);
   y[stripped_len] = 0;
 
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Encoder 
-////////////////////////////////////////////////////////////////////////////////
-void ui::setup_encoder()
-{
-    gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
-    gpio_set_function(PIN_AB+1, GPIO_FUNC_PIO1);
-    uint offset = pio_add_program(pio, &quadrature_encoder_program);
-    quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
-    if (settings.global.encoder_resolution) {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
-    } else {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    }
-    old_position = new_position;
-}
-
-int32_t ui::get_encoder_change(void)
-{
-    if (settings.global.encoder_resolution) {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 1)/2);
-    } else {
-      new_position = -((quadrature_encoder_get_count(pio, sm) + 2)/4);
-    }
-    int32_t delta = new_position - old_position;
-    old_position = new_position;
-    if(settings.global.reverse_encoder)
-    {
-      return -delta;
-    } else {
-      return delta;
-    }
-}
-
-int32_t ui::encoder_control(int32_t &value, int32_t min, int32_t max)
-{
-	int32_t position_change = get_encoder_change();
-	value += position_change;
-	if(value > max) value = min;
-	if(value < min) value = max;
-	return position_change;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -898,7 +856,7 @@ bool ui::menu_entry(const char title[], const char options[], uint32_t *value, b
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    draw_display = encoder_control(select, 0, max)!=0;
+    draw_display = main_encoder.control(select, 0, max)!=0;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -953,9 +911,9 @@ bool ui::enumerate_entry(const char title[], const char options[], uint8_t &valu
     if (options[strlen(options)-1] != '#') max++;
     if (max > 0) max--;
 
-    int32_t control = value;
-    draw_display = changed = encoder_control(control, 0, max)!=0;
-    value = control;
+    int32_t encoder_position = value;
+    draw_display = changed = main_encoder.control(encoder_position, 0, max)!=0;
+    value = encoder_position;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -1017,7 +975,9 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
   }
   else if(state == active)
   {
-    draw_display = changed = encoder_control(value, min, max)!=0;
+    int32_t encoder = value;
+    draw_display = changed = main_encoder.control(encoder, min, max)!=0;
+    value = encoder;
 
     //select menu item
     if(menu_button.is_pressed() || encoder_button.is_pressed()){
@@ -1048,6 +1008,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
 
   return false;
 }
+
 
 //remember settings across power cycles
 void ui::autosave()
@@ -1157,6 +1118,11 @@ bool ui::upload_memory()
 
       }
 
+      display_clear();
+      display_print_str("Memories\nuploaded!",2, style_centered);
+      display_show();
+      sleep_ms(3000);
+
       return false;
 }
 
@@ -1175,7 +1141,7 @@ bool ui::memory_store(bool &ok)
 
   if(state == select_channel)
   {
-      encoder_control(select, min, max);
+      main_encoder.control(select, min, max);
       s_memory_channel memory_channel = get_channel(select);
 
       display_clear();
@@ -1278,7 +1244,7 @@ bool ui::memory_recall(bool &ok)
   else if(state == active)
   {
 
-    int32_t encoder_position = encoder_control(select, min, max);
+    int32_t encoder_position = main_encoder.control(select, min, max);
     load_and_update_display = encoder_position != 0;
 
     //skip blank channels
@@ -1414,7 +1380,7 @@ bool ui::memory_scan(bool &ok)
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
-    int32_t pos_change = get_encoder_change();
+    int32_t pos_change = main_encoder.get_change();
     if(listen || wait)
     {
       //if scanning is stopped, nudge (and possibly change direction)
@@ -1616,7 +1582,7 @@ bool ui::frequency_scan(bool &ok)
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
-    int32_t pos_change = get_encoder_change();
+    int32_t pos_change = main_encoder.get_change();
     if(listen)
     {
       //if scanning is stopped, nudge (and possibly change direction)
@@ -1765,7 +1731,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_position)
   {
       //change between chars
-      encoder_position = encoder_control(position, 0, 19);
+      encoder_position = main_encoder.control(position, 0, 19);
       if(encoder_position) draw_display = true;
 
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -1811,7 +1777,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   else if(state == select_char)
   {
       //change value of char
-      encoder_position = encoder_control(val, 0, 75);
+      encoder_position = main_encoder.control(val, 0, 75);
       if(encoder_position) draw_display = true;
       string[position]=letters[val];
       if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -1893,7 +1859,7 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
   else if(state == digit_select)
   {
     //change between digits
-    encoder_control(digit, 0, 9);
+    main_encoder.control(digit, 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -1945,7 +1911,7 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
   else if(state == digit_change)
   {
     //change the value of a digit 
-    encoder_control(digits[digit], 0, 9);
+    main_encoder.control(digits[digit], 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
     {
@@ -2027,8 +1993,18 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 3: 
-          done = bit_entry("Encoder\nResolution", "Low#High#", settings.global.encoder_resolution, ok);
+        {
+          static bool value = settings.global.encoder_resolution;
+          done = bit_entry("Encoder\nResolution", "Low#High#", value, ok);
+          if (done) {
+            if (ok) {
+              settings.global.encoder_resolution = value;
+            } else {
+              value = settings.global.encoder_resolution;
+            }
+          }
           break;
+        }
 
         case 4 : 
           done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
@@ -2201,7 +2177,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#IQ\nCorrection#Spectrum#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#Bass#Trebble#IQ\nCorrection#Spectrum#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2274,26 +2250,37 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 13 : 
+            done = enumerate_entry("Bass", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.bass, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+          case 14 :
+            done = enumerate_entry("Treble", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.treble, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+          case 15 : 
             done = bit_entry("IQ\ncorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
-          case 14 : 
+          case 16 : 
             done = spectrum_menu(ok);
             break;
-          case 15 :  
+          case 17 :  
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
-          case 16 : 
+          case 18 : 
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
-          case 17 : 
+          case 19 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
-          case 18 : 
+          case 20 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 19 : 
+          case 21 : 
+            done = bit_entry("USB\nsSream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
+            break;
+          case 22 : 
             done = configuration_menu(ok);
             break;
         }
@@ -2523,7 +2510,7 @@ void ui::do_ui()
       }
 
       //adjust frequency when encoder is turned
-      uint32_t encoder_change = get_encoder_change();
+      uint32_t encoder_change = main_encoder.get_change();
       if(encoder_change != 0)
       {
         display_time = time_us_32();
@@ -2636,7 +2623,7 @@ void ui::do_ui()
     //if display times out enter sleep mode
     else if(ui_state == sleep)
     {
-      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || get_encoder_change())
+      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || main_encoder.get_change())
       {
         display_time = time_us_32();
         u8g2_SetPowerSave(&u8g2, 0);
@@ -2754,9 +2741,18 @@ void ui::update_display_type(void)
   }
 }
 
+void ui::update_buttons(void)
+{
+  menu_button.update_state();
+  back_button.update_state();
+  encoder_button.update_state();
+}
+
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
-  menu_button(PIN_MENU, PIN_PADDLE), 
-  back_button(PIN_BACK, PIN_PADDLE), 
+  settings(default_settings),
+  main_encoder(settings.global),
+  menu_button(PIN_MENU), 
+  back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
   settings_to_apply(settings_to_apply),
   status(status), 
@@ -2774,7 +2770,6 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   gpio_pull_down(24);
 
   setup_display();
-  setup_encoder();
   disp.buffer = u8g2.tile_buf_ptr;
 
   u8g2_SetI2CAddress(&u8g2, 0x78);

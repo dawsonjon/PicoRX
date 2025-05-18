@@ -49,6 +49,7 @@ if(PICO_BOARD STREQUAL "pico")
       quadrature_si5351.cpp
       charlieplexed_button.cpp
       cat.cpp
+      rotary_encoder.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -113,6 +114,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       charlieplexed_button.cpp
       quadrature_si5351.cpp
       cat.cpp
+      rotary_encoder.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c
@@ -173,6 +175,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
       quadrature_si5351.cpp
       charlieplexed_button.cpp
       cat.cpp
+      rotary_encoder.cpp
       usb_descriptors.c
       usb_audio_device.c
       ring_buffer_lib.c

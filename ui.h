@@ -5,7 +5,6 @@
 
 #include "pico/bootrom.h"
 #include "hardware/i2c.h"
-#include "quadrature_encoder.pio.h"
 #include "ssd1306.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
@@ -14,7 +13,7 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
-#include "charlieplexed_button.h"
+#include "rotary_encoder.h"
 #include "logo.h"
 #include "u8g2.h"
 #include "pins.h"
@@ -59,17 +58,11 @@ class ui
     "S9+30dB---|"};
 
   // Encoder
-  void setup_encoder(void);
-  int32_t get_encoder_change(void);
-  int32_t encoder_control(int32_t &value, int32_t min, int32_t max);
-  int32_t new_position = 0;
-  int32_t old_position = 0;
-  const uint32_t sm = 0;
-  const PIO pio = pio1;
+  rotary_encoder main_encoder;
 
   // Buttons
-  charlieplexed_button menu_button;
-  charlieplexed_button back_button;
+  button menu_button;
+  button back_button;
   button encoder_button;
 
   // Display
@@ -180,6 +173,7 @@ class ui
   void autorestore();
   void do_ui();
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
+  void update_buttons(void);
 
 };
 

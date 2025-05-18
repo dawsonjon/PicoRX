@@ -30,6 +30,8 @@ struct rx_settings
   uint8_t squelch_timeout;
   uint8_t bandwidth;
   uint8_t deemphasis;
+  uint8_t treble;
+  uint8_t bass;
   uint16_t cw_sidetone_Hz;
   uint16_t gain_cal;
   uint8_t band_1_limit;
@@ -51,7 +53,7 @@ struct rx_settings
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
   bool enable_external_nco;
-
+  bool stream_raw_iq;
 };
 
 struct rx_status
@@ -138,6 +140,9 @@ class rx
   bool external_nco_good = false;
   bool external_nco_active = false;
   bool internal_nco_active = true;
+
+  // USB streaming mode
+  uint8_t stream_raw_iq;
 
   public:
   rx(rx_settings & settings_to_apply, rx_status & status);

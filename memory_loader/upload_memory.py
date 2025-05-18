@@ -38,7 +38,7 @@ if idx.strip().upper() != "Y":
   sys.exit(-1)
 
 print("1. Connect USB cable to Pico Rx")
-print("2. Select *USB Memory Upload* menu item")
+print("2. Select *HW Config -> USB Upload -> Memory* menu item")
 print("3. When ready press any key")
 idx = input()
 

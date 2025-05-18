@@ -13,7 +13,7 @@
 #include "pins.h"
 
 //ring buffer for USB data
-#define USB_BUF_SIZE (sizeof(int16_t) * 2 * (1 + (adc_block_size/decimation_rate)))
+#define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_ring_buffer;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
@@ -332,6 +332,12 @@ void rx::apply_settings()
       //apply deemphasis
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
 
+      //apply treble
+      rx_dsp_inst.set_treble(settings_to_apply.treble);
+    
+      //apply bass
+      rx_dsp_inst.set_bass(settings_to_apply.bass);
+
       //apply squelch
       rx_dsp_inst.set_squelch(settings_to_apply.squelch_threshold, settings_to_apply.squelch_timeout);
 
@@ -340,6 +346,8 @@ void rx::apply_settings()
 
       //apply iq imbalance correction
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
+
+      stream_raw_iq = settings_to_apply.stream_raw_iq;
 
       settings_changed = false;
       sem_release(&settings_semaphore);
@@ -357,6 +365,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     settings_to_apply.suspend = false;
     suspend = false;
+    stream_raw_iq = 0;
 
     //Configure PIO to act as quadrature oscilator
     pio = pio0;
@@ -459,7 +468,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     //configure DMA for audio transfers
     capture_dma = dma_claim_unused_channel(true);
-    capture_cfg = dma_channel_get_default_config(pwm_dma_ping);
+    capture_cfg = dma_channel_get_default_config(capture_dma);
     channel_config_set_transfer_data_size(&capture_cfg, DMA_SIZE_16);
     channel_config_set_read_increment(&capture_cfg, true);
     channel_config_set_write_increment(&capture_cfg, true);
@@ -499,28 +508,24 @@ void rx::set_alarm_pool(alarm_pool_t *p)
 }
 
 critical_section_t usb_volumute;
-static int16_t usb_volume=180;  // usb volume
-static bool usb_mute = false;   // usb mute control
+static int16_t usb_volume = 32767;  // usb volume
+static bool usb_mute = false;     // usb mute control
 
 // usb mute setting = true is muted
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
   //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
-  usb_volume = vol + 90; // defined as -90 to 90 => 0 to 180
+  usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
 }
 
 static void on_usb_audio_tx_ready()
 {
-  uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
+  uint16_t usb_buf[SAMPLE_BUFFER_SIZE] = {0};
 
-  // Callback from TinyUSB library when all data is ready
-  // to be transmitted.
-  //
-  // Write local buffer to the USB microphone
-  ring_buffer_pop(&usb_ring_buffer, usb_buf, sizeof(usb_buf));
+  ring_buffer_pop(&usb_ring_buffer, (uint8_t *)usb_buf, sizeof(usb_buf));
   usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
@@ -540,8 +545,9 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
 
   //process adc IQ samples to produce raw audio
   int16_t usb_audio[adc_block_size/decimation_rate];
-  uint16_t num_samples = rx_dsp_inst.process_block(adc_samples, usb_audio);
-  
+  uint16_t num_samples = rx_dsp_inst.process_block(
+      adc_samples, usb_audio, stream_raw_iq ? &usb_ring_buffer : NULL);
+
   //post process audio for USB and PWM
   uint16_t odx = 0;
   for(uint16_t idx=0; idx<num_samples; ++idx)
@@ -570,12 +576,21 @@ uint16_t __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t 
     if (safe_usb_mute) {
       usb_audio[idx] = 0;
     } else {
-      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume)/180;
+      usb_audio[idx] = (usb_audio[idx] * safe_usb_volume) / 32767;
     }
   }
 
-  //add usb audio to ring buffer
-  ring_buffer_push_ovr(&usb_ring_buffer, (uint8_t *)usb_audio, sizeof(int16_t) * num_samples); 
+  if (!stream_raw_iq) {
+    // add usb audio to ring buffer
+    int16_t tmp_audio[2 * num_samples];
+    for (uint16_t idx = 0; idx < num_samples; idx++) {
+      tmp_audio[2 * idx] = usb_audio[idx];
+      tmp_audio[2 * idx + 1] = usb_audio[idx];
+    }
+    ring_buffer_push_ovr(&usb_ring_buffer, (uint8_t *)tmp_audio,
+                         sizeof(int16_t) * 2 * num_samples);
+  }
+
   return num_samples * interpolation_rate;
 }
 

@@ -39,6 +39,9 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.noise_threshold = settings.global.noise_threshold + 1;
   rx_settings.spectrum_smoothing = settings.global.spectrum_smoothing;
   rx_settings.enable_external_nco = settings.global.enable_external_nco;
+  rx_settings.treble = settings.global.treble;
+  rx_settings.bass = settings.global.bass;
+  rx_settings.stream_raw_iq = settings.global.usb_stream;
   receiver.release();
 }
 

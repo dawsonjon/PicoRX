@@ -1,4 +1,4 @@
-/* 
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2020 Reinhard Panhuber
@@ -24,6 +24,22 @@
  */
 
 #include "usb_audio_device.h"
+
+enum
+{
+  VOLUME_CTRL_0_DB = 0,
+  VOLUME_CTRL_10_DB = 2560,
+  VOLUME_CTRL_20_DB = 5120,
+  VOLUME_CTRL_30_DB = 7680,
+  VOLUME_CTRL_40_DB = 10240,
+  VOLUME_CTRL_50_DB = 12800,
+  VOLUME_CTRL_60_DB = 15360,
+  VOLUME_CTRL_70_DB = 17920,
+  VOLUME_CTRL_80_DB = 20480,
+  VOLUME_CTRL_90_DB = 23040,
+  VOLUME_CTRL_100_DB = 25600,
+  VOLUME_CTRL_SILENCE = 0x8000,
+};
 
 // Audio controls
 // Current states
@@ -268,9 +284,9 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
 	    audio_control_range_2_n_t(1) ret;
 
 	    ret.wNumSubRanges = 1;
-	    ret.subrange[0].bMin = -90; 	// -90 dB
-	    ret.subrange[0].bMax = 90;		// +90 dB
-	    ret.subrange[0].bRes = 1; 		// 1 dB steps
+	    ret.subrange[0].bMin = -VOLUME_CTRL_50_DB;  // -50 dB
+	    ret.subrange[0].bMax = VOLUME_CTRL_0_DB;    // +0 dB
+	    ret.subrange[0].bRes = 256;                 // 256 steps
 
 	    return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*)&ret, sizeof(ret));
 

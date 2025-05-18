@@ -67,6 +67,9 @@ struct s_global_settings
   uint8_t noise_threshold;
   uint8_t view;
   uint8_t spectrum_smoothing;
+  uint8_t treble;
+  uint8_t bass;
+  bool     usb_stream;
   bool    enable_auto_notch;
   bool    iq_correction;
   bool    enable_noise_reduction;
@@ -130,6 +133,9 @@ const s_settings default_settings = {
   0,  //noise_threshold normal, high, very_high
   0,  //view
   1,  //spectrum_smoothing
+  0,  //treble
+  0,  //bass
+  0,  //usb_stream
   0,  //enable_auto_notch
   0,  //iq_correction
   0,  //enable_noise_reduction
