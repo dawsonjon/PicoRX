@@ -121,7 +121,7 @@ class ui
 
   private:
 
-  uint32_t settings[16];
+  uint32_t settings[16] = {0};
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char modes[6][4]  = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
   const char steps[11][8]  = {
