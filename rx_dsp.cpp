@@ -38,18 +38,111 @@ static void agc_cc(int16_t *i_out, int16_t *q_out, uint16_t m) {
 static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
-  if(deemphasis == 0)
-    return x;
+if (deemphasis == 0) return x;
 
   static int16_t x1 = 0;
   static int16_t y1 = 0;
+  static int16_t err = 0;
 
-  size_t i = deemphasis - 1;
+  const size_t i = deemphasis - 1;
 
-  int16_t y = ((x * deemph_taps[i][0]) >> 15) + ((x1 * deemph_taps[i][1]) >> 15) - ((y1 * deemph_taps[0][2]) >> 15);
+  int32_t y = ((int32_t)x * deemph_taps[i][0]) +
+              ((int32_t)x1 * deemph_taps[i][1]) -
+              ((int32_t)y1 * deemph_taps[0][2]) + err;
+
+  if (y > 0x1FFFFFFFL) {
+    y = 0x1FFFFFFFL;
+  }
+  if (y < -0x20000000L) {
+    y = -0x20000000L;
+  }
+
+  err = y & ((1 << 15) - 1);
+  y >>= 15;
   x1 = x;
   y1 = y;
   return y;
+}
+
+int16_t __not_in_flash_func(rx_dsp ::apply_treble)(int16_t x) {
+  static const int32_t treble_taps[4][2][3] = {
+      {{26363, -36747, 14207}, {16383, -19828, 7267}},
+      {{42359, -62303, 24741}, {16383, -18062, 6476}},
+      {{67860, -104422, 42534}, {16383, -16114, 5703}},
+      {{108241, -173031, 72157}, {16383, -13987, 4972}}};
+
+  static int16_t x1 = 0;
+  static int16_t y1 = 0;
+  static int16_t x2 = 0;
+  static int16_t y2 = 0;
+  static int16_t err = 0;
+
+  if (treble == 0) return x;
+
+  const uint8_t i = treble - 1;
+
+  x >>= 1;
+  int32_t y = ((int32_t)x * treble_taps[i][0][0]) +
+              ((int32_t)x1 * treble_taps[i][0][1]) +
+              ((int32_t)x2 * treble_taps[i][0][2]) + err;
+  y -= ((int32_t)y1 * treble_taps[i][1][1]) +
+       ((int32_t)y2 * treble_taps[i][1][2]);
+
+  if (y > 0xFFFFFFFL) {
+    y = 0xFFFFFFFL;
+  }
+  if (y < -0x10000000L) {
+    y = -0x10000000L;
+  }
+
+  err = y & ((1 << 14) - 1);
+  y >>= 14;
+
+  x2 = x1;
+  x1 = x;
+  y2 = y1;
+  y1 = y;
+  return y << 1;
+}
+
+int16_t __not_in_flash_func(rx_dsp ::apply_bass)(int16_t x) {
+  static const int32_t bass_taps[4][2][3] = {
+      {{16808, -30178, 13691}, {16383, -30248, 14045}},
+      {{17253, -30437, 13616}, {16383, -30584, 14338}},
+      {{17728, -30637, 13490}, {16383, -30876, 14596}},
+      {{18245, -30777, 13313}, {16383, -31129, 14824}}};
+
+  static int16_t x1 = 0;
+  static int16_t y1 = 0;
+  static int16_t x2 = 0;
+  static int16_t y2 = 0;
+  static int16_t err = 0;
+
+  if (bass == 0) return x;
+
+  const uint8_t i = bass - 1;
+
+  x >>= 1;
+  int32_t y = ((int32_t)x * bass_taps[i][0][0]) +
+              ((int32_t)x1 * bass_taps[i][0][1]) +
+              ((int32_t)x2 * bass_taps[i][0][2]) + err;
+  y -= ((int32_t)y1 * bass_taps[i][1][1]) + ((int32_t)y2 * bass_taps[i][1][2]);
+
+  if (y > 0xFFFFFFFL) {
+    y = 0xFFFFFFFL;
+  }
+  if (y < -0x10000000L) {
+    y = -0x10000000L;
+  }
+
+  err = y & ((1 << 14) - 1);
+  y >>= 14;
+
+  x2 = x1;
+  x1 = x;
+  y2 = y1;
+  y1 = y;
+  return y << 1;
 }
 
 static uint32_t __not_in_flash_func(intsqrt)(const uint32_t n) {
@@ -197,6 +290,12 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //De-emphasis
     audio = apply_deemphasis(audio);
+
+    // Bass
+    audio = apply_bass(audio);
+
+    // Treble
+    audio = apply_treble(audio);
 
     //Automatic gain control scales signal to use full 16 bit range
     //e.g. -32767 to 32767
@@ -503,6 +602,20 @@ void rx_dsp :: set_noise_canceler(uint8_t noise_canceler_mode)
 void rx_dsp :: set_deemphasis(uint8_t deemph)
 {
   deemphasis = deemph;
+}
+
+void rx_dsp ::set_treble(uint8_t tr) {
+  if (tr > 4) {
+    tr = 4;
+  }
+  treble = tr;
+}
+
+void rx_dsp ::set_bass(uint8_t bs) {
+  if (bs > 4) {
+    bs = 4;
+  }
+  bass = bs;
 }
 
 void rx_dsp :: set_agc_speed(uint8_t agc_setting)
