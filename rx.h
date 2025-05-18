@@ -60,8 +60,6 @@ class rx
 {
   private:
 
-  void pwm_ramp_down();
-  void pwm_ramp_up();
   void update_status();
   void set_usb_callbacks();
 
@@ -91,22 +89,10 @@ class rx
   static dma_channel_config pong_cfg;
   static uint16_t ping_samples[adc_block_size];
   static uint16_t pong_samples[adc_block_size];
-  static uint16_t num_ping_samples;
-  static uint16_t num_pong_samples;
 
-  //buffers and dma for PWM audio output
-  static int audio_pwm_slice_num;
-  static int pwm_dma_ping;
-  static int pwm_dma_pong;
-  static dma_channel_config audio_ping_cfg;
-  static dma_channel_config audio_pong_cfg;
-  static int16_t ping_audio[adc_block_size];
-  static int16_t pong_audio[adc_block_size];
   static bool audio_running;
   static void dma_handler();
-  uint32_t pwm_max;
-  uint32_t pwm_scale;
-  uint16_t process_block(uint16_t adc_samples[], int16_t pwm_audio[]);
+  void process_block(uint16_t adc_samples[], int16_t audio[]);
   
   //store busy time for performance monitoring
   uint32_t busy_time;
