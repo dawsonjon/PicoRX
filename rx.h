@@ -12,7 +12,6 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
-#include "charlieplexed_button.h"
 #include "quadrature_si5351.h"
 
 #include "rx_definitions.h"

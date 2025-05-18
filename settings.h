@@ -20,6 +20,11 @@ enum e_mode
   MODE_CW = 5,
 };
 
+//*** NOTE TO SELF ***
+//*****************************************************************************
+//remember to change channel_to_words.py
+//*****************************************************************************
+
 struct s_channel_settings
 {
   uint32_t frequency;

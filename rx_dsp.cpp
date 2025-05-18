@@ -9,31 +9,6 @@
 #include <cstdio>
 #include <algorithm>
 
-static void agc_cc(int16_t *i_out, int16_t *q_out, uint16_t m) {
-  static int32_t K = 3276;
-  const int32_t M = 327600 * 2;
-  const int16_t r = 32767 / 2;
-  const int16_t decay_rate = 328;
-  const int16_t attack_rate = 3277;
-
-  const int16_t g = (K >> 16) > 0 ? K >> 16 : 1;
-
-  *i_out = *i_out * g;
-  *q_out = *q_out * g;
-
-  const int16_t tmp = -r + rectangular_2_magnitude(*i_out, *q_out);
-  const int16_t rate = (tmp > K) ? attack_rate : decay_rate;
-
-  K -= (tmp * rate) >> 16;
-  if (K < 0) {
-    K = 0;
-  }
-
-  if (K > M) {
-    K = M;
-  }
-}
-
 static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
 {
@@ -308,7 +283,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //output raw audio
     audio_samples[idx] = audio;
-    agc_cc(&iq[2 * idx], &iq[2 * idx + 1], amplitude);
   }
 
   if (iq_samples) {
@@ -709,8 +683,8 @@ void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
   uint8_t stop_bins[5][6] = {{ 19, 19, 16, 16, 31, 0},  //very narrow
                              { 22, 22, 19, 19, 34, 1},  //narrow
                              { 25, 25, 22, 22, 37, 2},  //normal
-                             { 28, 28, 25, 25, 40, 3},  //wide
-                             { 31, 31, 28, 28, 43, 4}}; //very wide
+                             { 31, 31, 25, 25, 40, 3},  //wide
+                             { 63, 63, 28, 28, 43, 4}}; //very wide
 
   filter_control.lower_sideband = (mode != USB);
   filter_control.upper_sideband = (mode != LSB);
@@ -818,8 +792,6 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  //max=max - (max >> 3) + (new_max >> 3);
-  //min=min - (min >> 3) + (new_min >> 3);
   max=new_max;
   min=new_min;
   const float logmin = log10f(min);

@@ -2258,7 +2258,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 15 : 
-            done = bit_entry("IQ\ncorrection", "Off#On#", settings.global.iq_correction, ok);
+            done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
           case 16 : 
             done = spectrum_menu(ok);
@@ -2278,7 +2278,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 21 : 
-            done = bit_entry("USB\nsSream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
+            done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
           case 22 : 
             done = configuration_menu(ok);
@@ -2746,6 +2746,9 @@ void ui::update_buttons(void)
   menu_button.update_state();
   back_button.update_state();
   encoder_button.update_state();
+#ifdef BUTTON_ENCODER
+  main_encoder.update();
+#endif
 }
 
 ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 

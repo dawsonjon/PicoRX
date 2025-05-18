@@ -25,36 +25,42 @@ add_library(
 )
 target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 
+set(SRCS 
+    ssd1306.c
+    picorx.cpp
+    nco.cpp
+    rx.cpp
+    rx_dsp.cpp
+    fft.cpp
+    fft_filter.cpp
+    noise_reduction.cpp
+    cic_corrections.cpp
+    ui.cpp
+    settings.cpp
+    memory.cpp
+    autosave_memory.cpp
+    utils.cpp
+    ili934x.cpp
+    waterfall.cpp
+    button.cpp
+    quadrature_si5351.cpp
+    cat.cpp
+    usb_descriptors.c
+    usb_audio_device.c
+    ring_buffer_lib.c
+)
+
+if(BUTTON_ENCODER)
+    add_definitions(-DBUTTON_ENCODER)
+    list(APPEND SRCS button_encoder.cpp)
+else()
+    list(APPEND SRCS rotary_encoder.cpp)
+endif()
+
 if(PICO_BOARD STREQUAL "pico")
 
   #main application
-  add_executable(picorx
-      ssd1306.c
-      picorx.cpp
-      nco.cpp
-      rx.cpp
-      rx_dsp.cpp
-      fft.cpp
-      fft_filter.cpp
-      noise_reduction.cpp
-      cic_corrections.cpp
-      ui.cpp
-      settings.cpp
-      memory.cpp
-      autosave_memory.cpp
-      utils.cpp
-      ili934x.cpp
-      waterfall.cpp
-      button.cpp
-      quadrature_si5351.cpp
-      charlieplexed_button.cpp
-      cat.cpp
-      rotary_encoder.cpp
-      usb_descriptors.c
-      usb_audio_device.c
-      ring_buffer_lib.c
-  )
-
+  add_executable(picorx ${SRCS})
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
   pico_add_extra_outputs(picorx)
@@ -93,32 +99,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
   if(PICO_PLATFORM STREQUAL "rp2350-riscv")
 
     #main application
-    add_executable(pico2rx-riscv
-      ssd1306.c
-      picorx.cpp
-      nco.cpp
-      rx.cpp
-      rx_dsp.cpp
-      fft.cpp
-      fft_filter.cpp
-      noise_reduction.cpp
-      cic_corrections.cpp
-      ui.cpp
-      utils.cpp
-      ili934x.cpp
-      waterfall.cpp
-      button.cpp
-      settings.cpp
-      autosave_memory.cpp
-      memory.cpp
-      charlieplexed_button.cpp
-      quadrature_si5351.cpp
-      cat.cpp
-      rotary_encoder.cpp
-      usb_descriptors.c
-      usb_audio_device.c
-      ring_buffer_lib.c
-    )
+    add_executable(pico2rx-riscv ${SRCS})
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx-riscv)
@@ -154,32 +135,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
   else()
 
     #main application
-    add_executable(pico2rx
-      ssd1306.c
-      picorx.cpp
-      nco.cpp
-      rx.cpp
-      rx_dsp.cpp
-      fft.cpp
-      fft_filter.cpp
-      noise_reduction.cpp
-      cic_corrections.cpp
-      settings.cpp
-      memory.cpp
-      autosave_memory.cpp
-      ui.cpp
-      utils.cpp
-      ili934x.cpp
-      waterfall.cpp
-      button.cpp
-      quadrature_si5351.cpp
-      charlieplexed_button.cpp
-      cat.cpp
-      rotary_encoder.cpp
-      usb_descriptors.c
-      usb_audio_device.c
-      ring_buffer_lib.c
-    )
+    add_executable(pico2rx ${SRCS})
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx)
