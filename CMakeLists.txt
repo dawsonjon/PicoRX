@@ -45,6 +45,7 @@ set(SRCS
     button.cpp
     quadrature_si5351.cpp
     cat.cpp
+    pwm_audio_sink.cpp
     usb_descriptors.c
     usb_audio_device.c
     ring_buffer_lib.c
