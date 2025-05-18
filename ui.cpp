@@ -2152,7 +2152,7 @@ bool ui::noise_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 2 : 
-            done = enumerate_entry("Noise\nThreshold", "Normal#High#Very High#", settings.global.noise_threshold, ok, changed);
+            done = enumerate_entry("Noise\nThreshold", "Adaptive#Low#Normal#High#Very High#", settings.global.noise_threshold, ok, changed);
             if(changed) apply_settings(false);
             break;
         }
