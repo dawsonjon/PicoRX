@@ -59,6 +59,7 @@ int main()
       last_ui_update = time_us_32();
       user_interface.do_ui();
       receiver.get_spectrum(spectrum, dB10, zoom);
+      printf("redraw_time: %lu\n", time_us_32() - last_ui_update);
     }
 
     else if(time_us_32() - last_cat_update > CAT_REFRESH_US)
@@ -66,7 +67,7 @@ int main()
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    waterfall_inst.update_spectrum(receiver, settings_to_apply, status, spectrum, dB10, zoom);
+    waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
 
   }
 }

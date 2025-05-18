@@ -560,7 +560,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  queue_init(&data_queue, 4, 2048);
+  queue_init(&data_queue, 4, 1024);
   set_agc_control(3, 0);
   filter_control.enable_auto_notch = false;
   filter_control.enable_noise_reduction = false;

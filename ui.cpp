@@ -2177,7 +2177,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#Bass#Trebble#IQ\nCorrection#Spectrum#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#Bass#Trebble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2263,24 +2263,27 @@ bool ui::main_menu(bool & ok)
           case 16 : 
             done = spectrum_menu(ok);
             break;
-          case 17 :  
+          case 17:
+            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#", settings.global.aux_view, ok, changed);
+            break;
+          case 18 :  
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
-          case 18 : 
+          case 19 : 
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
-          case 19 : 
+          case 20 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
-          case 20 : 
+          case 21 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 21 : 
+          case 22 : 
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
-          case 22 : 
+          case 23 : 
             done = configuration_menu(ok);
             break;
         }

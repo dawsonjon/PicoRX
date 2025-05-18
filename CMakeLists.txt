@@ -48,6 +48,8 @@ set(SRCS
     usb_descriptors.c
     usb_audio_device.c
     ring_buffer_lib.c
+    codecs/decode_sstv.cpp
+    codecs/cordic.cpp
 )
 
 if(BUTTON_ENCODER)
