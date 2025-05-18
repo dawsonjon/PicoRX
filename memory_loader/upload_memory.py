@@ -25,7 +25,7 @@ def convert_channel_to_hex(channel):
 
   modes = { "AM" :0, "AMS": 1, "LSB":2, "USB":3, "NFM":4, "CW" :5 }
   agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3}
-  steps = { "10Hz": 0, "50Hz": 1, "100Hz": 2, "1kHz": 3, "5kHz": 4, "10kHz": 5, "12.5kHz": 6, "25kHz": 7, "50kHz": 8, "100kHz": 9,}
+  steps = { "10Hz": 0, "50Hz": 1, "100Hz": 2, "1kHz": 3, "5kHz": 4, "9kHz":5, "10kHz": 6, "12.5kHz": 7, "25kHz": 8, "50kHz": 9, "100kHz": 10,}
 
   data = [
     int(frequency)&0xffffffff,     #0
