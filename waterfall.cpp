@@ -12,19 +12,13 @@
 #include "font_8x5.h"
 #include "rx_definitions.h"
 #include "ui.h"
-
+#include "pins.h"
+#define SPI_PORT spi1
 
 waterfall::waterfall()
 {
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
-
-    #define PIN_MISO 8
-    #define PIN_CS   13
-    #define PIN_SCK  14
-    #define PIN_MOSI 15 
-    #define PIN_DC   11
-    #define SPI_PORT spi1
     spi_init(SPI_PORT, 75000000);
     //spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);

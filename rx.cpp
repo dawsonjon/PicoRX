@@ -237,51 +237,51 @@ void rx::apply_settings()
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
-        gpio_put(BAND_0, 0);
-        gpio_put(BAND_1, 0);
-        gpio_put(BAND_2, 0);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
-        gpio_put(BAND_0, 1);
-        gpio_put(BAND_1, 0);
-        gpio_put(BAND_2, 0);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
-        gpio_put(BAND_0, 0);
-        gpio_put(BAND_1, 1);
-        gpio_put(BAND_2, 0);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
-        gpio_put(BAND_0, 1);
-        gpio_put(BAND_1, 1);
-        gpio_put(BAND_2, 0);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
-        gpio_put(BAND_0, 0);
-        gpio_put(BAND_1, 0);
-        gpio_put(BAND_2, 1);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
-        gpio_put(BAND_0, 1);
-        gpio_put(BAND_1, 0);
-        gpio_put(BAND_2, 1);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
-        gpio_put(BAND_0, 0);
-        gpio_put(BAND_1, 1);
-        gpio_put(BAND_2, 1);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 1);
       }
       else
       {
-        gpio_put(BAND_0, 1);
-        gpio_put(BAND_1, 1);
-        gpio_put(BAND_2, 1);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 1);
       }
 
       //apply pwm_max
@@ -391,32 +391,32 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_set_clkdiv(99); //48e6/480e3
 
     //Configure PTT
-    gpio_init(PTT);
-    gpio_set_function(PTT, GPIO_FUNC_SIO);
-    gpio_set_dir(PTT, GPIO_IN);
-    gpio_pull_up(PTT);
+    gpio_init(PIN_PTT);
+    gpio_set_function(PIN_PTT, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_PTT, GPIO_IN);
+    gpio_pull_up(PIN_PTT);
     gpio_init(LED);
     gpio_set_function(LED, GPIO_FUNC_SIO);
     gpio_set_dir(LED, GPIO_OUT);
 
     //drive RF and magnitude pin to zero to make sure they are switched off
-    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_SIO);
-    gpio_set_dir(MAGNITUDE_PIN, GPIO_OUT);
-    gpio_put(MAGNITUDE_PIN, 0);
-    gpio_set_function(RF_PIN, GPIO_FUNC_SIO);
-    gpio_set_dir(RF_PIN, GPIO_OUT);
-    gpio_put(RF_PIN, 0);
+    gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_MAGNITUDE, GPIO_OUT);
+    gpio_put(PIN_MAGNITUDE, 0);
+    gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_RF, GPIO_OUT);
+    gpio_put(PIN_RF, 0);
 
     //band select
-    gpio_init(BAND_0);//band 0
-    gpio_init(BAND_1);//band 1
-    gpio_init(BAND_2);//band 2
-    gpio_set_function(BAND_0, GPIO_FUNC_SIO);
-    gpio_set_function(BAND_1, GPIO_FUNC_SIO);
-    gpio_set_function(BAND_2, GPIO_FUNC_SIO);
-    gpio_set_dir(BAND_0, GPIO_OUT);
-    gpio_set_dir(BAND_1, GPIO_OUT);
-    gpio_set_dir(BAND_2, GPIO_OUT);
+    gpio_init(PIN_BAND_0);//band 0
+    gpio_init(PIN_BAND_1);//band 1
+    gpio_init(PIN_BAND_2);//band 2
+    gpio_set_function(PIN_BAND_0, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_1, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_2, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_BAND_0, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_1, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_2, GPIO_OUT);
     
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
