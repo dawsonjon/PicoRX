@@ -42,7 +42,7 @@ void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_
 void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
 
-  uint16_t magnitudes[new_fft_size] = {0};
+  uint16_t magnitudes[fft_size] = {0};
 
   // window
   for (uint16_t i = 0; i < fft_size; i++) {
@@ -56,7 +56,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
-      capture[i] = (((int32_t)capture[i]<<3) - capture[i] + rectangular_2_magnitude(sample_real[i], sample_imag[i])) >> 3;
+      magnitudes[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+      capture[i] = (((int32_t)capture[i]<<3) - capture[i] + magnitudes[i]) >> 3;
     }
   }
 
@@ -79,8 +80,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
 
       //capture highest and second highest peak
-      uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
-      magnitudes[i] = magnitude;
+      const uint16_t magnitude = magnitudes[i];
 
       if(magnitude > peak)
       {
@@ -110,8 +110,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_imag[fft_size - (new_fft_size/2u) + i + 1]);
 
       //capture highest and second highest peak
-      uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
-      magnitudes[new_idx] = magnitude;
+      const uint16_t magnitude = magnitudes[new_idx];
       if(magnitude > peak)
       {
         peak = magnitude; 
