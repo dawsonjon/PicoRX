@@ -379,10 +379,17 @@ inline int32_t wrap(int32_t x) {
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t m)
 {
-   static int32_t phi_locked = 0;
-   static int32_t x1 = 0;
-   static int32_t y1 = 0;
-   static int32_t y0_err = 0;
+    static int32_t phi_locked = 0;
+    static int32_t x1 = 0;
+    static int32_t y1 = 0;
+    static int32_t y0_err = 0;
+
+    int16_t phase = rectangular_2_phase(i, q);
+    int16_t frequency = phase - last_phase;
+    last_phase = phase;
+
+    frequency_accumulator += frequency;
+    frequency_count ++;
 
     if(mode == AM)
     {
@@ -429,7 +436,6 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else if(mode == FM)
     {
-
         return frequency;
     }
     else if(mode == LSB || mode == USB)

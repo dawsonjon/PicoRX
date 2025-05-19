@@ -168,18 +168,24 @@ void rx::apply_settings()
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      //apply frequency
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-
-      //apply frequency calibration
-      if(!settings_to_apply.enable_external_nco)
+      if(tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz)
       {
-        tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
-        if_mode = settings_to_apply.if_mode;
-        if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-        pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
-        nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
-        offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+        //apply frequency
+        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+
+        //apply frequency calibration
+        if(!settings_to_apply.enable_external_nco)
+        {
+          tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
+          if_mode = settings_to_apply.if_mode;
+          if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+          pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
+          nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+          offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+        }
+
+        //apply pwm_max
+        pwm_audio_sink_update_pwm_max((system_clock_rate/audio_sample_rate)-1);
       }
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
@@ -231,8 +237,6 @@ void rx::apply_settings()
         gpio_put(PIN_BAND_2, 1);
       }
 
-      //apply pwm_max
-      pwm_audio_sink_update_pwm_max((system_clock_rate/audio_sample_rate)-1);
 
       //apply frequency offset
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
@@ -507,10 +511,7 @@ void rx::run()
 
     while(true)
     {
-      if (settings_changed)
-      {
-        apply_settings();
-      }
+      if(settings_changed) apply_settings();
 
 
       //read other adc channels when streaming is not running
@@ -540,7 +541,7 @@ void rx::run()
           update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend || settings_changed )
+          if(timeout-- == 0 || suspend || settings_changed)
           {
 
             dma_channel_cleanup(adc_dma_ping);

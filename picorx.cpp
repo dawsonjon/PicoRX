@@ -59,7 +59,6 @@ int main()
       last_ui_update = time_us_32();
       user_interface.do_ui();
       receiver.get_spectrum(spectrum, dB10, zoom);
-      printf("redraw_time: %lu\n", time_us_32() - last_ui_update);
     }
 
     else if(time_us_32() - last_cat_update > CAT_REFRESH_US)
