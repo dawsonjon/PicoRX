@@ -56,7 +56,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
-      magnitudes[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+      int16_t phi;
+      rectangular_2_polar(sample_real[i], sample_imag[i], &magnitudes[i], &phi);
       capture[i] = (((int32_t)capture[i]<<3) - capture[i] + magnitudes[i]) >> 3;
     }
   }
