@@ -120,22 +120,27 @@ void pwm_audio_sink_set_interpolation_mode(pwm_audio_interp_mode_e mode) {
   interp_mode = mode;
 }
 
-void pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
+uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
   static bool toggle = false;
+  uint32_t tm = 0;
+
   if (toggle) {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
       interpolate(samples[i], &ping_audio[i << 4], gain);
     }
+    tm = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_pong);
     dma_channel_set_read_addr(pwm_dma_ping, ping_audio, true);
   } else {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
       interpolate(samples[i], &pong_audio[i << 4], gain);
     }
+    tm = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_ping);
     dma_channel_set_read_addr(pwm_dma_pong, pong_audio, true);
   }
   toggle ^= 1;
+  return tm;
 }
 
 void pwm_audio_sink_update_pwm_max(uint32_t new_max) {

@@ -452,8 +452,8 @@ void rx::run()
           dma_channel_wait_for_finish_blocking(adc_dma_ping);
           uint32_t start_time = time_us_32();
           process_block(ping_samples, audio);
-          busy_time = time_us_32()-start_time;
-          pwm_audio_sink_push(audio, gain_numerator);
+          busy_time = pwm_audio_sink_push(audio, gain_numerator);
+          busy_time -= start_time;
           dma_channel_wait_for_finish_blocking(adc_dma_pong);
           process_block(pong_samples, audio);
           pwm_audio_sink_push(audio, gain_numerator);
