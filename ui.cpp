@@ -1007,6 +1007,7 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
   settings_to_apply.iq_correction = settings[idx_rx_features] >> flag_iq_correction & 1;
   settings_to_apply.stream_raw_iq = (settings[idx_rx_features] & mask_stream_raw_iq) >> flag_stream_raw_iq;
+  settings_to_apply.pwm_audio_mode = (settings[idx_rx_features] & mask_pwm_audio_mode) >> flag_pwm_audio_mode;
   receiver.release();
 }
 
@@ -2343,6 +2344,7 @@ bool ui::main_menu(bool & ok)
                      "Frequency#Recall#Store#Volume#Mode#AGC "
                      "Speed#Bandwidth#Squelch#Auto "
                      "Notch#Noise\nCanceler#De-\nEmphasis#Bass\nBoost#Treble#"
+                     "PWM Audio\nMode#"
                      "IQ\nCorrection#"
                      "USB\nStream#Spectrum\nZoom#Band Start#Band "
                      "Stop#Frequency\nStep#CW Tone\nFrequency#HW Config#",
@@ -2434,33 +2436,40 @@ bool ui::main_menu(bool & ok)
             settings[idx_rx_features] |= ((settings_word << flag_treble) & mask_treble);
             if(changed) apply_settings(false);
             break;
-          case 13 : 
+          case 13 :
+            settings_word = (settings[idx_rx_features] & mask_pwm_audio_mode) >> flag_pwm_audio_mode;
+            done = enumerate_entry("PWM Audio\nMode", "Linear#Smooth#", &settings_word, ok, changed);
+            settings[idx_rx_features] &= ~(mask_pwm_audio_mode);
+            settings[idx_rx_features] |= ((settings_word << flag_pwm_audio_mode) & mask_pwm_audio_mode);
+            if(changed) apply_settings(false);
+            break;
+          case 14 : 
             done = bit_entry("IQ\ncorrection", "Off#On#", flag_iq_correction, &settings[idx_rx_features], ok);
             break;
-          case 14  : 
+          case 15  : 
             done = bit_entry("USB\nstream", "Audio#Raw IQ#", flag_stream_raw_iq, &settings[idx_rx_features], ok);
             break;
-          case 15 : 
+          case 16 : 
             settings_word = (settings[idx_bandwidth_spectrum] & mask_spectrum) >> flag_spectrum;
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, (int32_t*)&settings_word, ok, changed);
             settings[idx_bandwidth_spectrum] &= ~(mask_spectrum);
             settings[idx_bandwidth_spectrum] |= ((settings_word << flag_spectrum) & mask_spectrum);
             break;
-          case 16 :  
+          case 17 :  
             done = frequency_entry("Band Start", idx_min_frequency, ok);
             break;
-          case 17 : 
+          case 18 : 
             done = frequency_entry("Band Stop", idx_max_frequency, ok);
             break;
-          case 18 : 
+          case 19 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#1kHz#5kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", &settings[idx_step], ok, changed);
             settings[idx_frequency] -= settings[idx_frequency]%step_sizes[settings[idx_step]];
             break;
-          case 19 : 
+          case 20 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, (int32_t*)&settings[idx_cw_sidetone], ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 20 : 
+          case 21 : 
             done = configuration_menu(ok);
             break;
         }

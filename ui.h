@@ -95,6 +95,8 @@ const uint8_t PIN_DISPLAY_SCL = 19;
 #define mask_treble (0x7 << flag_treble)
 #define flag_bass (10)
 #define mask_bass (0x7 << flag_bass)
+#define flag_pwm_audio_mode (13)
+#define mask_pwm_audio_mode (0x1 << flag_pwm_audio_mode)
 
 // define wait macros
 #define WAIT_10MS sleep_us(10000);

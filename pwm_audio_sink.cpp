@@ -21,8 +21,19 @@ static int16_t pong_audio[NUM_OUT_SAMPLES];
 
 static uint32_t pwm_max;
 static uint32_t pwm_scale;
+static pwm_audio_interp_mode_e interp_mode = pwm_audio_interp_mode_e::linear;
 
-static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
+static const int16_t interp_h[4 * interpolation_rate] = {
+    0,     39,    157,   353,   624,   967,   1381,  1859,  2399,  2995,  3641,
+    4330,  5057,  5814,  6594,  7389,  8192,  8995,  9790,  10570, 11327, 12053,
+    12743, 13389, 13984, 14524, 15003, 15416, 15760, 16031, 16226, 16344, 16384,
+    16344, 16226, 16031, 15760, 15416, 15003, 14524, 13984, 13389, 12743, 12053,
+    11327, 10570, 9790,  8995,  8192,  7389,  6594,  5814,  5057,  4330,  3641,
+    2995,  2399,  1859,  1381,  967,   624,   353,   157,   39};
+
+static void __time_critical_func(interpolate)(int16_t sample,
+                                              int16_t pwm_samples[],
+                                              int16_t gain) {
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
 
@@ -31,13 +42,33 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
   sample = (uint16_t)sample / pwm_scale;
 
   // interpolate to PWM rate
-  static int16_t last_sample = 0;
-  int32_t comb = sample - last_sample;
-  last_sample = sample;
-  for (uint8_t subsample = 0; subsample < interpolation_rate; ++subsample) {
-    static int32_t integrator = 0;
-    integrator += comb;
-    pwm_samples[subsample] = integrator >> 4;
+  if (interp_mode == pwm_audio_interp_mode_e::linear) {
+    static int16_t last_sample = 0;
+    int32_t comb = sample - last_sample;
+    last_sample = sample;
+    for (uint8_t subsample = 0; subsample < interpolation_rate; ++subsample) {
+      static int32_t integrator = 0;
+      integrator += comb;
+      pwm_samples[subsample] = integrator >> 4;
+    }
+  } else {
+    // simple polyphase FIR interpolator
+    static int16_t sample_n_1 = 0;
+    static int16_t sample_n_2 = 0;
+    static int16_t sample_n_3 = 0;
+    for (uint8_t subsample = 0; subsample < interpolation_rate; ++subsample) {
+      pwm_samples[subsample] =
+          (interp_h[subsample] * (int32_t)sample +
+           interp_h[subsample + interpolation_rate] * (int32_t)sample_n_1 +
+           interp_h[subsample + (2 * interpolation_rate)] *
+               (int32_t)sample_n_2 +
+           interp_h[subsample + (3 * interpolation_rate)] *
+               (int32_t)sample_n_3) >>
+          15;
+    }
+    sample_n_3 = sample_n_2;
+    sample_n_2 = sample_n_1;
+    sample_n_1 = sample;
   }
 }
 
@@ -80,6 +111,13 @@ void pwm_audio_sink_start(void) {
 void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_ping);
   dma_channel_cleanup(pwm_dma_pong);
+}
+
+void pwm_audio_sink_set_interpolation_mode(pwm_audio_interp_mode_e mode) {
+  if (mode > pwm_audio_interp_mode_e::polyphase) {
+    mode = pwm_audio_interp_mode_e::polyphase;
+  }
+  interp_mode = mode;
 }
 
 void pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {

@@ -44,6 +44,7 @@ struct rx_settings
   bool enable_auto_notch;
   bool stream_raw_iq;
   uint8_t noise_canceler_mode;
+  uint8_t pwm_audio_mode;
 };
 
 struct rx_status

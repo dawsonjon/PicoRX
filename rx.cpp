@@ -209,6 +209,9 @@ void rx::apply_settings()
 
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
+      pwm_audio_sink_set_interpolation_mode(
+          (pwm_audio_interp_mode_e)settings_to_apply.pwm_audio_mode);
+
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
