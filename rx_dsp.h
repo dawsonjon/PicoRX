@@ -39,7 +39,7 @@ class rx_dsp
   
   void frequency_shift(int16_t &i, int16_t &q);
   bool decimate(int16_t &i, int16_t &q);
-  int16_t demodulate(int16_t i, int16_t q, uint16_t m);
+  int16_t demodulate(int16_t i, int16_t q, uint16_t mag, int16_t phi);
   int16_t automatic_gain_control(int16_t audio);
   int16_t apply_deemphasis(int16_t x);
   int16_t squelch(int16_t audio, int32_t amplitude);

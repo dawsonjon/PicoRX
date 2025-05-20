@@ -259,11 +259,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     queue_try_add(&data_queue, (void*)&complex_sample);
 
     //Measure amplitude (for signal strength indicator)
-    int32_t amplitude = rectangular_2_magnitude(i, q);
-    magnitude_sum += amplitude;
+    uint16_t magnitude;
+    int16_t phase;
+    rectangular_2_polar(i, q, &magnitude, &phase);
+    magnitude_sum += magnitude;
 
     //Demodulate to give audio sample
-    int32_t audio = demodulate(i, q, amplitude);
+    int32_t audio = demodulate(i, q, magnitude, phase);
 
     //De-emphasis
     audio = apply_deemphasis(audio);
@@ -373,18 +375,16 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 #define AMSYNC_BASE_FRACTION_BITS (15)
 
 inline int32_t wrap(int32_t x) {
-  const int32_t out = (((int64_t)x + (2 * AMSYNC_PI)) % (4 * AMSYNC_PI)) - (2 * AMSYNC_PI);
-  return out;
+  return ((x + AMSYNC_PI) % (2 * AMSYNC_PI)) - AMSYNC_PI;
 }
 
-int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t m)
+int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t magnitude, int16_t phase)
 {
-    static int32_t phi_locked = 0;
+    static int32_t phase_locked = 0;
     static int32_t x1 = 0;
     static int32_t y1 = 0;
     static int32_t y0_err = 0;
 
-    int16_t phase = rectangular_2_phase(i, q);
     int16_t frequency = phase - last_phase;
     last_phase = phase;
 
@@ -393,7 +393,7 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
 
     if(mode == AM)
     {
-        const int16_t amplitude = m;
+        const int16_t amplitude = magnitude;
         //measure DC using first order IIR low-pass filter
         audio_dc = amplitude+(audio_dc - (audio_dc >> 5));
         //subtract DC component
@@ -401,9 +401,9 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else if(mode == AMSYNC)
     {
-      size_t idx = (phi_locked / AMSYNC_PHI_SCALE);
+      size_t idx = (phase_locked / AMSYNC_PHI_SCALE);
 
-      if (phi_locked < 0) {
+      if (phase_locked < 0) {
         idx = 2048 + idx;
       }
 
@@ -415,8 +415,8 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
       const int16_t synced_i = (i * vco_i + q * vco_q) >> AMSYNC_BASE_FRACTION_BITS;
       const int16_t synced_q = (-i * vco_q + q * vco_i) >> AMSYNC_BASE_FRACTION_BITS;
 
-      const int32_t err =
-          ((int32_t)rectangular_2_phase(synced_q, synced_i) * AMSYNC_ERR_SCALE);
+      rectangular_2_polar(synced_i, synced_q, &magnitude, &phase);
+      const int32_t err = (int32_t)phase * AMSYNC_ERR_SCALE;
 
       int32_t y0 = err * AMSYNC_B0 + x1 * AMSYNC_B1;
       y0 += y0_err;
@@ -425,9 +425,9 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
       y0 += y1;
       y1 = y0;
       x1 = err;
-      phi_locked += y0;
+      phase_locked += y0;
 
-      phi_locked = wrap(phi_locked);
+      phase_locked = wrap(phase_locked);
 
       // measure DC using first order IIR low-pass filter
       audio_dc = synced_i + (audio_dc - (audio_dc >> 5));
