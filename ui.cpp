@@ -2000,7 +2000,7 @@ bool ui::configuration_menu(bool &ok)
         case 16: 
         {
           static uint8_t usb_upload = 0;
-          done = enumerate_entry("USB Upload?", "#No#Yes#", usb_upload, ok, changed);
+          done = enumerate_entry("Ready?", "#No#Yes#", usb_upload, ok, changed);
           if(done && ok)
           {
             if(usb_upload==1) {

@@ -88,6 +88,7 @@ class rx
   uint16_t battery;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
+  int8_t ppm=0;
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;

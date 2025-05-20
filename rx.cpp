@@ -168,10 +168,11 @@ void rx::apply_settings()
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      if(tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz)
+      if(tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz || ppm != settings_to_apply.ppm)
       {
         //apply frequency
         tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+        ppm = settings_to_apply.ppm;
 
         //apply frequency calibration
         if(!settings_to_apply.enable_external_nco)
