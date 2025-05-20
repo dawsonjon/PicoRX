@@ -13,11 +13,11 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
-//#ifdef BUTTON_ENCODER
-//#include "button_encoder.h"
-//#else
+#ifdef BUTTON_ENCODER
+#include "button_encoder.h"
+#else
 #include "rotary_encoder.h"
-//#endif
+#endif
 #include "logo.h"
 #include "u8g2.h"
 #include "pins.h"
@@ -62,11 +62,11 @@ class ui
     "S9+30dB---|"};
 
   // Encoder
-//#ifdef BUTTON_ENCODER
-//  button_encoder main_encoder;
-//#else
+#ifdef BUTTON_ENCODER
+  button_encoder main_encoder;
+#else
   rotary_encoder main_encoder;
-//#endif
+#endif
 
   // Buttons
   button menu_button;
