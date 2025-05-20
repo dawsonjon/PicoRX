@@ -49,9 +49,16 @@ bandwidths = {
   "Wide":3,
   "Very Wide":4
 }
+rmodes = dict(zip(modes.values(), modes.keys()))
+ragc_speeds = dict(zip(agc_speeds.values(), agc_speeds.keys()))
+rsteps = dict(zip(steps.values(), steps.keys()))
+rbandwidths = dict(zip(bandwidths.values(), bandwidths.keys()))
 
 def pack(string):
     return (ord(string[0]) << 0) + (ord(string[1]) << 8) + (ord(string[2]) << 16) + (ord(string[3]) << 24)
+
+def unpack(word):
+    return chr(word >> 0 & 0xff) + chr(word >> 8 & 0xff) + chr(word >> 16 & 0xff) + chr(word >> 24 & 0xff)
 
 def channel_to_words(name, frequency, min_frequency, max_frequency, mode, agc_speed, step, bandwidth):
     if len(name) < 16:
@@ -78,3 +85,17 @@ def channel_to_words(name, frequency, min_frequency, max_frequency, mode, agc_sp
     ]
 
     return data
+
+
+def words_to_channel(words):
+  name = "asdfasdfasdfsad"
+  frequency = words[0]  
+  max_frequency = words[1]  
+  min_frequency = words[2]  
+  mode = rmodes[words[3] >> 0 & 0xff]
+  agc_speed = ragc_speeds[words[3] >> 8 & 0xff]
+  step = rsteps[words[3] >> 24 & 0xff]
+  bandwidth = rbandwidths[words[4]]
+  name = unpack(words[5]) + unpack(words[6]) + unpack(words[7]) + unpack(words[8])
+
+  return name, frequency, min_frequency, max_frequency, mode, agc_speed, step, bandwidth

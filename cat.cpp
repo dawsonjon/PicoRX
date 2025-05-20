@@ -8,7 +8,7 @@
 
 void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, s_settings &settings)
 {
-    const uint16_t buffer_length = 64;
+    const uint16_t buffer_length = 256;
     static char buf[buffer_length];
     static uint16_t read_idx = 0;
     static uint16_t write_idx = 0;
@@ -16,26 +16,13 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
     //write any new data into circular buffer
     {
-      const uint16_t bytes_to_end = buffer_length-write_idx-1;
-      if(bytes_to_end > 0)
+      const uint16_t bytes_to_end = buffer_length-write_idx;
+      int32_t retval = stdio_get_until(buf+write_idx, bytes_to_end, make_timeout_time_us(100));
+      if(retval != PICO_ERROR_TIMEOUT)
       {
-        int32_t retval = stdio_get_until(buf+write_idx, bytes_to_end, make_timeout_time_us(100));
-        if(retval != PICO_ERROR_TIMEOUT)
-        {
-          items_in_buffer += retval;
-          write_idx += retval;
-          if(write_idx > buffer_length) write_idx -= buffer_length;
-        }
-      }
-      else
-      {
-        int32_t retval = stdio_get_until(buf, sizeof(buf)-items_in_buffer, make_timeout_time_us(100));
-        if(retval != PICO_ERROR_TIMEOUT)
-        {
-          items_in_buffer += retval;
-          write_idx += retval;
-          if(write_idx > buffer_length) write_idx -= buffer_length;
-        }
+        items_in_buffer += retval;
+        write_idx += retval;
+        if(write_idx >= buffer_length) write_idx -= buffer_length;
       }
     }
 
@@ -43,7 +30,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     //copy command from circular buffer to command buffer
     static char cmd[buffer_length];
     const uint16_t bytes_to_read = items_in_buffer;
-    const uint16_t bytes_to_end = std::min(bytes_to_read, (uint16_t)(buffer_length-1u-read_idx));
+    const uint16_t bytes_to_end = std::min(bytes_to_read, (uint16_t)(buffer_length-read_idx));
     const uint16_t bytes_remaining = bytes_to_read - bytes_to_end;
     memcpy(cmd, buf+read_idx, bytes_to_end);
     memcpy(cmd+bytes_to_end, buf, bytes_remaining);
@@ -68,6 +55,8 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
     bool settings_changed = false;
     const char mode_translation[] = "551243";
+    static char vfor = '0';
+    static char vfot = '0';
 
     if (strncmp(cmd, "FA", 2) == 0) {
 
@@ -84,7 +73,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             }
             else
             {
-              stdio_puts_raw("?;");
+              printf("?;");
             }
         }
     
@@ -103,7 +92,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             }
             else
             {
-              stdio_puts_raw("?;");
+              printf("?;");
             }
         }
 
@@ -119,7 +108,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             power_scaled = std::max((float)0, power_scaled);
             printf("SM%05X;", (uint16_t)power_scaled);
         } else {
-            stdio_puts_raw("?;");
+            printf("?;");
         }
 
     } else if (strncmp(cmd, "MD", 2) == 0) {
@@ -147,13 +136,27 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
     } else if (strncmp(cmd, "IF", 2) == 0) {
         if (cmd[2] == ';') {
-            printf("IF%011lu00000+0000000000%c0000000;", settings.channel.frequency, mode_translation[settings.channel.mode]);
+            printf("IF%011lu     +0000000000%c%c00000 ;", settings.channel.frequency, mode_translation[settings.channel.mode], vfor);
         }
 
     //fake TX for now
     } else if (strncmp(cmd, "ID", 2) == 0) {
         if (cmd[2] == ';') {
             printf("ID020;");
+        }
+    } else if (strncmp(cmd, "FR", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("FR%c;", vfor);
+        }
+        else if(cmd[3] == ';'){
+            vfor = cmd[2];
+        }
+    } else if (strncmp(cmd, "FT", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("FT%c;", vfot);
+        }
+        else if(cmd[3] == ';'){
+            vfot = cmd[2];
         }
     } else if (strncmp(cmd, "AI", 2) == 0) {
         if (cmd[2] == ';') {
@@ -314,12 +317,56 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             tx_status = 0;
         } else {
             // Invalid TX command format
-            stdio_puts_raw("?;");
+            printf("?;");
         }
 
+    } else if (strncmp(cmd, "ZUP", 3) == 0) {
+        if (cmd[134] == ';') {
+
+          //Extract channel number
+          char channel_string[4];
+          memcpy(channel_string, &cmd[3], 3); cmd[3] = 0;
+          uint32_t channel_number = strtoul(channel_string, NULL, 16);
+
+          //Read word data
+          uint32_t words[16];
+          for(uint8_t word_idx=0; word_idx<16; ++word_idx)
+          {
+            char word_string[9];
+            memcpy(word_string, &cmd[(word_idx * 8) + 6], 8); cmd[8] = 0;
+            words[word_idx] = strtoul(word_string, NULL, 16);
+          }
+
+          s_memory_channel memory_channel;
+          memcpy(&memory_channel, words, sizeof(memory_channel)); 
+          memory_store_channel(memory_channel, channel_number, settings, receiver, settings_to_apply);
+          printf("ZUP%03lx;", channel_number);
+
+        } else {
+            printf("?;");
+        }
+    } else if (strncmp(cmd, "ZDN", 3) == 0) {
+        if (cmd[6] == ';') {
+          char channel_string[4];
+          memcpy(channel_string, &cmd[3], 3); cmd[3] = 0;
+          uint32_t channel_number = strtoul(channel_string, NULL, 16);
+
+          printf("ZDN%03lx", channel_number);
+          s_memory_channel memory_channel = get_channel(channel_number);
+          uint32_t words[16];
+          memcpy(words, &memory_channel, sizeof(memory_channel)); 
+          for(uint8_t word_idx=0; word_idx<16; ++word_idx)
+          {
+            printf("%08lx", words[word_idx]);
+          }
+          printf(";");
+
+        } else {
+            printf("?;");
+        }
     } else {
         // Unknown command
-        stdio_puts_raw("?;");
+        printf("?;");
     }
 
     //apply settings to receiver

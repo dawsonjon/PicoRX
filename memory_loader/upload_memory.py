@@ -38,8 +38,7 @@ if idx.strip().upper() != "Y":
   sys.exit(-1)
 
 print("1. Connect USB cable to Pico Rx")
-print("2. Select *HW Config -> USB Upload -> Memory* menu item")
-print("3. When ready press any key")
+print("2. When ready press any key")
 idx = input()
 
 #get a list of available serial ports
@@ -60,17 +59,19 @@ while 1:
 
 #send csv file to pico via USB
 buffer = read_memory(filename)
-with serial.Serial(port, 12000000, rtscts=1) as ser:
+with serial.Serial(port, 12000000, rtscts=1, timeout=1) as ser:
 
     #clear any data in buffer
     while ser.in_waiting:
       ser.read(ser.in_waiting)
 
     with open(filename, 'rb') as input_file:
-      for channel in buffer:
-        i=0
+      for channel_number, channel in enumerate(buffer):
+        cmd = "ZUP%03x"%channel_number
         for location in channel:
-          i+=1
-          ser.write(bytes("%x\n"%(location), "utf8"))
-      ser.write(bytes("q\n", "utf8"))
+          cmd += "%08x"%location
+        cmd += ";"
+        print(cmd, len(cmd))
+        ser.write(bytes(cmd, "utf8"))
+        print(ser.read(7))
 
