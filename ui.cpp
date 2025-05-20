@@ -1043,89 +1043,6 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   apply_settings_to_rx(receiver, settings_to_apply, settings, suspend, settings_changed);
 }
 
-//Upload memories via USB interface
-bool ui::upload_memory()
-{
-      display_clear();
-      display_print_str("Ready for\nmemories",2, style_centered);
-      display_show();
-
-      uint8_t progress_ctr=0;
-
-      //work out which flash sector the channel sits in.
-      const uint32_t num_channels_per_sector = FLASH_SECTOR_SIZE/(sizeof(int)*memory_chan_size);
-
-      //copy memory to RAM
-      bool done = false;
-      const uint32_t num_sectors = num_chans/num_channels_per_sector;
-      for(uint8_t sector = 0; sector < num_sectors; sector++)
-      {
-
-        const uint32_t first_channel_in_sector = num_channels_per_sector * sector;
-        static uint32_t memory_copy[num_channels_per_sector][memory_chan_size];
-        for(uint16_t channel=0; channel<num_channels_per_sector; channel++)
-        {
-          for(uint16_t location=0; location<memory_chan_size; location++)
-          {
-            if(!done)
-            {
-              printf("sector %u channel %u location %u>\n", sector, channel, location);
-              char line [256];
-              uint32_t data;
-              fgets(line, 256, stdin);
-              if(line[0] == 'q' || line[0] == 'Q')
-              {
-                memory_copy[channel][location] = radio_memory[first_channel_in_sector + channel][location];
-                done = true;
-              }
-              if (sscanf(line, " %lx", &data))
-              {
-                memory_copy[channel][location] = data;
-              }
-            }
-            else
-            {
-              memory_copy[channel][location] = radio_memory[first_channel_in_sector + channel][location];
-            }
-          }
-        }
-        
-        // show some progress
-        ssd1306_invert( &disp, 0x1 & (++progress_ctr));
-
-        //write sector to flash
-        const uint32_t address = (uint32_t)&(radio_memory[first_channel_in_sector]);
-        const uint32_t flash_address = address - XIP_BASE; 
-
-        //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        apply_settings(true);                                //suspend rx to disable all DMA transfers
-        WAIT_100MS                                           //wait for suspension to take effect
-        multicore_lockout_start_blocking();                  //halt the second core
-        const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
-
-        //safe to erase flash here
-        //--------------------------------------------------------------------------------------------
-        flash_range_erase(flash_address, FLASH_SECTOR_SIZE);
-        flash_range_program(flash_address, (const uint8_t*)&memory_copy, FLASH_SECTOR_SIZE);
-        //--------------------------------------------------------------------------------------------
-
-        restore_interrupts (ints);                           //restore interrupts
-        multicore_lockout_end_blocking();                    //restart the second core
-        apply_settings(false);                               //resume rx operation
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        //!!! Normal operation resumed
-
-      }
-
-      display_clear();
-      display_print_str("Memories\nuploaded!",2, style_centered);
-      display_show();
-      sleep_ms(3000);
-
-      return false;
-}
-
 //save current settings to memory
 bool ui::memory_store(bool &ok)
 {
@@ -2083,12 +2000,10 @@ bool ui::configuration_menu(bool &ok)
         case 16: 
         {
           static uint8_t usb_upload = 0;
-          done = enumerate_entry("USB Upload", "Back#Memory#Firmware#", usb_upload, ok, changed);
+          done = enumerate_entry("USB Upload?", "#No#Yes#", usb_upload, ok, changed);
           if(done && ok)
           {
             if(usb_upload==1) {
-              upload_memory();
-            } else if (usb_upload==2) {
               display_clear();
               display_print_str("Ready for\nfirmware",2, style_centered);
               display_show();
