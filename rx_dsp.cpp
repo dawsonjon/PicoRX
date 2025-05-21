@@ -375,7 +375,12 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 #define AMSYNC_BASE_FRACTION_BITS (15)
 
 inline int32_t wrap(int32_t x) {
-  return ((x + AMSYNC_PI) % (2 * AMSYNC_PI)) - AMSYNC_PI;
+  if (x > AMSYNC_PI) {
+    x = -AMSYNC_PI + (x % AMSYNC_PI);
+  } else if (x < -AMSYNC_PI) {
+    x = AMSYNC_PI + (x % AMSYNC_PI);
+  }
+  return x;
 }
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t magnitude, int16_t phase)
