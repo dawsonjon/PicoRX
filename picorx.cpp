@@ -13,6 +13,7 @@
 #define UI_REFRESH_US (1000000UL / UI_REFRESH_HZ)
 #define CAT_REFRESH_US (10000UL)
 #define BUTTONS_REFRESH_US (50000UL) // 50ms <=> 20Hz
+#define WATERFALL_REFRESH_US (50000UL) // 50ms <=> 20Hz
 
 uint8_t spectrum[256];
 uint8_t dB10=10;
@@ -61,12 +62,15 @@ int main()
       receiver.get_spectrum(spectrum, dB10, zoom);
     }
 
-    else if(time_us_32() - last_cat_update > CAT_REFRESH_US)
+    if(time_us_32() - last_cat_update > CAT_REFRESH_US)
     {
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
+    if(time_us_32() - last_cat_update > WATERFALL_REFRESH_US)
+    {
+      waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
+    }
 
   }
 }

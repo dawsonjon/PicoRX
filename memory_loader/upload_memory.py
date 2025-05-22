@@ -2,6 +2,7 @@ import sys
 import serial
 import serial.tools.list_ports
 import struct
+import time
 from channel_to_words import channel_to_words
 
 
@@ -64,14 +65,18 @@ with serial.Serial(port, 12000000, rtscts=1, timeout=1) as ser:
     #clear any data in buffer
     while ser.in_waiting:
       ser.read(ser.in_waiting)
+    time.sleep(1)
+    while ser.in_waiting:
+      ser.read(ser.in_waiting)
 
     with open(filename, 'rb') as input_file:
       for channel_number, channel in enumerate(buffer):
+        print("Uploading channel:", channel_number)
         cmd = "ZUP%03x"%channel_number
         for location in channel:
           cmd += "%08x"%location
         cmd += ";"
-        print(cmd, len(cmd))
+        #print(cmd, len(cmd))
         ser.write(bytes(cmd, "utf8"))
-        print(ser.read(7))
+        ser.read(7)
 
