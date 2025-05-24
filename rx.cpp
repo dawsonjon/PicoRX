@@ -168,7 +168,10 @@ void rx::apply_settings()
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      if(tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz || ppm != settings_to_apply.ppm)
+      if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) || 
+         (ppm != settings_to_apply.ppm) ||
+         (if_mode != settings_to_apply.if_mode) ||
+         (if_frequency_hz_over_100 != settings_to_apply.if_frequency_hz_over_100))
       {
         //apply frequency
         tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
