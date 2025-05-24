@@ -37,7 +37,7 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
   for (uint8_t subsample = 0; subsample < interpolation_rate; ++subsample) {
     static int32_t integrator = 0;
     integrator += comb;
-    pwm_samples[subsample] = integrator >> 4;
+    pwm_samples[subsample] = integrator / interpolation_rate;
   }
 }
 
@@ -88,14 +88,14 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
 
   if (toggle) {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
-      interpolate(samples[i], &ping_audio[i << 4], gain);
+      interpolate(samples[i], &ping_audio[i * interpolation_rate], gain);
     }
     time = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_pong);
     dma_channel_set_read_addr(pwm_dma_ping, ping_audio, true);
   } else {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
-      interpolate(samples[i], &pong_audio[i << 4], gain);
+      interpolate(samples[i], &pong_audio[i * interpolation_rate], gain);
     }
     time = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_ping);

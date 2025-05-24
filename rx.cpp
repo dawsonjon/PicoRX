@@ -186,7 +186,7 @@ void rx::apply_settings()
         }
 
         //apply pwm_max
-        pwm_audio_sink_update_pwm_max((system_clock_rate/audio_sample_rate)-1);
+        pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
       }
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
