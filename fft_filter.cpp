@@ -126,7 +126,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       if(magnitude > peak)
       {
         peak = magnitude; 
-        peak_bin = i;
+        peak_bin = new_idx;
       }
       else if(magnitude > next_peak)
       {
