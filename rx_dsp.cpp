@@ -859,7 +859,7 @@ float rx_dsp::get_tuning_offset_Hz()
   if(frequency_count > 30000)
   {
     float average_frequency = (float)frequency_accumulator/(float)frequency_count;
-    frequency_offset_Hz = (audio_sample_rate * average_frequency)/(32767.0f * decimation_rate);
+    frequency_offset_Hz = (pwm_audio_sample_rate * average_frequency)/(32767.0f * decimation_rate);
     frequency_accumulator = 0;
     frequency_count = 0;
   }
