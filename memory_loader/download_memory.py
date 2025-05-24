@@ -54,13 +54,9 @@ with serial.Serial(port, 12000000, rtscts=1, timeout=1) as ser:
 
     with open(filename, 'w') as output_file:
       output_file.write("Title           , Frequency, Band Start, Band End, Mode, AGC Speed, Frequency Step, bandwdth\n")
-      cmd = "ZDN%03x;"%0
-      ser.write(bytes(cmd, "utf8"))
-      cmd = "ZDN%03x;"%1
-      ser.write(bytes(cmd, "utf8"))
       for channel_number in range(512):
         print("Fetching Channel:", channel_number)
-        cmd = "ZDN%03x;"%(channel_number+2)
+        cmd = "ZDN%03x;"%(channel_number)
         ser.write(bytes(cmd, "utf8"))
         data = ser.read(135)
         data = data[6:].decode("utf8")
