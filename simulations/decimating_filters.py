@@ -15,7 +15,13 @@ def frequency_response(kernel, kernel_bits):
     response = 20*np.log10(abs(np.fft.fftshift(np.fft.fft(response))))
     return response
 
-def plot_cic(length, order, fs):
+def upsample(x, n):
+    return np.concatenate([[y] + [0] * (n - 1) for y in x])
+
+def mult_poly(p1, p2):
+    return np.polymul(p1, p2)
+
+def get_cic_response(length, order):
 
     #CIC filter is equivilent to moving average filter
     #make an equivilent filter kernel by convolving a rectangular kernel
@@ -23,16 +29,54 @@ def plot_cic(length, order, fs):
     response = h
     for i in range(order-1):
       response = np.convolve(response, h)
+    return response, [1]
 
-    #pad kernel and find magnitude spectrum
-    response = np.concatenate([response, np.zeros((500*length)-len(response))])
-    response = 20*np.log10(abs(np.fft.fftshift(np.fft.fft(response))))
+def get_iir_response(target_decim):
+
+    # IIR-based, 2-branch, polyphase (1:2) decimator
+    # how it was designed is out of scope for this script
+    b = [
+        1.74176794e-01,
+        4.16748110e-01,
+        6.45175700e-01,
+        6.45175700e-01,
+        4.16748110e-01,
+        1.74176794e-01,
+        0.00000000e00,
+    ]
+
+    a = [
+        2.90351399e-01,
+        0.00000000e00,
+        1.18184981e00,
+        0.00000000e00,
+        1.00000000e00,
+    ]
+    b, a = upsample(b, target_decim // 2), upsample(a, target_decim // 2)
+
+    # additional output IIR filter
+    b_out = [6.38945525e-01, 1.27789105e+00, 6.38945525e-01]
+    a_out = [1.00000000e+00, 1.14298050e+00, 4.12801598e-01]
+    b_out = upsample(b_out, target_decim)
+    a_out = upsample(a_out, target_decim)
+
+    b = mult_poly(b, b_out)
+    a = mult_poly(a, a_out)
+
+    return b, a
+
+
+def plot_wrapped_magnitude(wrap, response, fs, label, color='b-'):
+
+    spec_len = 2048
+    _, h1 = signal.freqz(response[0], response[1], worN=spec_len, fs=fs)
 
     #Fold aliased parts of the signal around Fs/2 
-    response = response[len(response)//2:]
+    mag = 20 * np.log10(np.abs(h1))
+    frag_len = spec_len // wrap
     fragments = [] 
-    for i in range(length):
-      fragment = response[i*len(response)//length:(i+1)*len(response)//length]
+    for i in range(wrap):
+      fragment = mag[i * frag_len : (i + 1) * frag_len]
       if i & 1:
         fragment = np.flip(fragment)
       fragments.append(fragment)
@@ -42,21 +86,21 @@ def plot_cic(length, order, fs):
     for idx, fragment in enumerate(fragments):
       if idx == 0:
         plt.plot(
-          np.linspace(0, fs/(2*length), len(fragment)), 
+          np.linspace(0, fs/(2*wrap), len(fragment)), 
           fragment,
-          "b-",
-          label = "Order %u CIC Decmator"%order
+          color,
+          label = label
         )
       else:
         plt.plot(
-          np.linspace(0, fs/(2*length), len(fragment)), 
+          np.linspace(0, fs/(2*wrap), len(fragment)), 
           fragment,
-          "b-",
+          color,
         )
       plt.plot(
-        np.linspace(0, -fs/(2*length), len(fragment)), 
+        np.linspace(0, -fs/(2*wrap), len(fragment)), 
         fragment,
-        "b-"
+        color
       )
 
 def plot_correction(length, order, fs):
@@ -141,11 +185,20 @@ if __name__ == "__main__":
 
     plt.figure()
     plt.grid(True)
-    plt.title("Decimation CIC=%i"%decimation)
+    plt.title("Decimation CIC")
     plt.xlabel("Frequency (kHz)")
     plt.ylabel("Gain (dB)")
+    resp = get_cic_response(decimation, 4)
+    plot_wrapped_magnitude(decimation, resp, fs_kHz, f"Order {4} CIC {16}:1 Decimator")
+    resp = get_cic_response(8, 4)
+    plot_wrapped_magnitude(
+        decimation, resp, fs_kHz, f"Order {4} CIC {8}:1 Decimator", "red"
+    )
+    iir_resp = get_iir_response(16)
+    resp = mult_poly(resp[0], iir_resp[0]), mult_poly(resp[1], iir_resp[1])
+
+    plot_wrapped_magnitude(decimation, resp, fs_kHz, f"CIC {8}:1 + IIR Filter", "green")
     plt.ylim(-150, 10)
-    plot_cic(decimation, 4, fs_kHz) #cic decimation filter
     plt.legend()
     plt.show()
 
