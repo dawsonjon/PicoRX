@@ -60,8 +60,9 @@ def get_iir_response(target_decim):
     b_out = upsample(b_out, target_decim)
     a_out = upsample(a_out, target_decim)
 
-    b = mult_poly(b, b_out)
-    a = mult_poly(a, a_out)
+    # Uncomment this to add output IIR filter
+    # b = mult_poly(b, b_out)
+    # a = mult_poly(a, a_out)
 
     return b, a
 
@@ -107,30 +108,21 @@ def plot_wrapped_magnitude(ax, wrap, response, fs, label, color='blue'):
         color
       )
 
-def plot_correction(length, order, fs):
+def plot_correction(response, decim_factor, fs):
 
-    #CIC filter is equivilent to moving average filter
-    #make an equivilent filter kernel by convolving a rectangular kernel
-    h = np.ones(length)/length
-    response = h
-    for i in range(order-1):
-      response = np.convolve(response, h)
+    spec_len = 2048
+    _, h = signal.freqz(response[0], response[1], worN=spec_len)
+    h = 1 / np.abs(h)
 
-    #pad kernel and find magnitude spectrum
-    response = np.concatenate([response, np.zeros((256*length)-len(response))])
-    response = np.fft.fftshift(1.0/abs(np.fft.fft(response)))
+    fragment = h[:(len(h)//decim_factor)+1]
 
-    #Fold aliased parts of the signal around Fs/2 
-    response = response[len(response)//2:]
-    fragment = response[:(len(response)//length)+1]
-
-    print(",".join([str(int(round(256*i))) for i in fragment]))
+    print(",".join([str(int(np.round(256*i))) for i in fragment]))
 
     plt.plot(
-      np.linspace(0, fs/(2*length), len(fragment)), 
+      np.linspace(0, fs/(2*decim_factor), len(fragment)), 
       fragment,
       "b-",
-      label = "Order %u CIC Decmator"%order
+      label = "Decimator corrections"
     )
 
 def plot_kernel(freq, taps, kernel_bits, fs, decimate=False, label=""):
@@ -216,6 +208,6 @@ if __name__ == "__main__":
     plt.title("CIC correction CIC=%i"%decimation)
     plt.xlabel("Frequency (kHz)")
     plt.ylabel("Gain")
-    plot_correction(decimation, 4, fs_kHz) #cic decimation filter
+    plot_correction(resp, 16, fs_kHz) #cic decimation filter
     plt.legend()
     plt.show()
