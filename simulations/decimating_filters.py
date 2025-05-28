@@ -27,9 +27,9 @@ def get_cic_response(length, order):
     #make an equivilent filter kernel by convolving a rectangular kernel
     h = np.ones(length)/length
     response = h
-    for i in range(order-1):
+    for _ in range(order-1):
       response = np.convolve(response, h)
-    return response, [1]
+    return response, [1.0]
 
 def get_iir_response(target_decim):
 
@@ -65,8 +65,12 @@ def get_iir_response(target_decim):
 
     return b, a
 
+def plot_magnitude(ax, response, fs, label, color='blue'):
+    spec_len = 2048
+    w, h = signal.freqz(response[0], response[1], worN=spec_len, fs=fs)
+    ax.plot(w, 20 * np.log10(np.abs(h)), color=color, label=label)
 
-def plot_wrapped_magnitude(wrap, response, fs, label, color='b-'):
+def plot_wrapped_magnitude(ax, wrap, response, fs, label, color='blue'):
 
     spec_len = 2048
     _, h1 = signal.freqz(response[0], response[1], worN=spec_len, fs=fs)
@@ -85,19 +89,19 @@ def plot_wrapped_magnitude(wrap, response, fs, label, color='b-'):
     fragment = fragments[0]
     for idx, fragment in enumerate(fragments):
       if idx == 0:
-        plt.plot(
+        ax.plot(
           np.linspace(0, fs/(2*wrap), len(fragment)), 
           fragment,
           color,
           label = label
         )
       else:
-        plt.plot(
+        ax.plot(
           np.linspace(0, fs/(2*wrap), len(fragment)), 
           fragment,
           color,
         )
-      plt.plot(
+      ax.plot(
         np.linspace(0, -fs/(2*wrap), len(fragment)), 
         fragment,
         color
@@ -183,26 +187,31 @@ if __name__ == "__main__":
     taps1=27
     taps2=63
 
-    plt.figure()
-    plt.grid(True)
-    plt.title("Decimation CIC")
+    fig, axs = plt.subplots(2, 1)
+
+    axs[0].set_title("Decimation CIC")
     plt.xlabel("Frequency (kHz)")
-    plt.ylabel("Gain (dB)")
     resp = get_cic_response(decimation, 4)
-    plot_wrapped_magnitude(decimation, resp, fs_kHz, f"Order {4} CIC {16}:1 Decimator")
+    plot_wrapped_magnitude(axs[0], decimation, resp, fs_kHz, f"Order {4} CIC {16}:1 Decimator")
+    plot_magnitude(axs[1], resp, fs_kHz, f"Order {4} CIC {16}:1 Decimator")
     resp = get_cic_response(8, 4)
     plot_wrapped_magnitude(
-        decimation, resp, fs_kHz, f"Order {4} CIC {8}:1 Decimator", "red"
+        axs[0], decimation, resp, fs_kHz, f"Order {4} CIC {8}:1 Decimator", "red"
     )
+    plot_magnitude(axs[1], resp, fs_kHz, f"Order {4} CIC {8}:1 Decimator", "red")
     iir_resp = get_iir_response(16)
     resp = mult_poly(resp[0], iir_resp[0]), mult_poly(resp[1], iir_resp[1])
 
-    plot_wrapped_magnitude(decimation, resp, fs_kHz, f"CIC {8}:1 + IIR Filter", "green")
-    plt.ylim(-150, 10)
+    plot_wrapped_magnitude(axs[0], decimation, resp, fs_kHz, f"CIC {8}:1 + IIR Filter", "green")
+    plot_magnitude(axs[1], resp, fs_kHz, f"CIC {8}:1 + IIR Filter", "green")
+    for ax in axs:
+      ax.grid(True)
+      ax.set_ylabel("Gain (dB)")
+      ax.set_ylim(-150, 10)
+    
     plt.legend()
     plt.show()
 
-    plt.figure()
     plt.grid(True)
     plt.title("CIC correction CIC=%i"%decimation)
     plt.xlabel("Frequency (kHz)")
