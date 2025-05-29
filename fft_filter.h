@@ -17,9 +17,7 @@
 #include <cmath>
 
 #include "fft.h"
-
-static const uint16_t fft_size = 256;
-static const uint16_t new_fft_size = fft_size/2; 
+#include "rx_definitions.h"
 
 struct s_filter_control
 {
