@@ -3,18 +3,19 @@
 #include <math.h>
 
 
-const uint16_t decimation_rate = 32u; //cic decimation
-const uint16_t cic_decimation_rate = decimation_rate/2u;
+const uint16_t cic_decimation_rate = 8u;
+const uint16_t iir_decimation_rate = 2u;
+const uint16_t total_decimation_rate = 2 * cic_decimation_rate * iir_decimation_rate;
 
 const uint16_t fft_size = 256;
 const uint16_t new_fft_size = fft_size / 2;
 
 const uint32_t adc_sample_rate = 480e3;
-const uint32_t audio_sample_rate = adc_sample_rate / decimation_rate;
+const uint32_t audio_sample_rate = adc_sample_rate / total_decimation_rate;
 const uint32_t pwm_audio_sample_rate = adc_sample_rate / 2;
 const uint8_t  adc_bits = 12u;
 const uint16_t adc_max=1<<(adc_bits-1);
-const uint16_t adc_block_size = new_fft_size * cic_decimation_rate;
+const uint16_t adc_block_size = new_fft_size * total_decimation_rate / 2;
 const uint8_t  AM = 0u;
 const uint8_t  AMSYNC = 1u;
 const uint8_t  LSB = 2u;
@@ -22,7 +23,7 @@ const uint8_t  USB = 3u;
 const uint8_t  FM = 4u;
 const uint8_t  CW = 5u;
 
-const uint16_t interpolation_rate = decimation_rate/2u;
+const uint16_t interpolation_rate = total_decimation_rate/2u;
 const uint16_t extra_bits = 1u;
 const uint8_t  cic_order = 4u;
 const uint8_t  cic_bit_growth = ceilf(cic_order*log2f(cic_decimation_rate));

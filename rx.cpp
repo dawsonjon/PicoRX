@@ -14,7 +14,7 @@
 #include "pwm_audio_sink.h"
 
 //ring buffer for USB data
-#define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
+#define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/total_decimation_rate)))
 static ring_buffer_t usb_ring_buffer;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
@@ -469,7 +469,7 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
   critical_section_exit(&usb_volumute);
 
   //process adc IQ samples to produce raw audio
-  int16_t usb_audio[adc_block_size/decimation_rate];
+  int16_t usb_audio[adc_block_size/total_decimation_rate];
   uint16_t num_samples = rx_dsp_inst.process_block(
       adc_samples, audio, stream_raw_iq ? &usb_ring_buffer : NULL);
 

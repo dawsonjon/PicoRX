@@ -180,12 +180,48 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
     }
 }
 
+static const int16_t decim_alphas[iir_decimation_rate] = {21460, 5906};
+
+static bool __time_critical_func(decimate_2)(int16_t &i, int16_t &q) {
+  static uint8_t idx = 0;
+  static int32_t i_xprev[iir_decimation_rate] = {0};
+  static int32_t q_xprev[iir_decimation_rate] = {0};
+  static int32_t i_yprev[iir_decimation_rate] = {0};
+  static int32_t q_yprev[iir_decimation_rate] = {0};
+  static int32_t i_sum = 0;
+  static int32_t q_sum = 0;
+
+  const int32_t alpha = decim_alphas[idx];
+
+  const int32_t i_y = (((i - i_yprev[idx]) * alpha) >> 15) + i_xprev[idx];
+  i_xprev[idx] = i;
+  i_yprev[idx] = i_y;
+  i_sum += i_y;
+
+  const int32_t q_y = (((q - q_yprev[idx]) * alpha) >> 15) + q_xprev[idx];
+  q_xprev[idx] = q;
+  q_yprev[idx] = q_y;
+  q_sum += q_y;
+
+  idx++;
+  if (idx == iir_decimation_rate) {
+    idx = 0;
+    i = i_sum / iir_decimation_rate;
+    q = q_sum / iir_decimation_rate;
+    i_sum = 0;
+    q_sum = 0;
+    return true;
+  }
+
+  return false;
+}
+
 uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_t audio_samples[], ring_buffer_t *iq_samples)
 {
 
   uint16_t decimated_index = 0;
   int32_t magnitude_sum = 0;
-  int16_t iq[2 * adc_block_size / cic_decimation_rate];
+  int16_t iq[2 * adc_block_size / (total_decimation_rate / 2)];
 
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
@@ -199,47 +235,49 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
       //reduce sample rate by a factor of 16
       if(decimate(i, q))
       {
-
-        static uint32_t iq_count = 0;
-        static int32_t i_accumulator = 0;
-        static int32_t q_accumulator = 0;
-        static int16_t i_avg = 0;
-        static int16_t q_avg = 0;
-        i_accumulator += i;
-        q_accumulator += q;
-        if (++iq_count == 2048) //power of 2 avoids division
+        if(decimate_2(i, q))
         {
-          i_avg = i_accumulator / 2048;
-          q_avg = q_accumulator / 2048;
-          i_accumulator = 0;
-          q_accumulator = 0;
-          iq_count = 0;
+          static uint32_t iq_count = 0;
+          static int32_t i_accumulator = 0;
+          static int32_t q_accumulator = 0;
+          static int16_t i_avg = 0;
+          static int16_t q_avg = 0;
+          i_accumulator += i;
+          q_accumulator += q;
+          if (++iq_count == 2048) //power of 2 avoids division
+          {
+            i_avg = i_accumulator / 2048;
+            q_avg = q_accumulator / 2048;
+            i_accumulator = 0;
+            q_accumulator = 0;
+            iq_count = 0;
+          }
+          i -= i_avg;
+          q -= q_avg;
+
+          iq_imbalance_correction(i, q);
+
+          //Apply frequency shift (move tuned frequency to DC)
+          frequency_shift(i, q);
+
+          #ifdef MEASURE_DC_BIAS 
+          static int64_t bias_measurement = 0; 
+          static int32_t num_bias_measurements = 0; 
+          if(num_bias_measurements == 100000) { 
+            printf("DC BIAS x 100 %lli\n", bias_measurement/1000); 
+            num_bias_measurements = 0; 
+            bias_measurement = 0; 
+          } 
+          else { 
+            num_bias_measurements++; 
+            bias_measurement += i; 
+          } 
+          #endif 
+
+          iq[decimated_index] = i;
+          iq[decimated_index + 1] = q;
+          decimated_index+=2;
         }
-        i -= i_avg;
-        q -= q_avg;
-
-        iq_imbalance_correction(i, q);
-
-        //Apply frequency shift (move tuned frequency to DC)
-        frequency_shift(i, q);
-
-        #ifdef MEASURE_DC_BIAS 
-        static int64_t bias_measurement = 0; 
-        static int32_t num_bias_measurements = 0; 
-        if(num_bias_measurements == 100000) { 
-          printf("DC BIAS x 100 %lli\n", bias_measurement/1000); 
-          num_bias_measurements = 0; 
-          bias_measurement = 0; 
-        } 
-        else { 
-          num_bias_measurements++; 
-          bias_measurement += i; 
-        } 
-        #endif 
-
-        iq[decimated_index] = i;
-        iq[decimated_index + 1] = q;
-        decimated_index+=2;
       }
   }
 
@@ -250,7 +288,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(iq, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
-  for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
+  for(uint16_t idx=0; idx<adc_block_size/total_decimation_rate; idx++)
   {
     const int16_t i = iq[2 * idx];
     const int16_t q = iq[2 * idx + 1];
@@ -290,13 +328,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   if (iq_samples) {
     ring_buffer_push_ovr(
         iq_samples, (uint8_t *)iq,
-        2 * sizeof(int16_t) * adc_block_size / decimation_rate);
+        2 * sizeof(int16_t) * adc_block_size / total_decimation_rate);
   }
 
   //average over the number of samples
-  signal_amplitude = (magnitude_sum * decimation_rate)/adc_block_size;
+  signal_amplitude = (magnitude_sum * total_decimation_rate)/adc_block_size;
 
-  return adc_block_size/decimation_rate;
+  return adc_block_size/total_decimation_rate;
 }
 
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
@@ -465,7 +503,7 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else //if(mode==cw)
     {
-      cw_sidetone_phase += cw_sidetone_frequency_Hz * 2048 * decimation_rate / adc_sample_rate;
+      cw_sidetone_phase += cw_sidetone_frequency_Hz * 2048 * total_decimation_rate / adc_sample_rate;
       const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
       const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((i * rotation_i) - (q * rotation_q)) >> 15;
@@ -682,9 +720,9 @@ void rx_dsp :: set_agc_control(uint8_t agc_control, uint8_t agc_gain)
 void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
 {
   offset_frequency_Hz = offset_frequency;
-  const float bin_width = adc_sample_rate/(cic_decimation_rate*256);
+  const float bin_width = adc_sample_rate/(total_decimation_rate*(2 * 256));
   filter_control.fft_bin = offset_frequency/bin_width;
-  frequency = ((double)(1ull<<32)*offset_frequency)*cic_decimation_rate/(adc_sample_rate);
+  frequency = ((double)(1ull<<32)*offset_frequency)*total_decimation_rate/(2 * adc_sample_rate);
 }
 
 
@@ -859,7 +897,7 @@ float rx_dsp::get_tuning_offset_Hz()
   if(frequency_count > 30000)
   {
     float average_frequency = (float)frequency_accumulator/(float)frequency_count;
-    frequency_offset_Hz = (pwm_audio_sample_rate * average_frequency)/(32767.0f * decimation_rate);
+    frequency_offset_Hz = (pwm_audio_sample_rate * average_frequency)/(32767.0f * total_decimation_rate);
     frequency_accumulator = 0;
     frequency_count = 0;
   }
