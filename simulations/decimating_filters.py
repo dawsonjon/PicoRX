@@ -19,9 +19,10 @@ def plot_cic(length, order, fs):
 
     #CIC filter is equivilent to moving average filter
     #make an equivilent filter kernel by convolving a rectangular kernel
-    response = np.ones(length)/length
+    h = np.ones(length)/length
+    response = h
     for i in range(order-1):
-      response = np.convolve(response, response)
+      response = np.convolve(response, h)
 
     #pad kernel and find magnitude spectrum
     response = np.concatenate([response, np.zeros((500*length)-len(response))])
@@ -62,9 +63,10 @@ def plot_correction(length, order, fs):
 
     #CIC filter is equivilent to moving average filter
     #make an equivilent filter kernel by convolving a rectangular kernel
-    response = np.ones(length)/length
+    h = np.ones(length)/length
+    response = h
     for i in range(order-1):
-      response = np.convolve(response, response)
+      response = np.convolve(response, h)
 
     #pad kernel and find magnitude spectrum
     response = np.concatenate([response, np.zeros((256*length)-len(response))])
@@ -132,7 +134,7 @@ def plot_kernel(freq, taps, kernel_bits, fs, decimate=False, label=""):
 
 
 if __name__ == "__main__":
-    fs_kHz = 500
+    fs_kHz = 480
     decimation = 16
     taps1=27
     taps2=63
