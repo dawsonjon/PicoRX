@@ -55,7 +55,6 @@ class fft_filter
   {
     fft_initialise();
     for (uint16_t i = 0; i < fft_size; i++) {
-      //sqrt hanning window
       float multiplier = 0.5 * (1 - cosf(2*M_PI*i/fft_size));
       window[i] = float2fixed(multiplier);
     }
