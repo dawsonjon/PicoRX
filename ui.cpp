@@ -1032,7 +1032,9 @@ void ui::autorestore()
   u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
   waterfall_inst.configure_display(
       settings.global.tft_rotation,
-      settings.global.tft_colour);
+      settings.global.tft_colour,
+      settings.global.tft_invert,
+      settings.global.tft_driver);
 
   //reset the zoom setting
   zoom = settings.global.spectrum_zoom; 
@@ -1868,7 +1870,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT Colour#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1969,35 +1971,47 @@ bool ui::configuration_menu(bool &ok)
 
         case 10:
           done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
         case 11:
           done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
         case 12:
-          done = bands_menu(ok);
+          done =  enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
         case 13:
+          done =  enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          break;
+
+        case 14:
+          done = bands_menu(ok);
+          break;
+
+        case 15:
           done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 14:
+        case 16:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 15:
+        case 17:
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 16: 
+        case 18: 
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "#No#Yes#", usb_upload, ok, changed);

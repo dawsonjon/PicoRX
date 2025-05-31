@@ -21,7 +21,6 @@ waterfall::waterfall()
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
     spi_init(SPI_PORT, 75000000);
-    //spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
@@ -29,7 +28,7 @@ waterfall::waterfall()
     gpio_set_dir(PIN_CS, GPIO_OUT);
     gpio_init(PIN_DC);
     gpio_set_dir(PIN_DC, GPIO_OUT);
-    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240, R0DEG);
+    display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240);
 }
 
 waterfall::~waterfall()
@@ -37,8 +36,10 @@ waterfall::~waterfall()
     delete display;
 }
 
-void waterfall::configure_display(uint8_t settings, bool invert_colours)
+void waterfall::configure_display(uint8_t settings, bool invert_colours, bool invert_display, uint8_t display_driver)
 {
+
+    e_display_type display_type = display_driver?ILI9341:ILI9341_2;
     if(settings == 0)
     {
       enabled = false;
@@ -46,45 +47,44 @@ void waterfall::configure_display(uint8_t settings, bool invert_colours)
     else if(settings == 1)
     {
       enabled = true;
-      display->setRotation(R0DEG, invert_colours);
+      display->init(R0DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 2)
     {
       enabled = true;
-      display->setRotation(R180DEG, invert_colours);
+      display->init(R180DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 3)
     {
       enabled = true;
-      display->setRotation(MIRRORED0DEG, invert_colours);
+      display->init(MIRRORED0DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 4)
     {
       enabled = true;
-      display->setRotation(MIRRORED180DEG, invert_colours);
+      display->init(MIRRORED180DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 5)
     {
       enabled = true;
-      display->setRotation(R90DEG, invert_colours);
+      display->init(R90DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 6)
     {
       enabled = true;
-      display->setRotation(R270DEG, invert_colours);
+      display->init(R270DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 7)
     {
       enabled = true;
-      display->setRotation(MIRRORED90DEG, invert_colours);
+      display->init(MIRRORED90DEG, invert_colours, invert_display, display_type);
     }
     else if(settings == 8)
     {
       enabled = true;
-      display->setRotation(MIRRORED270DEG, invert_colours);
+      display->init(MIRRORED270DEG, invert_colours, invert_display, display_type);
     }
 
-    display->init();
     if(enabled)
     {
        refresh = true;
@@ -113,16 +113,15 @@ void waterfall::powerOn(bool state)
 }
 
 const uint16_t smeter_height = 165;
-const uint16_t smeter_width = 56;
 const uint16_t smeter_bar_width = 4;
-const uint16_t smeter_x = 263;
+const uint16_t smeter_x = 266;
 const uint16_t smeter_y = 65;
 const uint16_t waterfall_height = 80u;
-const uint16_t waterfall_x = 1u;
+const uint16_t waterfall_x = 4u;
 const uint16_t waterfall_y = 157u;
 const uint16_t num_cols = 256u;
 const uint16_t scope_height = 80u;
-const uint16_t scope_x = 1u;
+const uint16_t scope_x = 4u;
 const uint16_t scope_y = 61u;
 const uint16_t dial_width = 320u;
 
@@ -132,22 +131,22 @@ void waterfall::draw()
 
     //draw borders
     //Horizontal
-    display->drawLine(0, waterfall_y-1, num_cols+1, waterfall_y-1, display->colour565(255,255,255));
-    display->drawLine(0, waterfall_y+waterfall_height+1, num_cols+1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
-    display->drawLine(0, scope_y+scope_height+1, num_cols+1, scope_y+scope_height+1, display->colour565(255,255,255));
-    display->drawLine(0, scope_y-1,  num_cols+1, scope_y-1, display->colour565(255,255,255));
+    display->drawFastHline(3, num_cols+3, waterfall_y-1,                  display->colour565(255,255,255));
+    display->drawFastHline(3, num_cols+3, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
+    display->drawFastHline(3, num_cols+3, scope_y+scope_height+1,         display->colour565(255,255,255));
+    display->drawFastHline(3, num_cols+3, scope_y-1,                      display->colour565(255,255,255));
 
     //Vertical
-    display->drawLine(0,  scope_y-1, 0,  scope_y+scope_height+1, display->colour565(255,255,255));
-    display->drawLine(num_cols+1, scope_y-1, num_cols+1, scope_y+scope_height+1, display->colour565(255,255,255));
-    display->drawLine(0,  waterfall_y-1, 0,  waterfall_y+waterfall_height+1, display->colour565(255,255,255));
-    display->drawLine(num_cols+1, waterfall_y-1, num_cols+1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
+    display->drawFastVline(3,          scope_y-1,     scope_y+scope_height+1,         display->colour565(255,255,255));
+    display->drawFastVline(num_cols+4, scope_y-1,     scope_y+scope_height+1,         display->colour565(255,255,255));
+    display->drawFastVline(3,          waterfall_y-1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
+    display->drawFastVline(num_cols+4, waterfall_y-1, waterfall_y+waterfall_height+1, display->colour565(255,255,255));
 
     //smeter outline
-    display->drawLine(smeter_x+28, smeter_y-2,               smeter_x+33, smeter_y-2,               display->colour565(255,255,255));
-    display->drawLine(smeter_x+28, smeter_y+smeter_height+3, smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
-    display->drawLine(smeter_x+28, smeter_y-1,               smeter_x+28, smeter_y+smeter_height+3, display->colour565(255,255,255));
-    display->drawLine(smeter_x+33, smeter_y-1,               smeter_x+33, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawFastHline(smeter_x+13, smeter_x+20, smeter_y-2,               display->colour565(255,255,255));
+    display->drawFastHline(smeter_x+13, smeter_x+20, smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawFastVline(smeter_x+13, smeter_y-1,  smeter_y+smeter_height+3, display->colour565(255,255,255));
+    display->drawFastVline(smeter_x+20, smeter_y-1,  smeter_y+smeter_height+3, display->colour565(255,255,255));
 
 
     //draw smeter
@@ -156,7 +155,7 @@ void waterfall::draw()
     {
       uint16_t s_px = dBm_to_px(S_to_dBm(s), smeter_height);
       uint16_t y = smeter_y+1 + smeter_height - s_px;
-      display->drawLine(smeter_x+33, y, smeter_x+35,  y, display->colour565(255,255,255));
+      display->drawLine(smeter_x+20, y, smeter_x+22,  y, display->colour565(255,255,255));
       uint16_t colour;
       switch(s)
       {
@@ -165,18 +164,8 @@ void waterfall::draw()
         case 10: colour = COLOUR_GREEN; break;
         default: colour = COLOUR_WHITE; break;
       }
-      display->drawString(smeter_x+smeter_width-18,  y-4, font_8x5, smeter[s], colour, COLOUR_BLACK);
+      display->drawString(smeter_x+25,  y-4, font_8x5, smeter[s], colour, COLOUR_BLACK);
     }
-    for(int16_t dbm=-120; dbm<-40; dbm+=10)
-    {
-      uint16_t power_px = dBm_to_px(dbm, smeter_height);
-      uint16_t y = smeter_y+1 + smeter_height - power_px;
-      display->drawLine(smeter_x+26,  y, smeter_x+28,  y, display->colour565(255,255,255));
-      char buffer[9];
-      snprintf(buffer, 9, "%4i", dbm);
-      display->drawString(smeter_x,  y-4, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-    }
-
 }
 
 uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
@@ -331,10 +320,10 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
       uint16_t squelch_px = dBm_to_px(S_to_dBm(settings.squelch_threshold), smeter_height);
 
       uint16_t colour=heatmap(dBm_to_px(filtered_power, 255));
-      display->fillRect(smeter_x+29, smeter_y+4+smeter_height-power_px, power_px, smeter_bar_width, colour);
-      display->fillRect(smeter_x+29, smeter_y+1,    smeter_height-power_px, smeter_bar_width, COLOUR_BLACK);
-      display->fillRect(smeter_x+29, smeter_y+0+smeter_height-squelch_px, 3, smeter_bar_width, COLOUR_RED);
-      display->fillRect(smeter_x+29, smeter_y+1+smeter_height-squelch_px, 1, smeter_bar_width, COLOUR_WHITE);
+      display->fillRect(smeter_x+15, smeter_y+4+smeter_height-power_px, power_px, smeter_bar_width, colour);
+      display->fillRect(smeter_x+15, smeter_y+1,    smeter_height-power_px, smeter_bar_width, COLOUR_BLACK);
+      display->fillRect(smeter_x+15, smeter_y+0+smeter_height-squelch_px, 3, smeter_bar_width, COLOUR_RED);
+      display->fillRect(smeter_x+15, smeter_y+1+smeter_height-squelch_px, 1, smeter_bar_width, COLOUR_WHITE);
 
       char buffer[9];
       snprintf(buffer, 9, "%4.0fdBm", filtered_power);
@@ -348,7 +337,7 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
     {
       last_mode = settings.mode;
       const char modes[6][4]  = {"AM ", "AMS", "LSB", "USB", "FM ", "CW "};
-      display->drawString(165, 31, font_16x12, modes[settings.mode], COLOUR_YELLOW, COLOUR_BLACK);
+      display->drawString(168, 31, font_16x12, modes[settings.mode], COLOUR_YELLOW, COLOUR_BLACK);
     }
 
     static uint8_t last_zoom = 255;
@@ -377,7 +366,7 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
 
     //draw dial
     const uint8_t pixels_per_kHz = 5;
-    const uint16_t scale_y = 0;
+    const uint16_t scale_y = 1;
 
     static uint32_t last_frequency =0;
     if(settings.tuned_frequency_Hz != last_frequency || refresh)
@@ -472,8 +461,8 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
          else
          {
            uint16_t colour = heatmap(0, is_passband, fbin==0);
-           colour = col_is_tick?COLOUR_GRAY:colour;
-           colour = row_is_tick?COLOUR_GRAY:colour;
+           colour = col_is_tick?COLOUR_GREY:colour;
+           colour = row_is_tick?COLOUR_GREY:colour;
            hline[scope_col] = colour;
          }
        }
@@ -515,7 +504,7 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
     {
       char buffer[20];
       snprintf(buffer, 20, "%02lu:%03lu:%03lu", MHz, kHz, Hz);
-      display->drawString(0, 31, font_seven_segment_25x15, buffer, COLOUR_RED, COLOUR_BLACK);
+      display->drawString(3, 31, font_seven_segment_25x15, buffer, COLOUR_RED, COLOUR_BLACK);
       lastMHz = MHz;
       lastkHz = kHz;
       lastHz = Hz;

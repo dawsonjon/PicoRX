@@ -50,6 +50,8 @@ struct s_global_settings
   uint8_t display_contrast;
   uint8_t tft_rotation;
   uint8_t tft_colour;
+  uint8_t tft_driver;
+  uint8_t tft_invert;
   uint8_t gain_cal;
   int8_t  ppm;
   uint8_t band1;
@@ -74,8 +76,8 @@ struct s_global_settings
   uint8_t spectrum_smoothing;
   uint8_t treble;
   uint8_t bass;
-  bool     usb_stream;
   uint8_t aux_view;
+  bool    usb_stream;
   bool    enable_auto_notch;
   bool    iq_correction;
   bool    enable_noise_reduction;
@@ -115,8 +117,10 @@ const s_settings default_settings = {
   0,  //regmode
   0,  //display_timeout = never
   17, //display_contrast = 255
-  5,  //tft_rotation
+  1,  //tft_rotation
   1,  //tft_colour
+  0,  //tft_invert
+  0,  //tft_driver
   62, //gain_cal
   0,  //ppm
   0x02, //band1
@@ -141,8 +145,8 @@ const s_settings default_settings = {
   1,  //spectrum_smoothing
   0,  //treble
   0,  //bass
-  0,  //usb_stream
   0,  //aux_view
+  0,  //usb_stream
   0,  //enable_auto_notch
   0,  //iq_correction
   0,  //enable_noise_reduction

@@ -863,5 +863,5 @@ float rx_dsp::get_tuning_offset_Hz()
     frequency_accumulator = 0;
     frequency_count = 0;
   }
-  return -frequency_offset_Hz;
+  return frequency_offset_Hz;
 }
