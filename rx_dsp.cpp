@@ -180,7 +180,7 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
     }
 }
 
-static const int16_t decim_alphas[iir_decimation_rate] = {5906, 21460};
+static const int16_t decim_alphas[iir_decimation_rate] = {4357, 18894};
 
 static bool __time_critical_func(decimate_2)(int16_t &i, int16_t &q) {
   static uint8_t idx = 0;
