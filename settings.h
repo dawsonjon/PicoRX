@@ -117,7 +117,7 @@ const s_settings default_settings = {
   0,  //regmode
   0,  //display_timeout = never
   17, //display_contrast = 255
-  1,  //tft_rotation
+  6,  //tft_rotation
   1,  //tft_colour
   0,  //tft_invert
   0,  //tft_driver

@@ -33,6 +33,7 @@ class rx_dsp
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
   bool get_raw_data(int16_t &i, int16_t &q);
+  uint32_t get_iq_buffer_level();
   float get_tuning_offset_Hz();
 
   private:

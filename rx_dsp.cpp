@@ -255,7 +255,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     const int16_t i = iq[2 * idx];
     const int16_t q = iq[2 * idx + 1];
 
-    uint32_t complex_sample = (uint32_t)i << 16 | (uint32_t)q;
+    uint32_t complex_sample = (uint32_t)i << 16 | ((uint32_t)q & 0xffff);
     queue_try_add(&data_queue, (void*)&complex_sample);
 
     //Measure amplitude (for signal strength indicator)
@@ -574,7 +574,7 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  queue_init(&data_queue, 4, 1024);
+  queue_init(&data_queue, 4, 2048);
   set_agc_control(3, 0);
   filter_control.enable_auto_notch = false;
   filter_control.enable_noise_reduction = false;
@@ -844,12 +844,17 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
   dB10 = 256/(2*logf(max/min));
 }
 
+uint32_t rx_dsp::get_iq_buffer_level()
+{
+  return queue_get_level(&data_queue);
+}
+
 bool rx_dsp::get_raw_data(int16_t &i, int16_t &q)
 {
   uint32_t data;
   bool success = queue_try_remove(&data_queue, &data);
-  i = data & 0xffff;
-  q = (data >> 16) & 0xffff;
+  i = (data >> 16) & 0xffff;
+  q = data & 0xffff;
   return success;
 }
 

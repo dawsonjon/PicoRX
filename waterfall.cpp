@@ -527,10 +527,29 @@ void waterfall::decode_sstv(rx &receiver)
   static c_sstv_decoder sstv_decoder(15000);
   static s_sstv_mode *modes = sstv_decoder.get_modes();
 
-  //uint32_t start_time = time_us_32();
   uint16_t samples_processed = 0;
+
+  #define MONITOR_BUFFER_LEVEL
+  #ifdef MONITOR_BUFFER_LEVEL  
+
+  //Usually gets serviced about once every 50ms.  This can take longer if the
+  //UI is busy.  The length of the queue needs to be adjusted to the the queue
+  //never fills up while the CPU is busy doing other things.
+
+  //It probably isn't the end of the world if we run out of space while tuning
+  //around the bands or doing stuff, its unlikely we could decode anything
+  //anyway if this was the case, but we don't want it to fill up when we aren't
+  //doing anything.
+
+  static uint32_t start_time = 0;
+  uint32_t duration = time_us_32() - start_time;
+  printf("buffer level: %lu time: %lu\n", receiver.get_iq_buffer_level(), duration);
+  start_time = time_us_32();
+  #endif
+
   while(receiver.get_raw_data(i, q))
   {
+
       samples_processed++;
       uint16_t pixel_y;
       uint16_t pixel_x;
@@ -579,6 +598,7 @@ void waterfall::decode_sstv(rx &receiver)
                 line_rgb565[x] = display->colour565(r, g, b);
               }
               display->writeHLine(0, scaled_pixel_y*2, 320, line_rgb565);
+              display->dmaFlush();
               for(uint16_t x=0; x<320; ++x)
               {
                 int16_t y  = line_rgb[x][3];
@@ -595,6 +615,7 @@ void waterfall::decode_sstv(rx &receiver)
                 line_rgb565[x] = display->colour565(r, g, b);
               }
               display->writeHLine(0, scaled_pixel_y*2 + 1, 320, line_rgb565);
+              display->dmaFlush();
             }
             else
             {
@@ -603,6 +624,7 @@ void waterfall::decode_sstv(rx &receiver)
                 line_rgb565[x] = display->colour565(line_rgb[x][0], line_rgb[x][1], line_rgb[x][2]);
               }
               display->writeHLine(0, last_pixel_y, 320, line_rgb565);
+              display->dmaFlush();
               
             }
             for(uint16_t x=0; x<320; ++x) line_rgb[x][0] = line_rgb[x][1] = line_rgb[x][2] = 0;
@@ -670,6 +692,4 @@ void waterfall::decode_sstv(rx &receiver)
           
       }
    }
-  //uint32_t duration = time_us_32() - start_time;
-  //printf("time: %u %lu\n", samples_processed, duration);
 }

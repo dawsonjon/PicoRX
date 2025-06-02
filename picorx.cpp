@@ -45,6 +45,7 @@ int main()
   uint32_t last_ui_update = 0;
   uint32_t last_cat_update = 0;
   uint32_t last_buttons_update = 0;
+  uint32_t last_waterfall_update = 0;
 
   while(1)
   {
@@ -64,11 +65,13 @@ int main()
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)
     {
+      last_cat_update = time_us_32();
       process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
     }
 
-    if(time_us_32() - last_cat_update > WATERFALL_REFRESH_US)
+    if(time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US)
     {
+      last_waterfall_update = time_us_32();
       waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
     }
 

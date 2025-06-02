@@ -463,6 +463,11 @@ bool rx::get_raw_data(int16_t &i, int16_t &q)
   return rx_dsp_inst.get_raw_data(i, q);
 }
 
+uint32_t rx::get_iq_buffer_level()
+{
+  return rx_dsp_inst.get_iq_buffer_level();
+}
+
 void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audio[])
 {
   //capture usb volume and mute settings
@@ -497,6 +502,8 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
                          sizeof(int16_t) * 2 * num_samples);
   }
 }
+
+
 
 void rx::run()
 {

@@ -143,6 +143,7 @@ class rx
   void access(bool settings_changed);
   void release();
   bool get_raw_data(int16_t &i, int16_t &q);
+  uint32_t get_iq_buffer_level();
 };
 
 #endif
