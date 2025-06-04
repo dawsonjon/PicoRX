@@ -127,6 +127,21 @@ const uint16_t dial_width = 320u;
 
 void waterfall::draw()
 {
+
+    if(m_aux_display_state == sstv_active)
+    {
+      const char text[] = "SSTV Decoder";
+      uint16_t text_width = strlen(text) * 12;
+      uint16_t text_height = 16;
+      uint16_t box_width = text_width + 20;
+      uint16_t box_height = text_height + 20;
+      display->clear(COLOUR_BLUE);
+      display->fillRoundedRect((320-box_width)/2, (240-box_height)/2, box_height, box_width, 5, COLOUR_BLACK);
+      display->drawString((320-text_width)/2, (240-text_height)/2, font_16x12, "SSTV Decoder", COLOUR_WHITE, COLOUR_BLACK);
+
+      return;
+    }
+
     display->clear();
 
     //draw borders
@@ -262,34 +277,31 @@ void waterfall::update_spectrum(rx &receiver, s_settings &ui_settings, rx_settin
     if(!power_state) return;
 
     //state machine to select other display options
-    enum e_aux_display_state{waterfall_active, sstv_active};
-    static e_aux_display_state aux_display_state = waterfall_active;
-    switch(aux_display_state)
+    switch(m_aux_display_state)
     {
       case waterfall_active:
         if(ui_settings.global.aux_view == 1)
         {
-          display->clear();
-          display->drawString(0, 0, font_16x12, "SSTV Decoder", COLOUR_WHITE, COLOUR_BLACK);
-          aux_display_state = sstv_active;
+          m_aux_display_state = sstv_active;
+          draw();
         }
         break;
 
       case sstv_active:
         if(ui_settings.global.aux_view == 0)
         {
+          m_aux_display_state = waterfall_active;
           draw();
           refresh = true;
-          aux_display_state = waterfall_active;
         }
         break;
     }
-    if(aux_display_state == sstv_active)
+    if(m_aux_display_state == sstv_active)
     {
       decode_sstv(receiver);
       return;
     }
-
+    
     //update spectrum and waterfall display
     const uint16_t scope_fg = display->colour565(255, 255, 255);
     static uint16_t top_row = 0u;
@@ -529,7 +541,6 @@ void waterfall::decode_sstv(rx &receiver)
 
   uint16_t samples_processed = 0;
 
-  #define MONITOR_BUFFER_LEVEL
   #ifdef MONITOR_BUFFER_LEVEL  
 
   //Usually gets serviced about once every 50ms.  This can take longer if the

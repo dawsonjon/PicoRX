@@ -5,6 +5,8 @@
 #include "rx.h"
 #include "settings.h"
 
+enum e_aux_display_state{waterfall_active, sstv_active};
+
 class waterfall
 {
 
@@ -16,6 +18,7 @@ class waterfall
   void powerOn(bool state);
 
   private:
+  e_aux_display_state m_aux_display_state = waterfall_active;
   void draw();
   uint16_t heatmap(uint8_t value, bool lighten = false, bool highlight = false);
   uint16_t dBm_to_px(float power_dBm, int16_t px);
