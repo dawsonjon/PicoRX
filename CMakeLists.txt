@@ -62,6 +62,7 @@ endif()
 
 if(PICO_BOARD STREQUAL "pico")
 
+  list(APPEND SRCS clocks_pico.cpp)
   #main application
   add_executable(picorx ${SRCS})
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -101,6 +102,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
 
   if(PICO_PLATFORM STREQUAL "rp2350-riscv")
 
+    list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx-riscv ${SRCS})
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
@@ -137,6 +139,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
 
   else()
 
+    list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx ${SRCS})
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)

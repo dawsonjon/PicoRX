@@ -54,7 +54,7 @@ while frequency < 29e6:
 
 frequency = 1e6
 errors_pico2 = []
-vsc = valid_system_clocks(125e6, 150.1e6)
+vsc = valid_system_clocks(133e6, 150.1e6)
 while frequency < 29e6:
   best_frequency = best_clock_frequency(frequency*4, vsc) 
   errors_pico2.append(frequency-best_frequency/4)
@@ -66,6 +66,14 @@ vsc = valid_system_clocks(125e6, 125.1e6)
 while frequency < 29e6:
   best_frequency = best_clock_frequency(frequency*4, vsc) 
   errors_old.append(frequency-best_frequency/4)
+  frequency += 0.001e6
+
+frequency = 1e6
+errors_fast = []
+vsc = valid_system_clocks(150e6, 200.1e6)
+while frequency < 29e6:
+  best_frequency = best_clock_frequency(frequency*4, vsc) 
+  errors_fast.append(frequency-best_frequency/4)
   frequency += 0.001e6
 
 print(max(errors_pico2))
@@ -82,5 +90,6 @@ plt.ylabel("Distance from Nearest kHz")
 plt.plot(np.array(frequencies)/1e6, np.array(errors_old)/1e3, label="old design")
 plt.plot(np.array(frequencies)/1e6, np.array(errors_new)/1e3, label="new design")
 plt.plot(np.array(frequencies)/1e6, np.array(errors_pico2)/1e3, label="pico2")
+plt.plot(np.array(frequencies)/1e6, np.array(errors_fast)/1e3, label="pico1 fast clock")
 plt.legend()
 plt.show()
