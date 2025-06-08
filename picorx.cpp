@@ -55,6 +55,7 @@ int main()
       last_buttons_update = time_us_32();
       user_interface.update_buttons();
     }
+    receiver.tune();
 
     if(time_us_32() - last_ui_update > UI_REFRESH_US)
     {
@@ -74,6 +75,7 @@ int main()
       last_waterfall_update = time_us_32();
       waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
     }
+
 
   }
 }

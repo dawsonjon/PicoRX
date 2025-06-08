@@ -1,4 +1,5 @@
 #include "pwm_audio_sink.h"
+#include "pins.h"
 
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
@@ -6,7 +7,6 @@
 #include "hardware/pwm.h"
 #include "pico/sync.h"
 
-#define AUDIO_PIN (16)
 
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
@@ -23,9 +23,10 @@ static uint32_t pwm_max;
 static uint32_t pwm_scale;
 
 static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
+
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
-
+   
   // shift up
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
@@ -42,9 +43,9 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
 }
 
 void pwm_audio_sink_init(void) {
-  gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
-  gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
-  audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+  gpio_set_drive_strength(PIN_AUDIO, GPIO_DRIVE_STRENGTH_12MA);
+  audio_pwm_slice_num = pwm_gpio_to_slice_num(PIN_AUDIO);
   pwm_config config = pwm_get_default_config();
   pwm_config_set_clkdiv(&config, 1.f);
   pwm_config_set_wrap(&config, pwm_max);
@@ -105,9 +106,18 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
   return time;
 }
 
+void disable_pwm()
+{
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+}
+
+void enable_pwm()
+{
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+}
+
 void pwm_audio_sink_update_pwm_max(uint32_t new_max) {
   pwm_max = new_max;
-  pwm_scale = 1 + ((INT16_MAX * 2) / pwm_max);
   pwm_set_wrap(audio_pwm_slice_num, pwm_max);
-  pwm_set_gpio_level(AUDIO_PIN, (pwm_max / 2));
+  pwm_scale = 1 + ((INT16_MAX * 2) / pwm_max);
 }

@@ -134,6 +134,7 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
+  void tune();
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void set_alarm_pool(alarm_pool_t *p);
   rx_settings &settings_to_apply;
