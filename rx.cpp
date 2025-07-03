@@ -107,11 +107,11 @@ void rx::tune()
     if(external_nco_good)
     {
       tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
       if_mode = settings_to_apply.if_mode;
       if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-      nco_frequency_Hz = external_nco.set_frequency_hz(tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
-      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
     }
   }
@@ -145,18 +145,15 @@ void rx::tune()
       tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
       ppm = settings_to_apply.ppm;
 
-      gpio_set_function(PIN_PTT, GPIO_FUNC_SIO);
-      gpio_set_dir(PIN_PTT, GPIO_OUT);
-      gpio_put(PIN_PTT, 1);
       //apply frequency calibration
-      tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
       if_mode = settings_to_apply.if_mode;
       if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
       
       //pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
       disable_pwm();
-      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
-      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
+      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
       pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
@@ -560,7 +557,6 @@ void rx::run()
       adc_run(true);
 
       pwm_audio_sink_start();
-      gpio_put(PIN_PTT, 0);
 
       while(true)
       {
@@ -574,7 +570,6 @@ void rx::run()
             dma_channel_cleanup(adc_dma_ping);
             dma_channel_cleanup(adc_dma_pong);
             pwm_audio_sink_stop();
-            gpio_put(PIN_PTT, 1);
 
             adc_run(false);
             adc_fifo_drain();
