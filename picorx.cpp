@@ -36,6 +36,10 @@ int main()
   multicore_launch_core1(core1_main);
   stdio_init_all();
 
+  gpio_set_function(10, GPIO_FUNC_SIO);
+  gpio_set_dir(10, GPIO_OUT);
+  gpio_put(10, 1);
+
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool
   receiver.set_alarm_pool(alarm_pool_create(0, 16));
