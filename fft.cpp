@@ -11,15 +11,6 @@ static const uint16_t max_m = 8; // the largest size of FFT supported
 static const uint16_t max_n_over_2 = 1 << (max_m - 1);
 static int16_t fixed_cos_table[max_n_over_2];
 static int16_t fixed_sin_table[max_n_over_2];
-static const uint8_t fraction_bits = 14;
-static const int16_t K  =  (1 << (fraction_bits - 1));
-
-int16_t float2fixed(float float_value) {
-        return round(float_value * (1 << fraction_bits));
-}
-int16_t product(int16_t a, int16_t b) {
-        return ((static_cast<int32_t>(b) * a)+K) >> fraction_bits;
-}
 
 void fft_initialise() {
   for (int i = 0; i < max_n_over_2; ++i) {
