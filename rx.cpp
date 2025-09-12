@@ -157,8 +157,6 @@ void rx::tune()
       pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
-      sleep_us(15000);
-
       //apply pwm_max
       enable_pwm();
     }
