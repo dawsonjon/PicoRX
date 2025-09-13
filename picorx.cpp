@@ -3,6 +3,7 @@
 
 #include "pico/multicore.h"
 #include "pico/time.h"
+#include "hardware/watchdog.h"
 
 #include "rx.h"
 #include "ui.h"
@@ -36,6 +37,7 @@ int main()
   multicore_launch_core1(core1_main);
   stdio_init_all();
 
+  watchdog_enable(2000, true);
   gpio_set_function(10, GPIO_FUNC_SIO);
   gpio_set_dir(10, GPIO_OUT);
   gpio_put(10, 1);
@@ -53,6 +55,9 @@ int main()
 
   while(1)
   {
+
+    watchdog_update();
+
     //schedule tasks
     if (time_us_32() - last_buttons_update > BUTTONS_REFRESH_US) 
     {
@@ -79,7 +84,6 @@ int main()
       last_waterfall_update = time_us_32();
       waterfall_inst.update_spectrum(receiver, user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
     }
-
 
   }
 }

@@ -109,6 +109,7 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
 void disable_pwm()
 {
   gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+  gpio_disable_pulls(PIN_AUDIO);
 }
 
 void enable_pwm()
