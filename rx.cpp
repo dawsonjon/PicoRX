@@ -68,103 +68,105 @@ void rx::tune()
   //since this function is called from core 0, this avoids the need
   //for additional synchronisation of i2c across cores
 
-  sem_acquire_blocking(&settings_semaphore);
-  if(settings_to_apply.enable_external_nco)
+  if(sem_try_acquire(&settings_semaphore))
   {
-    //disable internal nco
-    if(internal_nco_active)
+    if(settings_to_apply.enable_external_nco)
     {
-      pio_sm_set_enabled(pio, sm, false);
-      gpio_set_function(PIN_NCO_1, GPIO_FUNC_SIO);
-      gpio_set_dir(PIN_NCO_1, GPIO_IN);
-      gpio_set_function(PIN_NCO_2, GPIO_FUNC_SIO);
-      gpio_set_dir(PIN_NCO_2, GPIO_IN);
-      internal_nco_active = false;
-      //use a fixed clock frequency when using external NCO
-      uint32_t vco_freq = (12000000 / possible_frequencies[0].refdiv) * possible_frequencies[0].fbdiv;
-      set_sys_clock_pll(vco_freq, possible_frequencies[0].postdiv1, possible_frequencies[0].postdiv2);
-      system_clock_rate = possible_frequencies[0].frequency;
-      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+      //disable internal nco
+      if(internal_nco_active)
+      {
+        pio_sm_set_enabled(pio, sm, false);
+        gpio_set_function(PIN_NCO_1, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_NCO_1, GPIO_IN);
+        gpio_set_function(PIN_NCO_2, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_NCO_2, GPIO_IN);
+        internal_nco_active = false;
+        //use a fixed clock frequency when using external NCO
+        uint32_t vco_freq = (12000000 / possible_frequencies[0].refdiv) * possible_frequencies[0].fbdiv;
+        set_sys_clock_pll(vco_freq, possible_frequencies[0].postdiv1, possible_frequencies[0].postdiv2);
+        system_clock_rate = possible_frequencies[0].frequency;
+        pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+      }
+
+      //initialise external nco before first use
+      if(!external_nco_initialised)
+      {
+        external_nco_good = external_nco.initialise(i2c1, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
+        external_nco.set_drive(3);
+        external_nco.crystal_load(3);
+        external_nco.start();
+        external_nco_initialised = true;
+      }
+
+      //start external oscillator each time it is enabled
+      if(!external_nco_active)
+      {
+        external_nco.start();
+        external_nco_active = true;
+      }
+
+      if(external_nco_good)
+      {
+        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+        double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+        if_mode = settings_to_apply.if_mode;
+        if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+        nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+        offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+        rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+      }
+    }
+    else
+    {
+
+      //disable external nco
+      if(external_nco_initialised && external_nco_active)
+      {
+        external_nco.stop();
+        external_nco_active = false;
+      }
+
+      //enable internal nco
+      if(!internal_nco_active)
+      {
+        gpio_set_function(PIN_NCO_1, GPIO_FUNC_PIO0);
+        gpio_set_dir(PIN_NCO_1, GPIO_OUT);
+        gpio_set_function(PIN_NCO_2, GPIO_FUNC_PIO0);
+        gpio_set_dir(PIN_NCO_2, GPIO_OUT);
+        pio_sm_set_enabled(pio, sm, true);
+        internal_nco_active = true;
+      }
+
+      if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) || 
+         (ppm != settings_to_apply.ppm) ||
+         (if_mode != settings_to_apply.if_mode) ||
+         (if_frequency_hz_over_100 != settings_to_apply.if_frequency_hz_over_100))
+      {
+        //apply frequency
+        tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+        ppm = settings_to_apply.ppm;
+
+        //apply frequency calibration
+        double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+        if_mode = settings_to_apply.if_mode;
+        if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+        
+        //pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
+        disable_pwm();
+        nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+        offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+        pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+        rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+
+        sleep_us(15000);
+
+        //apply pwm_max
+        enable_pwm();
+      }
     }
 
-    //initialise external nco before first use
-    if(!external_nco_initialised)
-    {
-      external_nco_good = external_nco.initialise(i2c1, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
-      external_nco.set_drive(3);
-      external_nco.crystal_load(3);
-      external_nco.start();
-      external_nco_initialised = true;
-    }
-
-    //start external oscillator each time it is enabled
-    if(!external_nco_active)
-    {
-      external_nco.start();
-      external_nco_active = true;
-    }
-
-    if(external_nco_good)
-    {
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
-      if_mode = settings_to_apply.if_mode;
-      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
-      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
-      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
-    }
+    sem_release(&settings_semaphore);
   }
-  else
-  {
-
-    //disable external nco
-    if(external_nco_initialised && external_nco_active)
-    {
-      external_nco.stop();
-      external_nco_active = false;
-    }
-
-    //enable internal nco
-    if(!internal_nco_active)
-    {
-      gpio_set_function(PIN_NCO_1, GPIO_FUNC_PIO0);
-      gpio_set_dir(PIN_NCO_1, GPIO_OUT);
-      gpio_set_function(PIN_NCO_2, GPIO_FUNC_PIO0);
-      gpio_set_dir(PIN_NCO_2, GPIO_OUT);
-      pio_sm_set_enabled(pio, sm, true);
-      internal_nco_active = true;
-    }
-
-    if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) || 
-       (ppm != settings_to_apply.ppm) ||
-       (if_mode != settings_to_apply.if_mode) ||
-       (if_frequency_hz_over_100 != settings_to_apply.if_frequency_hz_over_100))
-    {
-      //apply frequency
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-      ppm = settings_to_apply.ppm;
-
-      //apply frequency calibration
-      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
-      if_mode = settings_to_apply.if_mode;
-      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-      
-      //pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
-      disable_pwm();
-      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
-      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
-      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
-      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
-
-      sleep_us(15000);
-
-      //apply pwm_max
-      enable_pwm();
-    }
-  }
-
-  sem_release(&settings_semaphore);
 }
 
 
