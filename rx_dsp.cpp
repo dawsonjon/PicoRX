@@ -768,16 +768,6 @@ s_filter_control rx_dsp :: get_filter_config()
   return capture_filter_control;
 }
 
-static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, uint16_t magnitude)
-{
-  int16_t corrected_fft_bin = (fft_bin + fft_offset);
-  if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
-  if(corrected_fft_bin < -128) corrected_fft_bin += 256;
-  uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
-  uint32_t adjusted_magnitude = ((uint32_t)magnitude * cic_correction[unsigned_fft_bin]) >> 8;
-  return std::min(adjusted_magnitude, (uint32_t)UINT16_MAX);
-}
-
 static inline int8_t freq_bin(uint8_t bin)
 {
   return bin > 127 ? bin - 256 : bin;
