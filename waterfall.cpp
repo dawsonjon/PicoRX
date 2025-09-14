@@ -17,13 +17,13 @@ waterfall::waterfall()
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
 
-    #define PIN_MISO 12
-    #define PIN_CS   13
-    #define PIN_SCK  14
-    #define PIN_MOSI 15 
-    #define PIN_DC   11
-    #define PIN_RST  10
-    #define SPI_PORT spi1
+    #define PIN_MISO 16
+    #define PIN_CS   17
+    #define PIN_SCK  18
+    #define PIN_MOSI 19 
+    #define PIN_DC   9
+    #define PIN_RST  8
+    #define SPI_PORT spi0
     //spi_init(SPI_PORT, 62500000);
     spi_init(SPI_PORT, 40000000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);

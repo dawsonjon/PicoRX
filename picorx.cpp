@@ -16,8 +16,12 @@
 
 uint8_t spectrum[256];
 uint8_t dB10=10;
-static rx_settings settings_to_apply;
+static rx_settings settings_to_apply = {};
 static rx_status status;
+// Set initial band to 40M (7.074 MHz)
+__attribute__((constructor)) static void set_initial_band() {
+  settings_to_apply.tuned_frequency_Hz = 7074000.0;
+}
 static rx receiver(settings_to_apply, status);
 waterfall waterfall_inst;
 static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10, waterfall_inst);

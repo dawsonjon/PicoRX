@@ -6,7 +6,7 @@
 #include "hardware/pwm.h"
 #include "pico/sync.h"
 
-#define AUDIO_PIN (16)
+#define AUDIO_PIN (15)
 
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
@@ -42,9 +42,15 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
 }
 
 void pwm_audio_sink_init(void) {
+  if (pwm_max == 0) {
+    pwm_audio_sink_update_pwm_max(255); // default wrap value
+  }
+
   gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
   gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
+
   audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
+
   pwm_config config = pwm_get_default_config();
   pwm_config_set_clkdiv(&config, 1.f);
   pwm_config_set_wrap(&config, pwm_max);
@@ -52,30 +58,32 @@ void pwm_audio_sink_init(void) {
 
   pwm_dma_ping = dma_claim_unused_channel(true);
   pwm_dma_pong = dma_claim_unused_channel(true);
+
   audio_ping_cfg = dma_channel_get_default_config(pwm_dma_ping);
   audio_pong_cfg = dma_channel_get_default_config(pwm_dma_pong);
 
   channel_config_set_transfer_data_size(&audio_ping_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_ping_cfg, true);
   channel_config_set_write_increment(&audio_ping_cfg, false);
-  channel_config_set_dreq(&audio_ping_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_ping_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 
   channel_config_set_transfer_data_size(&audio_pong_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_pong_cfg, true);
   channel_config_set_write_increment(&audio_pong_cfg, false);
-  channel_config_set_dreq(&audio_pong_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_pong_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 }
 
 void pwm_audio_sink_start(void) {
-  dma_channel_configure(pwm_dma_ping, &audio_ping_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio,
-                        NUM_OUT_SAMPLES, false);
-  dma_channel_configure(pwm_dma_pong, &audio_pong_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio,
-                        NUM_OUT_SAMPLES, false);
+    uint channel = pwm_gpio_to_channel(AUDIO_PIN); 
+    volatile uint16_t *target_addr; 
+    if (channel == PWM_CHAN_A) { 
+      target_addr = (volatile uint16_t *)&pwm_hw->slice[audio_pwm_slice_num].cc; 
+    } else { 
+      target_addr = (volatile uint16_t *)&pwm_hw->slice[audio_pwm_slice_num].cc + 1; 
+    }dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, target_addr, ping_audio, NUM_OUT_SAMPLES, false); 
+    dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, target_addr, pong_audio, NUM_OUT_SAMPLES, false);
 }
+
 
 void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_ping);

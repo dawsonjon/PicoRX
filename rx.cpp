@@ -11,6 +11,7 @@
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
 #include "pwm_audio_sink.h"
+#include "hardware.h"
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
@@ -91,7 +92,8 @@ void rx::apply_settings()
    {
 
       //apply frequency
-      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+  tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+  printf("[DEBUG] apply_settings: tuned_frequency_Hz = %f\n", tuned_frequency_Hz);
 
       //apply frequency calibration
       tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
@@ -106,51 +108,51 @@ void rx::apply_settings()
 
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 0);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
-        gpio_put(2, 1);
-        gpio_put(3, 0);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 0);
+        gpio_put(PIN_BAND_C, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
-        gpio_put(2, 0);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 0);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 1);
       }
       else
       {
-        gpio_put(2, 1);
-        gpio_put(3, 1);
-        gpio_put(4, 1);
+        gpio_put(PIN_BAND_A, 1);
+        gpio_put(PIN_BAND_B, 1);
+        gpio_put(PIN_BAND_C, 1);
       }
 
       //apply pwm_max
@@ -190,7 +192,8 @@ void rx::apply_settings()
         180, // 8 = 180/256 -3dB
         256  // 9 = 256/256  0dB
       };
-      gain_numerator = gain[settings_to_apply.volume];
+  gain_numerator = gain[settings_to_apply.volume];
+  printf("[DEBUG] apply_settings: gain_numerator = %d, volume index = %d\n", gain_numerator, settings_to_apply.volume);
 
       //apply deemphasis
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
@@ -234,7 +237,6 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
-    const uint PSU_PIN = 23;
     gpio_init(PSU_PIN);
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
@@ -242,23 +244,22 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     
     //ADC Configuration
     adc_init();
-    adc_gpio_init(26);//I channel (0) - configure pin for ADC use
-    adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
-    adc_gpio_init(29);//Battery - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_BATT);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 
     //band select
-    gpio_init(2);//band 0
-    gpio_init(3);//band 1
-    gpio_init(4);//band 2
-    gpio_set_function(2, GPIO_FUNC_SIO);
-    gpio_set_function(3, GPIO_FUNC_SIO);
-    gpio_set_function(4, GPIO_FUNC_SIO);
-    gpio_set_dir(2, GPIO_OUT);
-    gpio_set_dir(3, GPIO_OUT);
-    gpio_set_dir(4, GPIO_OUT);
-    
+    gpio_init(PIN_BAND_A);//band 0
+    gpio_init(PIN_BAND_B);//band 1
+    gpio_init(PIN_BAND_C);//band 2
+    gpio_set_function(PIN_BAND_A, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_B, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_C, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_BAND_A, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_B, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_C, GPIO_OUT);
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
     adc_dma_pong = dma_claim_unused_channel(true);

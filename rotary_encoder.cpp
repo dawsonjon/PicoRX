@@ -2,8 +2,8 @@
 
 #include "quadrature_encoder.pio.h"
 #include "ui.h"
+#include "hardware.h"
 
-const uint8_t PIN_AB = 20;
 
 rotary_encoder::rotary_encoder(const uint32_t (&settings)[16])
     : encoder(settings) {

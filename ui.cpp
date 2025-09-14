@@ -22,7 +22,7 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
 void ui::setup_display() {
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
+  ssd1306_init(&disp, 128, 64, 0x3C, i2c0);
 }
 
 void ui::display_clear(bool colour)
@@ -2798,10 +2798,10 @@ void ui::do_ui()
     }
 }
 
-#define OLED_I2C_SDA_PIN (18)
-#define OLED_I2C_SCL_PIN (19)
+#define OLED_I2C_SDA_PIN (0)
+#define OLED_I2C_SCL_PIN (1)
 #define OLED_I2C_SPEED (400UL)
-#define OLED_I2C_INST (i2c1)
+#define OLED_I2C_INST (i2c0)
 
 static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
 {
@@ -2913,6 +2913,11 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   dB10(dB10),
   waterfall_inst(waterfall_inst)
 {
+  i2c_init(i2c0, 400000);
+  gpio_set_function(0, GPIO_FUNC_I2C);
+  gpio_set_function(1, GPIO_FUNC_I2C);
+  gpio_pull_up(0);
+  gpio_pull_up(1);
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
