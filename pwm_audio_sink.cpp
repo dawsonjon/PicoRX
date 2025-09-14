@@ -7,6 +7,8 @@
 #include "hardware/pwm.h"
 #include "pico/sync.h"
 
+#include <cstdio>
+
 
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
@@ -22,14 +24,37 @@ static int16_t pong_audio[NUM_OUT_SAMPLES];
 static uint32_t pwm_max;
 static uint32_t pwm_scale;
 
+const uint32_t ramp_samples = 250;
+static uint32_t ramp=ramp_samples;
+static bool ground = false;
+static bool tristate = false;
+
 static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
 
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
+
+  //apply soft mute
+  if (tristate) {
+    sample = ramp*sample/ramp_samples;
+    if(ramp) ramp--;
+  } else {
+    sample = ramp*sample/ramp_samples;
+    if(ramp<ramp_samples) ramp++;
+  }
    
   // shift up
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
+
+  //apply soft mute
+  if (ground) {
+    sample = ramp*sample/ramp_samples;
+    if(ramp) ramp--;
+  } else {
+    sample = ramp*sample/ramp_samples;
+    if(ramp<ramp_samples) ramp++;
+  }
 
   // interpolate to PWM rate
   static int16_t last_sample = 0;
@@ -87,6 +112,32 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
   static bool toggle = false;
   uint32_t time;
 
+  /*
+  for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
+
+    if (mute) {
+      samples[i] = ramp*samples[i]/1500; //reduce scale
+      samples[i] = samples[i]-((1500-ramp)*INT16_MAX)/1500; //ramp DC down to 0 v
+      if(ramp) ramp--;
+    } else {
+      samples[i] = ramp*samples[i]/1500; //reduce scale
+      samples[i] = samples[i]-((1500-ramp)*INT16_MAX)/1500; //ramp DC down to 0 v
+      if(ramp<1500) ramp++;
+    }
+  }
+  */
+
+  //if(mute & !ramp){
+    //gpio_set_dir(PIN_AUDIO, true);
+    //gpio_put(PIN_AUDIO, 0);
+    //gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+  //}
+
+  if(tristate & !ramp){
+    gpio_set_dir(PIN_AUDIO, false);
+    //gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+  }
+
   if (toggle) {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
       interpolate(samples[i], &ping_audio[i * interpolation_rate], gain);
@@ -108,13 +159,33 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
 
 void disable_pwm()
 {
-  gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
-  gpio_disable_pulls(PIN_AUDIO);
+  
+  if(false){
+    ground = true;
+    ramp = ramp_samples; //100ms
+    sleep_us(40000);
+  }else{
+    tristate = true;
+    //gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+    ramp = ramp_samples; //100ms
+    sleep_us(50000);
+  }
+  //gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+  //gpio_disable_pulls(PIN_AUDIO);
 }
 
 void enable_pwm()
 {
-  gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+  if(false){
+    ground = false;
+    ramp = 0;
+  } else {
+    sleep_us(15000);
+    gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+    tristate = false;
+    ramp = 0;
+  }
+  //sleep_us(35000);
 }
 
 void pwm_audio_sink_update_pwm_max(uint32_t new_max) {
