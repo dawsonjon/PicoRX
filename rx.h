@@ -51,6 +51,7 @@ struct rx_settings
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
+  uint8_t tuning_option;
   bool enable_external_nco;
   bool stream_raw_iq;
 };

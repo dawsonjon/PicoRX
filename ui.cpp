@@ -1870,7 +1870,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -1896,22 +1896,26 @@ bool ui::configuration_menu(bool &ok)
       switch(menu_selection)
       {
         case 0: 
+          done =  enumerate_entry("Tuning\nOptions", "None#Tristate#Ground#", settings.global.tuning_option, ok, changed);
+          break;
+
+        case 1: 
           done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", settings.global.display_timeout, ok, changed);
           display_time = time_us_32();
           display_timeout_max = timeout_lookup[settings.global.display_timeout];
           break;
 
-        case 1 : 
+        case 2 : 
           done = enumerate_entry("PSU Mode", "FM#PWM#", settings.global.regmode, ok, changed);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, settings.global.regmode);
           break;
 
-        case 2 : 
+        case 3 : 
           done = bit_entry("Reverse\nEncoder", "Off#On#", settings.global.reverse_encoder, ok);
           break;
 
-        case 3: 
+        case 4: 
         {
           static bool value = settings.global.encoder_resolution;
           done = bit_entry("Encoder\nResolution", "Low#High#", value, ok);
@@ -1925,15 +1929,15 @@ bool ui::configuration_menu(bool &ok)
           break;
         }
 
-        case 4 : 
+        case 5 : 
           done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
           break;
 
-        case 5 : 
+        case 6 : 
           done = number_entry("Gain Cal", "%idB", 1, 100, 1, settings.global.gain_cal, ok, changed);
           break;
 
-        case 6 : 
+        case 7 : 
         {
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
           receiver.access(false);
@@ -1953,65 +1957,65 @@ bool ui::configuration_menu(bool &ok)
           break;
         }
 
-        case 7 : 
+        case 8 : 
           done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
           u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
           update_display_type();
           break;
 
-        case 8: 
+        case 9: 
           done = bit_entry("OLED Type", "SSD1306#SH1106#", settings.global.oled_type, ok);
           update_display_type();
           break;
 
-        case 9:
+        case 10:
           done =  number_entry("Display\nContrast", "%i", 0, 15, 1, settings.global.display_contrast, ok, changed);
           u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
           break;
 
-        case 10:
+        case 11:
           done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
           if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
-        case 11:
+        case 12:
           done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
           if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
-        case 12:
+        case 13:
           done =  enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
           if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
-        case 13:
+        case 14:
           done =  enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok, changed);
           if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
           break;
 
-        case 14:
+        case 15:
           done = bands_menu(ok);
           break;
 
-        case 15:
+        case 16:
           done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 16:
+        case 17:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 17:
+        case 18:
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 18: 
+        case 19: 
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "#No#Yes#", usb_upload, ok, changed);

@@ -151,16 +151,14 @@ void rx::tune()
         if_mode = settings_to_apply.if_mode;
         if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
         
-        //pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
-        disable_pwm();
+        disable_pwm(settings_to_apply.tuning_option);
 
         nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
-        //apply pwm_max
-        enable_pwm();
+        enable_pwm(settings_to_apply.tuning_option);
       }
     }
 

@@ -77,6 +77,7 @@ struct s_global_settings
   uint8_t treble;
   uint8_t bass;
   uint8_t aux_view;
+  uint8_t tuning_option;
   bool    usb_stream;
   bool    enable_auto_notch;
   bool    iq_correction;
@@ -145,6 +146,7 @@ const s_settings default_settings = {
   1,  //spectrum_smoothing
   0,  //treble
   0,  //bass
+  2,  //tuning_option
   0,  //aux_view
   0,  //usb_stream
   0,  //enable_auto_notch
