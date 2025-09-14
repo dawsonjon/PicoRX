@@ -146,8 +146,8 @@ const s_settings default_settings = {
   1,  //spectrum_smoothing
   0,  //treble
   0,  //bass
-  2,  //tuning_option
   0,  //aux_view
+  2,  //tuning_option
   0,  //usb_stream
   0,  //enable_auto_notch
   0,  //iq_correction

@@ -391,15 +391,10 @@ inline int32_t wrap(int32_t x) {
   return x;
 }
 
+void rx_dsp::amsync_reset(void) { amsync = {0}; }
+
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t magnitude, int16_t phase)
 {
-    static int32_t phase_locked = 0;
-    static int32_t x1 = 0;
-    static int32_t x2 = 0;
-    static int32_t y1 = 0;
-    static int32_t y2 = 0;
-    static int32_t y0_err = 0;
-
     int16_t frequency = phase - last_phase;
     last_phase = phase;
 
@@ -416,9 +411,9 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else if(mode == AMSYNC)
     {
-      size_t idx = (phase_locked / AMSYNC_PHI_SCALE);
+      size_t idx = (amsync.phase_locked / AMSYNC_PHI_SCALE);
 
-      if (phase_locked < 0) {
+      if (amsync.phase_locked < 0) {
         idx = 2048 + idx;
       }
 
@@ -437,18 +432,18 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
 
       const int32_t phi_err = ((int32_t)phi * AMSYNC_ERR_SCALE);
 
-      int32_t y0 = phi_err * AMSYNC_B0 + x1 * AMSYNC_B1 + x2 * AMSYNC_B2;
-      y0 += y0_err;
-      y0_err = y0 & AMSYNC_FILT_ONE;
+      int32_t y0 = phi_err * AMSYNC_B0 + amsync.x1 * AMSYNC_B1 + amsync.x2 * AMSYNC_B2;
+      y0 += amsync.y0_err;
+      amsync.y0_err = y0 & AMSYNC_FILT_ONE;
       y0 >>= AMSYNC_FILT_BITS;
-      y0 += 2 * y1 - y2;
-      y2 = y1;
-      y1 = y0;
-      x2 = x1;
-      x1 = phi_err;
-      phase_locked += y0;
+      y0 += 2 * amsync.y1 - amsync.y2;
+      amsync.y2 = amsync.y1;
+      amsync.y1 = y0;
+      amsync.x2 = amsync.x1;
+      amsync.x1 = phi_err;
+      amsync.phase_locked += y0;
 
-      phase_locked = wrap(phase_locked);
+      amsync.phase_locked = wrap(amsync.phase_locked);
 
       // measure DC using first order IIR low-pass filter
       audio_dc = synced_i + (audio_dc - (audio_dc >> 5));

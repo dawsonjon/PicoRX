@@ -8,6 +8,15 @@
 #include "fft_filter.h"
 #include "ring_buffer_lib.h"
 
+typedef struct {
+  int32_t phase_locked;
+  int32_t x1;
+  int32_t x2;
+  int32_t y1;
+  int32_t y2;
+  int32_t y0_err;
+} amsync_t;
+
 class rx_dsp
 {
   public:
@@ -35,6 +44,7 @@ class rx_dsp
   bool get_raw_data(int16_t &i, int16_t &q);
   uint32_t get_iq_buffer_level();
   float get_tuning_offset_Hz();
+  void amsync_reset(void);
 
   private:
   
@@ -124,6 +134,9 @@ class rx_dsp
   // gain calibration
   float amplifier_gain_dB = 62.0f;
   int32_t usb_buf_level_avg = 0;
+
+  // synchronous AM demodulator state
+  amsync_t amsync;
 
 };
 
