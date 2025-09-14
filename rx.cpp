@@ -156,6 +156,7 @@ void rx::tune()
       offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
       pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+      rx_dsp_inst.amsync_reset();
 
       sleep_us(15000);
 
