@@ -98,6 +98,9 @@ void rx::apply_settings()
 
       uint32_t system_clock_rate;
       pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
+
+      // This line is what we need to change to si5351 to be able to use external reference
+      // SI535
       nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
       offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
 
@@ -228,10 +231,6 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     stream_raw_iq = 0;
 
     //Configure PIO to act as quadrature oscilator
-    pio = pio0;
-    offset = pio_add_program(pio, &nco_program);
-    sm = pio_claim_unused_sm(pio, true);
-    nco_program_init(pio, sm, offset);
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
