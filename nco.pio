@@ -1,0 +1,36 @@
+.program nco
+	set pins, 0
+	set pins, 1      ; Drive pin low
+	set pins, 3      ; Drive pin high
+	set pins, 2      ; Drive pin low
+
+% c-sdk {
+static inline void nco_program_init(PIO pio, uint sm, uint offset) {
+    pio_sm_config c = nco_program_get_default_config(offset);
+
+    // Map the state machine's OUT pin group to one pin, namely the `pin`
+    // parameter to this function.
+    sm_config_set_set_pins(&c, 0, 2);
+
+    // Set this pin's GPIO function (connect PIO to the pad)
+    pio_gpio_init(pio, 0);
+    pio_gpio_init(pio, 1);
+    gpio_set_drive_strength(0, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_drive_strength(1, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_slew_rate(0, GPIO_SLEW_RATE_SLOW);
+    gpio_set_slew_rate(1, GPIO_SLEW_RATE_SLOW);
+
+    // Set the pin direction to output at the PIO
+    pio_sm_set_consecutive_pindirs(pio, sm, 0, 2, true);
+
+    //set pio divider
+    sm_config_set_clkdiv(&c, 1);
+
+    // Load our configuration, and jump to the start of the program
+    pio_sm_init(pio, sm, offset, &c);
+
+    // Set the state machine running
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+%}

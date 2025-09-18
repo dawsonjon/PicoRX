@@ -122,6 +122,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx-riscv ${SRCS})
+     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx-riscv)
     # enable usb output, disable uart output
@@ -158,6 +159,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
     list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx ${SRCS})
+    pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
     pico_add_extra_outputs(pico2rx)
     pico_enable_stdio_usb(pico2rx 1)

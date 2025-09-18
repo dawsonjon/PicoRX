@@ -14,7 +14,7 @@
 #include "hardware/adc.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
-#include "hardware.h"
+#include "pins.h"
 
 float read_adc_volts(uint8_t channel) {
   adc_select_input(channel);
@@ -28,7 +28,7 @@ int main() {
   uint8_t batt_adc = 3;
   uint8_t temp_adc = 4;
   adc_init();
-  adc_gpio_init(PIN_ADC_BATT);//Battery - configure pin for ADC use
+  adc_gpio_init(PIN_BATTERY);//Battery - configure pin for ADC use
   adc_set_temp_sensor_enabled(true);
   adc_set_clkdiv(0); //flat out
 

@@ -5,7 +5,6 @@
 #include "pins.h"
 
 
-
 rotary_encoder::rotary_encoder(s_global_settings &settings) : encoder(settings) {
   gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
   gpio_set_function(PIN_AB + 1, GPIO_FUNC_PIO1);

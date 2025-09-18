@@ -10,9 +10,7 @@
 #include "fonts.h"
 #include "settings.h"
 #include "rotary_encoder.h"
-extern "C" {
-  #include "si5351.h"
-}
+
 #include <algorithm>
 
 #define WATERFALL_WIDTH (128)
@@ -2697,25 +2695,10 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   zoom(zoom),
   waterfall_inst(waterfall_inst)
 {
-  i2c_init(i2c0, 400000);
-  gpio_set_function(0, GPIO_FUNC_I2C);
-  gpio_set_function(1, GPIO_FUNC_I2C);
-  gpio_pull_up(0);
-  gpio_pull_up(1);
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
-  si5351_init(SI5351_CRYSTAL_LOAD_8PF, 0, 0);
-  si5351_drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
-  si5351_drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
-  set_phase(SI5351_CLK0, 0);
-  set_phase(SI5351_CLK1, 50);
 
-  si5351_drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
-  si5351_output_enable(SI5351_CLK2, 0);
-
-  // Set initial frequency and phase
-  pll_reset(SI5351_PLLA);
   gpio_init(24);
   gpio_set_dir(24, GPIO_IN);
   gpio_pull_down(24);
