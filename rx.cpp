@@ -90,7 +90,7 @@ void rx::tune()
     //initialise external nco before first use
     if(!external_nco_initialised)
     {
-      external_nco_good = external_nco.initialise(i2c1, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
+      external_nco_good = external_nco.initialise(OLED_I2C_INST, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
       external_nco.set_drive(3);
       external_nco.crystal_load(3);
       external_nco.start();
@@ -349,9 +349,9 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     
     //ADC Configuration
     adc_init();
-    adc_gpio_init(26);//I channel (0) - configure pin for ADC use
-    adc_gpio_init(27);//Q channel (1) - configure pin for ADC use
-    adc_gpio_init(29);//Battery - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
+    adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
+    adc_gpio_init(PIN_BATTERY);//Battery - configure pin for ADC use
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 

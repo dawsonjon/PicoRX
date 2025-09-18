@@ -11,6 +11,7 @@
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
 static int audio_pwm_slice_num;
+static int audio_pwm_channel;
 static int pwm_dma_ping;
 static int pwm_dma_pong;
 static dma_channel_config audio_ping_cfg;
@@ -46,6 +47,7 @@ void pwm_audio_sink_init(void) {
   gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
   gpio_set_drive_strength(PIN_AUDIO, GPIO_DRIVE_STRENGTH_12MA);
   audio_pwm_slice_num = pwm_gpio_to_slice_num(PIN_AUDIO);
+  audio_pwm_channel = pwm_gpio_to_channel(PIN_AUDIO); // A=0, B=1
   pwm_config config = pwm_get_default_config();
   pwm_config_set_clkdiv(&config, 1.f);
   pwm_config_set_wrap(&config, pwm_max);
@@ -70,14 +72,18 @@ void pwm_audio_sink_init(void) {
 }
 
 void pwm_audio_sink_start(void) {
-  dma_channel_configure(pwm_dma_ping, &audio_ping_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio,
-                        NUM_OUT_SAMPLES, false);
-  dma_channel_configure(pwm_dma_pong, &audio_pong_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio,
-                        NUM_OUT_SAMPLES, false);
-}
+    // calculate the correct DMA write address depending on channel
+    volatile uint32_t *cc_target = &pwm_hw->slice[audio_pwm_slice_num].cc;
+    if (audio_pwm_channel == 1) { // Channel B
+      // Write to the upper 16 bits (write to Channel B)
+      cc_target = (volatile uint32_t *)((volatile uint8_t *)cc_target + 2);
+    }
 
+    dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, cc_target, ping_audio,
+                          NUM_OUT_SAMPLES, false);
+    dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, cc_target, pong_audio,
+                          NUM_OUT_SAMPLES, false);
+}
 void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_ping);
   dma_channel_cleanup(pwm_dma_pong);

@@ -13,7 +13,6 @@
 #include "rx_definitions.h"
 #include "ui.h"
 #include "pins.h"
-#define SPI_PORT spi1
 #include "codecs/decode_sstv.h"
 
 waterfall::waterfall()

@@ -99,17 +99,17 @@ struct s_settings
 
 const s_settings default_settings = {
 {
-  1413000,  //frequency
+  7074000,  //frequency
   30000000, //max_frequency
   0,        //min_frequency
-  0,        //mode = AM
+  2,        //mode = LSB
   3,        //agc_setting = very_slow
   10,       //agc_gain
   4,        //step = 1kHz
   2,        //bandwidth = normal
 }, {
   5,  //volume
-  10, //cw_sidetone = 1000Hz
+  7, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
   0,  //squelch_timeout = never
   2,  //spectrum_zoom
@@ -157,7 +157,7 @@ const s_settings default_settings = {
   0,  //oled_type = ssd1306
   0,  //enable_test_tone
   0,  //tx_modulation
-  0,  //enable_external_nco
+  1,  //enable_external_nco
 }};
 
 

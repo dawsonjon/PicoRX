@@ -39,7 +39,7 @@ void strip_trailing_space(const char *x, char *y)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::setup_display() {
   disp.external_vcc=false;
-  ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
+  ssd1306_init(&disp, 128, 64, 0x3C, OLED_I2C_INST);
 }
 
 void ui::display_clear(bool colour)
@@ -296,6 +296,7 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   MHz = settings.channel.frequency/1000000u;
   remainder = settings.channel.frequency%1000000u; 
   kHz = remainder/1000u;
+  if(settings.channel.mode == MODE_CW) kHz = (remainder + (settings.global.cw_sidetone * 100))/1000u; // Apply CW sidetone offset for display
   remainder = remainder%1000u; 
   Hz = remainder;
 
@@ -2580,10 +2581,6 @@ void ui::do_ui()
     }
 }
 
-#define OLED_I2C_SDA_PIN (18)
-#define OLED_I2C_SCL_PIN (19)
-#define OLED_I2C_SPEED (400UL)
-#define OLED_I2C_INST (i2c1)
 
 static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
 {
@@ -2633,10 +2630,10 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
 
     case U8X8_MSG_BYTE_INIT:
         i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
-        gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
-        gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
-        gpio_pull_up(OLED_I2C_SDA_PIN);
-        gpio_pull_up(OLED_I2C_SCL_PIN);
+        gpio_set_function(PIN_DISPLAY_SDA, GPIO_FUNC_I2C);
+        gpio_set_function(PIN_DISPLAY_SCL, GPIO_FUNC_I2C);
+        gpio_pull_up(PIN_DISPLAY_SDA);
+        gpio_pull_up(PIN_DISPLAY_SCL);
         break;
 
     case U8X8_MSG_BYTE_SET_DC:
