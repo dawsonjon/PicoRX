@@ -2,6 +2,8 @@ import sys
 import serial
 import serial.tools.list_ports
 import struct
+import time
+from channel_to_words import channel_to_words
 
 
 def read_csv(filename):
@@ -14,42 +16,9 @@ def read_csv(filename):
       channels.append(line)
   return channels
 
-def pack(string):
-    return (ord(string[0]) << 24) + (ord(string[1]) << 16) + (ord(string[2]) << 8) + ord(string[3])
-
-def convert_channel_to_hex(channel):
-  name, frequency, min_frequency, max_frequency, mode, agc_speed, step = channel
-
-  if len(name) < 16:
-    name += " " * (16-len(name))
-
-  modes = { "AM" :0, "AMS": 1, "LSB":2, "USB":3, "NFM":4, "CW" :5 }
-  agc_speeds = {"FAST": 0, "NORMAL": 1, "SLOW": 2, "VERY SLOW": 3}
-  steps = { "10Hz": 0, "50Hz": 1, "100Hz": 2, "1kHz": 3, "5kHz": 4, "9kHz":5, "10kHz": 6, "12.5kHz": 7, "25kHz": 8, "50kHz": 9, "100kHz": 10,}
-
-  data = [
-    int(frequency)&0xffffffff,     #0
-    modes[mode],                   #1
-    agc_speeds[agc_speed],         #2
-    steps[step],                   #3
-    int(max_frequency)&0xffffffff, #4
-    int(min_frequency)&0xffffffff, #5
-    pack(name[0:4]),               #6
-    pack(name[4:8]),               #7
-    pack(name[8:12]),              #8
-    pack(name[12:16]),             #9
-    0xffffffff,                    #a
-    0xffffffff,                    #b
-    0xffffffff,                    #c
-    0xffffffff,                    #d
-    0xffffffff,                    #e
-    0xffffffff,                    #f
-  ]
-  return data
-
 def read_memory(filename):
   data = read_csv(filename)[1:]
-  data = [convert_channel_to_hex(i) for i in data]
+  data = [channel_to_words(*i) for i in data]
   data = data[:512]
   return data
     
@@ -70,8 +39,7 @@ if idx.strip().upper() != "Y":
   sys.exit(-1)
 
 print("1. Connect USB cable to Pico Rx")
-print("2. Select *HW Config -> USB Upload -> Memory* menu item")
-print("3. When ready press any key")
+print("2. When ready press any key")
 idx = input()
 
 #get a list of available serial ports
@@ -92,16 +60,23 @@ while 1:
 
 #send csv file to pico via USB
 buffer = read_memory(filename)
-with serial.Serial(port, 12000000, rtscts=1) as ser:
+with serial.Serial(port, 12000000, rtscts=1, timeout=1) as ser:
 
     #clear any data in buffer
     while ser.in_waiting:
       ser.read(ser.in_waiting)
+    time.sleep(1)
+    while ser.in_waiting:
+      ser.read(ser.in_waiting)
 
     with open(filename, 'rb') as input_file:
-      for channel in buffer:
+      for channel_number, channel in enumerate(buffer):
+        print("Uploading channel:", channel_number)
+        cmd = "ZUP%03x"%channel_number
         for location in channel:
-          ser.write(bytes("%x\n"%(location), "utf8"))
-          ser.readline()
-      ser.write(bytes("q\n", "utf8"))
+          cmd += "%08x"%location
+        cmd += ";"
+        #print(cmd, len(cmd))
+        ser.write(bytes(cmd, "utf8"))
+        ser.read(7)
 

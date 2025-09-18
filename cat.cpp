@@ -1,13 +1,14 @@
 #include "cat.h"
-#include "ui.h"
-
+#include "settings.h"
+#include <cstdint>
+#include <cstring>
 #include <algorithm>
 
 #include "pico/stdlib.h"
 
-void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint32_t settings[])
+void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, s_settings &settings)
 {
-    const uint16_t buffer_length = 64;
+    const uint16_t buffer_length = 256;
     static char buf[buffer_length];
     static uint16_t read_idx = 0;
     static uint16_t write_idx = 0;
@@ -15,26 +16,13 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
     //write any new data into circular buffer
     {
-      const uint16_t bytes_to_end = buffer_length-write_idx-1;
-      if(bytes_to_end > 0)
+      const uint16_t bytes_to_end = buffer_length-write_idx;
+      int32_t retval = stdio_get_until(buf+write_idx, bytes_to_end, make_timeout_time_us(100));
+      if(retval != PICO_ERROR_TIMEOUT)
       {
-        int32_t retval = stdio_get_until(buf+write_idx, bytes_to_end, make_timeout_time_us(100));
-        if(retval != PICO_ERROR_TIMEOUT)
-        {
-          items_in_buffer += retval;
-          write_idx += retval;
-          if(write_idx > buffer_length) write_idx -= buffer_length;
-        }
-      }
-      else
-      {
-        int32_t retval = stdio_get_until(buf, sizeof(buf)-items_in_buffer, make_timeout_time_us(100));
-        if(retval != PICO_ERROR_TIMEOUT)
-        {
-          items_in_buffer += retval;
-          write_idx += retval;
-          if(write_idx > buffer_length) write_idx -= buffer_length;
-        }
+        items_in_buffer += retval;
+        write_idx += retval;
+        if(write_idx >= buffer_length) write_idx -= buffer_length;
       }
     }
 
@@ -42,7 +30,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     //copy command from circular buffer to command buffer
     static char cmd[buffer_length];
     const uint16_t bytes_to_read = items_in_buffer;
-    const uint16_t bytes_to_end = std::min(bytes_to_read, (uint16_t)(buffer_length-1u-read_idx));
+    const uint16_t bytes_to_end = std::min(bytes_to_read, (uint16_t)(buffer_length-read_idx));
     const uint16_t bytes_remaining = bytes_to_read - bytes_to_end;
     memcpy(cmd, buf+read_idx, bytes_to_end);
     memcpy(cmd+bytes_to_end, buf, bytes_remaining);
@@ -67,23 +55,44 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
     bool settings_changed = false;
     const char mode_translation[] = "551243";
+    static char vfor = '0';
+    static char vfot = '0';
 
     if (strncmp(cmd, "FA", 2) == 0) {
 
         // Handle mode set/get commands
         if (cmd[2] == ';') {
-            printf("FA%011lu;", settings[idx_frequency]);
+            printf("FA%011lu;", settings.channel.frequency);
         } else {
             uint32_t frequency_Hz;
             sscanf(cmd+2, "%lu", &frequency_Hz);
             if(frequency_Hz <= 30000000)
             {
-              settings[idx_frequency]=frequency_Hz;
+              settings.channel.frequency=frequency_Hz;
               settings_changed = true;
             }
             else
             {
-              stdio_puts_raw("?;");
+              printf("?;");
+            }
+        }
+    
+    } else if (strncmp(cmd, "FB", 2) == 0) {
+
+        // Handle mode set/get commands
+        if (cmd[2] == ';') {
+            printf("FA%011lu;", settings.channel.frequency);
+        } else {
+            uint32_t frequency_Hz;
+            sscanf(cmd+2, "%lu", &frequency_Hz);
+            if(frequency_Hz <= 30000000)
+            {
+              settings.channel.frequency=frequency_Hz;
+              settings_changed = true;
+            }
+            else
+            {
+              printf("?;");
             }
         }
 
@@ -99,41 +108,55 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             power_scaled = std::max((float)0, power_scaled);
             printf("SM%05X;", (uint16_t)power_scaled);
         } else {
-            stdio_puts_raw("?;");
+            printf("?;");
         }
 
     } else if (strncmp(cmd, "MD", 2) == 0) {
 
         // Handle mode set/get commands
         if (cmd[2] == ';') {
-            char mode_status = mode_translation[settings[idx_mode]];
+            char mode_status = mode_translation[settings.channel.mode];
             printf("MD%c;", mode_status);
         } else if (cmd[2] == '1') {
             settings_changed = true;
-            settings[idx_mode] = MODE_LSB;
+            settings.channel.mode = MODE_LSB;
         } else if (cmd[2] == '2') {
             settings_changed = true;
-            settings[idx_mode] = MODE_USB;
+            settings.channel.mode = MODE_USB;
         } else if (cmd[2] == '3') {
             settings_changed = true;
-            settings[idx_mode] = MODE_CW;
+            settings.channel.mode = MODE_CW;
         } else if (cmd[2] == '4') {
             settings_changed = true;
-            settings[idx_mode] = MODE_FM;
+            settings.channel.mode = MODE_FM;
         } else if (cmd[2] == '5') {
             settings_changed = true;
-            settings[idx_mode] = MODE_AM;
+            settings.channel.mode = MODE_AM;
         }
 
     } else if (strncmp(cmd, "IF", 2) == 0) {
         if (cmd[2] == ';') {
-            printf("IF%011lu00000+0000000000%c0000000;", settings[idx_frequency], mode_translation[settings[idx_mode]]);
+            printf("IF%011lu     +0000000000%c%c00000 ;", settings.channel.frequency, mode_translation[settings.channel.mode], vfor);
         }
 
     //fake TX for now
     } else if (strncmp(cmd, "ID", 2) == 0) {
         if (cmd[2] == ';') {
             printf("ID020;");
+        }
+    } else if (strncmp(cmd, "FR", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("FR%c;", vfor);
+        }
+        else if(cmd[3] == ';'){
+            vfor = cmd[2];
+        }
+    } else if (strncmp(cmd, "FT", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("FT%c;", vfot);
+        }
+        else if(cmd[3] == ';'){
+            vfot = cmd[2];
         }
     } else if (strncmp(cmd, "AI", 2) == 0) {
         if (cmd[2] == ';') {
@@ -178,6 +201,18 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
     } else if (strncmp(cmd, "AC", 2) == 0) {
         if (cmd[2] == ';') {
             printf("AC010;");
+        }
+    } else if (strncmp(cmd, "SL", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SL00;");
+        }
+    } else if (strncmp(cmd, "SH", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("SH00;");
+        }
+    } else if (strncmp(cmd, "IS", 2) == 0) {
+        if (cmd[2] == ';') {
+            printf("IS+0000;");
         }
     } else if (strncmp(cmd, "PR", 2) == 0) {
         if (cmd[2] == ';') {
@@ -282,40 +317,59 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
             tx_status = 0;
         } else {
             // Invalid TX command format
-            stdio_puts_raw("?;");
+            printf("?;");
         }
 
+    } else if (strncmp(cmd, "ZUP", 3) == 0) {
+        if (cmd[134] == ';') {
+
+          //Extract channel number
+          char channel_string[4];
+          memcpy(channel_string, &cmd[3], 3); cmd[3] = 0;
+          uint32_t channel_number = strtoul(channel_string, NULL, 16);
+
+          //Read word data
+          uint32_t words[16];
+          for(uint8_t word_idx=0; word_idx<16; ++word_idx)
+          {
+            char word_string[9];
+            memcpy(word_string, &cmd[(word_idx * 8) + 6], 8); cmd[8] = 0;
+            words[word_idx] = strtoul(word_string, NULL, 16);
+          }
+
+          s_memory_channel memory_channel;
+          memcpy(&memory_channel, words, sizeof(memory_channel)); 
+          memory_store_channel(memory_channel, channel_number, settings, receiver, settings_to_apply);
+          printf("ZUP%03lx;", channel_number);
+
+        } else {
+            printf("?;");
+        }
+    } else if (strncmp(cmd, "ZDN", 3) == 0) {
+        if (cmd[6] == ';') {
+          char channel_string[4];
+          memcpy(channel_string, &cmd[3], 3); cmd[3] = 0;
+          uint32_t channel_number = strtoul(channel_string, NULL, 16);
+
+          printf("ZDN%03lx", channel_number);
+          s_memory_channel memory_channel = get_channel(channel_number);
+          uint32_t words[16];
+          memcpy(words, &memory_channel, sizeof(memory_channel)); 
+          for(uint8_t word_idx=0; word_idx<16; ++word_idx)
+          {
+            printf("%08lx", words[word_idx]);
+          }
+          printf(";");
+
+        } else {
+            printf("?;");
+        }
     } else {
         // Unknown command
-        stdio_puts_raw("?;");
+        printf("?;");
     }
 
     //apply settings to receiver
-    if(settings_changed)
-    {
-      receiver.access(true);
-      settings_to_apply.tuned_frequency_Hz = settings[idx_frequency];
-      settings_to_apply.agc_speed = settings[idx_agc_speed];
-      settings_to_apply.enable_auto_notch = settings[idx_rx_features] >> flag_enable_auto_notch & 1;
-      settings_to_apply.mode = settings[idx_mode];
-      settings_to_apply.volume = settings[idx_volume];
-      settings_to_apply.squelch = settings[idx_squelch];
-      settings_to_apply.step_Hz = step_sizes[settings[idx_step]];
-      settings_to_apply.cw_sidetone_Hz = settings[idx_cw_sidetone]*100;
-      settings_to_apply.gain_cal = settings[idx_gain_cal];
-      settings_to_apply.suspend = false;
-      settings_to_apply.swap_iq = (settings[idx_hw_setup] >> flag_swap_iq) & 1;
-      settings_to_apply.bandwidth = (settings[idx_bandwidth_spectrum] & mask_bandwidth) >> flag_bandwidth;
-      settings_to_apply.deemphasis = (settings[idx_rx_features] & mask_deemphasis) >> flag_deemphasis;
-      settings_to_apply.band_1_limit = ((settings[idx_band1] >> 0) & 0xff);
-      settings_to_apply.band_2_limit = ((settings[idx_band1] >> 8) & 0xff);
-      settings_to_apply.band_3_limit = ((settings[idx_band1] >> 16) & 0xff);
-      settings_to_apply.band_4_limit = ((settings[idx_band1] >> 24) & 0xff);
-      settings_to_apply.band_5_limit = ((settings[idx_band2] >> 0) & 0xff);
-      settings_to_apply.band_6_limit = ((settings[idx_band2] >> 8) & 0xff);
-      settings_to_apply.band_7_limit = ((settings[idx_band2] >> 16) & 0xff);
-      settings_to_apply.ppm = (settings[idx_hw_setup] & mask_ppm) >> flag_ppm;
-      receiver.release();
-    }
+    apply_settings_to_rx(receiver, settings_to_apply, settings, false, settings_changed);
 
 }

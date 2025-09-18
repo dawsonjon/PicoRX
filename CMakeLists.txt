@@ -21,6 +21,7 @@ include(pico_sdk_import.cmake)
 set(CMAKE_C_STANDARD 11)
 
 add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
+add_compile_options(-Wall -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
@@ -48,19 +49,24 @@ set(SRCS
     rx_dsp.cpp
     fft.cpp
     fft_filter.cpp
+    noise_reduction.cpp
     cic_corrections.cpp
     ui.cpp
+    settings.cpp
+    memory.cpp
+    autosave_memory.cpp
     utils.cpp
     ili934x.cpp
     waterfall.cpp
     button.cpp
+    quadrature_si5351.cpp
     cat.cpp
-    noise_canceler.cpp
     pwm_audio_sink.cpp
     usb_descriptors.c
     usb_audio_device.c
     ring_buffer_lib.c
-    si5351.c
+    codecs/decode_sstv.cpp
+    codecs/cordic.cpp
 )
 
 if(BUTTON_ENCODER)
@@ -72,8 +78,10 @@ endif()
 
 if(PICO_BOARD STREQUAL "pico")
 
+  list(APPEND SRCS clocks_pico.cpp)
   #main application
   add_executable(picorx ${SRCS})
+  pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
 
   pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
   pico_add_extra_outputs(picorx)
@@ -111,6 +119,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
 
   if(PICO_PLATFORM STREQUAL "rp2350-riscv")
 
+    list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx-riscv ${SRCS})
     pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
@@ -146,6 +155,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
 
   else()
 
+    list(APPEND SRCS clocks_pico2.cpp)
     #main application
     add_executable(pico2rx ${SRCS})
     pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)

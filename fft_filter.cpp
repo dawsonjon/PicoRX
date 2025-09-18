@@ -11,38 +11,27 @@
 // License: MIT
 //
 
-#include "fft_filter.h"
-
-#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <algorithm>
 
+#include "fft_filter.h"
+#include "fft.h"
+#include "utils.h"
+#include "noise_reduction.h"
 #include "cic_corrections.h"
 #include "fft.h"
-#include "noise_canceler.h"
 #include "utils.h"
 
 #ifndef SIMULATION
 #include "pico/stdlib.h"
 #endif
 
-static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, int16_t sample)
-{
-  int16_t corrected_fft_bin = (fft_bin + fft_offset);
-  if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
-  if(corrected_fft_bin < -128) corrected_fft_bin += 256;
-  uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
-  int32_t adjusted_sample = ((int32_t)sample * cic_correction[unsigned_fft_bin]) >> 8;
-  return std::max(std::min(adjusted_sample, (int32_t)INT16_MAX), (int32_t)INT16_MIN);
-}
-
 #ifndef SIMULATION
 void __not_in_flash_func(fft_filter::filter_block)(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #else
 void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_filter_control &filter_control, int16_t capture[]) {
 #endif
-
-  uint16_t magnitudes[fft_size] = {0};
 
   // window
   for (uint16_t i = 0; i < fft_size; i++) {
@@ -56,9 +45,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if(filter_control.capture)
   {
     for (uint16_t i = 0; i < fft_size; i++) {
-      int16_t phi;
-      rectangular_2_polar(sample_real[i], sample_imag[i], &magnitudes[i], &phi);
-      capture[i] = (((int32_t)capture[i]<<3) - capture[i] + magnitudes[i]) >> 3;
+      capture[i] = (((int32_t)capture[i]<<filter_control.spectrum_smoothing) - capture[i] + rectangular_2_magnitude(sample_real[i], sample_imag[i])) >> filter_control.spectrum_smoothing;
     }
   }
 
@@ -81,8 +68,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
 
       //capture highest and second highest peak
-      const uint16_t magnitude = magnitudes[i];
-
+      uint16_t magnitude = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
       if(magnitude > peak)
       {
         peak = magnitude; 
@@ -94,6 +80,21 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       }
 
     }
+  }
+
+  //apply noise filtering to DC and positive frequencies
+  if(filter_control.enable_noise_reduction && filter_control.upper_sideband)
+  {
+    const uint16_t start_bin = std::max((uint16_t)4, filter_control.start_bin);
+    noise_reduction(
+      sample_real, 
+      sample_imag, 
+      positive_noise_estimate, 
+      positive_signal_estimate, 
+      start_bin, 
+      filter_control.stop_bin,
+      filter_control.noise_smoothing,
+      filter_control.noise_threshold);
   }
 
   //negative frequencies
@@ -111,11 +112,11 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_imag[fft_size - (new_fft_size/2u) + i + 1]);
 
       //capture highest and second highest peak
-      const uint16_t magnitude = magnitudes[new_idx];
+      uint16_t magnitude = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
       if(magnitude > peak)
       {
         peak = magnitude; 
-        peak_bin = i;
+        peak_bin = new_idx;
       }
       else if(magnitude > next_peak)
       {
@@ -124,9 +125,24 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
   }
 
+  //apply noise filtering to negative frequencies
+  if(filter_control.enable_noise_reduction && filter_control.lower_sideband)
+  {
+    const uint16_t start_bin = std::max((uint16_t)2, filter_control.start_bin);
+    noise_reduction(
+      &sample_real[new_fft_size/2u], 
+      &sample_imag[new_fft_size/2u], 
+      negative_noise_estimate, 
+      negative_signal_estimate, 
+      new_fft_size/2u-1-filter_control.stop_bin, 
+      new_fft_size/2u-1-start_bin,
+      filter_control.noise_smoothing,
+      filter_control.noise_threshold);
+  }
+
   if(filter_control.enable_auto_notch)
   {
-    //check for a consistent
+    //check for a consistent peak
     const uint8_t confirm_threshold = 255u;
     static uint8_t confirm_count = 0u;
     static uint8_t last_peak_bin = 0u;
@@ -143,15 +159,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       sample_imag[peak_bin+1] = 0;
       sample_real[peak_bin-1] = 0;
       sample_imag[peak_bin-1] = 0;
-    }
-  }
-
-  if (filter_control.enable_noise_canceler) {
-    noise_canceler_update(magnitudes);
-    // 4 - -4 is for preserving the AM carrier
-    for (uint16_t i = 4; i < new_fft_size - 4; i++) {
-      sample_real[i] = ((int32_t)sample_real[i] * magnitudes[i]) >> 16;
-      sample_imag[i] = ((int32_t)sample_imag[i] * magnitudes[i]) >> 16;
     }
   }
 

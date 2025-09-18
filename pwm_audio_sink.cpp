@@ -1,4 +1,5 @@
 #include "pwm_audio_sink.h"
+#include "pins.h"
 
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
@@ -6,11 +7,11 @@
 #include "hardware/pwm.h"
 #include "pico/sync.h"
 
-#define AUDIO_PIN (15)
 
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
 static int audio_pwm_slice_num;
+static int audio_pwm_channel;
 static int pwm_dma_ping;
 static int pwm_dma_pong;
 static dma_channel_config audio_ping_cfg;
@@ -23,9 +24,10 @@ static uint32_t pwm_max;
 static uint32_t pwm_scale;
 
 static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
+
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
-
+   
   // shift up
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
@@ -37,19 +39,15 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
   for (uint8_t subsample = 0; subsample < interpolation_rate; ++subsample) {
     static int32_t integrator = 0;
     integrator += comb;
-    pwm_samples[subsample] = integrator >> 4;
+    pwm_samples[subsample] = integrator / interpolation_rate;
   }
 }
 
 void pwm_audio_sink_init(void) {
-  if (pwm_max == 0) {
-    pwm_audio_sink_update_pwm_max(255); // default wrap value
-  }
-
-  gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
-  gpio_set_drive_strength(AUDIO_PIN, GPIO_DRIVE_STRENGTH_12MA);
-
-  audio_pwm_slice_num = pwm_gpio_to_slice_num(AUDIO_PIN);
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+  gpio_set_drive_strength(PIN_AUDIO, GPIO_DRIVE_STRENGTH_12MA);
+  audio_pwm_slice_num = pwm_gpio_to_slice_num(PIN_AUDIO);
+  audio_pwm_channel = pwm_gpio_to_channel(PIN_AUDIO); // A=0, B=1
 
   pwm_config config = pwm_get_default_config();
   pwm_config_set_clkdiv(&config, 1.f);
@@ -74,43 +72,59 @@ void pwm_audio_sink_init(void) {
 }
 
 void pwm_audio_sink_start(void) {
-    uint channel = pwm_gpio_to_channel(AUDIO_PIN); 
-    volatile uint16_t *target_addr; 
-    if (channel == PWM_CHAN_A) { 
-      target_addr = (volatile uint16_t *)&pwm_hw->slice[audio_pwm_slice_num].cc; 
-    } else { 
-      target_addr = (volatile uint16_t *)&pwm_hw->slice[audio_pwm_slice_num].cc + 1; 
-    }dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, target_addr, ping_audio, NUM_OUT_SAMPLES, false); 
-    dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, target_addr, pong_audio, NUM_OUT_SAMPLES, false);
-}
+    // calculate the correct DMA write address depending on channel
+    volatile uint32_t *cc_target = &pwm_hw->slice[audio_pwm_slice_num].cc;
+    if (audio_pwm_channel == 1) { // Channel B
+      // Write to the upper 16 bits (write to Channel B)
+      cc_target = (volatile uint32_t *)((volatile uint8_t *)cc_target + 2);
+    }
 
+    dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, cc_target, ping_audio,
+                          NUM_OUT_SAMPLES, false);
+    dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, cc_target, pong_audio,
+                          NUM_OUT_SAMPLES, false);
+}
 
 void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_ping);
   dma_channel_cleanup(pwm_dma_pong);
 }
 
-void pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
+uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
   static bool toggle = false;
+  uint32_t time;
+
   if (toggle) {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
-      interpolate(samples[i], &ping_audio[i << 4], gain);
+      interpolate(samples[i], &ping_audio[i * interpolation_rate], gain);
     }
+    time = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_pong);
     dma_channel_set_read_addr(pwm_dma_ping, ping_audio, true);
   } else {
     for (uint16_t i = 0; i < PWM_AUDIO_NUM_SAMPLES; i++) {
-      interpolate(samples[i], &pong_audio[i << 4], gain);
+      interpolate(samples[i], &pong_audio[i * interpolation_rate], gain);
     }
+    time = time_us_32();
     dma_channel_wait_for_finish_blocking(pwm_dma_ping);
     dma_channel_set_read_addr(pwm_dma_pong, pong_audio, true);
   }
   toggle ^= 1;
+  return time;
+}
+
+void disable_pwm()
+{
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
+}
+
+void enable_pwm()
+{
+  gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
 }
 
 void pwm_audio_sink_update_pwm_max(uint32_t new_max) {
   pwm_max = new_max;
-  pwm_scale = 1 + ((INT16_MAX * 2) / pwm_max);
   pwm_set_wrap(audio_pwm_slice_num, pwm_max);
-  pwm_set_gpio_level(AUDIO_PIN, (pwm_max / 2));
+  pwm_scale = 1 + ((INT16_MAX * 2) / pwm_max);
 }

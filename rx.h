@@ -11,6 +11,7 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
+#include "quadrature_si5351.h"
 
 #include "rx_definitions.h"
 #include "rx_dsp.h"
@@ -19,10 +20,12 @@ struct rx_settings
 {
   double tuned_frequency_Hz;
   int step_Hz;
-  uint8_t agc_speed;
+  uint8_t agc_setting;
+  uint8_t agc_gain;
   uint8_t mode;
   uint8_t volume;
-  uint8_t squelch;
+  uint8_t squelch_threshold;
+  uint8_t squelch_timeout;
   uint8_t bandwidth;
   uint8_t deemphasis;
   uint8_t treble;
@@ -41,8 +44,14 @@ struct rx_settings
   bool swap_iq;
   bool iq_correction;
   bool enable_auto_notch;
+  bool enable_noise_reduction;
+  uint8_t noise_estimation;
+  uint8_t noise_threshold;
+  uint8_t if_frequency_hz_over_100;
+  uint8_t if_mode;
+  uint8_t spectrum_smoothing;
+  bool enable_external_nco;
   bool stream_raw_iq;
-  uint8_t noise_canceler_mode;
 };
 
 struct rx_status
@@ -53,6 +62,9 @@ struct rx_status
   uint16_t battery;
   s_filter_control filter_config;
   uint8_t usb_buf_level;
+  uint16_t audio_level;
+  float tuning_offset_Hz;
+  bool transmitting;
 };
 
 class rx
@@ -60,9 +72,11 @@ class rx
   private:
 
   void update_status();
+  void tx_update_status();
   void set_usb_callbacks();
 
   //receiver configuration
+  uint32_t system_clock_rate;
   double tuned_frequency_Hz;
   double nco_frequency_Hz;
   double offset_frequency_Hz;
@@ -71,11 +85,15 @@ class rx
   bool suspend;
   uint16_t temp;
   uint16_t battery;
+  uint8_t if_frequency_hz_over_100;
+  uint8_t if_mode;
+  int8_t ppm=0;
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;
   uint offset;
   uint sm;
+
 
   //capture buffer DMA
   static int capture_dma;
@@ -101,6 +119,13 @@ class rx
   //volume control
   int16_t gain_numerator=0;
 
+  //(optional) external oscillator
+  quad_si5351 external_nco;
+  bool external_nco_initialised = false;
+  bool external_nco_good = false;
+  bool external_nco_active = false;
+  bool internal_nco_active = true;
+
   // USB streaming mode
   uint8_t stream_raw_iq;
 
@@ -108,7 +133,8 @@ class rx
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
-  void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
+  void tune();
+  void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void set_alarm_pool(alarm_pool_t *p);
   rx_settings &settings_to_apply;
   rx_status &status;
@@ -116,6 +142,8 @@ class rx
   void read_batt_temp();
   void access(bool settings_changed);
   void release();
+  bool get_raw_data(int16_t &i, int16_t &q);
+  uint32_t get_iq_buffer_level();
 };
 
 #endif

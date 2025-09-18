@@ -5,7 +5,7 @@
 
 class button_encoder : public encoder {
  public:
-  button_encoder(const uint32_t (&settings)[16]);
+  button_encoder(s_global_settings &settings);
   int32_t get_change(void);
   void update(void);
 

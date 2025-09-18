@@ -5,7 +5,7 @@
 
 class rotary_encoder : public encoder {
  public:
-  rotary_encoder(const uint32_t (&settings)[16]);
+  rotary_encoder(s_global_settings &settings);
   int32_t get_change(void);
 
  private:

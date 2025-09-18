@@ -10,8 +10,10 @@
 #include "utils.h"
 #include "usb_audio_device.h"
 #include "ring_buffer_lib.h"
+#include "pins.h"
 #include "pwm_audio_sink.h"
-#include "hardware.h"
+#include "clocks.h"
+
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
@@ -39,8 +41,6 @@ void rx::dma_handler() {
     // adc pong                 ####    ####
     // processing ping          ### 
     // processing pong              ###
-    // pwm_ping                     ####
-    // pwm_pong                         ####
 
     if(dma_hw->ints0 & (1u << adc_dma_ping))
     {
@@ -56,11 +56,118 @@ void rx::dma_handler() {
 
 }
 
+
 void rx::access(bool s)
 {
   sem_acquire_blocking(&settings_semaphore);
   settings_changed |= s;
 }
+
+void rx::tune()
+{
+  //update the si5351 here rather than apply settings
+  //since this function is called from core 0, this avoids the need
+  //for additional synchronisation of i2c across cores
+
+  sem_acquire_blocking(&settings_semaphore);
+  if(settings_to_apply.enable_external_nco)
+  {
+    //disable internal nco
+    if(internal_nco_active)
+    {
+      pio_sm_set_enabled(pio, sm, false);
+      gpio_set_function(PIN_NCO_1, GPIO_FUNC_SIO);
+      gpio_set_dir(PIN_NCO_1, GPIO_IN);
+      gpio_set_function(PIN_NCO_2, GPIO_FUNC_SIO);
+      gpio_set_dir(PIN_NCO_2, GPIO_IN);
+      internal_nco_active = false;
+      //use a fixed clock frequency when using external NCO
+      uint32_t vco_freq = (12000000 / possible_frequencies[0].refdiv) * possible_frequencies[0].fbdiv;
+      set_sys_clock_pll(vco_freq, possible_frequencies[0].postdiv1, possible_frequencies[0].postdiv2);
+      system_clock_rate = possible_frequencies[0].frequency;
+      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+    }
+
+    //initialise external nco before first use
+    if(!external_nco_initialised)
+    {
+      external_nco_good = external_nco.initialise(OLED_I2C_INST, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
+      external_nco.set_drive(3);
+      external_nco.crystal_load(3);
+      external_nco.start();
+      external_nco_initialised = true;
+    }
+
+    //start external oscillator each time it is enabled
+    if(!external_nco_active)
+    {
+      external_nco.start();
+      external_nco_active = true;
+    }
+
+    if(external_nco_good)
+    {
+      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+      if_mode = settings_to_apply.if_mode;
+      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+    }
+  }
+  else
+  {
+
+    //disable external nco
+    if(external_nco_initialised && external_nco_active)
+    {
+      external_nco.stop();
+      external_nco_active = false;
+    }
+
+    //enable internal nco
+    if(!internal_nco_active)
+    {
+      gpio_set_function(PIN_NCO_1, GPIO_FUNC_PIO0);
+      gpio_set_dir(PIN_NCO_1, GPIO_OUT);
+      gpio_set_function(PIN_NCO_2, GPIO_FUNC_PIO0);
+      gpio_set_dir(PIN_NCO_2, GPIO_OUT);
+      pio_sm_set_enabled(pio, sm, true);
+      internal_nco_active = true;
+    }
+
+    if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) || 
+       (ppm != settings_to_apply.ppm) ||
+       (if_mode != settings_to_apply.if_mode) ||
+       (if_frequency_hz_over_100 != settings_to_apply.if_frequency_hz_over_100))
+    {
+      //apply frequency
+      tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
+      ppm = settings_to_apply.ppm;
+
+      //apply frequency calibration
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+      if_mode = settings_to_apply.if_mode;
+      if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
+      
+      //pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
+      disable_pwm();
+      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+
+      sleep_us(15000);
+
+      //apply pwm_max
+      enable_pwm();
+    }
+  }
+
+  sem_release(&settings_semaphore);
+}
+
 
 void rx::release()
 {
@@ -69,7 +176,9 @@ void rx::release()
 
 void rx::update_status()
 {
-   if(sem_try_acquire(&settings_semaphore))
+
+   const bool sem_acquired = sem_try_acquire(&settings_semaphore);
+   if(sem_acquired)
    {
      suspend = settings_to_apply.suspend;
 
@@ -82,6 +191,8 @@ void rx::update_status()
      static uint16_t avg_level = 0;
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
+     status.tuning_offset_Hz = rx_dsp_inst.get_tuning_offset_Hz();
+
      sem_release(&settings_semaphore);
    }
 }
@@ -91,72 +202,55 @@ void rx::apply_settings()
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      //apply frequency
-  tuned_frequency_Hz = settings_to_apply.tuned_frequency_Hz;
-  printf("[DEBUG] apply_settings: tuned_frequency_Hz = %f\n", tuned_frequency_Hz);
-
-      //apply frequency calibration
-      tuned_frequency_Hz *= 1e6/(1e6+settings_to_apply.ppm);
-
-      uint32_t system_clock_rate;
-      pwm_audio_sink_update_pwm_max(80);  // reduces audio clicks
-
-      // This line is what we need to change to si5351 to be able to use external reference
-      // SI535
-      nco_frequency_Hz = nco_set_frequency(pio, sm, tuned_frequency_Hz, system_clock_rate);
-      offset_frequency_Hz = tuned_frequency_Hz - nco_frequency_Hz;
-
       if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 0);
-        gpio_put(PIN_BAND_B, 0);
-        gpio_put(PIN_BAND_C, 0);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 1);
-        gpio_put(PIN_BAND_B, 0);
-        gpio_put(PIN_BAND_C, 0);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 0);
-        gpio_put(PIN_BAND_B, 1);
-        gpio_put(PIN_BAND_C, 0);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 1);
-        gpio_put(PIN_BAND_B, 1);
-        gpio_put(PIN_BAND_C, 0);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 0);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 0);
-        gpio_put(PIN_BAND_B, 0);
-        gpio_put(PIN_BAND_C, 1);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 1);
-        gpio_put(PIN_BAND_B, 0);
-        gpio_put(PIN_BAND_C, 1);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 0);
+        gpio_put(PIN_BAND_2, 1);
       }
       else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
-        gpio_put(PIN_BAND_A, 0);
-        gpio_put(PIN_BAND_B, 1);
-        gpio_put(PIN_BAND_C, 1);
+        gpio_put(PIN_BAND_0, 0);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 1);
       }
       else
       {
-        gpio_put(PIN_BAND_A, 1);
-        gpio_put(PIN_BAND_B, 1);
-        gpio_put(PIN_BAND_C, 1);
+        gpio_put(PIN_BAND_0, 1);
+        gpio_put(PIN_BAND_1, 1);
+        gpio_put(PIN_BAND_2, 1);
       }
 
-      //apply pwm_max
-      pwm_audio_sink_update_pwm_max((system_clock_rate/audio_sample_rate)-1);
 
       //apply frequency offset
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
@@ -167,17 +261,21 @@ void rx::apply_settings()
       //apply gain calibration
       rx_dsp_inst.set_gain_cal_dB(settings_to_apply.gain_cal);
 
-      //apply AGC speed
-      rx_dsp_inst.set_agc_speed(settings_to_apply.agc_speed);
+      //apply AGC control
+      rx_dsp_inst.set_agc_control(settings_to_apply.agc_setting, settings_to_apply.agc_gain);
 
       //apply Automatic Notch Filter
       rx_dsp_inst.set_auto_notch(settings_to_apply.enable_auto_notch);
 
-      //apply Noise Canceler
-      rx_dsp_inst.set_noise_canceler(settings_to_apply.noise_canceler_mode);
+      //apply Spectrum Smoothing
+      rx_dsp_inst.set_spectrum_smoothing(settings_to_apply.spectrum_smoothing);
+
+      //apply Noise Reduction
+      rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction, settings_to_apply.noise_estimation, settings_to_apply.noise_threshold);
 
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
+
 
       //apply volume
       static const int16_t gain[] = {
@@ -205,7 +303,7 @@ void rx::apply_settings()
       rx_dsp_inst.set_bass(settings_to_apply.bass);
 
       //apply squelch
-      rx_dsp_inst.set_squelch(settings_to_apply.squelch);
+      rx_dsp_inst.set_squelch(settings_to_apply.squelch_threshold, settings_to_apply.squelch_timeout);
 
       //apply swap iq
       rx_dsp_inst.set_swap_iq(settings_to_apply.swap_iq);
@@ -220,9 +318,9 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10)
+void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 {
-  rx_dsp_inst.get_spectrum(spectrum, dB10);
+  rx_dsp_inst.get_spectrum(spectrum, dB10, zoom);
 }
 
 
@@ -234,9 +332,19 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     stream_raw_iq = 0;
 
     //Configure PIO to act as quadrature oscilator
+    pio = pio0;
+    offset = pio_add_program(pio, &nco_program);
+    sm = pio_claim_unused_sm(pio, true);
+    nco_program_init(pio, sm, offset);
+
+    system_clock_rate = possible_frequencies[0].frequency;
+    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
+    const uint8_t PSU_PIN = 23;
+
     gpio_init(PSU_PIN);
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
@@ -246,20 +354,39 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_init();
     adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
     adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
-    adc_gpio_init(PIN_ADC_BATT);//Battery - configure pin for ADC use
+    adc_gpio_init(PIN_BATTERY);//Battery - configure pin for ADC use
+
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 
+    //Configure PTT
+    gpio_init(PIN_PTT);
+    gpio_set_function(PIN_PTT, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_PTT, GPIO_IN);
+    gpio_pull_up(PIN_PTT);
+    gpio_init(LED);
+    gpio_set_function(LED, GPIO_FUNC_SIO);
+    gpio_set_dir(LED, GPIO_OUT);
+
+    //drive RF and magnitude pin to zero to make sure they are switched off
+    gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_MAGNITUDE, GPIO_OUT);
+    gpio_put(PIN_MAGNITUDE, 0);
+    gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_RF, GPIO_OUT);
+    gpio_put(PIN_RF, 0);
+
     //band select
-    gpio_init(PIN_BAND_A);//band 0
-    gpio_init(PIN_BAND_B);//band 1
-    gpio_init(PIN_BAND_C);//band 2
-    gpio_set_function(PIN_BAND_A, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_BAND_B, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_BAND_C, GPIO_FUNC_SIO);
-    gpio_set_dir(PIN_BAND_A, GPIO_OUT);
-    gpio_set_dir(PIN_BAND_B, GPIO_OUT);
-    gpio_set_dir(PIN_BAND_C, GPIO_OUT);
+    gpio_init(PIN_BAND_0);//band 0
+    gpio_init(PIN_BAND_1);//band 1
+    gpio_init(PIN_BAND_2);//band 2
+    gpio_set_function(PIN_BAND_0, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_1, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_BAND_2, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_BAND_0, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_1, GPIO_OUT);
+    gpio_set_dir(PIN_BAND_2, GPIO_OUT);
+    
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
     adc_dma_pong = dma_claim_unused_channel(true);
@@ -293,6 +420,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     dma_set_irq0_channel_mask_enabled((1u<<adc_dma_ping) | (1u<<adc_dma_pong), true);
     irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
+
 
 }
 
@@ -345,6 +473,16 @@ static void on_usb_audio_tx_ready()
   usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
+//thread safe method to get raw IQ data
+bool rx::get_raw_data(int16_t &i, int16_t &q)
+{
+  return rx_dsp_inst.get_raw_data(i, q);
+}
+
+uint32_t rx::get_iq_buffer_level()
+{
+  return rx_dsp_inst.get_iq_buffer_level();
+}
 
 void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audio[])
 {
@@ -381,6 +519,8 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
   }
 }
 
+
+
 void rx::run()
 {
     usb_audio_device_init();
@@ -398,10 +538,8 @@ void rx::run()
 
     while(true)
     {
-      if (settings_changed)
-      {
-        apply_settings();
-      }
+      if(settings_changed) apply_settings();
+
 
       //read other adc channels when streaming is not running
       uint32_t timeout = 15000;
@@ -449,23 +587,27 @@ void rx::run()
           dma_channel_wait_for_finish_blocking(adc_dma_ping);
           uint32_t start_time = time_us_32();
           process_block(ping_samples, audio);
-          pwm_audio_sink_push(audio, gain_numerator);
-          busy_time = time_us_32()-start_time;
+          busy_time = pwm_audio_sink_push(audio, gain_numerator);
+          busy_time -= start_time;
           dma_channel_wait_for_finish_blocking(adc_dma_pong);
           process_block(pong_samples, audio);
           pwm_audio_sink_push(audio, gain_numerator);
       }
 
       //suspended state
-      while(true)
+      if(suspend)
       {
-          update_status();
+        while(true)
+        {
+            update_status();
 
-          //wait here if receiver is suspended
-          if(!suspend)
-          {
-            break;
-          }
+            //wait here if receiver is suspended
+            if(!suspend)
+            {
+              break;
+            }
+        }
       }
+
     }
 }

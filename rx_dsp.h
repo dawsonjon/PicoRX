@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "rx_definitions.h"
 #include "pico/sem.h"
+#include "pico/util/queue.h"
 #include "fft_filter.h"
 #include "ring_buffer_lib.h"
 
@@ -14,22 +15,26 @@ class rx_dsp
   rx_dsp();
   uint16_t process_block(uint16_t samples[], int16_t audio_samples[], ring_buffer_t *iq_samples);
   void set_frequency_offset_Hz(double offset_frequency);
-  void set_agc_speed(uint8_t agc_setting);
+  void set_agc_control(uint8_t agc_control, uint8_t agc_gain);
   void set_mode(uint8_t mode, uint8_t bw);
   void set_cw_sidetone_Hz(uint16_t val);
   void set_gain_cal_dB(uint16_t val);
-  void set_squelch(uint8_t val);
+  void set_squelch(uint8_t threshold, uint8_t timeout);
   void set_swap_iq(uint8_t val);
   void set_iq_correction(uint8_t val);
   void set_deemphasis(uint8_t deemph);
   void set_treble(uint8_t tr);
   void set_bass(uint8_t bs);
   void set_auto_notch(bool enable_auto_notch);
-  void set_noise_canceler(uint8_t noise_canceler_mode);
+  void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
+  void set_spectrum_smoothing(uint8_t spectrum_smoothing);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(uint8_t spectrum[], uint8_t &dB10);
+  void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   s_filter_control get_filter_config();
   void get_spectrum(float spectrum[]);
+  bool get_raw_data(int16_t &i, int16_t &q);
+  uint32_t get_iq_buffer_level();
+  float get_tuning_offset_Hz();
 
   private:
   
@@ -38,9 +43,13 @@ class rx_dsp
   int16_t demodulate(int16_t i, int16_t q, uint16_t mag, int16_t phi);
   int16_t automatic_gain_control(int16_t audio);
   int16_t apply_deemphasis(int16_t x);
+  int16_t squelch(int16_t audio, int32_t amplitude);
   int16_t apply_treble(int16_t x);
   int16_t apply_bass(int16_t x);
   void iq_imbalance_correction(int16_t &i, int16_t &q);
+
+  //capture samples for decoding
+  queue_t data_queue;
 
   //capture samples for spectral analysis
   int16_t capture[256];
@@ -70,6 +79,9 @@ class rx_dsp
   int32_t dither;
   uint32_t phase;
   int32_t frequency;
+  int64_t frequency_accumulator = 0;
+  int32_t frequency_count = 0;
+  float frequency_offset_Hz = 0.0f;
 
   //used to generate cw sidetone
   int16_t cw_i, cw_q;
@@ -96,6 +108,8 @@ class rx_dsp
   //squelch
   int16_t squelch_threshold=0;
   int16_t s9_threshold=0;
+  uint32_t squelch_time_ms = 0;
+  uint32_t squelch_timeout_ms = 0;
 
   //used in AGC
   uint8_t attack_factor;

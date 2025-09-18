@@ -4,36 +4,10 @@
 #include "utils.h"
 #include "pico/stdlib.h"
 #include "cic_corrections.h"
-#include "noise_canceler.h"
 
 #include <math.h>
 #include <cstdio>
 #include <algorithm>
-
-static void agc_cc(int16_t *i_out, int16_t *q_out, uint16_t mag) {
-  static int32_t K = 3276;
-  const int32_t M = 327600 * 2;
-  const int16_t r = 32767 / 2;
-  const int16_t decay_rate = 328;
-  const int16_t attack_rate = 3277;
-
-  const int16_t g = (K >> 16) > 0 ? K >> 16 : 1;
-
-  *i_out = *i_out * g;
-  *q_out = *q_out * g;
-
-  const int16_t tmp = -r + mag;
-  const int16_t rate = (tmp > K) ? attack_rate : decay_rate;
-
-  K -= (tmp * rate) >> 16;
-  if (K < 0) {
-    K = 0;
-  }
-
-  if (K > M) {
-    K = M;
-  }
-}
 
 static const int16_t deemph_taps[2][3] = {{14430, 14430, -3909}, {10571, 10571, -11626}};
 int16_t __not_in_flash_func(rx_dsp :: apply_deemphasis)(int16_t x)
@@ -281,14 +255,17 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     const int16_t i = iq[2 * idx];
     const int16_t q = iq[2 * idx + 1];
 
+    uint32_t complex_sample = (uint32_t)i << 16 | ((uint32_t)q & 0xffff);
+    queue_try_add(&data_queue, (void*)&complex_sample);
+
     //Measure amplitude (for signal strength indicator)
-    uint16_t mag;
-    int16_t phi;
-    rectangular_2_polar(i, q, &mag, &phi);
-    magnitude_sum += mag;
+    uint16_t magnitude;
+    int16_t phase;
+    rectangular_2_polar(i, q, &magnitude, &phase);
+    magnitude_sum += magnitude;
 
     //Demodulate to give audio sample
-    int32_t audio = demodulate(i, q, mag, phi);
+    int32_t audio = demodulate(i, q, magnitude, phase);
 
     //De-emphasis
     audio = apply_deemphasis(audio);
@@ -304,13 +281,10 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     audio = automatic_gain_control(audio);
 
     //squelch
-    if(signal_amplitude < squelch_threshold) {
-      audio = 0;
-    }
+    audio = squelch(audio, signal_amplitude);
 
     //output raw audio
     audio_samples[idx] = audio;
-    agc_cc(&iq[2 * idx], &iq[2 * idx + 1], mag);
   }
 
   if (iq_samples) {
@@ -389,31 +363,52 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
       return false;
 }
 
-// PLL loop bandwidth: 50Hz
-#define AMSYNC_B0 (1956)
-#define AMSYNC_B1 (-1927)
-#define AMSYNC_PI (205884)
-#define AMSYNC_ONE (65535)
-#define AMSYNC_MAX (524287)
-#define AMSYNC_ERR_SCALE (6)
-#define AMSYNC_PHI_SCALE (201)
-#define AMSYNC_FRACTION_BITS (16)
+// For the formulas see 'PicoRX/simulations/am_sync_des.py:pll_3rd_order_des'
+// PLL loop bandwidth: 30Hz
+#define AMSYNC_NUM_TAPS (3)
+#define AMSYNC_B0 (1160)
+#define AMSYNC_B1 (-2306)
+#define AMSYNC_B2 (1146)
+#define AMSYNC_A0 (32767)
+#define AMSYNC_A1 (-65534)
+#define AMSYNC_A2 (32767)
+#define AMSYNC_PI (102941)
+#define AMSYNC_ONE (32767)
+#define AMSYNC_MAX (262143)
+#define AMSYNC_ERR_SCALE (3)
+#define AMSYNC_PHI_SCALE (101)
+#define AMSYNC_FRACTION_BITS (15)
 #define AMSYNC_BASE_FRACTION_BITS (15)
+#define AMSYNC_FILT_BITS (15)
+#define AMSYNC_FILT_ONE (32767)
 
 inline int32_t wrap(int32_t x) {
-  return ((x + AMSYNC_PI) % (2 * AMSYNC_PI)) - AMSYNC_PI;
+  if (x > AMSYNC_PI) {
+    x = -AMSYNC_PI + (x % AMSYNC_PI);
+  } else if (x < -AMSYNC_PI) {
+    x = AMSYNC_PI + (x % AMSYNC_PI);
+  }
+  return x;
 }
 
-int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t mag, int16_t phi)
+int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t magnitude, int16_t phase)
 {
-   static int32_t phi_locked = 0;
-   static int32_t x1 = 0;
-   static int32_t y1 = 0;
-   static int32_t y0_err = 0;
+    static int32_t phase_locked = 0;
+    static int32_t x1 = 0;
+    static int32_t x2 = 0;
+    static int32_t y1 = 0;
+    static int32_t y2 = 0;
+    static int32_t y0_err = 0;
+
+    int16_t frequency = phase - last_phase;
+    last_phase = phase;
+
+    frequency_accumulator += frequency;
+    frequency_count ++;
 
     if(mode == AM)
     {
-        const int16_t amplitude = mag;
+        const int16_t amplitude = magnitude;
         //measure DC using first order IIR low-pass filter
         audio_dc = amplitude+(audio_dc - (audio_dc >> 5));
         //subtract DC component
@@ -421,9 +416,9 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else if(mode == AMSYNC)
     {
-      size_t idx = (phi_locked / AMSYNC_PHI_SCALE);
+      size_t idx = (phase_locked / AMSYNC_PHI_SCALE);
 
-      if (phi_locked < 0) {
+      if (phase_locked < 0) {
         idx = 2048 + idx;
       }
 
@@ -435,19 +430,25 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
       const int16_t synced_i = (i * vco_i + q * vco_q) >> AMSYNC_BASE_FRACTION_BITS;
       const int16_t synced_q = (-i * vco_q + q * vco_i) >> AMSYNC_BASE_FRACTION_BITS;
 
+      int16_t phi;
+      uint16_t mag;
+
       rectangular_2_polar(synced_i, synced_q, &mag, &phi);
-      const int32_t err = (int32_t)phi * AMSYNC_ERR_SCALE;
 
-      int32_t y0 = err * AMSYNC_B0 + x1 * AMSYNC_B1;
+      const int32_t phi_err = ((int32_t)phi * AMSYNC_ERR_SCALE);
+
+      int32_t y0 = phi_err * AMSYNC_B0 + x1 * AMSYNC_B1 + x2 * AMSYNC_B2;
       y0 += y0_err;
-      y0_err = y0 & AMSYNC_ONE;
-      y0 >>= AMSYNC_FRACTION_BITS;
-      y0 += y1;
+      y0_err = y0 & AMSYNC_FILT_ONE;
+      y0 >>= AMSYNC_FILT_BITS;
+      y0 += 2 * y1 - y2;
+      y2 = y1;
       y1 = y0;
-      x1 = err;
-      phi_locked += y0;
+      x2 = x1;
+      x1 = phi_err;
+      phase_locked += y0;
 
-      phi_locked = wrap(phi_locked);
+      phase_locked = wrap(phase_locked);
 
       // measure DC using first order IIR low-pass filter
       audio_dc = synced_i + (audio_dc - (audio_dc >> 5));
@@ -456,9 +457,6 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
     }
     else if(mode == FM)
     {
-        int16_t frequency = phi - last_phase;
-        last_phase = phi;
-
         return frequency;
     }
     else if(mode == LSB || mode == USB)
@@ -471,6 +469,22 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
       const int16_t rotation_i =  sin_table[(cw_sidetone_phase + 512u) & 0x7ffu];
       const int16_t rotation_q = -sin_table[cw_sidetone_phase & 0x7ffu];
       return ((i * rotation_i) - (q * rotation_q)) >> 15;
+    }
+}
+
+int16_t __not_in_flash_func(rx_dsp::squelch)(int16_t audio, int32_t signal_amplitude)
+{
+    if(signal_amplitude > squelch_threshold) 
+      squelch_time_ms = to_ms_since_boot(get_absolute_time());
+    const uint32_t time_since_active = to_ms_since_boot(get_absolute_time())-squelch_time_ms;
+
+    if(time_since_active < squelch_timeout_ms) 
+    {
+      return audio;
+    }
+    else
+    {
+      return 0;
     }
 }
 
@@ -530,7 +544,8 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
       }
       else
       {
-        gain = setpoint/magnitude;
+        const int16_t agc_gain = setpoint/magnitude;
+        gain = std::min(agc_gain, manual_gain);
       }
       if(gain < 1) gain = 1;
       audio *= gain;
@@ -559,9 +574,13 @@ rx_dsp :: rx_dsp()
   //initialise semaphore for spectrum
   set_mode(AM, 2);
   sem_init(&spectrum_semaphore, 1, 1);
-  set_agc_speed(3);
+  queue_init(&data_queue, 4, 2048);
+  set_agc_control(3, 0);
   filter_control.enable_auto_notch = false;
-  filter_control.enable_noise_canceler = false;
+  filter_control.enable_noise_reduction = false;
+  filter_control.noise_smoothing = 10;
+  filter_control.noise_threshold = 1;
+  filter_control.spectrum_smoothing = 1;
 
   //clear cic filter
   decimate_count=0;
@@ -574,7 +593,6 @@ rx_dsp :: rx_dsp()
   delayi2=0; delayq2=0;
   delayi3=0; delayq3=0;
 
-  noise_canceler_init();
 }
 
 void rx_dsp :: set_auto_notch(bool enable_auto_notch)
@@ -582,15 +600,16 @@ void rx_dsp :: set_auto_notch(bool enable_auto_notch)
   filter_control.enable_auto_notch = enable_auto_notch;
 }
 
-void rx_dsp :: set_noise_canceler(uint8_t noise_canceler_mode)
+void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
 {
-  if (noise_canceler_mode) {
-    filter_control.enable_noise_canceler = true;
-    noise_canceler_set_mode((nc_mode_e)noise_canceler_mode);
-    noise_canceler_init();
-  } else {
-    filter_control.enable_noise_canceler = false;
-  }
+  filter_control.spectrum_smoothing = spectrum_smoothing;
+}
+
+void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold)
+{
+  filter_control.enable_noise_reduction = enable_noise_reduction;
+  filter_control.noise_smoothing = noise_smoothing;
+  filter_control.noise_threshold = noise_threshold;
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)
@@ -612,7 +631,7 @@ void rx_dsp ::set_bass(uint8_t bs) {
   bass = bs;
 }
 
-void rx_dsp :: set_agc_speed(uint8_t agc_setting)
+void rx_dsp :: set_agc_control(uint8_t agc_control, uint8_t agc_gain)
 {
   //input fs=480000.000000 Hz
   //decimation=32 x 2
@@ -626,9 +645,9 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
 
 
   manual_gain_control = false;
-  manual_gain = 1;
+  manual_gain = 1 << (agc_gain);
 
-  switch(agc_setting)
+  switch(agc_control)
   {
       case 0: //fast
         attack_factor=2;
@@ -654,8 +673,7 @@ void rx_dsp :: set_agc_speed(uint8_t agc_setting)
         hang_time=30000;
         break;
 
-      default://4=6dB-60dB,
-        manual_gain = 1 << (agc_setting - 4);
+      default://manual
         manual_gain_control = true;
         break;
   }
@@ -679,8 +697,8 @@ void rx_dsp :: set_mode(uint8_t val, uint8_t bw)
   uint8_t stop_bins[5][6] = {{ 19, 19, 16, 16, 31, 0},  //very narrow
                              { 22, 22, 19, 19, 34, 1},  //narrow
                              { 25, 25, 22, 22, 37, 2},  //normal
-                             { 28, 28, 25, 25, 40, 3},  //wide
-                             { 31, 31, 28, 28, 43, 4}}; //very wide
+                             { 31, 31, 25, 25, 40, 3},  //wide
+                             { 63, 63, 28, 28, 43, 4}}; //very wide
 
   filter_control.lower_sideband = (mode != USB);
   filter_control.upper_sideband = (mode != LSB);
@@ -710,7 +728,7 @@ void rx_dsp :: set_gain_cal_dB(uint16_t val)
 }
 
 //set_squelch
-void rx_dsp :: set_squelch(uint8_t val)
+void rx_dsp :: set_squelch(uint8_t threshold, uint8_t timeout)
 {
   //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
   const int16_t thresholds[] = {
@@ -728,7 +746,11 @@ void rx_dsp :: set_squelch(uint8_t val)
     (int16_t)(s9_threshold*10), //s9+20dB
     (int16_t)(s9_threshold*31), //s9+30dB
   };
-  squelch_threshold = thresholds[val];
+  const uint16_t timeouts[] = {
+    50, 100, 200, 500, 1000, 2000, 3000, 5000
+  };
+  squelch_threshold = thresholds[threshold];
+  squelch_timeout_ms = timeouts[timeout];
 }
 
 int16_t rx_dsp :: get_signal_strength_dBm()
@@ -746,16 +768,6 @@ s_filter_control rx_dsp :: get_filter_config()
   return capture_filter_control;
 }
 
-static int16_t cic_correct(int16_t fft_bin, int16_t fft_offset, uint16_t magnitude)
-{
-  int16_t corrected_fft_bin = (fft_bin + fft_offset);
-  if(corrected_fft_bin > 127) corrected_fft_bin -= 256;
-  if(corrected_fft_bin < -128) corrected_fft_bin += 256;
-  uint16_t unsigned_fft_bin = abs(corrected_fft_bin); 
-  uint32_t adjusted_magnitude = ((uint32_t)magnitude * cic_correction[unsigned_fft_bin]) >> 8;
-  return std::min(adjusted_magnitude, (uint32_t)UINT16_MAX);
-}
-
 static inline int8_t freq_bin(uint8_t bin)
 {
   return bin > 127 ? bin - 256 : bin;
@@ -766,7 +778,7 @@ static inline uint8_t fft_shift(uint8_t bin)
   return bin ^ 0x80;
 }
 
-void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
+void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 {
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
@@ -784,27 +796,67 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10)
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  max=max - (max >> 1) + (new_max >> 1);
-  min=min - (min >> 1) + (new_min >> 1);
+  max=new_max;
+  min=new_min;
   const float logmin = log10f(min);
   const float logmax = log10f(std::max(max, lowest_max));
 
   //clamp and convert to log scale 0 -> 255
-  for(uint16_t i=0; i<256; i++)
+  uint8_t temp_spectrum[256];
+  for(uint16_t i=0; i<256; ++i)
   {
     const uint16_t magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
     if(magnitude == 0)
     {
-      spectrum[fft_shift(i)] = 0u;
+      temp_spectrum[fft_shift(i)] = 0u;
     } else {
       const float normalised = 255.0f*(log10f(magnitude)-logmin)/(logmax-logmin);
       const float clamped = std::max(std::min(normalised, 255.0f), 0.0f);
-      spectrum[fft_shift(i)] = clamped;
+      temp_spectrum[fft_shift(i)] = clamped;
     }
+  }
+
+  //zoom
+  for(int16_t i=0; i<256; ++i)
+  {
+    uint16_t total = 0;
+    for(int16_t j=0; j<zoom; j++)
+    {
+      int16_t from_idx = ((i+j-zoom/2-128)/zoom)+128;
+      total += temp_spectrum[from_idx];
+    }
+    spectrum[i] = total/zoom;
   }
 
   sem_release(&spectrum_semaphore);
 
   //number steps representing 10dB
   dB10 = 256/(2*logf(max/min));
+}
+
+uint32_t rx_dsp::get_iq_buffer_level()
+{
+  return queue_get_level(&data_queue);
+}
+
+bool rx_dsp::get_raw_data(int16_t &i, int16_t &q)
+{
+  uint32_t data;
+  bool success = queue_try_remove(&data_queue, &data);
+  i = (data >> 16) & 0xffff;
+  q = data & 0xffff;
+  return success;
+}
+
+float rx_dsp::get_tuning_offset_Hz()
+{
+
+  if(frequency_count > 30000)
+  {
+    float average_frequency = (float)frequency_accumulator/(float)frequency_count;
+    frequency_offset_Hz = (pwm_audio_sample_rate * average_frequency)/(32767.0f * decimation_rate);
+    frequency_accumulator = 0;
+    frequency_count = 0;
+  }
+  return frequency_offset_Hz;
 }
