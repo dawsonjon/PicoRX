@@ -14,6 +14,7 @@
 #include "pwm_audio_sink.h"
 #include "clocks.h"
 
+
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_ring_buffer;
@@ -289,7 +290,8 @@ void rx::apply_settings()
         180, // 8 = 180/256 -3dB
         256  // 9 = 256/256  0dB
       };
-      gain_numerator = gain[settings_to_apply.volume];
+  gain_numerator = gain[settings_to_apply.volume];
+  printf("[DEBUG] apply_settings: gain_numerator = %d, volume index = %d\n", gain_numerator, settings_to_apply.volume);
 
       //apply deemphasis
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
@@ -342,6 +344,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
     //configure SMPS into power save mode
     const uint8_t PSU_PIN = 23;
+
     gpio_init(PSU_PIN);
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
@@ -352,6 +355,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
     adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
     adc_gpio_init(PIN_BATTERY);//Battery - configure pin for ADC use
+
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 

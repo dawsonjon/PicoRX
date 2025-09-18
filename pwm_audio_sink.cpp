@@ -48,6 +48,7 @@ void pwm_audio_sink_init(void) {
   gpio_set_drive_strength(PIN_AUDIO, GPIO_DRIVE_STRENGTH_12MA);
   audio_pwm_slice_num = pwm_gpio_to_slice_num(PIN_AUDIO);
   audio_pwm_channel = pwm_gpio_to_channel(PIN_AUDIO); // A=0, B=1
+
   pwm_config config = pwm_get_default_config();
   pwm_config_set_clkdiv(&config, 1.f);
   pwm_config_set_wrap(&config, pwm_max);
@@ -55,20 +56,19 @@ void pwm_audio_sink_init(void) {
 
   pwm_dma_ping = dma_claim_unused_channel(true);
   pwm_dma_pong = dma_claim_unused_channel(true);
+
   audio_ping_cfg = dma_channel_get_default_config(pwm_dma_ping);
   audio_pong_cfg = dma_channel_get_default_config(pwm_dma_pong);
 
   channel_config_set_transfer_data_size(&audio_ping_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_ping_cfg, true);
   channel_config_set_write_increment(&audio_ping_cfg, false);
-  channel_config_set_dreq(&audio_ping_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_ping_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 
   channel_config_set_transfer_data_size(&audio_pong_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_pong_cfg, true);
   channel_config_set_write_increment(&audio_pong_cfg, false);
-  channel_config_set_dreq(&audio_pong_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_pong_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 }
 
 void pwm_audio_sink_start(void) {
@@ -84,6 +84,7 @@ void pwm_audio_sink_start(void) {
     dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, cc_target, pong_audio,
                           NUM_OUT_SAMPLES, false);
 }
+
 void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_ping);
   dma_channel_cleanup(pwm_dma_pong);

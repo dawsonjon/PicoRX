@@ -20,6 +20,7 @@ waterfall::waterfall()
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
     spi_init(SPI_PORT, 75000000);
+
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);

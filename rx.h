@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctime>
-#include "nco.pio.h"
 
 #include "pico/stdlib.h"
 #include "pico/sem.h"
