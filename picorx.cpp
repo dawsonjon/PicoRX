@@ -20,6 +20,7 @@ uint8_t dB10=10;
 uint8_t zoom=1;
 static rx_settings settings_to_apply;
 static rx_status status;
+
 static rx receiver(settings_to_apply, status);
 waterfall waterfall_inst;
 static ui user_interface(settings_to_apply, status, receiver, spectrum, dB10, zoom, waterfall_inst);

@@ -290,7 +290,6 @@ void rx::apply_settings()
         256  // 9 = 256/256  0dB
       };
       gain_numerator = gain[settings_to_apply.volume];
-
       //apply deemphasis
       rx_dsp_inst.set_deemphasis(settings_to_apply.deemphasis);
 
@@ -341,17 +340,17 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     ring_buffer_init(&usb_ring_buffer, usb_buf, USB_BUF_SIZE, 1);
 
     //configure SMPS into power save mode
-    const uint8_t PSU_PIN = 23;
-    gpio_init(PSU_PIN);
-    gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
-    gpio_set_dir(PSU_PIN, GPIO_OUT);
-    gpio_put(PSU_PIN, 1);
+    gpio_init(PIN_PSU);
+    gpio_set_function(PIN_PSU, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_PSU, GPIO_OUT);
+    gpio_put(PIN_PSU, 1);
     
     //ADC Configuration
     adc_init();
     adc_gpio_init(PIN_ADC_I);//I channel (0) - configure pin for ADC use
     adc_gpio_init(PIN_ADC_Q);//Q channel (1) - configure pin for ADC use
     adc_gpio_init(PIN_BATTERY);//Battery - configure pin for ADC use
+
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 

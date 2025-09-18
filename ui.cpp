@@ -40,6 +40,7 @@ void strip_trailing_space(const char *x, char *y)
 void ui::setup_display() {
   disp.external_vcc=false;
   ssd1306_init(&disp, 128, 64, 0x3C, OLED_I2C_INST);
+
 }
 
 void ui::display_clear(bool colour)
@@ -2697,6 +2698,7 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
+
   gpio_init(24);
   gpio_set_dir(24, GPIO_IN);
   gpio_pull_down(24);
