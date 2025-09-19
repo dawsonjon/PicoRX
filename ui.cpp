@@ -1196,6 +1196,15 @@ bool ui::memory_recall(bool &ok)
 
   if(load_and_update_display)
   {
+    // don't change mode if set mode "compatible"
+    if ((settings.channel.mode == MODE_AM) ||
+        (settings.channel.mode == MODE_AMS)) {
+      if ((memory_channel.channel.mode == MODE_AM) ||
+          (memory_channel.channel.mode == MODE_AMS)) {
+        memory_channel.channel.mode = settings.channel.mode;
+      }
+    }
+
     //(temporarily) apply lodaed settings to RX
     settings.channel = memory_channel.channel;
     apply_settings(false);
