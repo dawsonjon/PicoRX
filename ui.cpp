@@ -10,11 +10,12 @@
 #include "fonts.h"
 #include "settings.h"
 #include "rotary_encoder.h"
-
+#include "pwm_audio_sink.h"
 #include <algorithm>
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
+extern float keyer_amplitude_scale;
 
 void strip_trailing_space(const char *x, char *y)
 {
@@ -2394,6 +2395,7 @@ bool ui::do_splash()
   return false;
 
 }
+extern uint8_t global_wpm;
 
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
@@ -2405,7 +2407,48 @@ void ui::do_ui()
     static e_ui_state ui_state = splash;
     const uint8_t num_display_options = 7;
     static bool view_changed = false;
+    // Improved keyer variables and logic
+    enum keyer_state_t {KEYER_IDLE, KEYER_SENDING_DIT, KEYER_SENDING_DAH, KEYER_ELEMENT_SPACE};
+    static keyer_state_t keyer_state = KEYER_IDLE;
+    static uint32_t keyer_start_time = 0;
+    static uint32_t element_duration = 0;
 
+    // In your main UI loop:
+    bool dit_pressed = !gpio_get(PIN_DIT);
+    bool dah_pressed = !gpio_get(PIN_DAH);
+    uint32_t current_time = time_us_32();
+                gpio_put(LED, 0);
+
+    switch (keyer_state) {
+        case KEYER_IDLE:
+            if (dit_pressed || dah_pressed) {
+                
+                // Use a reasonable gain level (not 255 which might cause clipping)
+                gpio_put(LED, 1);
+                keyer_start_time = current_time;
+            }
+            break;
+            
+        case KEYER_SENDING_DIT:
+        case KEYER_SENDING_DAH:
+            // Check if the tone duration has elapsed
+            if ((current_time - keyer_start_time) >= element_duration) {
+                // Start inter-element space (same duration as dit)
+                keyer_start_time = current_time;
+                keyer_state = KEYER_ELEMENT_SPACE;
+                gpio_put(LED, 1);
+                //pwm_audio_sink_start_cw_tone(); // Mid-level gain
+            }
+            break;
+            
+        case KEYER_ELEMENT_SPACE:
+            // Check if the space duration has elapsed
+            if ((current_time - keyer_start_time) >= element_duration) {
+                keyer_state = KEYER_IDLE;
+                gpio_put(LED, 0);
+            }
+            break;
+    }
     if(ui_state != idle) view_changed = true;
 
     //gui is idle, just update the display
@@ -2671,11 +2714,17 @@ void ui::update_display_type(void)
   }
 }
 
+void ui::update_paddles(void) {
+  dit.update_state();
+  dah.update_state();
+}
+
 void ui::update_buttons(void)
 {
   menu_button.update_state();
   back_button.update_state();
   encoder_button.update_state();
+
 #ifdef BUTTON_ENCODER
   main_encoder.update();
 #endif
@@ -2687,6 +2736,8 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   menu_button(PIN_MENU), 
   back_button(PIN_BACK), 
   encoder_button(PIN_ENCODER_PUSH),
+  dit(PIN_DIT),
+  dah(PIN_DAH),
   settings_to_apply(settings_to_apply),
   status(status), 
   receiver(receiver), 

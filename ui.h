@@ -72,6 +72,9 @@ class ui
   button menu_button;
   button back_button;
   button encoder_button;
+  button dit;
+  button dah;
+
 
   // Display
   void update_display_type(void);
@@ -182,6 +185,7 @@ class ui
   void do_ui();
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
   void update_buttons(void);
+  void update_paddles(void);
 
 };
 

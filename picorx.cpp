@@ -54,6 +54,7 @@ int main()
 
   while(1)
   {
+    user_interface.update_paddles();
     //schedule tasks
     if (time_us_32() - last_buttons_update > BUTTONS_REFRESH_US) 
     {

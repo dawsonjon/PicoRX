@@ -1,0 +1,55 @@
+.program keyer
+.wrap_target
+    ; We define a label at the start of the program loop.
+    wait_for_input:
+    in pins, 2          ; Read DIT/DAH state into the ISR
+    mov x, isr          ; Copy the ISR state to scratch register X
+
+    ; Simple debounce: wait a fixed number of cycles.
+    set y, 10           ; Wait for a short debounce period (e.g., 11 cycles)
+debounce_loop:
+    jmp y--, debounce_loop
+
+    in pins, 2          ; Read the pins again after the debounce delay
+    mov y, isr          ; Copy the new ISR state to scratch register Y
+
+    ; Now, compare X (initial state) with Y (new state)
+    ; Jump back to our custom label `wait_for_input` if the state changed.
+    jmp x!=y, wait_for_input ; If the state changed, restart the program loop
+
+    push block          ; If state is stable, push it to the FIFO
+.wrap
+% c-sdk {
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+
+// Initialize the keyer PIO program
+// Corrected C-SDK initialization
+static inline void keyer_program_init(PIO pio, uint sm, uint offset, uint pin_base) {
+    // get default config
+    pio_sm_config c = keyer_program_get_default_config(offset);
+    
+    // setup input pins
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_base, 2, false);
+    gpio_pull_up(pin_base);
+    gpio_pull_up(pin_base + 1);
+
+    // configure SM to read from the specified pins
+    sm_config_set_in_pins(&c, pin_base);
+    
+    // enable autopush after 2 bits (since we read 2 bits with 'in pins, 2')
+    sm_config_set_in_shift(&c, false, true, 2);
+    
+    // initialize and enable
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+// Fetch a keyer event from RX FIFO (blocking)
+static inline uint8_t keyer_program_get_event(PIO pio, uint sm) {
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {
+        tight_loop_contents();
+    }
+    return pio_sm_get(pio, sm) & 0x3;  // only two bits
+}
+%}

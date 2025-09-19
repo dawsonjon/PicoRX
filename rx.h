@@ -12,6 +12,7 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
+#include "hardware/sync.h"
 #include "quadrature_si5351.h"
 
 #include "rx_definitions.h"
@@ -83,7 +84,7 @@ class rx
   double offset_frequency_Hz;
   semaphore_t settings_semaphore;
   bool settings_changed;
-  bool suspend;
+  volatile bool suspend;
   uint16_t temp;
   uint16_t battery;
   uint8_t if_frequency_hz_over_100;
@@ -146,5 +147,4 @@ class rx
   bool get_raw_data(int16_t &i, int16_t &q);
   uint32_t get_iq_buffer_level();
 };
-
 #endif
