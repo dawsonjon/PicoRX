@@ -42,6 +42,11 @@ void button ::update_state() {
   }
 }
 
+bool button :: is_keyed()
+{
+  return !gpio_get(gpio_num);
+}
+
 bool button ::is_pressed() {
   bool ret = pressed_count > 0;
   pressed_count = 0;

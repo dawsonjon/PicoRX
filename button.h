@@ -10,6 +10,7 @@ class button
   bool is_pressed();
   bool is_held();
   void update_state();
+  bool is_keyed();
 
   private:
   uint8_t gpio_num;

@@ -15,6 +15,7 @@
 #include "hardware/sync.h"
 #include "quadrature_si5351.h"
 
+#include "button.h"
 #include "rx_definitions.h"
 #include "rx_dsp.h"
 
@@ -54,6 +55,16 @@ struct rx_settings
   uint8_t spectrum_smoothing;
   bool enable_external_nco;
   bool stream_raw_iq;
+
+  bool test_tone_enable;
+  uint8_t test_tone_frequency;
+  uint8_t cw_paddle;
+  uint8_t cw_speed;
+  uint8_t mic_gain;
+  bool tx_modulation;
+  uint8_t pwm_min;
+  uint8_t pwm_max;
+  uint8_t pwm_threshold;
 };
 
 struct rx_status
@@ -128,6 +139,25 @@ class rx
   bool external_nco_active = false;
   bool internal_nco_active = true;
 
+  void pwm_ramp_down();
+  void pwm_ramp_up();
+    //Transmit
+  button dit;
+  button dah;
+  uint8_t transmit_mode;
+  void transmit();
+  bool ptt();
+  bool test_tone_enable;
+  uint8_t test_tone_frequency;
+  uint8_t tx_cw_paddle;
+  uint8_t tx_cw_speed;
+  uint8_t tx_mic_gain;
+  bool tx_modulation;
+  uint16_t tx_audio_level=0;
+  uint8_t tx_pwm_min;
+  uint8_t tx_pwm_max;
+  uint8_t tx_pwm_threshold;
+  
   // USB streaming mode
   uint8_t stream_raw_iq;
 

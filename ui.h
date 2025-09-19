@@ -46,6 +46,20 @@ enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
 #define style_bordered    (1<<4)
 #define style_xor         (1<<5)
 
+#define flag_enable_test_tone (0) //bit 0
+#define mask_enable_test_tone (0x1 << flag_enable_test_tone)
+#define flag_test_tone_frequency (1) //bits 1 - 5
+#define mask_test_tone_frequency (0x1f << flag_test_tone_frequency)
+#define flag_cw_paddle (6) //bit 6 - 7
+#define mask_cw_paddle (0x3 << flag_cw_paddle)
+#define flag_cw_speed (8) //bits 8 - 13
+#define mask_cw_speed (0x3f << flag_cw_speed)
+#define flag_tx_modulation (14) //bit 14
+#define mask_tx_modulation (0x3f << flag_tx_modulation)
+#define flag_mic_gain 15 // bits 15-18
+#define mask_mic_gain (0xf << flag_mic_gain)
+#define flag_pwm_threshold 19 //19-26
+#define mask_pwm_threshold (0xff << flag_pwm_threshold)
 
 class ui
 {
@@ -111,6 +125,8 @@ class ui
   // Status                  
   float calculate_signal_strength(rx_status &status);
 
+  void renderpage_transmit(rx_status & status, rx & receiver);
+
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
   void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
@@ -161,7 +177,7 @@ class ui
   bool memory_recall(bool &ok);
   bool memory_store(bool &ok);
   bool memory_scan(bool &ok);
-
+  bool transmit_menu(bool &ok);
   bool upload_memory();
   void autosave();
   bool display_timeout(bool encoder_change);

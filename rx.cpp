@@ -13,7 +13,11 @@
 #include "pins.h"
 #include "pwm_audio_sink.h"
 #include "clocks.h"
-
+#include "transmit/adc.h"
+#include "transmit/pwm.h"
+#include "transmit/transmit_nco.h"
+#include "transmit/modulator.h"
+#include "transmit/cw_keyer.h"
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
 static ring_buffer_t usb_ring_buffer;
@@ -191,7 +195,8 @@ void rx::update_status()
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
      status.tuning_offset_Hz = rx_dsp_inst.get_tuning_offset_Hz();
-
+     status.audio_level = tx_audio_level;
+     status.transmitting = ptt();
      sem_release(&settings_semaphore);
    }
 }
@@ -309,6 +314,14 @@ void rx::apply_settings()
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
       stream_raw_iq = settings_to_apply.stream_raw_iq;
+      transmit_mode = settings_to_apply.mode;
+      tx_cw_paddle = settings_to_apply.cw_paddle;
+      tx_cw_speed = settings_to_apply.cw_speed;
+      tx_mic_gain = settings_to_apply.mic_gain;
+      tx_modulation = settings_to_apply.tx_modulation;
+      tx_pwm_min = settings_to_apply.pwm_min;
+      tx_pwm_max = settings_to_apply.pwm_max;
+      tx_pwm_threshold = settings_to_apply.pwm_threshold;
 
       settings_changed = false;
       sem_release(&settings_semaphore);
@@ -321,7 +334,7 @@ void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 }
 
 
-rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
+rx::rx(rx_settings & settings_to_apply, rx_status & status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(settings_to_apply), status(status)
 {
 
     settings_to_apply.suspend = false;
@@ -354,7 +367,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     adc_set_temp_sensor_enabled(true);
     adc_set_clkdiv(99); //48e6/480e3
 
-    //Configure PTT
+    //Configure PIN_PTT
     gpio_init(PIN_PTT);
     gpio_set_function(PIN_PTT, GPIO_FUNC_SIO);
     gpio_set_dir(PIN_PTT, GPIO_IN);
@@ -364,7 +377,8 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_set_dir(LED, GPIO_OUT);
 
     //drive RF and magnitude pin to zero to make sure they are switched off
-    gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
+        gpio_init(PIN_MAGNITUDE);
+gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
     gpio_set_dir(PIN_MAGNITUDE, GPIO_OUT);
     gpio_put(PIN_MAGNITUDE, 0);
     gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
@@ -419,6 +433,78 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
 
 }
 
+static void on_usb_audio_tx_ready()
+{
+  uint8_t usb_buf[SAMPLE_BUFFER_SIZE * sizeof(int16_t)] = {0};
+
+  // Callback from TinyUSB library when all data is ready
+  // to be transmitted.
+  //
+  // Write local buffer to the USB microphone
+  ring_buffer_pop(&usb_ring_buffer, usb_buf, sizeof(usb_buf));
+  usb_audio_device_write(usb_buf, sizeof(usb_buf));
+}
+void rx::pwm_ramp_down()
+{
+  /* //generated a raised cosine slope to move between VCC/2 and 0
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = (1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  } */
+}
+
+void rx::pwm_ramp_up()
+{
+  /* //generated a raised cosine slope to move between 0 and VCC/2
+  uint32_t frequency_Hz = 1u;
+  uint32_t phase_increment = ((uint64_t)frequency_Hz<<32u)/audio_sample_rate;
+  uint32_t phase = -(1u<<30u); //90 degrees
+  uint32_t num_samples = audio_sample_rate/(frequency_Hz*2u);//half a cycle
+
+  int16_t level;
+  for(uint32_t sample = 0; sample<num_samples; sample++)
+  {
+    level = (((int32_t)sin_table[phase>>21]*(int32_t)pwm_max)>>17) + (int32_t)pwm_max/4;
+    level = std::min(level, (int16_t)pwm_max);
+    level = std::max(level, (int16_t)0);
+    phase += phase_increment;
+    pwm_set_gpio_level(16, level);
+  } */
+}
+
+bool __not_in_flash_func(rx::ptt)()
+{
+  static uint16_t timer = 0;
+  
+  //while transmitting this gets called about 10000 times per second
+  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5000;
+  else if(timer) timer--;
+  // Debugging print statements
+  printf("PTT: dit.is_keyed() = %d, dah.is_keyed() = %d, timer = %d, GPIO = %d\n", dit.is_keyed(), dah.is_keyed(), timer, gpio_get(PIN_PTT));
+  if(timer != 0) //force ptt because dit/dah is recently keyed
+  {
+    gpio_set_dir(PIN_PTT, GPIO_OUT);
+    gpio_put(PIN_PTT, 0);
+  }
+  else
+  {
+    gpio_set_dir(PIN_PTT, GPIO_IN);
+  }
+  sleep_us(1);
+
+  return dit.is_keyed() || dah.is_keyed();
+}
+
 void rx::read_batt_temp()
 {
   adc_select_input(3);
@@ -458,14 +544,6 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
   usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
-}
-
-static void on_usb_audio_tx_ready()
-{
-  uint16_t usb_buf[SAMPLE_BUFFER_SIZE] = {0};
-
-  ring_buffer_pop(&usb_ring_buffer, (uint8_t *)usb_buf, sizeof(usb_buf));
-  usb_audio_device_write(usb_buf, sizeof(usb_buf));
 }
 
 //thread safe method to get raw IQ data
@@ -515,6 +593,116 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
 }
 
 
+void __not_in_flash_func(rx::transmit)()
+{
+    printf("Transmit Function Called\n");
+    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_PWM);
+    gpio_set_function(PIN_RF, GPIO_FUNC_PIO0);
+
+    const double clock_frequency_Hz = system_clock_rate;
+
+    const float sample_rates[] = {
+        12e3, //AM = 0u;
+        12e3, //AMSYNC = 1u;
+        10e3, //LSB = 2u;
+        10e3, //USB = 3u;
+        15e3, //FM = 4u;
+        10e3, //CW = 5u;
+    };
+
+    // Use ADC to capture MIC input
+    adc mic_adc(PIN_MIC, 2);
+
+    // Use PWM to output magnitude
+    pwm magnitude_pwm(PIN_MAGNITUDE);
+
+    // Use PIO to output phase/frequency controlled oscillator
+    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, tuned_frequency_Hz);
+    const double sample_frequency_Hz = sample_rates[transmit_mode];
+    const uint8_t waveforms_per_sample =
+    rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
+
+    // create modulator
+    modulator audio_modulator;
+
+    // scale FM deviation
+    const double fm_deviation_Hz = 2.5e3;
+    const uint32_t fm_deviation_f15 =
+        round(2 * 32768.0 * fm_deviation_Hz /
+              rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample));
+
+
+    //create CW keyer
+    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample), dit, dah);
+
+    //mic gain
+    //uint16_t scaled_mic_gain = 16 << tx_mic_gain;
+
+    //test tone
+    uint32_t test_tone_phase = 0;
+    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+
+    int32_t audio = 0;
+    int32_t pwm_audio = 0;
+    uint16_t magnitude = 0;
+    int16_t phase = 0;
+    int16_t i = 0; // not used in this design
+    int16_t q = 0; // not used in this design
+    int16_t audio_samples[PWM_AUDIO_NUM_SAMPLES];
+    int audio_buff_idx = 0;
+    gpio_put(LED, 1);
+    while (ptt()) {
+      
+      if(test_tone_enable)
+      {
+        audio = sin_table[test_tone_phase >> 21];
+        test_tone_phase += test_tone_frequency_steps;
+        audio = audio;
+      }
+      else
+      {
+        audio = keyer.get_sample();
+        pwm_audio = sin_table[test_tone_phase >> 21];
+        test_tone_phase += test_tone_frequency_steps;
+        pwm_audio = audio;
+      if(audio_buff_idx >= PWM_AUDIO_NUM_SAMPLES) {
+          printf("PWM_AUDIO_SINK_TX_PUSH==============\n");
+          pwm_audio_sink_push(audio_samples, settings_to_apply.volume);
+          audio_buff_idx = 0;
+      } else {
+        audio_samples[audio_buff_idx++] = pwm_audio;
+        printf("AUDIO_PWM_SINK_ADD_ENTRY===========%ld\n", audio);
+      }
+        /* if(transmit_mode == CW)
+        {
+        } */
+        /* else
+        {
+          // read audio from mic
+          audio = mic_adc.get_sample() * scaled_mic_gain;
+          audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+        } */
+      }
+      tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+
+      // demodulate
+      audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+      // output magnitude
+      magnitude_pwm.output_sample(magnitude, settings_to_apply.pwm_min, settings_to_apply.pwm_max, settings_to_apply.pwm_threshold);
+
+      // output phase // TODO: USE SI5351
+      //rf_nco.output_sample(phase, waveforms_per_sample);
+      
+      //update_status
+      update_status();
+    }
+    gpio_put(LED, 0);
+    gpio_set_function(MAGNITUDE_PIN, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
+
+}
+
 
 void rx::run()
 {
@@ -563,12 +751,12 @@ void rx::run()
           update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend || settings_changed)
+          if(timeout-- == 0 || suspend || settings_changed || ptt())
           {
 
             dma_channel_cleanup(adc_dma_ping);
             dma_channel_cleanup(adc_dma_pong);
-            pwm_audio_sink_stop();
+            //pwm_audio_sink_stop();
 
             adc_run(false);
             adc_fifo_drain();
@@ -603,6 +791,17 @@ void rx::run()
             }
         }
       }
+
+      
+      if(ptt())
+      {
+
+        transmit();
+
+        //enable RX NCO
+        pio_sm_set_enabled(pio, sm, true);
+      }
+
 
     }
 }

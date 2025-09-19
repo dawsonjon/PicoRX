@@ -67,6 +67,14 @@ set(SRCS
     ring_buffer_lib.c
     codecs/decode_sstv.cpp
     codecs/cordic.cpp
+    transmit/adc.cpp
+    transmit/transmit_nco.cpp
+    transmit/half_band_filter.cpp
+    transmit/half_band_filter2.cpp
+    transmit/pwm.cpp
+    transmit/modulator.cpp
+    transmit/signal_generator.cpp
+    transmit/cw_keyer.cpp
 )
 
 if(BUTTON_ENCODER)

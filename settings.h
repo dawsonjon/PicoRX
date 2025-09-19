@@ -86,9 +86,10 @@ struct s_global_settings
   bool    swap_iq;
   bool    flip_oled;
   bool    oled_type;
-  bool    enable_test_tone;
+  bool    test_tone_enable;
   bool    tx_modulation;
   bool    enable_external_nco;
+
 };
 
 struct s_settings
@@ -133,7 +134,7 @@ const s_settings default_settings = {
   0x00, //pwm_min
   0x55, //pwm_max
   10,   //test_tone_frequency
-  0,    //cw_paddle;
+  1,    //cw_paddle;
   0,    //cw_speed;
   0,    //mic_gain;
   0,    //pwm_threshold;
