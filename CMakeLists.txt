@@ -12,6 +12,7 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
 project(picorx)
 pico_sdk_init()
+add_compile_definitions(PICO_DEFAULT_LED_PIN=25)
 
 file(GLOB U8G2_SRCS
      "external/u8g2/csrc/*.c"

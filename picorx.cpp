@@ -35,7 +35,7 @@ int main()
 {
   stdio_init_all();
   multicore_launch_core1(core1_main);
-  stdio_init_all();
+
 
   watchdog_enable(2000, true);
   gpio_set_function(10, GPIO_FUNC_SIO);
