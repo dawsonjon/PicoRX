@@ -323,6 +323,10 @@ void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
   rx_dsp_inst.get_spectrum(spectrum, dB10, zoom);
 }
 
+void rx::get_audio(uint8_t audio[])
+{
+  rx_dsp_inst.get_audio_capture(audio);
+}
 
 rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(settings_to_apply), status(status)
 {

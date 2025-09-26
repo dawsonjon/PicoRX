@@ -367,6 +367,18 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   display_show();
 }
 
+void ui::renderpage_oscilloscope(rx_status & status, rx & receiver)
+{
+  display_clear();
+  for(uint8_t i = 0; i < 127; i++)
+  {
+    u8g2_DrawLine(&u8g2, i, audio[i], i + 1, audio[i + 1]);
+    u8g2_DrawLine(&u8g2, i, audio[i] + 1, i + 1, audio[i + 1] + 1);
+    u8g2_DrawLine(&u8g2, i, audio[i] - 1, i + 1, audio[i + 1] - 1);
+  }
+  display_show();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
@@ -2418,7 +2430,7 @@ void ui::do_ui()
     bool update_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
-    const uint8_t num_display_options = 7;
+    const uint8_t num_display_options = 8;
     static bool view_changed = false;
 
     if(ui_state != idle) view_changed = true;
@@ -2516,9 +2528,10 @@ void ui::do_ui()
         case 1: renderpage_bigspectrum(status, receiver);break;
         case 2: renderpage_combinedspectrum(view_changed, status, receiver);break;
         case 3: renderpage_waterfall(view_changed, status, receiver);break;
-        case 4: renderpage_status(status, receiver);break;
-        case 5: renderpage_smeter(view_changed, status, receiver); break;
-        case 6: renderpage_fun(view_changed, status, receiver);break;
+        case 4: renderpage_oscilloscope(status, receiver);break;
+        case 5: renderpage_status(status, receiver);break;
+        case 6: renderpage_smeter(view_changed, status, receiver); break;
+        case 7: renderpage_fun(view_changed, status, receiver);break;
       }
       view_changed = false;
     }
@@ -2700,7 +2713,7 @@ void ui::update_buttons(void)
 #endif
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t *audio, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
   settings(default_settings),
   main_encoder(settings.global),
   menu_button(PIN_MENU), 
@@ -2710,6 +2723,7 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   status(status), 
   receiver(receiver), 
   spectrum(spectrum),
+  audio(audio),
   dB10(dB10),
   zoom(zoom),
   waterfall_inst(waterfall_inst)

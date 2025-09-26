@@ -110,6 +110,7 @@ class ui
 
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
+  void renderpage_oscilloscope(rx_status & status, rx & receiver);
   void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_status(rx_status & status, rx & receiver);
@@ -167,7 +168,8 @@ class ui
   rx_settings &settings_to_apply;
   rx_status &status;
   rx &receiver;
-  uint8_t *spectrum;
+  uint8_t const * const spectrum;
+  uint8_t const * const audio;
   uint8_t &dB10;
   uint8_t &zoom;
   waterfall &waterfall_inst;
@@ -180,7 +182,7 @@ class ui
   s_settings & get_settings(){return settings;};
   void autorestore();
   void do_ui();
-  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
+  ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t *audio, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
   void update_buttons(void);
 
 };
