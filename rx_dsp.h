@@ -34,6 +34,7 @@ class rx_dsp
   void set_deemphasis(uint8_t deemph);
   void set_treble(uint8_t tr);
   void set_bass(uint8_t bs);
+  void set_impulse_threshold(uint8_t it);
   void set_auto_notch(bool enable_auto_notch);
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
@@ -56,6 +57,7 @@ class rx_dsp
   int16_t squelch(int16_t audio, int32_t amplitude);
   int16_t apply_treble(int16_t x);
   int16_t apply_bass(int16_t x);
+  void apply_impulse_blanker(int16_t &i, int16_t &q, uint16_t mag);
   void iq_imbalance_correction(int16_t &i, int16_t &q);
 
   //capture samples for decoding
@@ -114,6 +116,9 @@ class rx_dsp
 
   //bass
   uint8_t bass = 0;
+
+  // impulse blanker threshold
+  uint8_t impulse_threshold;
 
   //squelch
   int16_t squelch_threshold=0;

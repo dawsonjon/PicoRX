@@ -299,6 +299,9 @@ void rx::apply_settings()
       //apply bass
       rx_dsp_inst.set_bass(settings_to_apply.bass);
 
+      //apply impulse blanker threshold
+      rx_dsp_inst.set_impulse_threshold(settings_to_apply.impulse_threshold);
+
       //apply squelch
       rx_dsp_inst.set_squelch(settings_to_apply.squelch_threshold, settings_to_apply.squelch_timeout);
 

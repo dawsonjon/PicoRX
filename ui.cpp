@@ -1196,6 +1196,15 @@ bool ui::memory_recall(bool &ok)
 
   if(load_and_update_display)
   {
+    // don't change mode if set mode "compatible"
+    if ((stored_settings.mode == MODE_AM) ||
+        (stored_settings.mode == MODE_AMS)) {
+      if ((memory_channel.channel.mode == MODE_AM) ||
+          (memory_channel.channel.mode == MODE_AMS)) {
+        memory_channel.channel.mode = stored_settings.mode;
+      }
+    }
+
     //(temporarily) apply lodaed settings to RX
     settings.channel = memory_channel.channel;
     apply_settings(false);
@@ -2110,7 +2119,7 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Auto Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
+      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Impulse\nBlanker#Auto Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2175,48 +2184,52 @@ bool ui::main_menu(bool & ok)
           case 10 :  
             done = noise_menu(ok);
             break;
-          case 11 :  
+          case 11:
+            done = enumerate_entry("Impulse\nThreshold", "Off#3.0#2.8#2.6#2.4#2.2#2.0#", settings.global.impulse_threshold, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+          case 12:  
             done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
             break;
-          case 12 :
+          case 13 :
             done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", settings.global.deemphasis, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 13 : 
+          case 14 : 
             done = enumerate_entry("Bass", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.bass, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 14 :
+          case 15 :
             done = enumerate_entry("Treble", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.treble, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 15 : 
+          case 16 : 
             done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
-          case 16 : 
+          case 17 : 
             done = spectrum_menu(ok);
             break;
-          case 17:
+          case 18:
             done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#", settings.global.aux_view, ok, changed);
             break;
-          case 18 :  
+          case 19 :  
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
-          case 19 : 
+          case 20 : 
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
-          case 20 : 
+          case 21 : 
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
-          case 21 : 
+          case 22 : 
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 22 : 
+          case 23 : 
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
-          case 23 : 
+          case 24 : 
             done = configuration_menu(ok);
             break;
         }
