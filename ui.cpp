@@ -376,6 +376,10 @@ void ui::renderpage_oscilloscope(rx_status & status, rx & receiver)
     u8g2_DrawLine(&u8g2, i, audio[i] + 1, i + 1, audio[i + 1] + 1);
     u8g2_DrawLine(&u8g2, i, audio[i] - 1, i + 1, audio[i + 1] - 1);
   }
+  u8g2_SetDrawColor(&u8g2, 0);
+  u8g2_DrawBox(&u8g2, 0, 0, 128, 8);
+  u8g2_SetDrawColor(&u8g2, 1);
+  draw_slim_status(0, status, receiver);
   display_show();
 }
 
