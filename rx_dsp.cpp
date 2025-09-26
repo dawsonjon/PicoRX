@@ -119,6 +119,36 @@ int16_t __not_in_flash_func(rx_dsp ::apply_bass)(int16_t x) {
   return y << 1;
 }
 
+void __not_in_flash_func(rx_dsp ::apply_impulse_blanker)(int16_t &i, int16_t &q,
+                                                         uint16_t mag) {
+  static uint32_t avg_g = 32767;
+  static uint32_t avg_mag;
+  const uint32_t thres_lut[6] = {98301, 91748, 85194, 78641,
+                                 72087, 65534};  // 3.0 to 2.0 in 0.2 steps
+
+  if(impulse_threshold == 0)
+  {
+    return;
+  }
+
+  avg_mag += mag - (avg_mag / 4096);
+  const uint32_t a_mag = avg_mag / 4096;
+
+  const uint32_t thr = thres_lut[impulse_threshold - 1];
+
+  uint32_t g = 32767;
+  if (mag > ((a_mag * thr) >> 15)) {
+    g = (a_mag << 15) / mag;
+  }
+  avg_g += g - avg_g / 8;
+  g = avg_g / 8;
+
+  if (g < 32767) {
+    i = (g * i) >> 15;
+    q = (g * q) >> 15;
+  }
+}
+
 static uint32_t __not_in_flash_func(intsqrt)(const uint32_t n) {
     uint8_t shift = 32u;
     shift += shift & 1; // round up to next multiple of 2
@@ -252,8 +282,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
-    const int16_t i = iq[2 * idx];
-    const int16_t q = iq[2 * idx + 1];
+    int16_t i = iq[2 * idx];
+    int16_t q = iq[2 * idx + 1];
 
     uint32_t complex_sample = (uint32_t)i << 16 | ((uint32_t)q & 0xffff);
     queue_try_add(&data_queue, (void*)&complex_sample);
@@ -263,6 +293,9 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     int16_t phase;
     rectangular_2_polar(i, q, &magnitude, &phase);
     magnitude_sum += magnitude;
+
+    // Impulse noise blanker
+    apply_impulse_blanker(i, q, magnitude);
 
     //Demodulate to give audio sample
     int32_t audio = demodulate(i, q, magnitude, phase);
@@ -624,6 +657,13 @@ void rx_dsp ::set_bass(uint8_t bs) {
     bs = 4;
   }
   bass = bs;
+}
+
+void rx_dsp ::set_impulse_threshold(uint8_t it) {
+  if (it > 6) {
+    it = 6;
+  }
+  impulse_threshold = it;
 }
 
 void rx_dsp :: set_agc_control(uint8_t agc_control, uint8_t agc_gain)
