@@ -320,6 +320,17 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     audio_samples[idx] = audio;
   }
 
+  if (sem_try_acquire(&audio_semaphore)) {
+    for (uint16_t idx = 0; idx < adc_block_size / decimation_rate; idx+=4) {
+      audio_capture[audio_capture_idx * 16 + (idx / 4)] = audio_samples[idx];
+    }
+    audio_capture_idx++;
+    if (audio_capture_idx == 8) {
+      audio_capture_idx = 0;
+    }
+    sem_release(&audio_semaphore);
+  }
+
   if (iq_samples) {
     ring_buffer_push_ovr(
         iq_samples, (uint8_t *)iq,
@@ -610,6 +621,8 @@ rx_dsp :: rx_dsp()
   filter_control.noise_threshold = 1;
   filter_control.spectrum_smoothing = 1;
 
+  sem_init(&audio_semaphore, 1, 1);
+
   //clear cic filter
   decimate_count=0;
   integratori1=0; integratorq1=0;
@@ -867,6 +880,65 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 
   //number steps representing 10dB
   dB10 = 256/(2*logf(max/min));
+}
+
+static uint16_t __time_critical_func(audio_correlate)(int16_t a[128],
+                                                      int16_t b[128]) {
+  int32_t s_max = INT32_MIN;
+  uint16_t s_argmax = 0;
+
+  for (uint16_t i = 0; i < 128; i++) {
+    const uint16_t l = 128 - i;
+    int32_t s = 0;
+    for (uint16_t j = 0; j < l; j++) {
+      s += (a[j] * b[i + j]) >> 15;
+    }
+    if (s > s_max) {
+      s_max = s;
+      s_argmax = i;
+    }
+  }
+  return s_argmax;
+}
+
+void rx_dsp :: get_audio_capture(uint8_t audio[])
+{
+  static int16_t prev_audio[128];
+  int16_t audio_tmp[128];
+  int16_t audio_in[128];
+
+  sem_acquire_blocking(&audio_semaphore);
+  for (uint16_t i = 0; i < (sizeof(audio_in) / sizeof(audio_in[0])); i++) {
+    audio_in[i] = audio_capture[(audio_capture_idx * 16 + i) % 128];
+  }
+  sem_release(&audio_semaphore);
+  const uint16_t x = audio_correlate(audio_in, prev_audio);
+  for (uint16_t i = 0; i < x; i++) {
+    audio_tmp[i] = prev_audio[127 - x + i];
+  }
+  for (uint16_t i = x; i < (sizeof(audio_tmp) / sizeof(audio_tmp[0])); i++) {
+    audio_tmp[i] = audio_in[i - x];
+  }
+
+  int16_t a_min = audio_tmp[0];
+  int16_t a_max = audio_tmp[0];
+  for (uint16_t i = 1; i < (sizeof(audio_tmp) / sizeof(audio_tmp[0])); i++) {
+    if (audio_tmp[i] > a_max) {
+      a_max = audio_tmp[i];
+    }
+    if (audio_tmp[i] < a_min) {
+      a_min = audio_tmp[i];
+    }
+  }
+  const uint16_t a_range = a_max - a_min;
+  for (uint16_t i = 0; i < (sizeof(audio_tmp) / sizeof(audio_tmp[0])); i++) {
+    if (a_range == 0) {
+      audio[i] = 32;
+    } else {
+      audio[i] = 16 + (((audio_tmp[i] - a_min) * 32) / a_range);
+    }
+    prev_audio[i] = audio_in[i];
+  }
 }
 
 uint32_t rx_dsp::get_iq_buffer_level()
