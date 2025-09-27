@@ -165,7 +165,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
         pico_enable_stdio_usb(battery_check_pico2 1)
         pico_enable_stdio_uart(battery_check_pico2 0)
         target_link_libraries(battery_check_pico2 pico_stdlib hardware_adc)
-        set_target_properties(battery_check_pico2PROPERTIES SUFFIX ".elf")
+        set_target_properties(battery_check_pico2 PROPERTIES SUFFIX ".elf")
 
     endif()
 endif()
