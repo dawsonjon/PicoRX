@@ -920,23 +920,8 @@ void rx_dsp :: get_audio_capture(uint8_t audio[])
     audio_tmp[i] = audio_in[i - x];
   }
 
-  int16_t a_min = audio_tmp[0];
-  int16_t a_max = audio_tmp[0];
-  for (uint16_t i = 1; i < (sizeof(audio_tmp) / sizeof(audio_tmp[0])); i++) {
-    if (audio_tmp[i] > a_max) {
-      a_max = audio_tmp[i];
-    }
-    if (audio_tmp[i] < a_min) {
-      a_min = audio_tmp[i];
-    }
-  }
-  const uint16_t a_range = a_max - a_min;
   for (uint16_t i = 0; i < (sizeof(audio_tmp) / sizeof(audio_tmp[0])); i++) {
-    if (a_range == 0) {
-      audio[i] = 32;
-    } else {
-      audio[i] = 16 + (((audio_tmp[i] - a_min) * 32) / a_range);
-    }
+    audio[i] = 32 + 6 + (audio_tmp[i] / (32767 / 48));
     prev_audio[i] = audio_in[i];
   }
 }
