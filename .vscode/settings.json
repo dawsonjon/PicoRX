@@ -1,0 +1,7 @@
+{
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.configureArgs": ["-DCMAKE_BUILD_TYPE=Release", "-DPICO_BOARD=pico"],
+    "cmake.buildArgs": [ "--config", "Release", "--parallel" ],
+    "files.trimTrailingWhitespace": true,
+    "C_Cpp.autoAddFileAssociations": false
+}
