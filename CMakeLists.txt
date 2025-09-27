@@ -1,6 +1,23 @@
 cmake_minimum_required(VERSION 3.12)
+set(FETCHCONTENT_QUIET FALSE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# If an SDK path has not been configured in the environemnt, use CMake's
+# FetchContent to pull down the SDK sources from GitHub.
+if(NOT DEFINED ENV{PICO_SDK_PATH})
+  set(ENV{PICO_SDK_FETCH_FROM_GIT} "1")
+  set(ENV{PICO_SDK_FETCH_FROM_GIT_TAG} "2.2.0")
+endif()
 
 include(pico_sdk_import.cmake)
+
+project(picorx
+LANGUAGES
+    C
+    CXX
+VERSION
+    0.0.1
+)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -8,8 +25,6 @@ add_compile_options(-Wall -Werror -fdata-sections -ffunction-sections)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
-
-project(picorx)
 pico_sdk_init()
 
 file(GLOB U8G2_SRCS
@@ -24,7 +39,7 @@ add_library(
 )
 target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 
-set(SRCS 
+set(SRCS
     ssd1306.c
     picorx.cpp
     nco.cpp
@@ -72,7 +87,7 @@ if(PICO_BOARD STREQUAL "pico")
                                        hardware_pio
                                        hardware_adc
                                        hardware_pwm
-                                       hardware_dma 
+                                       hardware_dma
                                        hardware_i2c
                                        hardware_spi
                                        tinyusb_device
@@ -111,7 +126,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_pio
                                          hardware_adc
                                          hardware_pwm
-                                         hardware_dma 
+                                         hardware_dma
                                          hardware_i2c
                                          hardware_spi
                                          tinyusb_device
@@ -146,7 +161,7 @@ elseif(PICO_BOARD STREQUAL "pico2")
                                          hardware_pio
                                          hardware_adc
                                          hardware_pwm
-                                         hardware_dma 
+                                         hardware_dma
                                          hardware_i2c
                                          hardware_spi
                                          tinyusb_device
