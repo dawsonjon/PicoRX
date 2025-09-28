@@ -53,6 +53,7 @@ int main()
   uint32_t last_cat_update = 0;
   uint32_t last_buttons_update = 0;
   uint32_t last_waterfall_update = 0;
+  bool tuned = false;
 
   while(1)
   {
@@ -65,14 +66,18 @@ int main()
       last_buttons_update = time_us_32();
       user_interface.update_buttons();
     }
-    receiver.tune();
+    bool ret = receiver.tune();
+    if (!tuned) {
+      tuned = ret;
+    }
 
     if(time_us_32() - last_ui_update > UI_REFRESH_US)
     {
       last_ui_update = time_us_32();
-      user_interface.do_ui();
       receiver.get_spectrum(spectrum, dB10, zoom);
       receiver.get_audio(audio);
+      user_interface.do_ui(tuned);
+      tuned = false;
     }
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)

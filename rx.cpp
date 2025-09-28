@@ -62,8 +62,9 @@ void rx::access(bool s)
   settings_changed |= s;
 }
 
-void rx::tune()
+bool rx::tune()
 {
+  bool ret = false;
   //update the si5351 here rather than apply settings
   //since this function is called from core 0, this avoids the need
   //for additional synchronisation of i2c across cores
@@ -114,6 +115,7 @@ void rx::tune()
         nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+        ret = true;
       }
     }
     else
@@ -159,11 +161,13 @@ void rx::tune()
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         enable_pwm(settings_to_apply.tuning_option);
+        ret = true;
       }
     }
 
     sem_release(&settings_semaphore);
   }
+  return ret;
 }
 
 
