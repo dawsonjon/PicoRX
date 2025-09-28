@@ -386,26 +386,26 @@ void ui::renderpage_oscilloscope(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
-void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
+void ui::renderpage_bigspectrum(bool encoder_changed, rx_status & status, rx & receiver)
 {
   display_clear();
   draw_slim_status(0, status, receiver);
   draw_h_tick_marks(8);
-  draw_spectrum(13, 63);
+  draw_spectrum(13, 63, encoder_changed);
   display_show();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with combined view
 ////////////////////////////////////////////////////////////////////////////////
-void ui::renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver)
+void ui::renderpage_combinedspectrum(bool view_changed, bool encoder_changed, rx_status & status, rx & receiver)
 {
   if (view_changed) display_clear();
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 48, 0);
   draw_waterfall(48);
   draw_slim_status(0, status, receiver);
   draw_h_tick_marks(8);
-  draw_spectrum(13, 47);
+  draw_spectrum(13, 47, encoder_changed);
   display_show();
 }
 
@@ -740,18 +740,36 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(uint16_t startY, uint16_t endY)
+void ui::draw_spectrum(uint16_t startY, uint16_t endY, bool encoder_changed)
 {
 
+  static uint8_t hold_buf[128];
   //plot
   const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
   int16_t y=0;
 
+  if(settings.global.spectrum_hold && encoder_changed)
+  {
+    for(uint16_t i = 0; i < 128; i++)
+    {
+      hold_buf[i] = 0;
+    }
+  }
+
   for(uint16_t x=0; x<128; x++)
   {
     y = spectrum[x*2]/scale;
     ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
+    if (settings.global.spectrum_hold) {
+      if (spectrum[x * 2] > hold_buf[x]) {
+        hold_buf[x] = spectrum[x * 2];
+      }
+      if (x > 0) {
+        u8g2_DrawLine(&u8g2, x - 1, (endY - hold_buf[x - 1] / scale), x,
+                      (endY - hold_buf[x] / scale));
+      }
+    }
   }
 
   for (int16_t y = 0; y < max_height; ++y)
@@ -2135,8 +2153,14 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Impulse\nBlanker#Auto Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
-      {
+      if (menu_entry("Menu",
+                     "Frequency#Recall#Store#Volume#Mode#AGC#AGC "
+                     "Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#"
+                     "Impulse\nBlanker#Auto "
+                     "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
+                     "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
+                     "Tone\nFrequency#USB Stream#HW Config#Spectrum\nHold#",
+                     &menu_selection, ok)) {
         if(ok) 
         {
           //ok button pressed, more work to do
@@ -2247,6 +2271,9 @@ bool ui::main_menu(bool & ok)
             break;
           case 24 : 
             done = configuration_menu(ok);
+            break;
+          case 25:  
+            done = bit_entry("Spectrum\nHold", "Off#On#", settings.global.spectrum_hold, ok);
             break;
         }
         if(done)
@@ -2436,6 +2463,7 @@ void ui::do_ui()
     static e_ui_state ui_state = splash;
     const uint8_t num_display_options = 8;
     static bool view_changed = false;
+    bool encoder_changed = false;
 
     if(ui_state != idle) view_changed = true;
 
@@ -2478,6 +2506,7 @@ void ui::do_ui()
       uint32_t encoder_change = main_encoder.get_change();
       if(encoder_change != 0)
       {
+        encoder_changed = true;
         display_time = time_us_32();
 
         if(encoder_button.is_held())
@@ -2529,8 +2558,8 @@ void ui::do_ui()
       switch(settings.global.view)
       {
         case 0: renderpage_original(status, receiver); break;
-        case 1: renderpage_bigspectrum(status, receiver);break;
-        case 2: renderpage_combinedspectrum(view_changed, status, receiver);break;
+        case 1: renderpage_bigspectrum(encoder_changed, status, receiver);break;
+        case 2: renderpage_combinedspectrum(view_changed, encoder_changed, status, receiver);break;
         case 3: renderpage_waterfall(view_changed, status, receiver);break;
         case 4: renderpage_oscilloscope(status, receiver);break;
         case 5: renderpage_status(status, receiver);break;
