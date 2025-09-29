@@ -34,14 +34,13 @@ void core1_main()
 
 int main() 
 {
+  gpio_set_function(LED, GPIO_FUNC_SIO);
+  gpio_set_dir(LED, GPIO_OUT);
+  gpio_put(LED, 1);
+
   stdio_init_all();
-  multicore_launch_core1(core1_main);
-
-
   watchdog_enable(2000, true);
-  gpio_set_function(10, GPIO_FUNC_SIO);
-  gpio_set_dir(10, GPIO_OUT);
-  gpio_put(10, 1);
+  multicore_launch_core1(core1_main);
 
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool

@@ -1895,7 +1895,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#Watchdog\nTest#", &menu_selection, ok))
       {
         if(ok) 
         {
@@ -2053,6 +2053,13 @@ bool ui::configuration_menu(bool &ok)
               reset_usb_boot(0,0);
             }
           }
+          break;
+        }
+        case 20:
+        {
+          bool test = false;
+          done = bit_entry("Watchdog\nTest", "Off#On#", test, ok);
+          if(test){while(1){}}
           break;
         }
       }
@@ -2683,7 +2690,7 @@ static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
     case U8X8_MSG_BYTE_END_TRANSFER:
     {
         uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
-        int ret = i2c_write_blocking(OLED_I2C_INST, addr, buffer, buf_idx, false);
+        int ret = i2c_write_timeout_us(OLED_I2C_INST, addr, buffer, buf_idx, false, 100000);
         if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
         {
             return 0;

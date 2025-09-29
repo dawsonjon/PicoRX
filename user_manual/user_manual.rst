@@ -137,6 +137,9 @@ Radio functions and configuration are accessed through the main menu.
 +------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
 | Noise Reduction  |                          | Noise Reduction Menu                                                                                               |
 +------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
+| Impulse Blanker  |                          | Enable impulse blanker and set threshold. The impulse blanker can mitigate some types of noise (e.g. from car      |
+|                  |                          | ignition circuits, electric fences etc. Threshold values vary from 2.0 to 3.0.                                     |
++------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
 | Auto Notch       | On/Off                   | The automatic notch filter can be used to remove interfering tones. If stable interference is detected             |
 |                  |                          | consistently at the same frequency, a narrow notch is enabled to automatically suppress the interference.          |
 +------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
@@ -149,9 +152,9 @@ Radio functions and configuration are accessed through the main menu.
 | IQ-Correction    | On/Off                   | Compensates for differences in phase/magnitude in the IQ inputs. Enable this setting to improve image              |
 |                  |                          | rejection (remove mirror frequencies)                                                                              |
 +------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
-| Aux Display      | Waterfall/SSTV Decode    | Switch between views in auxiliary (TFT) display (if fitted)                                                        |
-+------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
 | Spectrum         |                          | Spectrum Menu                                                                                                      |
++------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
+| Aux Display      | Waterfall/SSTV Decode    | Switch between views in auxiliary (TFT) display (if fitted)                                                        |
 +------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------+
 | Band Start/Stop  | 0-30MHz                  | The band-start and band-stop settings define the tuning range of the current band. The band-start and              |
 |                  |                          | band stop settings are stored in memory channels allowing memory channels to hold bands as well as                 |
@@ -205,6 +208,13 @@ Hardware Configuration Menu
 
 +--------------------+-------------------------------+------------------------------------------------------------------------------------------------------------+
 | Setting            | Range                         |  Description                                                                                               |
++--------------------+-------------------------------+------------------------------------------------------------------------------------------------------------+
+| Tuning Options     | None, Tristate, Ground        |  During retuning, the PLL within the Pi Pico is adjusted to allow the closest possible NCO frequency to be |
+|                    |                               |  selected. As the PLL is adjusted, the clock speed within the pico temporarily dips, this causes the PWM   |
+|                    |                               |  pulses in the audio output to lengthen, causing an audible click or pop. To mitigate against this, the    |
+|                    |                               |  PWM output can be disabled during tuning. There are 2 methods to achieve this, the GPIO pin can be either |
+|                    |                               |  tristated, or grounded. The grounding method gives slightly improved click suppression at the expense of  |
+|                    |                               |  tuning speed.                                                                                             |
 +--------------------+-------------------------------+------------------------------------------------------------------------------------------------------------+
 | Display Timeout    | Never, 5 seconds – 4 minutes  |  Display turns off after a period of inactivity. This can be useful for power saving when running from     |
 |                    |                               |  batteries. This may also help prevent noise being generated by the display being received.                |
@@ -331,3 +341,25 @@ QSSTV. When combined with USB cat control allows a fully functional PC
 connection using only a single USB cable. The direct digital audio connection
 provides superior audio quality compared to an analogue connection using a
 sound card.
+
+Filter Bandwidth
+================
+
+The bandwidth of the audio filter can be varied according to preference. The
+bandwidth settings can be selected from "very narrow" to "very wide". The
+precise meaning of each setting depends on the mode in use. The following table
+gives the approximate bandwidth of each setting depending on mode.
+
++-------------+------------+-------------+------------+------------+------------+----------+
+|             | AM  (kHz)  |  AMS  (kHz) | LSB  (kHz) | USB (kHz)  |  FM  (kHz) | CW  (Hz) |
++-------------+------------+-------------+------------+------------+------------+----------+
+| Very Narrow | 4.6        | 4.6         | 1.6        | 1.6        | 7.4        | 100      |
++-------------+------------+-------------+------------+------------+------------+----------+
+| Narrow      | 5.3        | 5.3         | 2          | 2          | 8.1        | 400      |
++-------------+------------+-------------+------------+------------+------------+----------+
+| Normal      | 6          | 6           | 2.3        | 2.3        | 8.8        | 600      |
++-------------+------------+-------------+------------+------------+------------+----------+
+| Wide        | 7.4        | 7.4         | 2.7        | 2.7        | 9.5        | 800      |
++-------------+------------+-------------+------------+------------+------------+----------+
+| Very Wide   | 14.9       | 14.9        | 3          | 3          | 10.2       | 1100     |
++-------------+------------+-------------+------------+------------+------------+----------+
