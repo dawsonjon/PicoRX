@@ -181,7 +181,7 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
       static int32_t c1 = 0;
       static int32_t c2 = 0;
       if (++index == 512)
-      {             
+      {
         static int64_t theta1_filtered = 0;
         static int64_t theta2_filtered = 0;
         static int64_t theta3_filtered = 0;
@@ -192,7 +192,7 @@ void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
         //try to constrain square to less than 32 bits.
         //Assue that i/q used full int16_t range.
         //Accumulating 512 samples adds 9 bits of growth, so remove 18 after square.
-        const int64_t theta1_squared = (theta1_filtered * theta1_filtered) >> 18; 
+        const int64_t theta1_squared = (theta1_filtered * theta1_filtered) >> 18;
         const int64_t theta2_squared = (theta2_filtered * theta2_filtered) >> 18;
         const int64_t theta3_squared = (theta3_filtered * theta3_filtered) >> 18;
 
@@ -253,19 +253,19 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         //Apply frequency shift (move tuned frequency to DC)
         frequency_shift(i, q);
 
-        #ifdef MEASURE_DC_BIAS 
-        static int64_t bias_measurement = 0; 
-        static int32_t num_bias_measurements = 0; 
-        if(num_bias_measurements == 100000) { 
-          printf("DC BIAS x 100 %lli\n", bias_measurement/1000); 
-          num_bias_measurements = 0; 
-          bias_measurement = 0; 
-        } 
-        else { 
-          num_bias_measurements++; 
-          bias_measurement += i; 
-        } 
-        #endif 
+        #ifdef MEASURE_DC_BIAS
+        static int64_t bias_measurement = 0;
+        static int32_t num_bias_measurements = 0;
+        if(num_bias_measurements == 100000) {
+          printf("DC BIAS x 100 %lli\n", bias_measurement/1000);
+          num_bias_measurements = 0;
+          bias_measurement = 0;
+        }
+        else {
+          num_bias_measurements++;
+          bias_measurement += i;
+        }
+        #endif
 
         iq[decimated_index] = i;
         iq[decimated_index + 1] = q;
@@ -345,7 +345,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
 void __not_in_flash_func(rx_dsp :: frequency_shift)(int16_t &i, int16_t &q)
 {
-    //Apply frequency shift (move tuned frequency to DC)         
+    //Apply frequency shift (move tuned frequency to DC)
     const uint16_t scaled_phase = (phase >> 21);
     const int16_t rotation_i =  sin_table[(scaled_phase+512u) & 0x7ff]; //32 - 21 = 11MSBs
     const int16_t rotation_q = -sin_table[scaled_phase];
@@ -513,16 +513,14 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
 
 int16_t __not_in_flash_func(rx_dsp::squelch)(int16_t audio, int32_t signal_amplitude)
 {
-    if(signal_amplitude > squelch_threshold) 
+    if(signal_amplitude > squelch_threshold)
       squelch_time_ms = to_ms_since_boot(get_absolute_time());
     const uint32_t time_since_active = to_ms_since_boot(get_absolute_time())-squelch_time_ms;
 
-    if(time_since_active < squelch_timeout_ms) 
+    if(time_since_active < squelch_timeout_ms)
     {
       return audio;
-    }
-    else
-    {
+    } else {
       return 0;
     }
 }
@@ -566,7 +564,7 @@ int16_t __not_in_flash_func(rx_dsp::automatic_gain_control)(int16_t audio_in)
     else if(max_hold > 0)
     {
       //decay
-      max_hold -= max_hold>>decay_factor; 
+      max_hold -= max_hold>>decay_factor;
     }
 
     //calculate gain needed to amplify to full scale

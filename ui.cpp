@@ -294,9 +294,9 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   //frequency
   uint32_t remainder, MHz, kHz, Hz;
   MHz = settings.channel.frequency/1000000u;
-  remainder = settings.channel.frequency%1000000u; 
+  remainder = settings.channel.frequency%1000000u;
   kHz = remainder/1000u;
-  remainder = remainder%1000u; 
+  remainder = remainder%1000u;
   Hz = remainder;
 
   u8g2_SetFont(&u8g2, font_seg_big);
@@ -563,7 +563,7 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 // height positive : a circle sector from the top down up to and including the full circle
 // height positive : draw a linear movement meter like all the cheap CBs in the 80s
-void ui::draw_analogmeter(    uint16_t startx, uint16_t starty, 
+void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
                               uint16_t width, int16_t height,
                               float  needle_pct, int numticks,
                               const char* legend, const char labels[][5]
@@ -599,11 +599,11 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
 
     // draw arc
     for (int degrees=deg_min; degrees<=deg_max; degrees++) {
-        ssd1306_draw_pixel(&disp, 
+        ssd1306_draw_pixel(&disp,
             (startx+width/2) + radius*cos(M_PI*degrees/180),
             (starty + radius) - radius*sin(M_PI*degrees/180),
             1);
-        ssd1306_draw_pixel(&disp, 
+        ssd1306_draw_pixel(&disp,
             (startx+width/2) + (1+radius)*cos(M_PI*degrees/180),
             (starty + radius) - (1+radius)*sin(M_PI*degrees/180),
             1);
@@ -653,13 +653,13 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
       startr = starty+radius-64; // 64 is display height
     }
     for (int r=startr; r<radius; r++) {
-      ssd1306_draw_pixel(&disp, 
+      ssd1306_draw_pixel(&disp,
           (startx+width/2) + r*cos(M_PI*degrees/180),
           (starty + radius) - r*sin(M_PI*degrees/180),
           1);
     }
-  } 
-  else 
+  }
+  else
   {   // draw a CB style rectangular needle movement
     height *= -1;
     // draw straight arc
@@ -687,7 +687,7 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
     if (strlen(legend)) {
       display_set_xy(startx + width/2 - 6*strlen(legend)/2, starty+(height/2)+TICK_LEN+3);
       display_print_str(legend, 1);
-    }  
+    }
   }
 }
 
@@ -711,7 +711,7 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
   float avg_power_dBm = 0.0;
   for (uint8_t i=0; i<NUM_DBM; i++) {
     avg_power_dBm += dBm_avg[i];
-  } 
+  }
   avg_power_dBm /= NUM_DBM;
 
   display_clear();
@@ -1053,7 +1053,7 @@ void ui::autorestore()
       settings.global.tft_driver);
 
   //reset the zoom setting
-  zoom = settings.global.spectrum_zoom; 
+  zoom = settings.global.spectrum_zoom;
 }
 
 void ui::apply_settings(bool suspend, bool settings_changed)
@@ -1105,7 +1105,7 @@ bool ui::memory_store(bool &ok)
         return true;
       }
 
-  } 
+  }
   else if(state == enter_name)
   {
       //modify the selected channel name
@@ -1270,7 +1270,7 @@ bool ui::memory_recall(bool &ok)
     display_show();
   }
 
-  return false; 
+  return false;
 }
 
 // Scan across the stored memories
@@ -1338,8 +1338,8 @@ bool ui::memory_scan(bool &ok)
         last_listen_time = 0u; //cancel hang
         wait = false;
       }
-    } 
-    else 
+    }
+    else
     {
       if ( pos_change > 0 ){
         if(++scan_speed>4) scan_speed=4;
@@ -1359,7 +1359,7 @@ bool ui::memory_scan(bool &ok)
       //skip blank channels
       for(uint16_t i = 0; i<num_chans; i++)
       {
-        select += direction;      
+        select += direction;
         if(select < min) select = max;
         if(select > max) select = min;
         if(get_channel(select).channel.frequency != 0) break;
@@ -1402,7 +1402,7 @@ bool ui::memory_scan(bool &ok)
   if(load)
   {
     s_memory_channel memory_channel = get_channel(select);
-    
+
     //(temporarily) apply lodaed settings to RX
     settings.channel = memory_channel.channel;
     apply_settings(false);
@@ -1458,7 +1458,7 @@ bool ui::memory_scan(bool &ok)
     display_show();
   }
 
-  return false; 
+  return false;
 
 }
 
@@ -1540,8 +1540,8 @@ bool ui::frequency_scan(bool &ok)
         last_listen_time = 0u; //cancel hang
         wait = false;
       }
-    } 
-    else 
+    }
+    else
     {
       if ( pos_change > 0 ){
         if(++scan_speed>4) scan_speed=4;
@@ -1558,7 +1558,7 @@ bool ui::frequency_scan(bool &ok)
       if(scan_speed == 0) direction = pos_change>0?1:-1;
       else direction = scan_speed>0?1:-1;
 
-      //update frequency 
+      //update frequency
       settings.channel.frequency += direction * step_sizes[settings.channel.step];
 
       if (settings.channel.frequency > settings.channel.max_frequency)
@@ -1649,7 +1649,7 @@ bool ui::frequency_scan(bool &ok)
       display_show();
   }
 
-  return false; 
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1664,7 +1664,7 @@ int ui::string_entry(char string[], bool &ok, bool &del){
   static e_state state = idle;
   int32_t encoder_position = 0;
   bool draw_display = false;
-  const char letters[] = " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789"; 
+  const char letters[] = " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789";
   static int32_t val;
 
   if(state == idle)
@@ -1854,7 +1854,7 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
   }
   else if(state == digit_change)
   {
-    //change the value of a digit 
+    //change the value of a digit
     main_encoder.control(digits[digit], 0, 9);
 
     if(menu_button.is_pressed() || encoder_button.is_pressed())
@@ -1862,7 +1862,7 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
       state = digit_select;
     }
   }
-  
+
   //Draw Display
   display_clear();
   display_print_str(title,1);
@@ -1889,7 +1889,7 @@ bool ui::configuration_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};
     static e_ui_state ui_state = select_menu_item;
-    
+
     static uint32_t menu_selection = 0;
 
     //chose menu item
@@ -1897,7 +1897,7 @@ bool ui::configuration_menu(bool &ok)
     {
       if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#Watchdog\nTest#", &menu_selection, ok))
       {
-        if(ok) 
+        if(ok)
         {
           //OK button pressed, more work to do
           ui_state = menu_item_active;
@@ -1920,27 +1920,27 @@ bool ui::configuration_menu(bool &ok)
       bool changed = false;
       switch(menu_selection)
       {
-        case 0: 
+        case 0:
           done =  enumerate_entry("Tuning\nOptions", "None#Tristate#Ground#", settings.global.tuning_option, ok, changed);
           break;
 
-        case 1: 
+        case 1:
           done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", settings.global.display_timeout, ok, changed);
           display_time = time_us_32();
           display_timeout_max = timeout_lookup[settings.global.display_timeout];
           break;
 
-        case 2 : 
+        case 2 :
           done = enumerate_entry("PSU Mode", "FM#PWM#", settings.global.regmode, ok, changed);
           gpio_set_dir(23, GPIO_OUT);
           gpio_put(23, settings.global.regmode);
           break;
 
-        case 3 : 
+        case 3 :
           done = bit_entry("Reverse\nEncoder", "Off#On#", settings.global.reverse_encoder, ok);
           break;
 
-        case 4: 
+        case 4:
         {
           static bool value = settings.global.encoder_resolution;
           done = bit_entry("Encoder\nResolution", "Low#High#", value, ok);
@@ -1954,15 +1954,15 @@ bool ui::configuration_menu(bool &ok)
           break;
         }
 
-        case 5 : 
+        case 5 :
           done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
           break;
 
-        case 6 : 
+        case 6 :
           done = number_entry("Gain Cal", "%idB", 1, 100, 1, settings.global.gain_cal, ok, changed);
           break;
 
-        case 7 : 
+        case 7 :
         {
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
           receiver.access(false);
@@ -1982,13 +1982,13 @@ bool ui::configuration_menu(bool &ok)
           break;
         }
 
-        case 8 : 
+        case 8 :
           done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
           u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
           update_display_type();
           break;
 
-        case 9: 
+        case 9:
           done = bit_entry("OLED Type", "SSD1306#SH1106#", settings.global.oled_type, ok);
           update_display_type();
           break;
@@ -2040,7 +2040,7 @@ bool ui::configuration_menu(bool &ok)
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 19: 
+        case 19:
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "#No#Yes#", usb_upload, ok, changed);
@@ -2086,7 +2086,7 @@ bool ui::noise_menu(bool & ok)
     {
       if(menu_entry("Noise", "Enable#Noise\nEstimation#Noise\nThreshold#", &menu_selection, ok))
       {
-        if(ok) 
+        if(ok)
         {
           //ok button pressed, more work to do
           ui_state = menu_item_active;
@@ -2109,14 +2109,14 @@ bool ui::noise_menu(bool & ok)
        bool changed = false;
        switch(menu_selection)
         {
-          case 0 :  
+          case 0 :
             done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
             break;
-          case 1 : 
+          case 1 :
             done = enumerate_entry("Noise\nEstimation", "Very Fast#Fast#Medium#Slow#Very Slow#", settings.global.noise_estimation, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 2 : 
+          case 2 :
             done = enumerate_entry("Noise\nThreshold", "Adaptive#Low#Normal#High#Very High#", settings.global.noise_threshold, ok, changed);
             if(changed) apply_settings(false);
             break;
@@ -2144,7 +2144,7 @@ bool ui::main_menu(bool & ok)
     {
       if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Impulse\nBlanker#Auto Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
       {
-        if(ok) 
+        if(ok)
         {
           //ok button pressed, more work to do
           ui_state = menu_item_active;
@@ -2167,20 +2167,20 @@ bool ui::main_menu(bool & ok)
        bool changed = false;
        switch(menu_selection)
         {
-          case 0 :  
+          case 0 :
             done = frequency_entry("frequency", settings.channel.frequency, ok);
             break;
-          case 1 : 
+          case 1 :
             done = memory_recall(ok);
             break;
-          case 2 : 
-            done = memory_store(ok); 
+          case 2 :
+            done = memory_store(ok);
             break;
-          case 3 :  
+          case 3 :
             done = number_entry("Volume", "%i", 0, 9, 1, settings.global.volume, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 4 :  
+          case 4 :
             done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", settings.channel.mode, ok, changed);
             if(changed) apply_settings(false);
             break;
@@ -2192,33 +2192,33 @@ bool ui::main_menu(bool & ok)
             done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.channel.agc_gain, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 7 :  
+          case 7 :
             done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", settings.channel.bandwidth, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 8 :  
+          case 8 :
             done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", settings.global.squelch_threshold, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 9 :  
+          case 9 :
             done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#", settings.global.squelch_timeout, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 10 :  
+          case 10 :
             done = noise_menu(ok);
             break;
           case 11:
             done = enumerate_entry("Impulse\nThreshold", "Off#3.0#2.8#2.6#2.4#2.2#2.0#", settings.global.impulse_threshold, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 12:  
+          case 12:
             done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
             break;
           case 13 :
             done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", settings.global.deemphasis, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 14 : 
+          case 14 :
             done = enumerate_entry("Bass", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.bass, ok, changed);
             if(changed) apply_settings(false);
             break;
@@ -2226,33 +2226,33 @@ bool ui::main_menu(bool & ok)
             done = enumerate_entry("Treble", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.treble, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 16 : 
+          case 16 :
             done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
             break;
-          case 17 : 
+          case 17 :
             done = spectrum_menu(ok);
             break;
           case 18:
             done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#", settings.global.aux_view, ok, changed);
             break;
-          case 19 :  
+          case 19 :
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
             break;
-          case 20 : 
+          case 20 :
             done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
             break;
-          case 21 : 
+          case 21 :
             done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
             settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
             break;
-          case 22 : 
+          case 22 :
             done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
             if(changed) apply_settings(false);
             break;
-          case 23 : 
+          case 23 :
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
-          case 24 : 
+          case 24 :
             done = configuration_menu(ok);
             break;
         }
@@ -2279,7 +2279,7 @@ bool ui::spectrum_menu(bool & ok)
     {
       if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#", &menu_selection, ok))
       {
-        if(ok) 
+        if(ok)
         {
           //ok button pressed, more work to do
           ui_state = menu_item_active;
@@ -2302,11 +2302,11 @@ bool ui::spectrum_menu(bool & ok)
        bool changed = false;
        switch(menu_selection)
         {
-          case 0 : 
+          case 0 :
             done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
-            zoom = settings.global.spectrum_zoom; 
+            zoom = settings.global.spectrum_zoom;
             break;
-          case 1 : 
+          case 1 :
             done = number_entry("Spectrum\nSmoothing", "%i", 1, 4, 1, settings.global.spectrum_smoothing, ok, changed);
             if(changed) apply_settings(false);
             break;
@@ -2333,7 +2333,7 @@ bool ui::bands_menu(bool &ok)
     {
       if(menu_entry("Bands", "Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok))
       {
-        if(ok) 
+        if(ok)
         {
           //ok button pressed, more work to do
           ui_state = menu_item_active;
@@ -2359,22 +2359,22 @@ bool ui::bands_menu(bool &ok)
           case 0 :
             done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, settings.global.band1, ok, changed);
             break;
-          case 1 : 
+          case 1 :
             done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, settings.global.band2, ok, changed);
             break;
-          case 2 :  
+          case 2 :
             done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, settings.global.band3, ok, changed);
             break;
-          case 3 : 
+          case 3 :
             done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, settings.global.band4, ok, changed);
             break;
           case 4 :
             done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, settings.global.band5, ok, changed);
             break;
-          case 5 : 
+          case 5 :
             done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, settings.global.band6, ok, changed);
             break;
-          case 6 :  
+          case 6 :
             done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, settings.global.band7, ok, changed);
             break;
         }
@@ -2532,7 +2532,7 @@ void ui::do_ui()
         }
 
       }
-      
+
       switch(settings.global.view)
       {
         case 0: renderpage_original(status, receiver); break;
@@ -2724,15 +2724,15 @@ void ui::update_buttons(void)
 #endif
 }
 
-ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t *audio, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) : 
+ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t *audio, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst) :
   settings(default_settings),
   main_encoder(settings.global),
-  menu_button(PIN_MENU), 
-  back_button(PIN_BACK), 
+  menu_button(PIN_MENU),
+  back_button(PIN_BACK),
   encoder_button(PIN_ENCODER_PUSH),
   settings_to_apply(settings_to_apply),
-  status(status), 
-  receiver(receiver), 
+  status(status),
+  receiver(receiver),
   spectrum(spectrum),
   audio(audio),
   dB10(dB10),
