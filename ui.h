@@ -105,7 +105,7 @@ class ui
   uint32_t display_time = 0;
   uint32_t display_timeout_max = 0;
 
-  // Status                  
+  // Status
   float calculate_signal_strength(rx_status &status);
 
   void renderpage_original(rx_status & status, rx & receiver);
@@ -126,7 +126,7 @@ class ui
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);
-  void draw_analogmeter(    uint16_t startx, uint16_t starty, 
+  void draw_analogmeter(    uint16_t startx, uint16_t starty,
                               uint16_t width, int16_t height,
                               float  needle_pct, int numticks = 0,
                               const char* legend = 0, const char labels[][5] = NULL
@@ -137,7 +137,7 @@ class ui
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;
 
-  // Menu                    
+  // Menu
   bool main_menu(bool &ok);
   bool noise_menu(bool &ok);
   bool configuration_menu(bool &ok);

@@ -49,7 +49,7 @@ class rx_dsp
   void amsync_reset(void);
 
   private:
-  
+
   void frequency_shift(int16_t &i, int16_t &q);
   bool decimate(int16_t &i, int16_t &q);
   int16_t demodulate(int16_t i, int16_t q, uint16_t mag, int16_t phi);
