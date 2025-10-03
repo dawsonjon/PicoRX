@@ -276,6 +276,24 @@ void ui::display_show()
   u8g2_SendBuffer(&u8g2);
 }
 
+uint16_t ui::audio_vu_meter_update(void) {
+  static uint16_t vu;
+  static int16_t avg;
+
+  for (uint8_t i = 0; i < 128; i++) {
+    const int16_t a = (((int16_t)audio[i]) - 38) - (avg / 16);
+    avg += a - avg / 16;
+    vu += abs(a) - vu / 32;
+  }
+  uint16_t ret = vu / 2;
+  if (ret < 15) {
+    ret = 2;
+  } else {
+    ret -= 13;
+  }
+  return ret;  // vu roughly in the range 0-128
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display (original)
 ////////////////////////////////////////////////////////////////////////////////
@@ -363,6 +381,17 @@ void ui::renderpage_original(rx_status & status, rx & receiver)
   u8g2_SetDrawColor(&u8g2, 1);
   u8g2_DrawStr(&u8g2, (128-w)/2, 60, smeter[power_s]);
 
+  uint16_t vu = audio_vu_meter_update();
+  if (vu > 121) {
+    vu = 121;
+  }
+  u8g2_DrawBox(&u8g2, 3, 44, vu, 2);
+  u8g2_SetDrawColor(&u8g2, 0);
+  for(uint16_t i = 3; i< 126; i+=4)
+  {
+    u8g2_DrawLine(&u8g2, i, 44, i, 45);
+  }
+  u8g2_SetDrawColor(&u8g2, 1);
 
   display_show();
 }
@@ -376,10 +405,13 @@ void ui::renderpage_oscilloscope(rx_status & status, rx & receiver)
     u8g2_DrawLine(&u8g2, i, audio[i] + 1, i + 1, audio[i + 1] + 1);
     u8g2_DrawLine(&u8g2, i, audio[i] - 1, i + 1, audio[i + 1] - 1);
   }
+
   u8g2_SetDrawColor(&u8g2, 0);
   u8g2_DrawBox(&u8g2, 0, 0, 128, 8);
   u8g2_SetDrawColor(&u8g2, 1);
   draw_slim_status(0, status, receiver);
+  const uint16_t vu = audio_vu_meter_update();
+  u8g2_DrawBox(&u8g2, 0, 62, vu, 2);
   display_show();
 }
 
