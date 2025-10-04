@@ -68,6 +68,7 @@ struct rx_status
   uint16_t audio_level;
   float tuning_offset_Hz;
   bool transmitting;
+  bool tuned;
 };
 
 class rx
