@@ -86,6 +86,7 @@ void rx::tune()
         set_sys_clock_pll(vco_freq, possible_frequencies[0].postdiv1, possible_frequencies[0].postdiv2);
         system_clock_rate = possible_frequencies[0].frequency;
         pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+        status.tuned = true;
       }
 
       //initialise external nco before first use
@@ -114,6 +115,7 @@ void rx::tune()
         nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+        status.tuned = true;
       }
     }
     else
@@ -159,6 +161,7 @@ void rx::tune()
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         enable_pwm(settings_to_apply.tuning_option);
+        status.tuned = true;
       }
     }
 

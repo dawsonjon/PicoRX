@@ -418,12 +418,12 @@ void ui::renderpage_oscilloscope(rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
-void ui::renderpage_bigspectrum(rx_status & status, rx & receiver)
+void ui::renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver)
 {
   display_clear();
   draw_slim_status(0, status, receiver);
   draw_h_tick_marks(8);
-  draw_spectrum(13, 63);
+  draw_spectrum(view_changed, 13, 63);
   display_show();
 }
 
@@ -437,7 +437,7 @@ void ui::renderpage_combinedspectrum(bool view_changed, rx_status & status, rx &
   draw_waterfall(48);
   draw_slim_status(0, status, receiver);
   draw_h_tick_marks(8);
-  draw_spectrum(13, 47);
+  draw_spectrum(view_changed, 13, 47);
   display_show();
 }
 
@@ -772,18 +772,53 @@ void ui::renderpage_smeter(bool view_changed, rx_status & status, rx & receiver)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(uint16_t startY, uint16_t endY)
+void ui::draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY)
 {
 
+  static uint8_t hold_buf[128];
+  static uint8_t tune_delay = 0;
   //plot
   const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
   int16_t y=0;
 
+  receiver.access(false);
+  if (status.tuned) {
+    status.tuned = false;
+    tune_delay = 2;
+  }
+  receiver.release();
+
+  bool tuned = false;
+  if (tune_delay > 0) {
+    tune_delay--;
+    if(tune_delay == 0)
+    {
+      tuned = true;
+    }
+  }
+
+  if(settings.global.spectrum_hold && (view_changed || tuned))
+  {
+    for(uint16_t i = 0; i < 128; i++)
+    {
+      hold_buf[i] = 0;
+    }
+  }
+
   for(uint16_t x=0; x<128; x++)
   {
     y = spectrum[x*2]/scale;
     ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
+    if (settings.global.spectrum_hold) {
+      if (spectrum[x * 2] > hold_buf[x]) {
+        hold_buf[x] = spectrum[x * 2];
+      }
+      if (x > 0) {
+        u8g2_DrawLine(&u8g2, x - 1, (endY - hold_buf[x - 1] / scale), x,
+                      (endY - hold_buf[x] / scale));
+      }
+    }
   }
 
   for (int16_t y = 0; y < max_height; ++y)
@@ -2174,8 +2209,14 @@ bool ui::main_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Frequency#Recall#Store#Volume#Mode#AGC#AGC Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#Impulse\nBlanker#Auto Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW Tone\nFrequency#USB Stream#HW Config#", &menu_selection, ok))
-      {
+      if (menu_entry("Menu",
+                     "Frequency#Recall#Store#Volume#Mode#AGC#AGC "
+                     "Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#"
+                     "Impulse\nBlanker#Auto "
+                     "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
+                     "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
+                     "Tone\nFrequency#USB Stream#HW Config#",
+                     &menu_selection, ok)) {
         if(ok)
         {
           //ok button pressed, more work to do
@@ -2309,7 +2350,7 @@ bool ui::spectrum_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#", &menu_selection, ok))
+      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2341,6 +2382,9 @@ bool ui::spectrum_menu(bool & ok)
           case 1 :
             done = number_entry("Spectrum\nSmoothing", "%i", 1, 4, 1, settings.global.spectrum_smoothing, ok, changed);
             if(changed) apply_settings(false);
+            break;
+          case 2:
+            done = bit_entry("Spectrum\nHold", "Off#On#", settings.global.spectrum_hold, ok);
             break;
         }
         if(done)
@@ -2468,7 +2512,7 @@ bool ui::do_splash()
 ////////////////////////////////////////////////////////////////////////////////
 // This is the main UI loop. Should get called about 10 times/second
 ////////////////////////////////////////////////////////////////////////////////
-void ui::do_ui()
+void ui::do_ui(void)
 {
     bool update_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
@@ -2568,7 +2612,7 @@ void ui::do_ui()
       switch(settings.global.view)
       {
         case 0: renderpage_original(status, receiver); break;
-        case 1: renderpage_bigspectrum(status, receiver);break;
+        case 1: renderpage_bigspectrum(view_changed, status, receiver);break;
         case 2: renderpage_combinedspectrum(view_changed, status, receiver);break;
         case 3: renderpage_waterfall(view_changed, status, receiver);break;
         case 4: renderpage_oscilloscope(status, receiver);break;

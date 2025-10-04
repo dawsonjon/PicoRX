@@ -111,7 +111,7 @@ class ui
   uint16_t audio_vu_meter_update(void);
 
   void renderpage_original(rx_status & status, rx & receiver);
-  void renderpage_bigspectrum(rx_status & status, rx & receiver);
+  void renderpage_bigspectrum(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_oscilloscope(rx_status & status, rx & receiver);
   void renderpage_combinedspectrum(bool view_changed, rx_status & status, rx & receiver);
   void renderpage_waterfall(bool view_changed, rx_status & status, rx & receiver);
@@ -124,7 +124,7 @@ class ui
   int32_t dBm_to_63px(float power_dBm);
   void log_spectrum(float *min, float *max, int zoom = 1);
   void draw_h_tick_marks(uint16_t startY);
-  void draw_spectrum(uint16_t startY, uint16_t endY);
+  void draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY);
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y, rx_status & status, rx & receiver);
   void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);
@@ -183,7 +183,7 @@ class ui
 
   s_settings & get_settings(){return settings;};
   void autorestore();
-  void do_ui();
+  void do_ui(void);
   ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_t *spectrum, uint8_t *audio, uint8_t &dB10, uint8_t &zoom, waterfall &waterfall_inst);
   void update_buttons(void);
 

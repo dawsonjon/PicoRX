@@ -91,6 +91,7 @@ struct s_global_settings
   bool    enable_test_tone;
   bool    tx_modulation;
   bool    enable_external_nco;
+  bool    spectrum_hold;
 };
 
 struct s_settings
@@ -162,6 +163,7 @@ const s_settings default_settings = {
   0,  //enable_test_tone
   0,  //tx_modulation
   0,  //enable_external_nco
+  0,  //spectrum_hold
 }};
 
 
