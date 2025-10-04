@@ -108,6 +108,8 @@ class ui
   // Status
   float calculate_signal_strength(rx_status &status);
 
+  uint16_t audio_vu_meter_update(void);
+
   void renderpage_original(rx_status & status, rx & receiver);
   void renderpage_bigspectrum(rx_status & status, rx & receiver);
   void renderpage_oscilloscope(rx_status & status, rx & receiver);
