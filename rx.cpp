@@ -200,43 +200,43 @@ void rx::apply_settings()
    if(sem_try_acquire(&settings_semaphore))
    {
 
-      if(tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
+      if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_7_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 0);
         gpio_put(PIN_BAND_1, 0);
         gpio_put(PIN_BAND_2, 0);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_6_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 1);
         gpio_put(PIN_BAND_1, 0);
         gpio_put(PIN_BAND_2, 0);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_5_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 0);
         gpio_put(PIN_BAND_1, 1);
         gpio_put(PIN_BAND_2, 0);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_4_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 1);
         gpio_put(PIN_BAND_1, 1);
         gpio_put(PIN_BAND_2, 0);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_3_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 0);
         gpio_put(PIN_BAND_1, 0);
         gpio_put(PIN_BAND_2, 1);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_2_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 1);
         gpio_put(PIN_BAND_1, 0);
         gpio_put(PIN_BAND_2, 1);
       }
-      else if(tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
+      else if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.band_1_limit * 125000))
       {
         gpio_put(PIN_BAND_0, 0);
         gpio_put(PIN_BAND_1, 1);
