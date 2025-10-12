@@ -34,7 +34,7 @@ const uint8_t PIN_AB           = 20;
 const uint8_t PIN_B            = 21;
 const uint8_t PIN_MENU         = 22;
 const uint8_t PIN_PSU          = 23;
-
+const uint8_t PIN_VBUS_SENSE   = 24;
 const uint8_t LED              = 25;
 const uint8_t PIN_ADC_I        = 26;
 const uint8_t PIN_ADC_Q        = 27;
