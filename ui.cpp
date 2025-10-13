@@ -238,7 +238,7 @@ void ui::display_draw_battery(float v, uint8_t x)
   u8g2_DrawHLine(&u8g2, x+0, 13, 14);
 
 
-  const bool vbus_present = gpio_get(24);
+  const bool vbus_present = gpio_get(PIN_VBUS_SENSE);
 
   if(vbus_present)
   {
@@ -2818,9 +2818,9 @@ ui::ui(rx_settings & settings_to_apply, rx_status & status, rx &receiver, uint8_
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
                                          u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
-  gpio_init(24);
-  gpio_set_dir(24, GPIO_IN);
-  gpio_pull_down(24);
+  gpio_init(PIN_VBUS_SENSE);
+  gpio_set_dir(PIN_VBUS_SENSE, GPIO_IN);
+  gpio_pull_down(PIN_VBUS_SENSE);
 
   setup_display();
   disp.buffer = u8g2.tile_buf_ptr;
