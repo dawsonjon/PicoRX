@@ -38,7 +38,7 @@ void rx::dma_handler() {
 
     // adc ping             ####    ####
     // adc pong                 ####    ####
-    // processing ping          ### 
+    // processing ping          ###
     // processing pong              ###
 
     if(dma_hw->ints0 & (1u << adc_dma_ping))
@@ -86,6 +86,7 @@ void rx::tune()
         set_sys_clock_pll(vco_freq, possible_frequencies[0].postdiv1, possible_frequencies[0].postdiv2);
         system_clock_rate = possible_frequencies[0].frequency;
         pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+        rx_dsp_inst.amsync_reset();
         status.tuned = true;
       }
 
@@ -115,6 +116,7 @@ void rx::tune()
         nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+        rx_dsp_inst.amsync_reset();
         status.tuned = true;
       }
     }
@@ -139,7 +141,7 @@ void rx::tune()
         internal_nco_active = true;
       }
 
-      if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) || 
+      if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) ||
          (ppm != settings_to_apply.ppm) ||
          (if_mode != settings_to_apply.if_mode) ||
          (if_frequency_hz_over_100 != settings_to_apply.if_frequency_hz_over_100))
@@ -152,7 +154,7 @@ void rx::tune()
         double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
         if_mode = settings_to_apply.if_mode;
         if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
-        
+
         disable_pwm(settings_to_apply.tuning_option);
 
         nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
@@ -161,6 +163,7 @@ void rx::tune()
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
 
         enable_pwm(settings_to_apply.tuning_option);
+        rx_dsp_inst.amsync_reset();
         status.tuned = true;
       }
     }
@@ -298,7 +301,7 @@ void rx::apply_settings()
 
       //apply treble
       rx_dsp_inst.set_treble(settings_to_apply.treble);
-    
+
       //apply bass
       rx_dsp_inst.set_bass(settings_to_apply.bass);
 
@@ -355,7 +358,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_set_function(PSU_PIN, GPIO_FUNC_SIO);
     gpio_set_dir(PSU_PIN, GPIO_OUT);
     gpio_put(PSU_PIN, 1);
-    
+
     //ADC Configuration
     adc_init();
     adc_gpio_init(26);//I channel (0) - configure pin for ADC use
@@ -391,7 +394,7 @@ rx::rx(rx_settings & settings_to_apply, rx_status & status) : settings_to_apply(
     gpio_set_dir(PIN_BAND_0, GPIO_OUT);
     gpio_set_dir(PIN_BAND_1, GPIO_OUT);
     gpio_set_dir(PIN_BAND_2, GPIO_OUT);
-    
+
     // Configure DMA for ADC transfers
     adc_dma_ping = dma_claim_unused_channel(true);
     adc_dma_pong = dma_claim_unused_channel(true);
