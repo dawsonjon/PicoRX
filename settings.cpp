@@ -10,7 +10,7 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   receiver.access(settings_changed);
   rx_settings.tuned_frequency_Hz = settings.channel.frequency;
   rx_settings.agc_setting = settings.channel.agc_setting;
-  rx_settings.agc_gain = settings.channel.agc_gain;
+  rx_settings.agc_gain = settings.global.agc_gain;
   rx_settings.enable_auto_notch = settings.global.enable_auto_notch;
   rx_settings.enable_noise_reduction = settings.global.enable_noise_reduction;
   rx_settings.mode = settings.channel.mode;

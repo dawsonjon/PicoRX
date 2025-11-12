@@ -2306,7 +2306,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 6 :
-            done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.channel.agc_gain, ok, changed);
+            done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.global.agc_gain, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 7 :

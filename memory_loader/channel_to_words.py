@@ -7,7 +7,6 @@
   #uint32_t min_frequency;
   #uint8_t  mode;
   #uint8_t  agc_setting;
-  #uint8_t  agc_gain;
   #uint8_t  step;
   #uint8_t  bandwidth;
 #};
@@ -69,12 +68,12 @@ def channel_to_words(name, frequency, min_frequency, max_frequency, mode, agc_sp
       int(frequency)&0xffffffff,
       int(max_frequency)&0xffffffff,
       int(min_frequency)&0xffffffff,
-      (modes[mode] << 0) | (agc_speeds[agc_speed] << 8) | (10 << 16) | (steps[step] << 24),
-      bandwidths[bandwidth],
+      (modes[mode] << 0) | (agc_speeds[agc_speed] << 8) | (steps[step] << 16) | (bandwidths[bandwidth] << 24),
       pack(name[0:4]),
       pack(name[4:8]),
       pack(name[8:12]),
       pack(name[12:16]),
+      0xffffffff,
       0xffffffff,
       0xffffffff,
       0xffffffff,
@@ -89,13 +88,13 @@ def channel_to_words(name, frequency, min_frequency, max_frequency, mode, agc_sp
 
 def words_to_channel(words):
   name = "asdfasdfasdfsad"
-  frequency = words[0]  
-  max_frequency = words[1]  
-  min_frequency = words[2]  
+  frequency = words[0]
+  max_frequency = words[1]
+  min_frequency = words[2]
   mode = rmodes[words[3] >> 0 & 0xff]
   agc_speed = ragc_speeds[words[3] >> 8 & 0xff]
-  step = rsteps[words[3] >> 24 & 0xff]
-  bandwidth = rbandwidths[words[4]]
-  name = unpack(words[5]) + unpack(words[6]) + unpack(words[7]) + unpack(words[8])
+  step = rsteps[words[3] >> 16 & 0xff]
+  bandwidth = rbandwidths[words[3] >> 24 & 0xff]
+  name = unpack(words[4]) + unpack(words[5]) + unpack(words[6]) + unpack(words[7])
 
   return name, frequency, min_frequency, max_frequency, mode, agc_speed, step, bandwidth

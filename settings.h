@@ -32,7 +32,6 @@ struct s_channel_settings
   uint32_t min_frequency;
   uint8_t  mode;
   uint8_t  agc_setting;
-  uint8_t  agc_gain;
   uint8_t  step;
   uint8_t  bandwidth;
 };
@@ -79,6 +78,7 @@ struct s_global_settings
   uint8_t aux_view;
   uint8_t tuning_option;
   uint8_t impulse_threshold;
+  uint8_t agc_gain;
   uint32_t sd_card_counter;
   bool    usb_stream;
   bool    sd_card_save;
@@ -109,7 +109,6 @@ const s_settings default_settings = {
   0,        //min_frequency
   0,        //mode = AM
   3,        //agc_setting = very_slow
-  10,       //agc_gain
   4,        //step = 1kHz
   2,        //bandwidth = normal
 }, {
@@ -153,6 +152,7 @@ const s_settings default_settings = {
   0,  //aux_view
   2,  //tuning_option
   0,  //impulse blanker threshold
+  6,  //agc_gain
   0,  //sd_card_counter
   0,  //usb_stream
   0,  //sd_card_save
