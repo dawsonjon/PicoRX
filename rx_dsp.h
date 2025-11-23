@@ -36,7 +36,7 @@ class rx_dsp
   void set_bass(uint8_t bs);
   void set_impulse_threshold(uint8_t it);
   void set_auto_notch(bool enable_auto_notch);
-  void set_nn_denoiser(bool enable);
+  void set_nn_denoiser(uint8_t val);
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
   void set_sd_card_save(bool enable);

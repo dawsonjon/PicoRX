@@ -80,6 +80,7 @@ struct s_global_settings
   uint8_t tuning_option;
   uint8_t impulse_threshold;
   uint32_t sd_card_counter;
+  uint8_t  nn_denoiser;
   bool    usb_stream;
   bool    sd_card_save;
   bool    enable_auto_notch;
@@ -94,7 +95,6 @@ struct s_global_settings
   bool    tx_modulation;
   bool    enable_external_nco;
   bool    spectrum_hold;
-  bool    nn_denoiser;
 };
 
 struct s_settings
@@ -155,6 +155,7 @@ const s_settings default_settings = {
   2,  //tuning_option
   0,  //impulse blanker threshold
   0,  //sd_card_counter
+  0,  //nn_denoiser
   0,  //usb_stream
   0,  //sd_card_save
   0,  //enable_auto_notch
@@ -169,7 +170,6 @@ const s_settings default_settings = {
   0,  //tx_modulation
   0,  //enable_external_nco
   0,  //spectrum_hold
-  0,  //nn_denoiser
 }};
 
 

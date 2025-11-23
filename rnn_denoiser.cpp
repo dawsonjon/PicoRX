@@ -6,6 +6,8 @@
 #include <string.h>
 
 #include <algorithm>
+#include <iterator>
+#include <numeric>
 
 #include "fastgrnn_fc_params.h"
 #include "fastgrnn_rnn_params.h"
@@ -44,16 +46,25 @@ const float FILTERBANK_MAT[MEL_BINS][FB_LEN] = {
 };
 
 const float MEAN_VEC[MEL_BINS] = {
-    -1.93904531e+00, -1.92972410e+00, -2.03262258e+00, -2.13708639e+00,
-    -2.17231059e+00, -2.17845035e+00, -2.21253324e+00, -2.18855953e+00};
+    -2.02434206e+00, -2.01172900e+00, -2.09666348e+00, -2.18149567e+00,
+    -2.21266031e+00, -2.21795726e+00, -2.24682999e+00, -2.22735381e+00};
 
-const float STD_VEC[MEL_BINS] = {4.98894513e-01, 5.22001207e-01, 4.98394430e-01,
-                                 4.78088230e-01, 4.36300784e-01, 4.17565525e-01,
-                                 3.75371695e-01, 3.68884742e-01};
+const float STD_VEC[MEL_BINS] = {4.52805787e-01, 4.75480765e-01, 4.61446911e-01,
+                                 4.47916299e-01, 4.12093073e-01, 3.97672981e-01,
+                                 3.64583939e-01, 3.56304556e-01};
 
 const uint8_t MEL_IDX[MEL_BINS] = {0, 3, 5, 8, 10, 14, 19, 26};
 
 static inline rnn_num_t sigmoidf(rnn_num_t x) { return (1 / (1 + expf(-x))); }
+static inline rnn_num_t hardsigmoid(rnn_num_t x) {
+  if (x <= -3.0f) {
+    return 0.0f;
+  } else if (x >= 3.0f) {
+    return 1.0f;
+  } else {
+    return (x / 6.0f) + 0.5f;
+  }
+}
 
 static void __time_critical_func(_rnn_process)(
     const rnn_num_t input[GRNN0_HIDD_DIM0],
@@ -95,6 +106,7 @@ static void __time_critical_func(fc_process)(const rnn_num_t input[FC_IN_DIM],
       output[j] += (input[i] * FC_W[j][i]);
     }
     output[j] += FC_B[j];
+    output[j] = hardsigmoid(output[j]);
   }
 }
 
@@ -107,19 +119,16 @@ static void rnn_process(const rnn_num_t input[GRNN0_HIDD_DIM0],
   memcpy(hidden, output, sizeof(rnn_num_t) * GRNN0_HIDD_DIM1);
 }
 
-static uint32_t avg(uint16_t x[RNND_NFFT]) {
+static uint32_t __time_critical_func(avg)(uint16_t x[RNND_NFFT]) {
   static uint32_t avg = 0;
-  uint32_t m = 0;
-  for (uint16_t i = 0; i < RNND_NFFT; i++) {
-    m += x[i];
-  }
+  uint32_t m = std::accumulate(x, x + RNND_NFFT, 0);
   m /= RNND_NFFT;
-  avg += m - (avg / 512);
+  avg += m - (avg / 256);
 
   return avg;
 }
 
-void rnn_denoiser_denoise(uint16_t x[RNND_NFFT], rnn_num_t g[RNND_NFFT]) {
+void rnn_denoiser_denoise(uint16_t x[RNND_NFFT], rnn_num_t g[RNND_NFFT], uint8_t th) {
   rnn_num_t out[GRNN0_HIDD_DIM1] = {0};
   rnn_num_t input[MEL_BINS];
 
@@ -131,22 +140,15 @@ void rnn_denoiser_denoise(uint16_t x[RNND_NFFT], rnn_num_t g[RNND_NFFT]) {
         s += FILTERBANK_MAT[i][j] * x[FILTERBANK_OFF[i] + j];
       }
     }
-    input[i] = ((log10f(1e-8f + (s / (a / 32))) - MEAN_VEC[i]) / STD_VEC[i]);
+    input[i] = ((log10f(1e-8f + (s / (a / 8))) - MEAN_VEC[i]) / STD_VEC[i]);
   }
 
   rnn_process(input, out);
   fc_process(out, input);
 
   memset(g, 0, RNND_NFFT * sizeof(rnn_num_t));
-
-  float g_sum = 0.0f;
-  for (uint16_t i = 0; i < MEL_BINS; i++) {
-    input[i] = (input[i] + 1) / 2;
-    g_sum += input[i];
-  }
-
-  // essentially a voice activity threshold
-  if (g_sum < 1.0f) {
+  const rnn_num_t g_sum = std::accumulate(input, input + MEL_BINS, 0.0f);
+  if (g_sum < ((2 * th) / 10.0f)) {
     return;
   }
 

@@ -28,12 +28,12 @@ struct s_filter_control
   int8_t noise_threshold;
   uint8_t spectrum_smoothing;
   uint32_t magnitude_sum;
+  uint8_t nn_denoiser;
   bool lower_sideband;
   bool upper_sideband;
   bool capture;
   bool enable_auto_notch;
   bool enable_noise_reduction;
-  bool nn_denoiser;
 };
 
 class fft_filter

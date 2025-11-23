@@ -2325,7 +2325,9 @@ bool ui::main_menu(bool & ok)
             done = noise_menu(ok);
             break;
           case 11 :
-            done = bit_entry("NN\nDenoiser", "Off#On#", settings.global.nn_denoiser, ok);
+            done = enumerate_entry("NN\nDenoiser", "Off#0.2#0.4#0.6#0.8#1.0#",
+                                   settings.global.nn_denoiser, ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 12:
             done = enumerate_entry("Impulse\nThreshold", "Off#3.0#2.8#2.6#2.4#2.2#2.0#", settings.global.impulse_threshold, ok, changed);

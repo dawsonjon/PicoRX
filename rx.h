@@ -53,10 +53,10 @@ struct rx_settings
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
   uint8_t tuning_option;
+  uint8_t nn_denoiser;
   bool enable_external_nco;
   bool stream_raw_iq;
   bool sd_card_save;
-  bool nn_denoiser;
 };
 
 struct rx_status
