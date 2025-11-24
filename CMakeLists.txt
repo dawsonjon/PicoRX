@@ -53,8 +53,6 @@ target_sources(u8g2 PRIVATE ${U8G2_SRCS} ${U8G2_HDRS})
 target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 target_include_directories(u8g2 PUBLIC ${CMAKE_CURRENT_LIST_DIR}/external/u8g2/csrc/)
 
-include(external/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src/CMakeLists.txt)
-
 set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/ssd1306.c
     ${CMAKE_CURRENT_LIST_DIR}/picorx.cpp
