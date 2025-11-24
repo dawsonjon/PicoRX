@@ -13,6 +13,13 @@
 #include "pins.h"
 #include "pwm_audio_sink.h"
 #include "clocks.h"
+#include "transmit/adc.h"
+#include "transmit/pwm.h"
+#include "transmit/transmit_pico2_nco.h"
+
+
+#include "transmit/modulator.h"
+#include "transmit/cw_keyer.h"
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
@@ -172,6 +179,17 @@ void rx::tune()
   }
 }
 
+void rx::tx_update_status()
+{
+
+   const bool sem_acquired = sem_try_acquire(&settings_semaphore);
+   if(sem_acquired)
+   {
+     status.audio_level = tx_audio_level;
+     status.transmitting = true;
+     sem_release(&settings_semaphore);
+   }
+}
 
 void rx::release()
 {
@@ -196,6 +214,8 @@ void rx::update_status()
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
      status.tuning_offset_Hz = rx_dsp_inst.get_tuning_offset_Hz();
+     status.audio_level = tx_audio_level;
+     status.transmitting = false;
 
      sem_release(&settings_semaphore);
    }
@@ -317,6 +337,18 @@ void rx::apply_settings()
       //apply iq imbalance correction
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
+      //apply transmit settings
+      transmit_mode = settings_to_apply.mode;
+      test_tone_enable = settings_to_apply.test_tone_enable;
+      test_tone_frequency = settings_to_apply.test_tone_frequency;
+      tx_cw_paddle = settings_to_apply.cw_paddle;
+      tx_cw_speed = settings_to_apply.cw_speed;
+      tx_mic_gain = settings_to_apply.mic_gain;
+      tx_modulation = settings_to_apply.tx_modulation;
+      tx_pwm_min = settings_to_apply.pwm_min;
+      tx_pwm_max = settings_to_apply.pwm_max;
+      tx_pwm_threshold = settings_to_apply.pwm_threshold;
+
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
       settings_changed = false;
@@ -334,7 +366,7 @@ void rx::get_audio(uint8_t audio[])
   rx_dsp_inst.get_audio_capture(audio);
 }
 
-rx::rx(rx_settings & _settings_to_apply, rx_status & _status) : settings_to_apply(_settings_to_apply), status(_status)
+rx::rx(rx_settings & _settings_to_apply, rx_status & _status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(_settings_to_apply), status(_status)
 {
 
     settings_to_apply.suspend = false;
@@ -528,7 +560,125 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
   }
 }
 
+bool __not_in_flash_func(rx::ptt)()
+{
+  static uint16_t timer = 0;
 
+  //while transmitting this gets called about 10000 times per second
+  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5;
+  else if(timer) timer--;
+
+  if(timer != 0) //force ptt because dit/dah is recently keyed
+  {
+    gpio_set_dir(PIN_PTT, GPIO_OUT);
+    gpio_put(PIN_PTT, 0);
+  }
+  else
+  {
+    gpio_set_dir(PIN_PTT, GPIO_IN);
+  }
+  sleep_us(1);
+
+  return gpio_get(PIN_PTT) == 0;
+}
+
+void __not_in_flash_func(rx::transmit)()
+{
+
+    gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_PWM);
+    gpio_set_function(PIN_RF, GPIO_FUNC_PIO0);
+
+    const double clock_frequency_Hz = system_clock_rate;
+
+    const float sample_rates[] = {
+        12e3, //AM = 0u;
+        12e3, //AMSYNC = 1u;
+        10e3, //LSB = 2u;
+        10e3, //USB = 3u;
+        15e3, //FM = 4u;
+        10e3, //CW = 5u;
+    };
+
+    // Use ADC to capture MIC input
+    adc mic_adc(PIN_MIC, 2);
+
+    // Use PWM to output magnitude
+    pwm magnitude_pwm(PIN_MAGNITUDE);
+
+    // Use PIO to output phase/frequency controlled oscillator
+    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, tuned_frequency_Hz);
+    const double sample_frequency_Hz = sample_rates[transmit_mode];
+    const uint8_t waveforms_per_sample =
+        rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
+
+    // create modulator
+    modulator audio_modulator;
+
+    // scale FM deviation
+    const double fm_deviation_Hz = 2.5e3;
+    const uint32_t fm_deviation_f15 =
+        round(2 * 32768.0 * fm_deviation_Hz /
+              rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample));
+
+    //create CW keyer
+    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample), dit, dah);
+
+    //mic gain
+    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
+
+    //test tone
+    uint32_t test_tone_phase = 0;
+    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+
+    int32_t audio = 0;
+    uint16_t magnitude = 0;
+    int16_t phase = 0;
+    int16_t i = 0; // not used in this design
+    int16_t q = 0; // not used in this design
+
+    gpio_put(LED, 1);
+    while (ptt()) {
+
+      for(uint16_t idx=0; idx<1000; idx++)
+      {
+        if(test_tone_enable)
+        {
+          audio = sin_table[test_tone_phase >> 21];
+          test_tone_phase += test_tone_frequency_steps;
+        }
+        else
+        {
+          if(transmit_mode == CW)
+          {
+            audio = keyer.get_sample();
+          }
+          else
+          {
+            // read audio from mic
+            audio = mic_adc.get_sample() * scaled_mic_gain;
+            audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+          }
+        }
+        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+
+        // demodulate
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+        // output magnitude
+        magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
+
+        // output phase
+        rf_nco.output_sample(phase, waveforms_per_sample);
+      }
+
+      //update_status
+      tx_update_status();
+    }
+    gpio_put(LED, 0);
+    gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
+
+}
 
 void rx::run()
 {
@@ -577,7 +727,7 @@ void rx::run()
           update_status();
 
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend || settings_changed)
+          if(timeout-- == 0 || suspend || settings_changed || ptt())
           {
 
             dma_channel_cleanup(adc_dma_ping);
@@ -616,6 +766,17 @@ void rx::run()
               break;
             }
         }
+      }
+
+      if(ptt())
+      {
+        //disable RX NCO
+        pio_sm_set_enabled(pio, sm, false);
+
+        transmit();
+
+        //enable RX NCO
+        pio_sm_set_enabled(pio, sm, true);
       }
 
     }

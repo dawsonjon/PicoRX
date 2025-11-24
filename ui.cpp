@@ -1991,6 +1991,93 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
 
 }
 
+
+bool ui::transmit_menu(bool &ok)
+{
+    enum e_ui_state{select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nEnable#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#", &menu_selection, ok))
+      {
+        if(ok)
+        {
+          //OK button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+      bool done = false;
+      bool changed = false;
+      switch(menu_selection)
+      {
+
+        case 0 :
+          done = enumerate_entry("MIC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.global.mic_gain, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 1 :
+          done = bit_entry("Test Tone\nEnable", "Off#On#", settings.global.enable_test_tone, ok);
+          break;
+
+        case 2 :
+          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
+          break;
+
+        case 3 :
+          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle, ok, changed);
+          break;
+
+        case 4 :
+          done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
+          break;
+
+        case 5 :
+          done = bit_entry("Modulation", "Polar#Rectangular#", settings.global.tx_modulation, ok);
+          break;
+
+        case 6 :
+          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
+          break;
+
+        case 7 :
+          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
+          break;
+
+        case 8 :
+          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
+          break;
+
+      }
+      if(done)
+      {
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
+      }
+    }
+    return false;
+
+}
+
+
 bool ui::configuration_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};
@@ -2254,7 +2341,7 @@ bool ui::main_menu(bool & ok)
                      "Impulse\nBlanker#Auto "
                      "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
                      "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
-                     "Tone\nFrequency#USB Stream#HW Config#",
+                     "Tone\nFrequency#USB Stream#Transmit\nMenu#HW Config#",
                      &menu_selection, ok)) {
         if(ok)
         {
@@ -2365,6 +2452,9 @@ bool ui::main_menu(bool & ok)
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
           case 24 :
+            done = transmit_menu(ok);
+            break;
+          case 25 :
             done = configuration_menu(ok);
             break;
         }
@@ -2829,16 +2919,6 @@ void ui::update_display_type(void)
   } else {
     u8g2_GetU8x8(&u8g2)->x_offset = 0;
   }
-}
-
-void ui::update_buttons(void)
-{
-  menu_button.update_state();
-  back_button.update_state();
-  encoder_button.update_state();
-#ifdef BUTTON_ENCODER
-  main_encoder.update();
-#endif
 }
 
 ui::ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,

@@ -61,7 +61,6 @@ int main()
 
   uint32_t last_ui_update = 0;
   uint32_t last_cat_update = 0;
-  uint32_t last_buttons_update = 0;
   uint32_t last_waterfall_update = 0;
   uint32_t last_stack_update = 0;
 
@@ -71,11 +70,6 @@ int main()
     watchdog_update();
 
     //schedule tasks
-    if (time_us_32() - last_buttons_update > BUTTONS_REFRESH_US)
-    {
-      last_buttons_update = time_us_32();
-      user_interface.update_buttons();
-    }
     receiver.tune();
 
     if(time_us_32() - last_ui_update > UI_REFRESH_US)

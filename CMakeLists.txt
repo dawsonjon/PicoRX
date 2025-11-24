@@ -33,6 +33,7 @@ pico_sdk_init()
 set(CMAKE_C_STANDARD 11)
 
 add_compile_options(-Wall -Werror -Wextra -Wshadow -Wstack-usage=2048
+#add_compile_options(-Wall -Werror -Wextra -Wshadow
                     -fdata-sections -ffunction-sections -Wno-missing-field-initializers)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
@@ -82,7 +83,16 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
+    #${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/adc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_nco.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/cordic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/pwm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/modulator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/signal_generator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/cw_keyer.cpp
 )
 
 set(PICORX_LIBS

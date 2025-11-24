@@ -44,6 +44,18 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.stream_raw_iq = settings.global.usb_stream;
   rx_settings.tuning_option = settings.global.tuning_option;
   rx_settings.impulse_threshold = settings.global.impulse_threshold;
+
+  rx_settings.test_tone_enable = settings.global.enable_test_tone;
+  rx_settings.test_tone_frequency = settings.global.test_tone_frequency;
+  rx_settings.cw_paddle = settings.global.cw_paddle;
+  rx_settings.cw_speed = settings.global.cw_speed;
+  rx_settings.mic_gain = settings.global.mic_gain;
+  rx_settings.tx_modulation = settings.global.tx_modulation;
+  rx_settings.pwm_min = settings.global.pwm_min;
+  rx_settings.pwm_max = settings.global.pwm_max;
+  rx_settings.pwm_threshold = settings.global.pwm_threshold;
+
+
   receiver.release();
 }
 

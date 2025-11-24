@@ -13,11 +13,7 @@
 #include "autosave_memory.h"
 #include "waterfall.h"
 #include "button.h"
-#ifdef BUTTON_ENCODER
-#include "button_encoder.h"
-#else
 #include "rotary_encoder.h"
-#endif
 #include "logo.h"
 #include "u8g2.h"
 #include "pins.h"
@@ -61,11 +57,7 @@ class ui
     "S9+30dB---|"};
 
   // Encoder
-#ifdef BUTTON_ENCODER
-  button_encoder main_encoder;
-#else
   rotary_encoder main_encoder;
-#endif
 
   // Buttons
   button menu_button;
@@ -144,6 +136,7 @@ class ui
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
   bool spectrum_menu(bool &ok);
+  bool transmit_menu(bool &ok);
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);
@@ -187,7 +180,6 @@ class ui
   ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,
      uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
      waterfall& _waterfall_inst);
-  void update_buttons(void);
 
 };
 
