@@ -55,7 +55,6 @@ struct rx_settings
   uint8_t tuning_option;
   bool enable_external_nco;
   bool stream_raw_iq;
-  bool sd_card_save;
 };
 
 struct rx_status

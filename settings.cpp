@@ -42,7 +42,6 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.treble = settings.global.treble;
   rx_settings.bass = settings.global.bass;
   rx_settings.stream_raw_iq = settings.global.usb_stream;
-  rx_settings.sd_card_save = settings.global.sd_card_save;
   rx_settings.tuning_option = settings.global.tuning_option;
   rx_settings.impulse_threshold = settings.global.impulse_threshold;
   receiver.release();

@@ -77,8 +77,9 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/pwm_audio_sink.cpp
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
     ${CMAKE_CURRENT_LIST_DIR}/usb_audio_device.c
-    ${CMAKE_CURRENT_LIST_DIR}/sdcard.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ring_buffer_lib.c
+    ${CMAKE_CURRENT_LIST_DIR}/clocks_pico2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
@@ -99,87 +100,18 @@ set(PICORX_LIBS
     tinyusb_device
     tinyusb_board
     u8g2
-    no-OS-FatFS-SD-SDIO-SPI-RPi-Pico
 )
 
-if(BUTTON_ENCODER)
-    add_definitions(-DBUTTON_ENCODER)
-    list(APPEND PICORX_SRCS ${CMAKE_CURRENT_LIST_DIR}/button_encoder.cpp)
-else()
-    list(APPEND PICORX_SRCS ${CMAKE_CURRENT_LIST_DIR}/rotary_encoder.cpp)
-endif()
-
-if(PICO_BOARD STREQUAL "pico")
-
-    list(APPEND PICORX_SRCS clocks_pico.cpp)
-    #main application
-    add_executable(picorx ${PICORX_SRCS})
-    target_compile_features(picorx PUBLIC c_std_11)
-    pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
-    pico_add_extra_outputs(picorx)
-    pico_enable_stdio_usb(picorx 1)
-    pico_enable_stdio_uart(picorx 0)
-
-    target_include_directories(picorx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-    target_link_libraries(picorx PRIVATE ${PICORX_LIBS})
-    target_compile_definitions(picorx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128 PICO_STACK_SIZE=4096)
-    set_target_properties(picorx PROPERTIES SUFFIX ".elf")
-    add_custom_command(TARGET picorx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/picorx.elf COMMENT "=== Memory / Code Size Report ===")
-
-    #battery check utility
-    add_executable(battery_check)
-    target_compile_features(battery_check PUBLIC c_std_11)
-    target_sources(battery_check PRIVATE ${CMAKE_CURRENT_LIST_DIR}/battery_check.cpp)
-    pico_add_extra_outputs(battery_check)
-    pico_enable_stdio_usb(battery_check 1)
-    pico_enable_stdio_uart(battery_check 0)
-    target_link_libraries(battery_check pico_stdlib hardware_adc)
-    set_target_properties(battery_check PROPERTIES SUFFIX ".elf")
-
-elseif(PICO_BOARD STREQUAL "pico2")
-
-    if(PICO_PLATFORM STREQUAL "rp2350-riscv")
-
-        list(APPEND PICORX_SRCS clocks_pico2.cpp)
-        #main application
-        add_executable(pico2rx-riscv ${PICORX_SRCS})
-        target_compile_features(pico2rx-riscv PUBLIC c_std_11)
-        pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
-        pico_add_extra_outputs(pico2rx-riscv)
-        # enable usb output, disable uart output
-        pico_enable_stdio_usb(pico2rx-riscv 1)
-        pico_enable_stdio_uart(pico2rx-riscv 0)
-        target_include_directories(pico2rx-riscv PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-        target_link_libraries(pico2rx-riscv PRIVATE ${PICORX_LIBS})
-        target_compile_definitions(pico2rx-riscv PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128 PICO_STACK_SIZE=4096)
-        set_target_properties(pico2rx-riscv PROPERTIES SUFFIX ".elf")
-        add_custom_command(TARGET pico2rx-riscv POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/pico2rx-riscv.elf COMMENT "=== Memory / Code Size Report ===")
-
-    else()
-
-        list(APPEND PICORX_SRCS clocks_pico2.cpp)
-        #main application
-        add_executable(pico2rx ${PICORX_SRCS})
-        target_compile_features(pico2rx PUBLIC c_std_11)
-        pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
-        pico_add_extra_outputs(pico2rx)
-        pico_enable_stdio_usb(pico2rx 1)
-        pico_enable_stdio_uart(pico2rx 0)
-        target_include_directories(pico2rx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-        target_link_libraries(pico2rx PRIVATE ${PICORX_LIBS})
-        target_compile_definitions(pico2rx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128 PICO_STACK_SIZE=4096)
-        set_target_properties(pico2rx PROPERTIES SUFFIX ".elf")
-        add_custom_command(TARGET pico2rx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/pico2rx.elf COMMENT "=== Memory / Code Size Report ===")
-
-        #battery check utility
-        add_executable(battery_check_pico2)
-        target_compile_features(battery_check_pico2 PUBLIC c_std_11)
-        target_sources(battery_check_pico2 PRIVATE battery_check.cpp)
-        pico_add_extra_outputs(battery_check_pico2)
-        pico_enable_stdio_usb(battery_check_pico2 1)
-        pico_enable_stdio_uart(battery_check_pico2 0)
-        target_link_libraries(battery_check_pico2 pico_stdlib hardware_adc)
-        set_target_properties(battery_check_pico2 PROPERTIES SUFFIX ".elf")
-
-    endif()
-endif()
+list(APPEND PICORX_SRCS clocks_pico2.cpp)
+#main application
+add_executable(pico2rx ${PICORX_SRCS})
+target_compile_features(pico2rx PUBLIC c_std_11)
+pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
+pico_add_extra_outputs(pico2rx)
+pico_enable_stdio_usb(pico2rx 1)
+pico_enable_stdio_uart(pico2rx 0)
+target_include_directories(pico2rx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(pico2rx PRIVATE ${PICORX_LIBS})
+target_compile_definitions(pico2rx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128 PICO_STACK_SIZE=4096)
+set_target_properties(pico2rx PROPERTIES SUFFIX ".elf")
+add_custom_command(TARGET pico2rx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/pico2rx.elf COMMENT "=== Memory / Code Size Report ===")

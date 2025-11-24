@@ -178,14 +178,11 @@ class ui
 
   u8g2_t u8g2;
 
-  bool sd_card_icon;
-
   public:
 
   s_settings & get_settings(){return settings;};
   void autorestore();
   void do_ui(void);
-  void set_sd_card_icon(bool en);
   void update_sdcard_counter(uint32_t c);
   ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,
      uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,

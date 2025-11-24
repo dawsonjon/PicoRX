@@ -4,7 +4,6 @@
 #include "utils.h"
 #include "pico/stdlib.h"
 #include "cic_corrections.h"
-#include "sdcard.h"
 
 #include <math.h>
 #include <cstdio>
@@ -317,11 +316,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     //output raw audio
     audio_samples[idx] = audio;
-  }
-
-  if (sd_card_save) {
-    sdcard_write((const uint16_t*)audio_samples,
-                 adc_block_size / decimation_rate);
   }
 
   if (sem_try_acquire(&audio_semaphore)) {
@@ -654,8 +648,6 @@ void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
 {
   filter_control.spectrum_smoothing = spectrum_smoothing;
 }
-
-void rx_dsp ::set_sd_card_save(bool enable) { sd_card_save = enable; }
 
 void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold)
 {

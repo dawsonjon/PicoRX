@@ -350,11 +350,6 @@ void ui::renderpage_original(void)
   display_draw_battery(battery_voltage, x);
   x += 18;
 
-  if (sd_card_icon) {
-    u8g2_DrawXBM(&u8g2, x, 3, sdcard_icon_width, sdcard_icon_height,
-                 sdcard_bits);
-  }
-
   //power
   snprintf(buff, buffer_size, "% 4d ", (int)power_dBm);
   uint16_t w = u8g2_GetStrWidth(&u8g2, buff);
@@ -2259,7 +2254,7 @@ bool ui::main_menu(bool & ok)
                      "Impulse\nBlanker#Auto "
                      "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
                      "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
-                     "Tone\nFrequency#USB Stream#SD card\nrecord#HW Config#",
+                     "Tone\nFrequency#USB Stream#HW Config#",
                      &menu_selection, ok)) {
         if(ok)
         {
@@ -2370,9 +2365,6 @@ bool ui::main_menu(bool & ok)
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
           case 24 :
-            done = bit_entry("SD card\nrecord", "Off#On#", settings.global.sd_card_save, ok);
-            break;
-          case 25 :
             done = configuration_menu(ok);
             break;
         }
@@ -2742,11 +2734,6 @@ void ui::do_ui(void)
       apply_settings(false);
       autosave();
     }
-}
-
-void ui::set_sd_card_icon(bool en) { sd_card_icon = en; }
-void ui::update_sdcard_counter(uint32_t c) {
-  settings.global.sd_card_counter = c;
 }
 
 #define OLED_I2C_SDA_PIN (18)

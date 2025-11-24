@@ -317,9 +317,6 @@ void rx::apply_settings()
       //apply iq imbalance correction
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
-      // apply SD card WAV file saving
-      rx_dsp_inst.set_sd_card_save(settings_to_apply.sd_card_save);
-
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
       settings_changed = false;

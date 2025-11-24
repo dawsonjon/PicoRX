@@ -38,7 +38,6 @@ class rx_dsp
   void set_auto_notch(bool enable_auto_notch);
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
-  void set_sd_card_save(bool enable);
   int16_t get_signal_strength_dBm();
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void get_audio_capture(uint8_t audio[]);
@@ -149,8 +148,6 @@ class rx_dsp
 
   // synchronous AM demodulator state
   amsync_t amsync;
-
-  bool sd_card_save;
 
 };
 
