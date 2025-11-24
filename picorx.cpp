@@ -38,9 +38,6 @@ void core1_main()
 
 int main()
 {
-  gpio_set_function(LED, GPIO_FUNC_SIO);
-  gpio_set_dir(LED, GPIO_OUT);
-  gpio_put(LED, 1);
 
   // emergency bootloader mode
   gpio_init(PIN_BACK);

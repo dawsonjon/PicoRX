@@ -2006,7 +2006,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#Watchdog\nTest#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2164,13 +2164,6 @@ bool ui::configuration_menu(bool &ok)
               reset_usb_boot(0,0);
             }
           }
-          break;
-        }
-        case 20:
-        {
-          bool test = false;
-          done = bit_entry("Watchdog\nTest", "Off#On#", test, ok);
-          if(test){while(1){}}
           break;
         }
       }
