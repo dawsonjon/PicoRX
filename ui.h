@@ -109,6 +109,7 @@ class ui
   void renderpage_status(void);
   void renderpage_fun(bool view_changed);
   void renderpage_smeter(bool view_changed);
+  void renderpage_transmit(void);
 
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);

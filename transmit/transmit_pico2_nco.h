@@ -19,6 +19,10 @@
 #include "stream_bits.pio.h"
 #include <cmath>
 
+static const uint8_t bits_per_word = 32u;
+static const uint8_t max_waveforms_per_sample = 200u;
+static const uint16_t waveform_length_bits = 512u;
+static const uint16_t waveform_length_words = waveform_length_bits / bits_per_word;
 
 class transmit_nco {
 private:
@@ -28,23 +32,15 @@ private:
   uint32_t nco_dma, chain_dma, sm;
   dma_channel_config nco_dma_cfg;
   dma_channel_config chain_dma_cfg;
-  static const uint8_t max_waveforms_per_sample = 200u;
   int64_t index_f32 = 0u;
   uint8_t ping_pong = 0u;
   uint64_t interrupts;
   bool dma_started = false;
-  static const uint8_t bits_per_word = 32u;
-  static const uint16_t waveform_length_bits = 512u;
-  static const uint16_t waveform_length_words =
-      waveform_length_bits / bits_per_word;
   static const uint32_t fraction_bits = 32u;
   int64_t index_increment_f32;
   int64_t wrap_f32;
   int64_t phase_step_clocks_f32;
   uint offset;
-  static const uint32_t *buffer_addresses[2][max_waveforms_per_sample + 1];
-  static uint32_t buffer[bits_per_word * waveform_length_words * 2]
-      __attribute__((aligned(4)));
 
   void initialise_waveform_buffer(uint32_t buffer[],
                                   uint32_t waveform_length_words,

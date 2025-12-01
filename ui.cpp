@@ -17,12 +17,6 @@
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
-#define sdcard_icon_width (9)
-#define sdcard_icon_height (11)
-static const unsigned char sdcard_bits[] = {
-    0xfc, 0x01, 0x02, 0x01, 0x55, 0x01, 0x55, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xff, 0x00};
-
 void strip_trailing_space(const char *x, char *y)
 {
 
@@ -282,6 +276,69 @@ void ui::display_show()
 
   u8g2_SendBuffer(&u8g2);
 }
+
+void ui::renderpage_transmit(void)
+{
+
+  receiver.access(false);
+  const uint16_t audio_level = status.audio_level;
+  receiver.release();
+
+  const uint8_t buffer_size = 21;
+  char buff [buffer_size];
+  display_clear();
+
+  const uint8_t text_height = 14u;
+  u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
+  u8g2_DrawStr(&u8g2, 0, text_height, "!TRANSMITTING!");
+
+  //frequency
+  uint32_t remainder, MHz, kHz, Hz;
+  MHz = (uint32_t)settings.channel.frequency/1000000u;
+  remainder = (uint32_t)settings.channel.frequency%1000000u;
+  kHz = remainder/1000u;
+  remainder = remainder%1000u;
+  Hz = remainder;
+
+  u8g2_SetFont(&u8g2, font_seg_big);
+  snprintf(buff, buffer_size, "%2lu", MHz);
+  u8g2_DrawStr(&u8g2, 0, 42, buff);
+  snprintf(buff, buffer_size, "%03lu", kHz);
+  u8g2_DrawStr(&u8g2, 39, 42, buff);
+  u8g2_DrawBox(&u8g2, 35, 39, 3, 3);
+  u8g2_SetFont(&u8g2, font_seg_mid);
+  snprintf(buff, buffer_size, "%03lu", Hz);
+  u8g2_DrawStr(&u8g2, 94, 31, buff);
+  u8g2_DrawBox(&u8g2, 90, 29, 3, 3);
+
+  //mode
+  u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+  u8g2_GetStrWidth(&u8g2, mode_to_str(0));
+
+  //Microphone
+  int8_t mic_power = std::max(log2(audio_level)-2.0, 0.0);
+  const uint16_t seg_w = 8;
+  const uint16_t seg_h = 12;
+  const uint16_t seg_y = 47;
+  const uint16_t seg_x = 3;
+
+  u8g2_SetDrawColor(&u8g2, 1);
+  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w+1)*13+4, seg_h+5, 2);
+  for (int8_t i = 0; i < 13; i++)
+  {
+    u8g2_SetDrawColor(&u8g2, 0);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y+2, seg_w + 2, seg_h + 2, 2);
+    u8g2_SetDrawColor(&u8g2, 1);
+
+    if (i < mic_power)
+    {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
+    }
+  }
+
+  display_show();
+}
+
 
 uint16_t ui::audio_vu_meter_update(void) {
   static uint16_t vu;
@@ -2643,6 +2700,16 @@ void ui::do_ui(void)
     static bool view_changed = false;
 
     if(ui_state != idle) view_changed = true;
+
+    receiver.access(false);
+    const bool transmitting = status.transmitting;
+    receiver.release();
+
+    if(transmitting)
+    {
+      renderpage_transmit();
+      return;
+    }
 
     //gui is idle, just update the display
     if(ui_state == splash)

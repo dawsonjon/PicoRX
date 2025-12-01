@@ -61,10 +61,10 @@ transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, doub
   wrap_f32 = period_clocks * pow(2.0, fraction_bits);
 
   // we may want to adjust the phase on-the fly.
-  // A 16-bit phase adjustment will have steps of period/16384 i.e.
-  // -period/16384 +period/16383
+  // A 16-bit phase adjustment will have steps of period/32768 i.e.
+  // -period/32768 +period/16383
   phase_step_clocks_f32 =
-      (0.5 * period_clocks / 16384.0) * pow(2.0, 32);
+      (0.5 * period_clocks / 32768.0) * pow(2.0, 32);
 
   // store 32 waveforms
   // 32 copies of the waveform are stored, each advanced by 1 clock more than

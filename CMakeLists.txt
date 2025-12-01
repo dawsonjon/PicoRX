@@ -83,7 +83,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
     #${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/adc.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_nco.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_pico2_nco.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/cordic.cpp

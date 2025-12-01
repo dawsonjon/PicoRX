@@ -17,14 +17,17 @@
 #include "hardware/structs/hstx_fifo.h"
 #include <cstdio>
 
-void transmit_nco::initialise_waveform_buffer(uint32_t buffer[],
-                                     uint32_t waveform_length_words,
+static const uint32_t *buffer_addresses[2][max_waveforms_per_sample + 1];
+static uint32_t buffer[bits_per_word * waveform_length_words * 2] __attribute__((aligned(4)));
+
+void transmit_nco::initialise_waveform_buffer(uint32_t _buffer[],
+                                     uint32_t _waveform_length_words,
                                      double normalised_frequency) {
 
   uint32_t phase_increment = round(normalised_frequency * 4294967296.0);
   for (uint8_t advance = 0u; advance < bits_per_word; ++advance) {
     uint32_t phase = advance*phase_increment;
-    for (uint16_t word = 0; word < waveform_length_words * 2; ++word) {
+    for (uint16_t word = 0; word < _waveform_length_words * 2; ++word) {
       uint32_t bit_samples = 0;
       for (uint8_t bit = 0; bit < bits_per_word; ++bit) {
         int16_t sample = sin_table[phase>>21]; //shift 21 bits to the right, keeping 11 MSBs
@@ -38,7 +41,7 @@ void transmit_nco::initialise_waveform_buffer(uint32_t buffer[],
           bit_samples |= (1 << bit);
         }
       }
-      buffer[(advance * waveform_length_words * 2) + word] = bit_samples;
+      _buffer[(advance * _waveform_length_words * 2) + word] = bit_samples;
     }
   }
 }
@@ -61,8 +64,6 @@ transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, doub
       0 << HSTX_CTRL_BIT0_SEL_P_LSB | //shift register bit 0 on first half cycle
       1 << HSTX_CTRL_BIT0_SEL_N_LSB; //shift register bit 1 on second half cycle
 
-
-
   // calculate some constants
   const double normalised_frequency = frequency_Hz / (2*clock_frequency_Hz);
   const double period_clocks = (2*clock_frequency_Hz) / frequency_Hz;
@@ -81,10 +82,10 @@ transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, doub
   wrap_f32 = period_clocks * pow(2.0, fraction_bits);
 
   // we may want to adjust the phase on-the fly.
-  // A 16-bit phase adjustment will have steps of period/16384 i.e.
-  // -period/16384 +period/16383
+  // A 16-bit phase adjustment will have steps of period/32768 i.e.
+  // -period/32768 +period/32767
   phase_step_clocks_f32 =
-      (0.5 * period_clocks / 16384.0) * pow(2.0, 32);
+      (0.5 * period_clocks / 32768.0) * pow(2.0, fraction_bits);
 
   // store 32 waveforms
   // 32 copies of the waveform are stored, each advanced by 1 clock more than
@@ -160,7 +161,7 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
   assert(waveforms_per_sample < max_waveforms_per_sample);
 
   // null transfer at the end of each 32 address block
-  static buffer_addresses[ping_pong][waveforms_per_sample] = NULL;
+  buffer_addresses[ping_pong][waveforms_per_sample] = NULL;
 
   //smoothly transision between phases over the course of a cycle
   static int16_t previous_phase = 0;
