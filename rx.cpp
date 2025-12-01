@@ -339,7 +339,7 @@ void rx::apply_settings()
 
       //apply transmit settings
       transmit_mode = settings_to_apply.mode;
-      test_tone_enable = settings_to_apply.test_tone_enable;
+      test_tone_setting = settings_to_apply.test_tone_setting;
       test_tone_frequency = settings_to_apply.test_tone_frequency;
       tx_cw_paddle = settings_to_apply.cw_paddle;
       tx_cw_speed = settings_to_apply.cw_speed;
@@ -629,6 +629,10 @@ void __not_in_flash_func(rx::transmit)()
     //test tone
     uint32_t test_tone_phase = 0;
     uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+    uint32_t test_tone1_phase = 0;
+    uint32_t test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
+    uint32_t test_tone2_phase = 0;
+    uint32_t test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
 
     int32_t audio = 0;
     uint16_t magnitude = 0;
@@ -641,10 +645,16 @@ void __not_in_flash_func(rx::transmit)()
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
-        if(test_tone_enable)
+        if(test_tone_setting == 1)
         {
           audio = sin_table[test_tone_phase >> 21];
           test_tone_phase += test_tone_frequency_steps;
+        }
+        else if(test_tone_setting == 2)
+        {
+          audio = sin_table[test_tone1_phase >> 21]/2 + sin_table[test_tone2_phase >> 21]/2;
+          test_tone1_phase += test_tone1_frequency_steps;
+          test_tone2_phase += test_tone2_frequency_steps;
         }
         else
         {

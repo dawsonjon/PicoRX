@@ -2059,7 +2059,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Test Tone\nEnable#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2091,7 +2091,7 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 1 :
-          done = bit_entry("Test Tone\nEnable", "Off#On#", settings.global.enable_test_tone, ok);
+          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
           break;
 
         case 2 :

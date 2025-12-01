@@ -45,7 +45,7 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.tuning_option = settings.global.tuning_option;
   rx_settings.impulse_threshold = settings.global.impulse_threshold;
 
-  rx_settings.test_tone_enable = settings.global.enable_test_tone;
+  rx_settings.test_tone_setting = settings.global.test_tone_setting;
   rx_settings.test_tone_frequency = settings.global.test_tone_frequency;
   rx_settings.cw_paddle = settings.global.cw_paddle;
   rx_settings.cw_speed = settings.global.cw_speed;

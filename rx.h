@@ -58,7 +58,7 @@ struct rx_settings
   bool stream_raw_iq;
 
   //transmit
-  bool test_tone_enable;
+  uint8_t test_tone_setting;
   uint8_t test_tone_frequency;
   uint8_t cw_paddle;
   uint8_t cw_speed;
@@ -148,7 +148,7 @@ class rx
   uint8_t transmit_mode;
   void transmit();
   bool ptt();
-  bool test_tone_enable;
+  uint8_t test_tone_setting;
   uint8_t test_tone_frequency;
   uint8_t tx_cw_paddle;
   uint8_t tx_cw_speed;

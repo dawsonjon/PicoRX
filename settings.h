@@ -63,6 +63,7 @@ struct s_global_settings
   uint8_t pwm_min;
   uint8_t pwm_max;
   uint8_t test_tone_frequency;
+  uint8_t test_tone_setting;
   uint8_t cw_paddle;
   uint8_t cw_speed;
   uint8_t mic_gain;
@@ -88,7 +89,6 @@ struct s_global_settings
   bool    swap_iq;
   bool    flip_oled;
   bool    oled_type;
-  bool    enable_test_tone;
   bool    tx_modulation;
   bool    enable_external_nco;
   bool    spectrum_hold;
@@ -135,8 +135,9 @@ const s_settings default_settings = {
   0x00, //pwm_min
   0x55, //pwm_max
   10,   //test_tone_frequency
+  0,    //test_tone_setting
   0,    //cw_paddle;
-  0,    //cw_speed;
+  12,   //cw_speed;
   0,    //mic_gain;
   0,    //pwm_threshold;
   45, //if_frequency_hz_over_100 = 4500Hz
@@ -160,7 +161,6 @@ const s_settings default_settings = {
   0,  //swap_iq
   0,  //flip_oled
   0,  //oled_type = ssd1306
-  0,  //enable_test_tone
   0,  //tx_modulation
   0,  //enable_external_nco
   0,  //spectrum_hold
