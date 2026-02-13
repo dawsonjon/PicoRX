@@ -15,40 +15,50 @@
 #include "utils.h"
 #include "hardware/structs/hstx_ctrl.h"
 #include "hardware/structs/hstx_fifo.h"
+#include "pico/rand.h"
 #include <cstdio>
 
 static const uint32_t *buffer_addresses[2][max_waveforms_per_sample + 1];
 static uint32_t buffer[bits_per_word * waveform_length_words * 2] __attribute__((aligned(4)));
 
+static uint64_t rng_state = 88172645463325252ULL;
+static inline uint64_t rand64(void) {
+    uint64_t x = rng_state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    rng_state = x;
+    return x;
+}
+
 void transmit_nco::initialise_waveform_buffer(uint32_t _buffer[],
                                      uint32_t _waveform_length_words,
                                      double normalised_frequency) {
 
+  uint64_t phase_dither_mask = (1llu<<m_waveform_phase_dither)-1;
   uint32_t phase_increment = round(normalised_frequency * 4294967296.0);
   for (uint8_t advance = 0u; advance < bits_per_word; ++advance) {
     uint32_t phase = advance*phase_increment;
     for (uint16_t word = 0; word < _waveform_length_words * 2; ++word) {
       uint32_t bit_samples = 0;
       for (uint8_t bit = 0; bit < bits_per_word; ++bit) {
-        int16_t sample = sin_table[phase>>21]; //shift 21 bits to the right, keeping 11 MSBs
         phase += phase_increment;
-        // could apply dithering here to remove harmonics
-        if(m_dither)
-        {
-          sample += (rand() & 0x7fff) - 16383;
-        }
-        if (sample > 0) {
-          bit_samples |= (1 << bit);
-        }
+
+        //apply phase dithering to waveforms to help reduce spurs
+        uint32_t phase_dither = rand64() & phase_dither_mask;
+        uint8_t val = (phase + phase_dither) >> 31;
+        bit_samples |= (val << bit);
+
       }
       _buffer[(advance * _waveform_length_words * 2) + word] = bit_samples;
     }
   }
 }
 
-transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, bool dither) {
+transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, uint8_t waveform_phase_dither, uint8_t phase_dither) {
   m_rf_pin = rf_pin;
-  m_dither = dither;
+  m_waveform_phase_dither = waveform_phase_dither;
+  m_phase_dither = phase_dither;
 
 
   //configure hstx
@@ -149,6 +159,7 @@ double transmit_nco::get_sample_frequency_Hz(double clock_frequency_Hz, uint8_t 
   return (2*clock_frequency_Hz) / (waveform_length_bits * waveforms_per_sample);
 }
 
+
 // Run NCO for one audio sample.
 //
 // phase is a signed 16-bit number representing -pi/2 <= x < pi/2
@@ -170,13 +181,15 @@ void __not_in_flash_func(transmit_nco::output_sample)(int16_t phase, uint8_t wav
   if(phase_change < -32768) phase_change += 65536;
   int32_t subsample_phase_increment_f8 = (phase_change/(waveforms_per_sample)) << 8;
   int32_t subsample_phase_f8 = ((int32_t)previous_phase << 8) + subsample_phase_increment_f8;
+  uint64_t phase_dither_mask = (1llu<<m_phase_dither)-1;
 
   // plan next 32 transfers while the last 32 are sending
   for (uint8_t transfer = 0u; transfer < waveforms_per_sample; ++transfer) {
 
     uint64_t phase_modulation_f32 = (phase_step_clocks_f32 * (subsample_phase_f8>>8));
     subsample_phase_f8 += subsample_phase_increment_f8;
-    int64_t modulated_index_f32 = index_f32 + phase_modulation_f32;
+    uint64_t phase_dither = rand64() & phase_dither_mask;
+    int64_t modulated_index_f32 = index_f32 + phase_modulation_f32 + phase_dither;
     if (modulated_index_f32 > wrap_f32) modulated_index_f32 -= wrap_f32;
     if (modulated_index_f32 < 0) modulated_index_f32 += wrap_f32;
 

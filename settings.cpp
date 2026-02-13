@@ -54,6 +54,9 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.pwm_min = settings.global.pwm_min;
   rx_settings.pwm_max = settings.global.pwm_max;
   rx_settings.pwm_threshold = settings.global.pwm_threshold;
+  rx_settings.tx_phase_dither = settings.global.tx_phase_dither;
+  rx_settings.tx_waveform_phase_dither = settings.global.tx_waveform_phase_dither;
+  rx_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
 
 
   receiver.release();

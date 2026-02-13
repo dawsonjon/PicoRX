@@ -16,6 +16,7 @@
 #include "transmit/adc.h"
 #include "transmit/pwm.h"
 #include "transmit/transmit_pico2_nco.h"
+#include "transmit/tx_best_clock.h"
 
 
 #include "transmit/modulator.h"
@@ -348,6 +349,9 @@ void rx::apply_settings()
       tx_pwm_min = settings_to_apply.pwm_min;
       tx_pwm_max = settings_to_apply.pwm_max;
       tx_pwm_threshold = settings_to_apply.pwm_threshold;
+      tx_use_best_clock = settings_to_apply.tx_use_best_clock;
+      tx_phase_dither = settings_to_apply.tx_phase_dither;
+      tx_waveform_phase_dither = settings_to_apply.tx_waveform_phase_dither;
 
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
@@ -582,11 +586,18 @@ bool __not_in_flash_func(rx::ptt)()
   return gpio_get(PIN_PTT) == 0;
 }
 
+
+//TRANSMIT
 void __not_in_flash_func(rx::transmit)()
 {
 
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_PWM);
     gpio_set_function(PIN_RF, GPIO_FUNC_PIO0);
+
+    double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+    if(tx_use_best_clock) {
+      system_clock_rate = tx_best_clock(adjusted_tuned_frequency_Hz);
+    }
 
     const double clock_frequency_Hz = system_clock_rate;
 
@@ -606,7 +617,7 @@ void __not_in_flash_func(rx::transmit)()
     pwm magnitude_pwm(PIN_MAGNITUDE);
 
     // Use PIO to output phase/frequency controlled oscillator
-    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, tuned_frequency_Hz);
+    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, adjusted_tuned_frequency_Hz, tx_waveform_phase_dither, tx_phase_dither);
     const double sample_frequency_Hz = sample_rates[transmit_mode];
     const uint8_t waveforms_per_sample =
         rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
@@ -684,6 +695,13 @@ void __not_in_flash_func(rx::transmit)()
       //update_status
       tx_update_status();
     }
+
+    //restore clock settings for receive
+    nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+    rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+
     gpio_put(LED, 0);
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
     gpio_set_function(PIN_RF, GPIO_FUNC_SIO);

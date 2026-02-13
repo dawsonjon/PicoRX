@@ -2059,7 +2059,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#W-Phase\nDither#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2120,6 +2120,18 @@ bool ui::transmit_menu(bool &ok)
 
         case 8 :
           done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
+          break;
+
+        case 9 :
+          done = bit_entry("Adapt Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+          break;
+
+        case 10 :
+          done = number_entry("Phase Dither", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
+          break;
+
+        case 11 :
+          done = number_entry("WPhase Dither", "%i", 0, 63, 1, settings.global.tx_waveform_phase_dither, ok, changed);
           break;
 
       }

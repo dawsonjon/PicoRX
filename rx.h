@@ -67,6 +67,9 @@ struct rx_settings
   uint8_t pwm_min;
   uint8_t pwm_max;
   uint8_t pwm_threshold;
+  uint8_t tx_phase_dither;
+  uint8_t tx_waveform_phase_dither;
+  bool tx_use_best_clock;
 };
 
 struct rx_status
@@ -158,6 +161,9 @@ class rx
   uint8_t tx_pwm_min;
   uint8_t tx_pwm_max;
   uint8_t tx_pwm_threshold;
+  uint8_t tx_phase_dither;
+  uint8_t tx_waveform_phase_dither;
+  bool tx_use_best_clock;
 
   // USB streaming mode
   uint8_t stream_raw_iq;

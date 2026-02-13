@@ -83,6 +83,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
     #${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/adc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/tx_best_clock.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_pico2_nco.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter2.cpp
@@ -96,6 +97,7 @@ set(PICORX_SRCS
 set(PICORX_LIBS
     pico_stdlib
     pico_multicore
+    pico_rand
     hardware_clocks
     hardware_flash
     hardware_pio

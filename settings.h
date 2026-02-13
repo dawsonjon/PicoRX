@@ -60,6 +60,8 @@ struct s_global_settings
   uint8_t band5;
   uint8_t band6;
   uint8_t band7;
+  uint8_t tx_phase_dither;
+  uint8_t tx_waveform_phase_dither;
   uint8_t pwm_min;
   uint8_t pwm_max;
   uint8_t test_tone_frequency;
@@ -90,6 +92,7 @@ struct s_global_settings
   bool    flip_oled;
   bool    oled_type;
   bool    tx_modulation;
+  bool    tx_use_best_clock;
   bool    enable_external_nco;
   bool    spectrum_hold;
 };
@@ -132,6 +135,8 @@ const s_settings default_settings = {
   0x20, //band5
   0x40, //band6
   0x80, //band7
+  0x00, //phase dither
+  0x00, //waveform phase dither
   0x00, //pwm_min
   0x55, //pwm_max
   10,   //test_tone_frequency
@@ -162,6 +167,7 @@ const s_settings default_settings = {
   0,  //flip_oled
   0,  //oled_type = ssd1306
   0,  //tx_modulation
+  0,  //tx_use_best_clock
   0,  //enable_external_nco
   0,  //spectrum_hold
 }};
