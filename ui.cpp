@@ -288,9 +288,20 @@ void ui::renderpage_transmit(void)
   char buff [buffer_size];
   display_clear();
 
-  const uint8_t text_height = 14u;
-  u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
-  u8g2_DrawStr(&u8g2, 0, text_height, "!TRANSMITTING!");
+  //Animate TX
+  u8g2_DrawLine(&u8g2, 10, 14, 10, 0);
+  u8g2_DrawLine(&u8g2, 10, 7, 5, 0);
+  u8g2_DrawLine(&u8g2, 10, 7, 15, 0);
+  const uint8_t animation_y = 8;
+  const uint8_t fx[] = {0, 1, 3, 4, 5, 6, 6, 7, 7, 7, 6, 6, 5, 3, 1};
+  static uint8_t step = 0;
+  for(int x=20; x<128; x+=2) {
+    int8_t y = fx[(step+(x/8))&0xf];
+    //y = rand()%(y+1);
+    if((step+(x/8))&0x10) y=-y;
+    u8g2_DrawLine(&u8g2, x, animation_y + y, x, animation_y);
+  }
+  step--;
 
   //frequency
   uint32_t remainder, MHz, kHz, Hz;
@@ -2798,6 +2809,7 @@ void ui::do_ui(void)
     if(transmitting)
     {
       renderpage_transmit();
+      view_changed = true;
       return;
     }
 
