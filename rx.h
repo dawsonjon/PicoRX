@@ -174,6 +174,7 @@ class rx
   uint8_t tx_waveform_phase_dither;
   bool tx_use_best_clock;
   bool tx_enable;
+  uint16_t cw_sidetone_frequency_Hz;
 
   // USB streaming mode
   uint8_t stream_raw_iq;

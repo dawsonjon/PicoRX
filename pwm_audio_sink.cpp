@@ -98,6 +98,16 @@ void pwm_audio_sink_stop(void) {
   dma_channel_cleanup(pwm_dma_pong);
 }
 
+void pwm_audio_sink_set_value(int16_t sample, int16_t gain) {
+  // digital volume control
+  sample = ((int32_t)sample * gain) >> 8;
+
+  // shift up
+  sample += INT16_MAX;
+  sample = (uint16_t)sample / pwm_scale;
+  pwm_set_chan_level(audio_pwm_slice_num, PWM_CHAN_A, sample);
+}
+
 uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
   static bool toggle = false;
   uint32_t time;
@@ -123,14 +133,14 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
 
 void disable_pwm(uint8_t tuning_option)
 {
-  
+
   if(tuning_option == 0){
     //do nothing
-  } else if(tuning_option == 1) { 
+  } else if(tuning_option == 1) {
     //ramp down to ground before changing frequency
     gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
     gpio_disable_pulls(PIN_AUDIO);
-  } else { 
+  } else {
     //tristate before changing frequency
     ground = true;
     ramp = ramp_samples; //100ms
@@ -144,11 +154,11 @@ void enable_pwm(uint8_t tuning_option)
 
   if(tuning_option == 0){
     //do nothing
-  } else if(tuning_option == 1) { 
+  } else if(tuning_option == 1) {
     //ramp down to ground before changing frequency
     sleep_us(15000);
     gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
-  } else { 
+  } else {
     //tristate before changing frequency
     ground = false;
     ramp = 0;
