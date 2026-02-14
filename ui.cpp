@@ -1125,6 +1125,13 @@ bool ui::enumerate_entry(const char title[], const char options[], uint8_t &valu
 }
 
 //select a number in a range
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint16_t &value, bool &ok, bool &changed)
+{
+  int32_t extended_value = value;
+  bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
+  value = (uint16_t)extended_value;
+  return return_value;
+}
 bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed)
 {
   int32_t extended_value = value;
@@ -2059,7 +2066,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#W-Phase\nDither#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2123,15 +2130,11 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 9 :
-          done = bit_entry("Adapt Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
           break;
 
         case 10 :
-          done = number_entry("Phase Dither", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
-          break;
-
-        case 11 :
-          done = number_entry("WPhase Dither", "%i", 0, 63, 1, settings.global.tx_waveform_phase_dither, ok, changed);
+          done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
           break;
 
       }
@@ -2157,7 +2160,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Bands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Tuning\nOptions#Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#TX Bands\nLower#TX Bands\nUpper#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2285,24 +2288,32 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 15:
-          done = bands_menu(ok);
+          done = tx_bands_menu(ok, false);
           break;
 
         case 16:
+          done = tx_bands_menu(ok, true);
+          break;
+
+        case 17:
+          done = bands_menu(ok);
+          break;
+
+        case 18:
           done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 17:
+        case 19:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 18:
+        case 20:
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 19:
+        case 21:
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
@@ -2584,6 +2595,73 @@ bool ui::spectrum_menu(bool & ok)
           ui_state = select_menu_item;
           return true;
         }
+    }
+
+    return false;
+}
+
+bool ui::tx_bands_menu(bool &ok, bool upper)
+{
+    enum e_ui_state {select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+
+      bool result;
+      if(upper)
+        result = menu_entry("Bands Lo", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
+      else
+        result = menu_entry("Bands Hi", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
+
+      if(result)
+      {
+        if(ok)
+        {
+          //ok button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+       bool done = false;
+       bool changed = false;
+
+       for(uint32_t i=0; i<NUM_BANDS; ++i) {
+         if(menu_selection == i) {
+           char buffer[12];
+           if(upper) {
+             snprintf(buffer, 12, "Band %lu <=", i);
+             done = number_entry(buffer, "%ikHz", 0, 255, 50, settings.global.tx_band_limits.upper[i], ok, changed);
+           }
+           else {
+             snprintf(buffer, 12, "Band %lu >=", i);
+             done = number_entry(buffer, "%ikHz", 0, 255, 50, settings.global.tx_band_limits.lower[i], ok, changed);
+           }
+           break;
+         }
+       }
+
+       if(done)
+       {
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+       }
     }
 
     return false;

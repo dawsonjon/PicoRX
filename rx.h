@@ -18,6 +18,13 @@
 #include "rx_definitions.h"
 #include "rx_dsp.h"
 
+static const uint8_t NUM_BANDS = 8;
+struct s_tx_band_limits
+{
+  uint16_t lower[NUM_BANDS];
+  uint16_t upper[NUM_BANDS];
+};
+
 struct rx_settings
 {
   double tuned_frequency_Hz;
@@ -70,6 +77,7 @@ struct rx_settings
   uint8_t tx_phase_dither;
   uint8_t tx_waveform_phase_dither;
   bool tx_use_best_clock;
+  s_tx_band_limits tx_band_limits;
 };
 
 struct rx_status
@@ -107,6 +115,7 @@ class rx
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
   int8_t ppm=0;
+  s_tx_band_limits tx_band_limits;
 
   // Choose which PIO instance to use (there are two instances)
   PIO pio;
@@ -164,6 +173,7 @@ class rx
   uint8_t tx_phase_dither;
   uint8_t tx_waveform_phase_dither;
   bool tx_use_best_clock;
+  bool tx_enable;
 
   // USB streaming mode
   uint8_t stream_raw_iq;

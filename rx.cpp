@@ -276,6 +276,13 @@ void rx::apply_settings()
         gpio_put(PIN_BAND_2, 1);
       }
 
+      tx_enable = false;
+      for(int band=0; band < NUM_BANDS; ++band) {
+        if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.tx_band_limits.lower[band] * 50000) &&
+           settings_to_apply.tuned_frequency_Hz < (settings_to_apply.tx_band_limits.upper[band] * 50000)) {
+          tx_enable = true;
+        }
+      }
 
       //apply frequency offset
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
@@ -350,6 +357,7 @@ void rx::apply_settings()
       tx_pwm_max = settings_to_apply.pwm_max;
       tx_pwm_threshold = settings_to_apply.pwm_threshold;
       tx_use_best_clock = settings_to_apply.tx_use_best_clock;
+      tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
       tx_waveform_phase_dither = settings_to_apply.tx_waveform_phase_dither;
 
@@ -796,7 +804,7 @@ void rx::run()
         }
       }
 
-      if(ptt())
+      if(ptt() && tx_enable)
       {
         //disable RX NCO
         pio_sm_set_enabled(pio, sm, false);

@@ -38,6 +38,7 @@ struct s_channel_settings
 
 struct s_global_settings
 {
+  s_tx_band_limits tx_band_limits;
   uint8_t volume;
   uint8_t cw_sidetone;
   uint8_t squelch_threshold;
@@ -61,7 +62,6 @@ struct s_global_settings
   uint8_t band6;
   uint8_t band7;
   uint8_t tx_phase_dither;
-  uint8_t tx_waveform_phase_dither;
   uint8_t pwm_min;
   uint8_t pwm_max;
   uint8_t test_tone_frequency;
@@ -113,6 +113,30 @@ const s_settings default_settings = {
   4,        //step = 1kHz
   2,        //bandwidth = normal
 }, {
+  {
+    //TX Bands Lower
+    {
+      36,  //*0.05 = 1.8   (160m)
+      70,  //*0.05 = 3.5   (80m)
+      105, //*0.05 = 5.25  (60m)
+      140, //*0.05 = 7     (40m)
+      202, //*0.05 = 10.1  (30m)
+      280, //*0.05 = 14    (20m)
+      361, //*0.05 = 18.05 (17m)
+      420, //*0.05 = 21    (15m)
+    },
+    //TX Bands Upper
+    {
+      40,  //*0.05 = 2     (160m)
+      76,  //*0.05 = 3.8   (80m)
+      109, //*0.05 = 5.45  (60m)
+      144, //*0.05 = 7.2   (40m)
+      203, //*0.05 = 10.15 (30m)
+      287, //*0.05 = 14.35 (20m)
+      364, //*0.05 = 18.2  (17m)
+      429, //*0.05 = 21.45 (15m)
+    },
+  },
   5,  //volume
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
@@ -135,8 +159,7 @@ const s_settings default_settings = {
   0x20, //band5
   0x40, //band6
   0x80, //band7
-  0x00, //phase dither
-  0x00, //waveform phase dither
+  32,   //phase dither
   0x00, //pwm_min
   0x55, //pwm_max
   10,   //test_tone_frequency
@@ -167,7 +190,7 @@ const s_settings default_settings = {
   0,  //flip_oled
   0,  //oled_type = ssd1306
   0,  //tx_modulation
-  0,  //tx_use_best_clock
+  1,  //tx_use_best_clock
   0,  //enable_external_nco
   0,  //spectrum_hold
 }};

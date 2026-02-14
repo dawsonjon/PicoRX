@@ -136,6 +136,7 @@ class ui
   bool noise_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
+  bool tx_bands_menu(bool &ok, bool upper);
   bool spectrum_menu(bool &ok);
   bool transmit_menu(bool &ok);
 
@@ -148,6 +149,7 @@ class ui
   bool bit_entry(const char title[], const char options[], bool &value, bool &ok);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint16_t &value, bool &ok, bool &changed);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed);
   bool frequency_entry(const char title[], uint32_t &which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);
