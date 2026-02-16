@@ -56,6 +56,7 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.pwm_threshold = settings.global.pwm_threshold;
   rx_settings.tx_phase_dither = settings.global.tx_phase_dither;
   rx_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
+  rx_settings.tx_monitor = settings.global.tx_monitor;
   rx_settings.tx_band_limits = settings.global.tx_band_limits;
 
 

@@ -358,6 +358,7 @@ void rx::apply_settings()
       tx_pwm_max = settings_to_apply.pwm_max;
       tx_pwm_threshold = settings_to_apply.pwm_threshold;
       tx_use_best_clock = settings_to_apply.tx_use_best_clock;
+      tx_monitor = settings_to_apply.tx_monitor;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
       tx_waveform_phase_dither = settings_to_apply.tx_waveform_phase_dither;
@@ -699,7 +700,8 @@ void __not_in_flash_func(rx::transmit)()
         tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
 
         //transmit monitor
-        pwm_audio_sink_set_value(monitor, gain_numerator);
+        if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
+        else pwm_audio_sink_set_value(0, gain_numerator);
 
         // demodulate
         audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);

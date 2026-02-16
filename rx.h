@@ -77,6 +77,7 @@ struct rx_settings
   uint8_t tx_phase_dither;
   uint8_t tx_waveform_phase_dither;
   bool tx_use_best_clock;
+  bool tx_monitor;
   s_tx_band_limits tx_band_limits;
 };
 
@@ -173,6 +174,7 @@ class rx
   uint8_t tx_phase_dither;
   uint8_t tx_waveform_phase_dither;
   bool tx_use_best_clock;
+  bool tx_monitor;
   bool tx_enable;
   uint16_t cw_sidetone_frequency_Hz;
 

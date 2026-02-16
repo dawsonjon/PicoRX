@@ -293,12 +293,10 @@ void ui::renderpage_transmit(void)
   u8g2_DrawLine(&u8g2, 10, 7, 5, 0);
   u8g2_DrawLine(&u8g2, 10, 7, 15, 0);
   const uint8_t animation_y = 8;
-  const uint8_t fx[] = {0, 1, 3, 4, 5, 6, 6, 7, 7, 7, 6, 6, 5, 3, 1};
+  const int8_t fx[] = {0, 1, 3, 4, 5, 6, 6, 7, 7, 7, 6, 6, 5, 3, 1, 0, -1, -3, -4, -5, -6, -6, -7, -7, -7, -6, -6, -5, -4, -3, -1, 0};
   static uint8_t step = 0;
   for(int x=20; x<128; x+=2) {
-    int8_t y = fx[(step+(x/8))&0xf];
-    //y = rand()%(y+1);
-    if((step+(x/8))&0x10) y=-y;
+    int8_t y = fx[(step+(x/8))&0x1f];
     u8g2_DrawLine(&u8g2, x, animation_y + y, x, animation_y);
   }
   step--;
@@ -2077,7 +2075,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2109,42 +2107,46 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 1 :
-          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
+          done = bit_entry("Monitor", "Off#On#", settings.global.tx_monitor, ok);
           break;
 
         case 2 :
-          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
+          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
           break;
 
         case 3 :
-          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle, ok, changed);
+          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
           break;
 
         case 4 :
-          done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
+          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle, ok, changed);
           break;
 
         case 5 :
-          done = bit_entry("Modulation", "Polar#Rectangular#", settings.global.tx_modulation, ok);
+          done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
           break;
 
         case 6 :
-          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
+          done = bit_entry("Modulation", "Polar#Rectangular#", settings.global.tx_modulation, ok);
           break;
 
         case 7 :
-          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
+          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
           break;
 
         case 8 :
-          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
+          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
           break;
 
         case 9 :
-          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
           break;
 
         case 10 :
+          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+          break;
+
+        case 11 :
           done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
           break;
 
@@ -2623,9 +2625,9 @@ bool ui::tx_bands_menu(bool &ok, bool upper)
 
       bool result;
       if(upper)
-        result = menu_entry("Bands Lo", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
-      else
         result = menu_entry("Bands Hi", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
+      else
+        result = menu_entry("Bands Lo", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
 
       if(result)
       {
@@ -2657,11 +2659,11 @@ bool ui::tx_bands_menu(bool &ok, bool upper)
            char buffer[12];
            if(upper) {
              snprintf(buffer, 12, "Band %lu <=", i);
-             done = number_entry(buffer, "%ikHz", 0, 255, 50, settings.global.tx_band_limits.upper[i], ok, changed);
+             done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.upper[i], ok, changed);
            }
            else {
              snprintf(buffer, 12, "Band %lu >=", i);
-             done = number_entry(buffer, "%ikHz", 0, 255, 50, settings.global.tx_band_limits.lower[i], ok, changed);
+             done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.lower[i], ok, changed);
            }
            break;
          }
