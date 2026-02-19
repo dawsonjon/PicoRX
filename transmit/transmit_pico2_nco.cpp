@@ -35,7 +35,7 @@ void transmit_nco::initialise_waveform_buffer(uint32_t _buffer[],
                                      uint32_t _waveform_length_words,
                                      double normalised_frequency) {
 
-  uint64_t phase_dither_mask = (1llu<<m_waveform_phase_dither)-1;
+  //uint64_t phase_dither_mask = (1llu<<m_waveform_phase_dither)-1;
   uint32_t phase_increment = round(normalised_frequency * 4294967296.0);
   for (uint8_t advance = 0u; advance < bits_per_word; ++advance) {
     uint32_t phase = advance*phase_increment;
@@ -45,7 +45,7 @@ void transmit_nco::initialise_waveform_buffer(uint32_t _buffer[],
         phase += phase_increment;
 
         //apply phase dithering to waveforms to help reduce spurs
-        uint32_t phase_dither = rand64() & phase_dither_mask;
+        uint32_t phase_dither = rand64() % phase_increment;
         uint8_t val = (phase + phase_dither) >> 31;
         bit_samples |= (val << bit);
 
@@ -55,9 +55,8 @@ void transmit_nco::initialise_waveform_buffer(uint32_t _buffer[],
   }
 }
 
-transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, uint8_t waveform_phase_dither, uint8_t phase_dither) {
+transmit_nco::transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, uint8_t phase_dither) {
   m_rf_pin = rf_pin;
-  m_waveform_phase_dither = waveform_phase_dither;
   m_phase_dither = phase_dither;
 
 

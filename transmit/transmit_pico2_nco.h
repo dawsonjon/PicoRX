@@ -29,7 +29,6 @@ private:
   uint8_t m_rf_pin;
   bool m_dither;
   uint8_t m_phase_dither;
-  uint8_t m_waveform_phase_dither;
 
   uint32_t nco_dma, chain_dma, sm;
   dma_channel_config nco_dma_cfg;
@@ -49,7 +48,7 @@ private:
                                   double normalised_frequency);
 
 public:
-  transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, uint8_t waveform_phase_dither, uint8_t phase_dither);
+  transmit_nco(const uint8_t rf_pin, double clock_frequency_Hz, double frequency_Hz, uint8_t phase_dither);
   ~transmit_nco();
   double get_sample_frequency_Hz(double clock_frequency_Hz, uint8_t waveforms_per_sample);
   uint8_t get_waveforms_per_sample(double clock_frequency_Hz, double sample_frequency_Hz);

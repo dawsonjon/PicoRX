@@ -361,7 +361,6 @@ void rx::apply_settings()
       tx_monitor = settings_to_apply.tx_monitor;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
-      tx_waveform_phase_dither = settings_to_apply.tx_waveform_phase_dither;
 
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
@@ -629,7 +628,7 @@ void __not_in_flash_func(rx::transmit)()
     pwm magnitude_pwm(PIN_MAGNITUDE);
 
     // Use PIO to output phase/frequency controlled oscillator
-    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, adjusted_tuned_frequency_Hz, tx_waveform_phase_dither, tx_phase_dither);
+    transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, adjusted_tuned_frequency_Hz, tx_phase_dither);
     const double sample_frequency_Hz = sample_rates[transmit_mode];
     const uint8_t waveforms_per_sample =
         rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
