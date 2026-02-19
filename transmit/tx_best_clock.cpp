@@ -21,9 +21,9 @@ double tx_best_clock(double wanted_frequency) {
       double error;
 
       //upper or nearest
-      ideal_divider = system_clock_frequency/wanted_frequency;
+      ideal_divider = 2*system_clock_frequency/wanted_frequency;
       nearest_divider = round(ideal_divider);
-      actual_frequency = system_clock_frequency/nearest_divider;
+      actual_frequency = 2*system_clock_frequency/nearest_divider;
       error = abs(actual_frequency - wanted_frequency);
       if(error < best_error)
       {
