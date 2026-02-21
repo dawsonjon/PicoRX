@@ -158,7 +158,8 @@ class rx
   button dit;
   button dah;
   uint8_t transmit_mode;
-  void transmit();
+  void transmit_iq();
+  void transmit_polar();
   bool ptt();
   uint8_t test_tone_setting;
   uint8_t test_tone_frequency;

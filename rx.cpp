@@ -15,6 +15,7 @@
 #include "clocks.h"
 #include "transmit/adc.h"
 #include "transmit/pwm.h"
+#include "transmit/iq_pwm.h"
 #include "transmit/transmit_pico2_nco.h"
 #include "transmit/tx_best_clock.h"
 
@@ -597,7 +598,132 @@ bool __not_in_flash_func(rx::ptt)()
 
 
 //TRANSMIT
-void __not_in_flash_func(rx::transmit)()
+void __not_in_flash_func(rx::transmit_iq)()
+{
+
+    gpio_set_function(PIN_TX_I, GPIO_FUNC_PWM);
+    gpio_set_function(PIN_TX_Q, GPIO_FUNC_PIO0);
+
+    double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
+
+    pwm_audio_sink_set_value(0, gain_numerator);
+    disable_pwm(1);
+    nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, 0, if_mode);
+    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+    rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+    enable_pwm(1);
+
+    const float sample_rates[] = {
+        12e3, //AM = 0u;
+        12e3, //AMSYNC = 1u;
+        10e3, //LSB = 2u;
+        10e3, //USB = 3u;
+        15e3, //FM = 4u;
+        10e3, //CW = 5u;
+    };
+    const double sample_frequency_Hz = sample_rates[transmit_mode];
+
+    // Use ADC to capture MIC input
+    adc mic_adc(PIN_MIC, 2);
+
+    // Use PWM to output magnitude
+    iq_pwm iq_pwm_inst(PIN_TX_I, PIN_TX_Q);
+
+    // create modulator
+    modulator audio_modulator;
+
+    // scale FM deviation
+    const double fm_deviation_Hz = 2.5e3;
+    const uint32_t fm_deviation_f15 = round(2 * 32768.0 * fm_deviation_Hz / sample_frequency_Hz);
+
+    //create CW keyer
+    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, sample_frequency_Hz, dit, dah);
+
+    //mic gain
+    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
+
+    //test tone
+    uint32_t test_tone_phase = 0;
+    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+    uint32_t test_tone1_phase = 0;
+    uint32_t test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
+    uint32_t test_tone2_phase = 0;
+    uint32_t test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
+    uint32_t side_tone_phase = 0;
+    uint32_t side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
+
+    int32_t audio = 0;
+    int32_t monitor = 0;
+    uint16_t magnitude = 0;
+    int16_t phase = 0;
+    int16_t i = 0;
+    int16_t q = 0;
+
+    gpio_put(LED, 1);
+    while (ptt()) {
+
+      for(uint16_t idx=0; idx<1000; idx++)
+      {
+        if(test_tone_setting == 1)
+        {
+          monitor = audio = sin_table[test_tone_phase >> 21];
+          test_tone_phase += test_tone_frequency_steps;
+        }
+        else if(test_tone_setting == 2)
+        {
+          monitor = audio = sin_table[test_tone1_phase >> 21]/2 + sin_table[test_tone2_phase >> 21]/2;
+          test_tone1_phase += test_tone1_frequency_steps;
+          test_tone2_phase += test_tone2_frequency_steps;
+        }
+        else
+        {
+          if(transmit_mode == CW)
+          {
+            audio = keyer.get_sample();
+            monitor = (int32_t)audio * (int32_t)sin_table[side_tone_phase >> 21] >> 16;
+            side_tone_phase += side_tone_frequency_steps;
+          }
+          else
+          {
+            // read audio from mic
+            audio = mic_adc.get_sample() * scaled_mic_gain;
+            monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+          }
+        }
+        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+
+        //transmit monitor
+        if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
+        else pwm_audio_sink_set_value(0, gain_numerator);
+
+        // demodulate
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+        // output magnitude
+        iq_pwm_inst.output_sample(i, q);
+
+      }
+
+      //update_status
+      tx_update_status();
+    }
+
+    //restore clock settings for receive
+    pwm_audio_sink_set_value(0, gain_numerator);
+    disable_pwm(1);
+    nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+    rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+    enable_pwm(1);
+
+    gpio_put(LED, 0);
+    gpio_set_function(PIN_TX_I, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_TX_Q, GPIO_FUNC_SIO);
+
+}
+void __not_in_flash_func(rx::transmit_polar)()
 {
 
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_PWM);
@@ -824,7 +950,8 @@ void rx::run()
         //disable RX NCO
         pio_sm_set_enabled(pio, sm, false);
 
-        transmit();
+        if(tx_modulation) transmit_polar();
+        else transmit_iq();
 
         //enable RX NCO
         pio_sm_set_enabled(pio, sm, true);

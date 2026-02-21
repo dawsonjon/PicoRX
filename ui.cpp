@@ -2127,7 +2127,7 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 6 :
-          done = bit_entry("Modulation", "Polar#Rectangular#", settings.global.tx_modulation, ok);
+          done = bit_entry("Modulation", "IQ#Polar#", settings.global.tx_modulation, ok);
           break;
 
         case 7 :

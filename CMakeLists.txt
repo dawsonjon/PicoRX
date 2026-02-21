@@ -89,6 +89,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/cordic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/pwm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transmit/iq_pwm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/modulator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/signal_generator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/cw_keyer.cpp
