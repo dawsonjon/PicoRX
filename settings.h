@@ -162,7 +162,7 @@ const s_settings default_settings = {
   0x80, //band7
   32,   //phase dither
   0x00, //pwm_min
-  0x55, //pwm_max
+  0xff, //pwm_max
   10,   //test_tone_frequency
   0,    //test_tone_setting
   0,    //cw_paddle;

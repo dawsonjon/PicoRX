@@ -17,16 +17,25 @@
 #include "cordic.h"
 #include "modulator.h"
 
+#include <cstdio>
+
 modulator ::modulator() { cordic_init(); }
 
 void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio, int16_t &i,
                                 int16_t &q, uint16_t &magnitude, int16_t &phase,
                                 uint32_t fm_deviation_f15) {
 
+  static uint32_t max_audio_magnitude = 0;
+  //static uint32_t audio_gain = 0;
   if(mode != CW)
   {
-    audio = (int32_t)audio * 65200 >> 16;
     audio_filter.filter(audio);
+    if(abs(audio) > max_audio_magnitude) {
+      max_audio_magnitude = abs(audio);
+      //audio_gain = (62260/max_audio_magnitude) << 8;
+      printf("max_audio %lu\n", max_audio_magnitude);
+    }
+    //audio = (int32_t)audio * audio_gain >> 8;
   }
 
   if (mode == AM || mode == AMSYNC) {
@@ -86,8 +95,29 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     i = sample_i[ssb_phase] << 1;
     q = sample_q[ssb_phase] << 1;
 
+    static uint32_t max_iq_magnitude = 0;
+    //static uint32_t iq_gain = 0;
+    if(abs(i) > max_iq_magnitude) {
+      max_iq_magnitude = abs(i);
+      //iq_gain = (62260/max_iq_magnitude) << 8;
+      printf("max_iq %lu\n", max_iq_magnitude);
+    }
+    if(abs(q) > max_iq_magnitude) {
+      max_iq_magnitude = abs(q);
+      //iq_gain = (62260/max_iq_magnitude) << 8;
+      printf("max_iq %lu\n", max_iq_magnitude);
+    }
+    //i = (int32_t)i * iq_gain >> 8;
+    //q = (int32_t)q * iq_gain >> 8;
+
     cordic_rectangular_to_polar(i, q, magnitude, phase);
     magnitude = magnitude > 32767 ? 32767 : magnitude;
     magnitude <<= 1;
+    static uint32_t max_magnitude = 0;
+    if(magnitude > max_magnitude) {
+      max_magnitude = magnitude;
+      //iq_gain = (62260/max_iq_magnitude) << 8;
+      printf("max_magnitude %lu\n", max_magnitude);
+    }
   }
 }

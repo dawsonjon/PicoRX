@@ -28,6 +28,10 @@ void __not_in_flash_func(half_band_filter::filter)(int16_t &i) {
   // -561, 0, 818, 0, -1209, 0, 1876, 0, -3347, 0, 10387, 16384, 10387, 0,
   // -3347, 0, 1876, 0, -1209, 0, 818, 0, -561, 0, 381, 0, -254, 0, 164, 0,
   // -102, 0, 60, 0, -32, 0, 16, 0, -6, 0, 1, 0, 0
+  //
+  // 0, 0, 1, 0, -4, 0, 9, 0, -19, 0, 36, 0, -61, 0, 98, 0, -152, 0, 228, 0, -335, 0,
+  // 489, 0, -723, 0, 1122, 0, -2001, 0, 6209, 9794, 6209, 0, -2001, 0, 1122, 0,
+  // -723, 0, 489, 0, -335, 0, 228, 0, -152, 0, 98, 0, -61, 0, 36, 0, -19, 0, 9, 0, -4, 0, 1, 0, 0]
 
   bufi[pointer] = i;
   pointer++;
@@ -64,21 +68,25 @@ void __not_in_flash_func(half_band_filter::filter)(int16_t &i) {
   const uint8_t idx58 = (pointer + 58) & 0x3f;
   const uint8_t idx60 = (pointer + 60) & 0x3f;
 
-  i = 
+  // 0, 0, 1, 0, -4, 0, 9, 0, -19, 0, 36, 0, -61, 0, 98, 0, -152, 0, 228, 0, -335, 0,
+  // 489, 0, -723, 0, 1122, 0, -2001, 0, 6209, 9794, 6209, 0, -2001, 0, 1122, 0,
+  // -723, 0, 489, 0, -335, 0, 228, 0, -152, 0, 98, 0, -61, 0, 36, 0, -19, 0, 9, 0, -4, 0, 1, 0, 0]
+
+  i =
          (((static_cast<int32_t>(bufi[idx2]) + static_cast<int32_t>(bufi[idx60])) * 1) +
-          ((static_cast<int32_t>(bufi[idx4]) + static_cast<int32_t>(bufi[idx58])) * -6) +
-          ((static_cast<int32_t>(bufi[idx6]) + static_cast<int32_t>(bufi[idx56])) * 16) +
-          ((static_cast<int32_t>(bufi[idx8]) + static_cast<int32_t>(bufi[idx54])) * -32) +
-          ((static_cast<int32_t>(bufi[idx10]) + static_cast<int32_t>(bufi[idx52])) * 60) +
-          ((static_cast<int32_t>(bufi[idx12]) + static_cast<int32_t>(bufi[idx50])) * -102) +
-          ((static_cast<int32_t>(bufi[idx14]) + static_cast<int32_t>(bufi[idx48])) * 164) +
-          ((static_cast<int32_t>(bufi[idx16]) + static_cast<int32_t>(bufi[idx46])) * -254) +
-          ((static_cast<int32_t>(bufi[idx18]) + static_cast<int32_t>(bufi[idx44])) * 381) +
-          ((static_cast<int32_t>(bufi[idx20]) + static_cast<int32_t>(bufi[idx42])) * -561) +
-          ((static_cast<int32_t>(bufi[idx22]) + static_cast<int32_t>(bufi[idx40])) * 818) +
-          ((static_cast<int32_t>(bufi[idx24]) + static_cast<int32_t>(bufi[idx38])) * -1209) +
-          ((static_cast<int32_t>(bufi[idx26]) + static_cast<int32_t>(bufi[idx36])) * 1876) +
-          ((static_cast<int32_t>(bufi[idx28]) + static_cast<int32_t>(bufi[idx34])) * -3347) +
-          ((static_cast<int32_t>(bufi[idx30]) + static_cast<int32_t>(bufi[idx32])) * 10387) +
-          static_cast<int32_t>(bufi[idx31]) * 16384) >> 15;
+          ((static_cast<int32_t>(bufi[idx4]) + static_cast<int32_t>(bufi[idx58])) * -4) +
+          ((static_cast<int32_t>(bufi[idx6]) + static_cast<int32_t>(bufi[idx56])) * 9) +
+          ((static_cast<int32_t>(bufi[idx8]) + static_cast<int32_t>(bufi[idx54])) * -19) +
+          ((static_cast<int32_t>(bufi[idx10]) + static_cast<int32_t>(bufi[idx52])) * 36) +
+          ((static_cast<int32_t>(bufi[idx12]) + static_cast<int32_t>(bufi[idx50])) * -61) +
+          ((static_cast<int32_t>(bufi[idx14]) + static_cast<int32_t>(bufi[idx48])) * 98) +
+          ((static_cast<int32_t>(bufi[idx16]) + static_cast<int32_t>(bufi[idx46])) * -152) +
+          ((static_cast<int32_t>(bufi[idx18]) + static_cast<int32_t>(bufi[idx44])) * 228) +
+          ((static_cast<int32_t>(bufi[idx20]) + static_cast<int32_t>(bufi[idx42])) * -335) +
+          ((static_cast<int32_t>(bufi[idx22]) + static_cast<int32_t>(bufi[idx40])) * 489) +
+          ((static_cast<int32_t>(bufi[idx24]) + static_cast<int32_t>(bufi[idx38])) * -723) +
+          ((static_cast<int32_t>(bufi[idx26]) + static_cast<int32_t>(bufi[idx36])) * 1122) +
+          ((static_cast<int32_t>(bufi[idx28]) + static_cast<int32_t>(bufi[idx34])) * -2001) +
+          ((static_cast<int32_t>(bufi[idx30]) + static_cast<int32_t>(bufi[idx32])) * 6209) +
+          static_cast<int32_t>(bufi[idx31]) * 9794) >> 15;
 }
