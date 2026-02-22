@@ -602,7 +602,7 @@ void __not_in_flash_func(rx::transmit_iq)()
 {
 
     gpio_set_function(PIN_TX_I, GPIO_FUNC_PWM);
-    gpio_set_function(PIN_TX_Q, GPIO_FUNC_PIO0);
+    gpio_set_function(PIN_TX_Q, GPIO_FUNC_PWM);
 
     double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+settings_to_apply.ppm);
 
@@ -653,6 +653,9 @@ void __not_in_flash_func(rx::transmit_iq)()
     uint32_t side_tone_phase = 0;
     uint32_t side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
 
+    uint16_t period_us = round(1.0e6/sample_frequency_Hz);
+    uint64_t next = time_us_64() + period_us;
+
     int32_t audio = 0;
     int32_t monitor = 0;
     uint16_t magnitude = 0;
@@ -702,6 +705,10 @@ void __not_in_flash_func(rx::transmit_iq)()
 
         // output magnitude
         iq_pwm_inst.output_sample(i, q);
+
+        //delay until next sample
+        while (time_us_64() < next) { tight_loop_contents(); }
+        next += period_us;
 
       }
 
@@ -947,14 +954,16 @@ void rx::run()
 
       if(ptt() && tx_enable)
       {
-        //disable RX NCO
-        pio_sm_set_enabled(pio, sm, false);
 
-        if(tx_modulation) transmit_polar();
+        if(tx_modulation){
+          //disable RX NCO
+          pio_sm_set_enabled(pio, sm, false);
+          transmit_polar();
+          //enable RX NCO
+          pio_sm_set_enabled(pio, sm, true);
+        }
         else transmit_iq();
 
-        //enable RX NCO
-        pio_sm_set_enabled(pio, sm, true);
       }
 
     }

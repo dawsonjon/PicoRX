@@ -14,6 +14,7 @@
 #include <cmath>
 #include "pico/stdlib.h"
 
+#include "../utils.h"
 #include "cordic.h"
 #include "modulator.h"
 
@@ -41,13 +42,21 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
   if (mode == AM || mode == AMSYNC) {
     magnitude = audio + 32767;
     phase = 0;
+    i = (audio>>1) + 16383;
+    q = 0;
   } else if (mode == CW) {
     magnitude = audio * 2;
+    i = audio;
+    q = 0;
     phase = 0;
   } else if (mode == FM) {
     magnitude = 65535;
     phase = last_phase + ((audio * fm_deviation_f15) >> 15);
     last_phase = phase;
+    const int16_t scaled_phase = phase >> 5; //16 -> 11 bits
+    i =  sin_table[(scaled_phase+512u) & 0x7ff];
+    q = -sin_table[scaled_phase & 0x7ff];
+
   } else if (mode == LSB || mode == USB) {
     // shift frequency by +FS/4
     //       __|__
@@ -96,7 +105,7 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     q = sample_q[ssb_phase] << 1;
 
     static uint32_t max_iq_magnitude = 0;
-    //static uint32_t iq_gain = 0;
+    static uint32_t iq_gain = 450; //1.5
     if(abs(i) > max_iq_magnitude) {
       max_iq_magnitude = abs(i);
       //iq_gain = (62260/max_iq_magnitude) << 8;
@@ -107,8 +116,8 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
       //iq_gain = (62260/max_iq_magnitude) << 8;
       printf("max_iq %lu\n", max_iq_magnitude);
     }
-    //i = (int32_t)i * iq_gain >> 8;
-    //q = (int32_t)q * iq_gain >> 8;
+    i = (int32_t)i * iq_gain >> 8;
+    q = (int32_t)q * iq_gain >> 8;
 
     cordic_rectangular_to_polar(i, q, magnitude, phase);
     magnitude = magnitude > 32767 ? 32767 : magnitude;
