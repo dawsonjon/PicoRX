@@ -67,14 +67,15 @@ int main()
     watchdog_update();
 
     //schedule tasks
-    receiver.tune();
-
-    if(time_us_32() - last_ui_update > UI_REFRESH_US)
-    {
-      last_ui_update = time_us_32();
-      user_interface.do_ui();
-      receiver.get_spectrum(spectrum, dB10, zoom);
-      receiver.get_audio(audio);
+    if(sem_try_acquire(&receiver.i2c_semaphore))  {
+      if(time_us_32() - last_ui_update > UI_REFRESH_US)
+      {
+        last_ui_update = time_us_32();
+        user_interface.do_ui();
+        receiver.get_spectrum(spectrum, dB10, zoom);
+        receiver.get_audio(audio);
+      }
+      sem_release(&receiver.i2c_semaphore);
     }
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)

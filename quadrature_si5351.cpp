@@ -1,9 +1,9 @@
-//  _  ___  _   _____ _     _                 
-// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___ 
+//  _  ___  _   _____ _     _
+// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___
 // | | | | | |   | | | '_ \| | '_ \ / _` / __|
 // | | |_| | |   | | | | | | | | | | (_| \__ \.
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
-//                                  |___/    
+//                                  |___/
 //
 // Copyright (c) Jonathan P Dawson 2024
 // filename: quadrature_si5351.cpp
@@ -32,7 +32,7 @@
 
 bool quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
 {
-    i2c_init(i2c, 400 * 1000);
+    i2c_init(i2c, 800 * 1000);
     gpio_set_function(sda_pin, GPIO_FUNC_I2C);
     gpio_set_function(scl_pin, GPIO_FUNC_I2C);
     gpio_pull_up(sda_pin);
@@ -54,7 +54,8 @@ bool quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin
       static_cast<uint8_t>(0x80),
       static_cast<uint8_t>(0x80)
     };
-    int ret = i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);  
+    int ret = i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);
+    write_reg(15, 0);
     return ret != PICO_ERROR_GENERIC;
 
 }
@@ -63,7 +64,7 @@ void quad_si5351 :: start()
 {
   //high impedance when disabled
   write_reg(SI_CLK_DIS_STATE, 0xAA);
-  write_reg(SI_OUPUT_ENABLE, 0xFC);
+  write_reg(SI_OUPUT_ENABLE, 0xF8);
 }
 
 void quad_si5351 :: stop()
@@ -93,7 +94,7 @@ void quad_si5351 :: configure_pll(uint8_t pll, uint8_t a, uint32_t b, uint32_t c
 	const uint32_t P1 = (128 * a) + ((128*b)/c) - 512;
 	const uint32_t P2 = (128 * b) - (c*(128*b/c));
 	const uint32_t P3 = c;
- 
+
   write_reg(pll+0, (P3 & 0x0000FF00) >> 8);
   write_reg(pll+1, P3 & 0x000000FF);
   write_reg(pll+2, (P1 & 0x00030000) >> 16);
@@ -137,7 +138,7 @@ void quad_si5351 :: adjust_phase(uint8_t synth, uint32_t a, uint32_t b, uint32_t
 	const uint32_t P1_offset = (128 * a) + ((128*b)/c) - 512;
 	const uint32_t P2_offset = (128 * b) - (c*(128*b/c));
 	const uint32_t P3_offset = c;
-  
+
   write_reg(synth+0,(P3_offset & 0x0000FF00) >> 8);
 	write_reg(synth+1,(P3_offset & 0x000000FF));
 	write_reg(synth+2,((P1_offset & 0x00030000) >> 16) | rDiv);
@@ -175,12 +176,75 @@ double quad_si5351 :: set_frequency_hz(uint32_t frequency)
   if(frequency > 5000000)
   {
     return set_frequency_hz_high(frequency);
-  } 
-  else 
+  }
+  else
   {
     return set_frequency_hz_low(frequency);
   }
 }
+
+//sets the tx frequency and returns the resolution in Hz
+double quad_si5351 :: set_tx_frequency_hz(uint32_t frequency_Hz)
+{
+
+  //set the PLL to an even multiple of required frequency
+  uint32_t divider = 2*((600000000+(2*frequency_Hz))/(2*frequency_Hz));
+  const uint64_t pll_frequency = divider * frequency_Hz;
+
+  //do nothing if frequency is already correct
+  if(m_tx_frequency_Hz == frequency_Hz) return static_cast<double>(m_crystal_frequency_Hz)/static_cast<double>(divider << 19);
+  m_tx_frequency_Hz = frequency_Hz;
+
+  const uint64_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
+  const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
+  const uint64_t multiplier_denominator = 524288u; //largest power of 2 for faster calculations
+  const uint64_t multiplier_numerator = (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
+
+  // Set up PLL B with the calculated multiplication ratio
+  configure_pll(SI_SYNTH_PLL_B, multiplier_integer_part, multiplier_numerator, multiplier_denominator);
+  configure_multisynth(SI_SYNTH_MS_2, divider, SI_R_DIV_1);
+
+  write_reg(SI_PLL_RESET, 0x80);  //reset pll B
+  write_reg(SI_CLK2_CONTROL, 0x4C | SI_CLK_SRC_PLL_B | m_drive_strength);
+
+  return static_cast<double>(m_crystal_frequency_Hz)/static_cast<double>(divider << 19);
+}
+
+//quickly adjusts the tx frequency by changing the multiplier only
+//the frequency_steps argument is the frequency in the resolution returned by set_tx_frequency_Hz
+void quad_si5351 :: set_tx_freq_adjustment(uint32_t frequency_steps)
+{
+  const uint32_t a = frequency_steps >> 19;
+  const uint64_t b = frequency_steps & 0x7ffff;
+  const uint32_t c = 524288u;
+
+  const uint32_t P1 = (128 * a) + ((128*b)/c) - 512;
+  const uint32_t P2 = (128 * b) - (c*(128*b/c));
+  const uint32_t P3 = c;
+
+  //write_reg(pll+0, (P3 & 0x0000FF00) >> 8);
+  //write_reg(pll+1, P3 & 0x000000FF);
+  //write_reg(pll+2, (P1 & 0x00030000) >> 16);
+  //write_reg(pll+3, (P1 & 0x0000FF00) >> 8);
+  //write_reg(pll+4, P1 & 0x000000FF);
+  //write_reg(pll+5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  //write_reg(pll+6, (P2 & 0x0000FF00) >> 8);
+  //write_reg(pll+7, P2 & 0x000000FF);
+
+  const uint8_t command[] = {
+    SI_SYNTH_PLL_B + 3,
+    static_cast<uint8_t>((P1 & 0x0000FF00) >> 8),
+    static_cast<uint8_t>(P1 & 0x000000FF),
+    static_cast<uint8_t>(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16)),
+    static_cast<uint8_t>((P2 & 0x0000FF00) >> 8),
+    static_cast<uint8_t>(P2 & 0x000000FF)
+  };
+
+
+  i2c_write_blocking(m_i2c, m_address, command, 7, false);
+
+}
+
 
 //for frequencies above 5MHz, quadrature clocks can be generated using the phase register
 double quad_si5351 :: set_frequency_hz_high(uint32_t frequency_Hz)
@@ -214,7 +278,7 @@ double quad_si5351 :: set_frequency_hz_high(uint32_t frequency_Hz)
 
   if(m_pll_needs_reset)
   {
-    write_reg(SI_PLL_RESET, 0xA0);
+    write_reg(SI_PLL_RESET, 0x20); //reset pll A
     m_pll_needs_reset = false;
   }
 
@@ -249,7 +313,7 @@ double quad_si5351 :: set_frequency_hz_low(uint32_t frequency_Hz)
 
   if(divider != m_divider) m_pll_needs_reset = true;
   if(rdiv != m_rdiv) m_pll_needs_reset = true;
-  
+
 	const uint32_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
 	const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
   const uint32_t multiplier_denominator = 1048575u;
@@ -267,7 +331,7 @@ double quad_si5351 :: set_frequency_hz_low(uint32_t frequency_Hz)
     configure_multisynth(SI_SYNTH_MS_1, divider, rdiv==32?SI_R_DIV_32:SI_R_DIV_1);
     configure_phase_offset(0, 0);
     configure_phase_offset(1, 0);
-    write_reg(SI_PLL_RESET, 0xA0);
+    write_reg(SI_PLL_RESET, 0x20); //reset PLL A
     sleep_us(100000);
 
     //reduce 1 clock by 4Hz, after 62.5ms it should be 1/4 cycle behind

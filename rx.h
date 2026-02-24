@@ -91,7 +91,6 @@ struct rx_status
   uint16_t audio_level;
   float tuning_offset_Hz;
   bool transmitting;
-  bool tuned;
 };
 
 class rx
@@ -114,6 +113,7 @@ class rx
   uint16_t battery;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
+  uint8_t tuning_option=0;
   int8_t ppm=0;
   s_tx_band_limits tx_band_limits;
 
@@ -148,6 +148,7 @@ class rx
   int16_t gain_numerator=0;
 
   //(optional) external oscillator
+  bool enable_external_nco;
   quad_si5351 external_nco;
   bool external_nco_initialised = false;
   bool external_nco_good = false;
@@ -160,6 +161,7 @@ class rx
   uint8_t transmit_mode;
   void transmit_iq();
   void transmit_polar();
+  void transmit_polar_external();
   bool ptt();
   uint8_t test_tone_setting;
   uint8_t test_tone_frequency;
@@ -181,10 +183,12 @@ class rx
   uint8_t stream_raw_iq;
 
   public:
+  semaphore_t i2c_semaphore;
   rx(rx_settings & settings_to_apply, rx_status & status);
   void apply_settings();
   void run();
-  void tune();
+  void tune_rx();
+  void tune_tx();
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void get_audio(uint8_t audio[]);
   void set_alarm_pool(alarm_pool_t *p);

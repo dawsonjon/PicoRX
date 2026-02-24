@@ -116,7 +116,7 @@ class ui
   int32_t dBm_to_63px(float power_dBm);
   void log_spectrum(float *min, float *max, int zoom = 1);
   void draw_h_tick_marks(uint16_t startY);
-  void draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY);
+  void draw_spectrum(uint16_t startY, uint16_t endY);
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y);
   void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);

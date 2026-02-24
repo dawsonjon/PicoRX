@@ -43,13 +43,15 @@ class quad_si5351
   bool m_pll_needs_reset = true;
   bool m_mode = low_mode;
   uint8_t m_drive_strength;
-   
+  uint32_t m_tx_frequency_Hz = 0;
 
   public:
   bool initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_hz);
   void write_reg(uint8_t address, uint8_t data);
 
   double set_frequency_hz(uint32_t frequency);
+  double set_tx_frequency_hz(uint32_t frequency);
+  void set_tx_freq_adjustment(uint32_t frequency_steps);
   void start();
   void stop();
   void set_drive(uint8_t drive_strength);

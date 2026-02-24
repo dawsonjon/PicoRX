@@ -498,10 +498,11 @@ void ui::renderpage_oscilloscope(void)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_bigspectrum(bool view_changed)
 {
+  (void)view_changed;
   display_clear();
   draw_slim_status(0);
   draw_h_tick_marks(8);
-  draw_spectrum(view_changed, 13, 63);
+  draw_spectrum(13, 63);
   display_show();
 }
 
@@ -515,7 +516,7 @@ void ui::renderpage_combinedspectrum(bool view_changed)
   draw_waterfall(48);
   draw_slim_status(0);
   draw_h_tick_marks(8);
-  draw_spectrum(view_changed, 13, 47);
+  draw_spectrum(13, 47);
   display_show();
 }
 
@@ -852,52 +853,17 @@ void ui::renderpage_smeter(bool view_changed)
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
-void ui::draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY)
+void ui::draw_spectrum(uint16_t startY, uint16_t endY)
 {
 
-  static uint8_t hold_buf[128];
-  static uint8_t tune_delay = 0;
   //plot
   const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
-
-  receiver.access(false);
-  if (status.tuned) {
-    status.tuned = false;
-    tune_delay = 2;
-  }
-  receiver.release();
-
-  bool tuned = false;
-  if (tune_delay > 0) {
-    tune_delay--;
-    if(tune_delay == 0)
-    {
-      tuned = true;
-    }
-  }
-
-  if(settings.global.spectrum_hold && (view_changed || tuned))
-  {
-    for(uint16_t i = 0; i < 128; i++)
-    {
-      hold_buf[i] = 0;
-    }
-  }
 
   for(uint16_t x=0; x<128; x++)
   {
     const int16_t y = spectrum[x*2]/scale;
     ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
-    if (settings.global.spectrum_hold) {
-      if (spectrum[x * 2] > hold_buf[x]) {
-        hold_buf[x] = spectrum[x * 2];
-      }
-      if (x > 0) {
-        u8g2_DrawLine(&u8g2, x - 1, (endY - hold_buf[x - 1] / scale), x,
-                      (endY - hold_buf[x] / scale));
-      }
-    }
   }
 
   for (int16_t y = 0; y < max_height; ++y)
