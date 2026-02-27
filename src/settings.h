@@ -1,7 +1,7 @@
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 
-#include "rx.h"
+#include "xcvr.h"
 
 const uint32_t step_sizes[13] = {10, 50, 100, 500, 1000, 5000, 6250, 9000, 10000, 12500, 25000, 50000, 100000};
 const char steps[13][8]  = { "10Hz", "50Hz", "100Hz", "500Hz", "1kHz", "5kHz", "6.25kHz", "9kHz", "10kHz", "12.5kHz", "25kHz", "50kHz", "100kHz"};
@@ -205,10 +205,10 @@ struct s_memory_channel
 };
 
 
-void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings & settings, bool suspend, bool settings_changed);
+void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s_settings & settings, bool suspend, bool settings_changed);
 void autosave_restore_settings(s_settings &settings);
-void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & rx_settings);
+void autosave_store_settings(s_settings settings, xcvr & transceiver, xcvr_settings & xcvr_settings);
 s_memory_channel get_channel(uint16_t channel_number);
-void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, rx & receiver, rx_settings & rx_settings);
+void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, xcvr & transceiver, xcvr_settings & xcvr_settings);
 
 #endif

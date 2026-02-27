@@ -280,9 +280,9 @@ void ui::display_show()
 void ui::renderpage_transmit(void)
 {
 
-  receiver.access(false);
+  transceiver.access(false);
   const uint16_t audio_level = status.audio_level;
-  receiver.release();
+  transceiver.release();
 
   const uint8_t buffer_size = 21;
   char buff [buffer_size];
@@ -373,10 +373,10 @@ uint16_t ui::audio_vu_meter_update(void) {
 void ui::renderpage_original(void)
 {
 
-  receiver.access(false);
+  transceiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
-  receiver.release();
+  transceiver.release();
 
   const uint8_t buffer_size = 21;
   char buff [buffer_size];
@@ -538,7 +538,7 @@ void ui::renderpage_waterfall(bool view_changed)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_status(void)
 {
-  receiver.access(false);
+  transceiver.access(false);
   const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
   const float temp_voltage = 3.3f * (status.temp/65535.0f);
   const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
@@ -546,7 +546,7 @@ void ui::renderpage_status(void)
   const float busy_time = ((float)status.busy_time*1e-6f);
   const uint8_t usb_buf_level = status.usb_buf_level;
   const float tuning_offset_Hz = status.tuning_offset_Hz;
-  receiver.release();
+  transceiver.release();
 
   display_clear();
   draw_slim_status(0);
@@ -607,9 +607,9 @@ void ui::renderpage_fun(bool view_updated)
 // Draw a slim 8 pixel status line
 void ui::draw_slim_status(uint16_t y)
 {
-  receiver.access(false);
+  transceiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
+  transceiver.release();
 
   display_set_xy(0,y);
   display_print_freq(',', settings.channel.frequency,1);
@@ -814,9 +814,9 @@ void ui::renderpage_smeter(bool view_changed)
   static float dBm_avg[NUM_DBM] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
   (void)view_changed;
 
-  receiver.access(false);
+  transceiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
-  receiver.release();
+  transceiver.release();
 
   dBm_avg[dBm_ptr++] = power_dBm;
   if (dBm_ptr >= NUM_DBM) dBm_ptr = 0;
@@ -1174,7 +1174,7 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
 //remember settings across power cycles
 void ui::autosave()
 {
-  autosave_store_settings(settings, receiver, settings_to_apply);
+  autosave_store_settings(settings, transceiver, settings_to_apply);
 }
 
 //remember settings across power cycles
@@ -1203,7 +1203,7 @@ void ui::autorestore()
 
 void ui::apply_settings(bool suspend, bool settings_changed)
 {
-  apply_settings_to_rx(receiver, settings_to_apply, settings, suspend, settings_changed);
+  apply_settings_to_xcvr(transceiver, settings_to_apply, settings, suspend, settings_changed);
 }
 
 //save current settings to memory
@@ -1280,7 +1280,7 @@ bool ui::memory_store(bool &ok)
       s_memory_channel memory_channel;
       memory_channel.channel = settings.channel;
       memcpy(memory_channel.label, name, 16);
-      memory_store_channel(memory_channel, select, settings, receiver, settings_to_apply);
+      memory_store_channel(memory_channel, select, settings, transceiver, settings_to_apply);
       ssd1306_invert( &disp, 0);
 
       ok = true;
@@ -1404,9 +1404,9 @@ bool ui::memory_recall(bool &ok)
   }
 
   //draw power meter
-  receiver.access(false);
+  transceiver.access(false);
   int8_t power_dBm = status.signal_strength_dBm;
-  receiver.release();
+  transceiver.release();
   static float last_power_dBm = FLT_MAX;
   if(abs(power_dBm - last_power_dBm) > 1.0f)
   {
@@ -1457,9 +1457,9 @@ bool ui::memory_scan(bool &ok)
   {
 
     static float last_power_dBm = FLT_MAX;
-    receiver.access(false);
+    transceiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    receiver.release();
+    transceiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
@@ -1659,9 +1659,9 @@ bool ui::frequency_scan(bool &ok)
   {
 
     static float last_power_dBm = FLT_MAX;
-    receiver.access(false);
+    transceiver.access(false);
     power_dBm = status.signal_strength_dBm;
-    receiver.release();
+    transceiver.release();
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
@@ -2209,9 +2209,9 @@ bool ui::configuration_menu(bool &ok)
         case 7 :
         {
           done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
-          receiver.access(false);
+          transceiver.access(false);
           const float tuning_offset_Hz = status.tuning_offset_Hz;
-          receiver.release();
+          transceiver.release();
           ssd1306_fill_rectangle(&disp, 0, 64-16, 12, 16, 0);
           ssd1306_fill_rectangle(&disp, 128-12, 64-16, 12, 16, 0);
           if(tuning_offset_Hz > 0.5) ssd1306_draw_char_with_font(&disp, 0, 64-16, 1, font_16x12, '<', true);
@@ -2770,9 +2770,9 @@ void ui::do_ui(void)
 
     if(ui_state != idle) view_changed = true;
 
-    receiver.access(false);
+    transceiver.access(false);
     const bool transmitting = status.transmitting;
-    receiver.release();
+    transceiver.release();
 
     if(transmitting)
     {
@@ -2948,7 +2948,7 @@ void ui::do_ui(void)
       waterfall_inst.powerOn(0);
     }
 
-    //apply settings to receiver (without saving)
+    //apply settings to transceiver (without saving)
     if (update_settings)
     {
       apply_settings(false);
@@ -3051,7 +3051,7 @@ void ui::update_display_type(void)
   }
 }
 
-ui::ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,
+ui::ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
        uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
        waterfall& _waterfall_inst)
     : settings(default_settings),
@@ -3061,7 +3061,7 @@ ui::ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,
       encoder_button(PIN_ENCODER_PUSH),
       settings_to_apply(_settings_to_apply),
       status(_status),
-      receiver(_receiver),
+      transceiver(_transceiver),
       spectrum(_spectrum),
       audio(_audio),
       dB10(_dB10),

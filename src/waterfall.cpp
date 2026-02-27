@@ -19,7 +19,7 @@
 
 
 
-waterfall::waterfall(rx &_receiver) : receiver(_receiver), sstv_decoder(_receiver)
+waterfall::waterfall(xcvr &_transceiver) : transceiver(_transceiver), sstv_decoder(_transceiver)
 {
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
@@ -275,7 +275,7 @@ int waterfall::dBm_to_S(float power_dBm) {
   return (power_s);
 }
 
-void waterfall::update(s_settings &ui_settings, rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
+void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
@@ -314,7 +314,7 @@ void waterfall::update(s_settings &ui_settings, rx_settings &settings, rx_status
 
 }
 
-void waterfall::update_spectrum(rx_settings &settings, rx_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
+void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
 {
 
     //update spectrum and waterfall display
@@ -330,9 +330,9 @@ void waterfall::update_spectrum(rx_settings &settings, rx_status &status, uint8_
       waterfall_buffer[top_row][col] = spectrum[col];
     }
 
-    receiver.access(false);
+    transceiver.access(false);
     const int16_t power_dBm = status.signal_strength_dBm;
-    receiver.release();
+    transceiver.release();
 
     static float filtered_power = power_dBm;
     filtered_power = (filtered_power * 0.7) + (power_dBm * 0.3);
@@ -555,11 +555,11 @@ void waterfall::decode_sstv()
 
   static uint32_t start_time = 0;
   uint32_t duration = time_us_32() - start_time;
-  printf("buffer level: %lu time: %lu\n", receiver.get_iq_buffer_level(), duration);
+  printf("buffer level: %lu time: %lu\n", transceiver.get_iq_buffer_level(), duration);
   start_time = time_us_32();
   #endif
 
-  uint16_t samples_to_process = receiver.get_iq_buffer_level();
+  uint16_t samples_to_process = transceiver.get_iq_buffer_level();
   static bool image_in_progress = false;
   for(uint16_t idx=0; idx<samples_to_process; ++idx)
   {

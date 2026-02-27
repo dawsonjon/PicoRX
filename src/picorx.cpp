@@ -6,7 +6,7 @@
 #include "hardware/exception.h"
 #include "hardware/watchdog.h"
 
-#include "rx.h"
+#include "xcvr.h"
 #include "ui.h"
 #include "waterfall.h"
 #include "cat.h"
@@ -23,16 +23,16 @@ uint8_t spectrum[256];
 uint8_t audio[128];
 uint8_t dB10=10;
 uint8_t zoom=1;
-static rx_settings settings_to_apply;
-static rx_status status;
-static rx receiver(settings_to_apply, status);
-static waterfall waterfall_inst(receiver);
-static ui user_interface(settings_to_apply, status, receiver, spectrum, audio, dB10, zoom, waterfall_inst);
+static xcvr_settings settings_to_apply;
+static xcvr_status status;
+static xcvr transceiver(settings_to_apply, status);
+static waterfall waterfall_inst(transceiver);
+static ui user_interface(settings_to_apply, status, transceiver, spectrum, audio, dB10, zoom, waterfall_inst);
 
 void core1_main()
 {
     multicore_lockout_victim_init();
-    receiver.run();
+    transceiver.run();
 }
 
 int main()
@@ -53,7 +53,7 @@ int main()
 
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool
-  receiver.set_alarm_pool(alarm_pool_create(0, 16));
+  transceiver.set_alarm_pool(alarm_pool_create(0, 16));
   user_interface.autorestore();
 
   uint32_t last_ui_update = 0;
@@ -67,21 +67,21 @@ int main()
     watchdog_update();
 
     //schedule tasks
-    if(sem_try_acquire(&receiver.i2c_semaphore))  {
+    if(sem_try_acquire(&transceiver.i2c_semaphore))  {
       if(time_us_32() - last_ui_update > UI_REFRESH_US)
       {
         last_ui_update = time_us_32();
         user_interface.do_ui();
-        receiver.get_spectrum(spectrum, dB10, zoom);
-        receiver.get_audio(audio);
+        transceiver.get_spectrum(spectrum, dB10, zoom);
+        transceiver.get_audio(audio);
       }
-      sem_release(&receiver.i2c_semaphore);
+      sem_release(&transceiver.i2c_semaphore);
     }
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)
     {
       last_cat_update = time_us_32();
-      process_cat_control(settings_to_apply, status, receiver, user_interface.get_settings());
+      process_cat_control(settings_to_apply, status, transceiver, user_interface.get_settings());
     }
 
     if(time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US)

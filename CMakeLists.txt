@@ -54,34 +54,33 @@ target_compile_options(u8g2 PRIVATE -Wno-unused-function -Wno-unused-variable)
 target_include_directories(u8g2 PUBLIC ${CMAKE_CURRENT_LIST_DIR}/external/u8g2/csrc/)
 
 set(PICORX_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/ssd1306.c
-    ${CMAKE_CURRENT_LIST_DIR}/picorx.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/nco.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/rx.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/rx_dsp.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/fft.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/fft_filter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/noise_reduction.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/cic_corrections.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ui.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/settings.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/memory.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/autosave_memory.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/utils.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ili934x.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/waterfall.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/button.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/quadrature_si5351.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/cat.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/pwm_audio_sink.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/ssd1306.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/picorx.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/nco.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/xcvr.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/rx_dsp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/fft.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/fft_filter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/noise_reduction.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cic_corrections.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/ui.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/settings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/autosave_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/ili934x.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/waterfall.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/button.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/quadrature_si5351.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/pwm_audio_sink.cpp
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
     ${CMAKE_CURRENT_LIST_DIR}/usb_audio_device.c
-    ${CMAKE_CURRENT_LIST_DIR}/ring_buffer_lib.c
-    ${CMAKE_CURRENT_LIST_DIR}/clocks_pico2.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/rotary_encoder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/ring_buffer_lib.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/clocks_pico2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
-    #${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/adc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/tx_best_clock.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_pico2_nco.cpp
@@ -113,11 +112,11 @@ set(PICORX_LIBS
     u8g2
 )
 
-list(APPEND PICORX_SRCS clocks_pico2.cpp)
+list(APPEND PICORX_SRCS src/clocks_pico2.cpp)
 #main application
 add_executable(pico2rx ${PICORX_SRCS})
 target_compile_features(pico2rx PUBLIC c_std_11)
-pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/nco.pio)
+pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/src/nco.pio)
 pico_add_extra_outputs(pico2rx)
 pico_enable_stdio_usb(pico2rx 1)
 pico_enable_stdio_uart(pico2rx 0)

@@ -12,7 +12,7 @@
 //
 
 #include "transmit_pico2_nco.h"
-#include "utils.h"
+#include "../src/utils.h"
 #include "hardware/structs/hstx_ctrl.h"
 #include "hardware/structs/hstx_fifo.h"
 #include "pico/rand.h"

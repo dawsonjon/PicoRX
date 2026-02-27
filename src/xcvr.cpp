@@ -4,7 +4,7 @@
 #include <string.h>
 #include <algorithm>
 
-#include "rx.h"
+#include "xcvr.h"
 #include "nco.h"
 #include "fft_filter.h"
 #include "utils.h"
@@ -29,20 +29,20 @@ static ring_buffer_t usb_ring_buffer;
 static uint8_t usb_buf[USB_BUF_SIZE];
 
 //buffers and dma for ADC
-int rx::adc_dma_ping;
-int rx::adc_dma_pong;
-dma_channel_config rx::ping_cfg;
-dma_channel_config rx::pong_cfg;
-uint16_t rx::ping_samples[adc_block_size];
-uint16_t rx::pong_samples[adc_block_size];
+int xcvr::adc_dma_ping;
+int xcvr::adc_dma_pong;
+dma_channel_config xcvr::ping_cfg;
+dma_channel_config xcvr::pong_cfg;
+uint16_t xcvr::ping_samples[adc_block_size];
+uint16_t xcvr::pong_samples[adc_block_size];
 
-bool rx::audio_running;
+bool xcvr::audio_running;
 
 //dma for capture
-int rx::capture_dma;
-dma_channel_config rx::capture_cfg;
+int xcvr::capture_dma;
+dma_channel_config xcvr::capture_cfg;
 
-void rx::dma_handler() {
+void xcvr::dma_handler() {
 
 
     // adc ping             ####    ####
@@ -65,23 +65,21 @@ void rx::dma_handler() {
 }
 
 
-void rx::access(bool s)
+void xcvr::access(bool s)
 {
   sem_acquire_blocking(&settings_semaphore);
   settings_changed |= s;
 }
 
-void rx::tune_tx()
+void xcvr::tune_tx()
 {
 
   if(external_nco_active)
   {
     double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    if(sem_try_acquire(&i2c_semaphore))
-    {
-      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz);
-      sem_release(&settings_semaphore);
-    }
+    sem_acquire_blocking(&i2c_semaphore);
+    nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz);
+    sem_release(&i2c_semaphore);
     offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
   }
   else
@@ -96,7 +94,7 @@ void rx::tune_tx()
 
 }
 
-void rx::tune_rx()
+void xcvr::tune_rx()
 {
   if(enable_external_nco)
   {
@@ -137,11 +135,9 @@ void rx::tune_rx()
     if(external_nco_good)
     {
         double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-        if(sem_try_acquire(&i2c_semaphore))
-        {
-          nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
-          sem_release(&settings_semaphore);
-        }
+        sem_acquire_blocking(&i2c_semaphore);
+        nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+        sem_release(&i2c_semaphore);
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
         rx_dsp_inst.amsync_reset();
@@ -168,7 +164,6 @@ void rx::tune_rx()
       internal_nco_active = true;
     }
 
-    //apply frequency calibration
     double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
     disable_pwm(tuning_option);
     nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
@@ -182,7 +177,7 @@ void rx::tune_rx()
 
 }
 
-void rx::tx_update_status()
+void xcvr::tx_update_status()
 {
 
    const bool sem_acquired = sem_try_acquire(&settings_semaphore);
@@ -194,12 +189,12 @@ void rx::tx_update_status()
    }
 }
 
-void rx::release()
+void xcvr::release()
 {
   sem_release(&settings_semaphore);
 }
 
-void rx::update_status()
+void xcvr::update_status()
 {
 
    const bool sem_acquired = sem_try_acquire(&settings_semaphore);
@@ -224,7 +219,7 @@ void rx::update_status()
    }
 }
 
-void rx::apply_settings()
+void xcvr::apply_settings()
 {
    if(sem_try_acquire(&settings_semaphore))
    {
@@ -311,7 +306,6 @@ void rx::apply_settings()
       //apply mode
       rx_dsp_inst.set_mode(settings_to_apply.mode, settings_to_apply.bandwidth);
 
-
       //apply volume
       static const int16_t gain[] = {
         0,   // 0 = 0/256 -infdB
@@ -363,7 +357,6 @@ void rx::apply_settings()
       tx_monitor = settings_to_apply.tx_monitor;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
-
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
       if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) ||
@@ -388,17 +381,17 @@ void rx::apply_settings()
    }
 }
 
-void rx::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
+void xcvr::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 {
   rx_dsp_inst.get_spectrum(spectrum, dB10, zoom);
 }
 
-void rx::get_audio(uint8_t audio[])
+void xcvr::get_audio(uint8_t audio[])
 {
   rx_dsp_inst.get_audio_capture(audio);
 }
 
-rx::rx(rx_settings & _settings_to_apply, rx_status & _status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(_settings_to_apply), status(_status)
+xcvr::xcvr(xcvr_settings & _settings_to_apply, xcvr_status & _status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(_settings_to_apply), status(_status)
 {
 
     settings_to_apply.suspend = false;
@@ -496,7 +489,7 @@ rx::rx(rx_settings & _settings_to_apply, rx_status & _status) : dit(PIN_DIT), da
 
 }
 
-void rx::read_batt_temp()
+void xcvr::read_batt_temp()
 {
   adc_select_input(3);
   battery = 0;
@@ -519,7 +512,7 @@ static bool __not_in_flash_func(usb_callback)(repeating_timer_t *rt)
   return true; // keep repeating
 }
 
-void rx::set_alarm_pool(alarm_pool_t *p)
+void xcvr::set_alarm_pool(alarm_pool_t *p)
 {
   pool = p;
 }
@@ -531,7 +524,6 @@ static bool usb_mute = false;     // usb mute control
 // usb mute setting = true is muted
 static void on_usb_set_mutevol(bool mute, int16_t vol)
 {
-  //printf ("usbcb: got mute %d vol %d\n", mute, vol);
   critical_section_enter_blocking(&usb_volumute);
   usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
@@ -547,17 +539,17 @@ static void on_usb_audio_tx_ready()
 }
 
 //thread safe method to get raw IQ data
-bool rx::get_raw_data(int16_t &i, int16_t &q)
+bool xcvr::get_raw_data(int16_t &i, int16_t &q)
 {
   return rx_dsp_inst.get_raw_data(i, q);
 }
 
-uint32_t rx::get_iq_buffer_level()
+uint32_t xcvr::get_iq_buffer_level()
 {
   return rx_dsp_inst.get_iq_buffer_level();
 }
 
-void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audio[])
+void __not_in_flash_func(xcvr::process_block)(uint16_t adc_samples[], int16_t audio[])
 {
   //capture usb volume and mute settings
   critical_section_enter_blocking(&usb_volumute);
@@ -593,7 +585,7 @@ void __not_in_flash_func(rx::process_block)(uint16_t adc_samples[], int16_t audi
   }
 }
 
-bool __not_in_flash_func(rx::ptt)()
+bool __not_in_flash_func(xcvr::ptt)()
 {
   static uint16_t timer = 0;
 
@@ -617,11 +609,10 @@ bool __not_in_flash_func(rx::ptt)()
 
 
 //TRANSMIT
-void __not_in_flash_func(rx::transmit_polar_external)()
+void __not_in_flash_func(xcvr::transmit_polar_external)()
 {
 
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_PWM);
-    gpio_set_function(PIN_RF, GPIO_FUNC_PIO0);
 
     // Use ADC to capture MIC input
     adc mic_adc(PIN_MIC, 2);
@@ -666,7 +657,7 @@ void __not_in_flash_func(rx::transmit_polar_external)()
     //external nco setup
     sem_acquire_blocking(&i2c_semaphore);
     double frequency_resolution_Hz = external_nco.set_tx_frequency_hz(tuned_frequency_Hz);
-    int32_t frequency_steps_per_sample = round(sample_frequency_Hz/(2.0*frequency_resolution_Hz));
+    int32_t frequency_steps_per_sample = round(sample_frequency_Hz/frequency_resolution_Hz);
     uint32_t centre_frequency = round(tuned_frequency_Hz/frequency_resolution_Hz);
     int16_t last_phase_f16 = 0;
     int32_t frequency_steps = 0;
@@ -755,12 +746,10 @@ void __not_in_flash_func(rx::transmit_polar_external)()
 
     gpio_put(LED, 0);
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_RF, GPIO_FUNC_SIO);
 
 }
 
-
-void __not_in_flash_func(rx::transmit_iq)()
+void __not_in_flash_func(xcvr::transmit_iq)()
 {
 
     tune_tx();
@@ -782,7 +771,8 @@ void __not_in_flash_func(rx::transmit_iq)()
     adc mic_adc(PIN_MIC, 2);
 
     // Use PWM to output magnitude
-    iq_pwm iq_pwm_inst(PIN_TX_I, PIN_TX_Q);
+    const double clock_frequency_Hz = system_clock_rate;
+    iq_pwm iq_pwm_inst(PIN_TX_I, PIN_TX_Q, sample_frequency_Hz, clock_frequency_Hz);
 
     // create modulator
     modulator audio_modulator;
@@ -809,8 +799,6 @@ void __not_in_flash_func(rx::transmit_iq)()
 
     const int32_t frequency_shift_steps = pow(2, 32) * offset_frequency_Hz / sample_frequency_Hz;
     uint32_t frequency_shift_phase = 0;
-    uint16_t period_us = round(1.0e6/sample_frequency_Hz);
-    uint64_t next = time_us_64() + period_us;
 
     int32_t audio = 0;
     int32_t monitor = 0;
@@ -872,10 +860,6 @@ void __not_in_flash_func(rx::transmit_iq)()
         //Output IQ
         iq_pwm_inst.output_sample(i, q);
 
-        //delay until next sample
-        while (time_us_64() < next) { tight_loop_contents(); }
-        next += period_us;
-
       }
 
       //update_status
@@ -893,7 +877,7 @@ void __not_in_flash_func(rx::transmit_iq)()
 
 }
 
-void __not_in_flash_func(rx::transmit_polar)()
+void __not_in_flash_func(xcvr::transmit_polar)()
 {
 
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_PWM);
@@ -1022,7 +1006,7 @@ void __not_in_flash_func(rx::transmit_polar)()
 
 }
 
-void rx::run()
+void xcvr::run()
 {
     usb_audio_device_init();
     critical_section_init(&usb_volumute);

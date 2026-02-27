@@ -14,7 +14,7 @@
 #include <cmath>
 #include "pico/stdlib.h"
 
-#include "../utils.h"
+#include "../src/utils.h"
 #include "cordic.h"
 #include "modulator.h"
 
@@ -34,7 +34,6 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     if(abs(audio) > max_audio_magnitude) {
       max_audio_magnitude = abs(audio);
       //audio_gain = (62260/max_audio_magnitude) << 8;
-      printf("max_audio %lu\n", max_audio_magnitude);
     }
     //audio = (int32_t)audio * audio_gain >> 8;
   }
@@ -109,12 +108,10 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     if(abs(i) > max_iq_magnitude) {
       max_iq_magnitude = abs(i);
       //iq_gain = (62260/max_iq_magnitude) << 8;
-      printf("max_iq %lu\n", max_iq_magnitude);
     }
     if(abs(q) > max_iq_magnitude) {
       max_iq_magnitude = abs(q);
       //iq_gain = (62260/max_iq_magnitude) << 8;
-      printf("max_iq %lu\n", max_iq_magnitude);
     }
     i = (int32_t)i * iq_gain >> 8;
     q = (int32_t)q * iq_gain >> 8;
@@ -126,7 +123,6 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     if(magnitude > max_magnitude) {
       max_magnitude = magnitude;
       //iq_gain = (62260/max_iq_magnitude) << 8;
-      printf("max_magnitude %lu\n", max_magnitude);
     }
   }
 }

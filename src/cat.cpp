@@ -6,7 +6,7 @@
 
 #include "pico/stdlib.h"
 
-void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx &receiver, s_settings &settings)
+void process_cat_control(xcvr_settings & settings_to_apply, xcvr_status & status, xcvr &transceiver, s_settings &settings)
 {
     const uint16_t buffer_length = 256;
     static char buf[buffer_length];
@@ -76,7 +76,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
               printf("?;");
             }
         }
-    
+
     } else if (strncmp(cmd, "FB", 2) == 0) {
 
         // Handle mode set/get commands
@@ -100,9 +100,9 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
 
         // Handle mode set/get commands
         if (cmd[3] == ';') {
-            receiver.access(false);
+            transceiver.access(false);
             float power_dBm = status.signal_strength_dBm;
-            receiver.release();
+            transceiver.release();
             float power_scaled = 020*((power_dBm - (-127))/114);
             power_scaled = std::min((float)0x20, power_scaled);
             power_scaled = std::max((float)0, power_scaled);
@@ -338,8 +338,8 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
           }
 
           s_memory_channel memory_channel;
-          memcpy(&memory_channel, words, sizeof(memory_channel)); 
-          memory_store_channel(memory_channel, channel_number, settings, receiver, settings_to_apply);
+          memcpy(&memory_channel, words, sizeof(memory_channel));
+          memory_store_channel(memory_channel, channel_number, settings, transceiver, settings_to_apply);
           printf("ZUP%03lx;", channel_number);
 
         } else {
@@ -354,7 +354,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
           printf("ZDN%03lx", channel_number);
           s_memory_channel memory_channel = get_channel(channel_number);
           uint32_t words[16];
-          memcpy(words, &memory_channel, sizeof(memory_channel)); 
+          memcpy(words, &memory_channel, sizeof(memory_channel));
           for(uint8_t word_idx=0; word_idx<16; ++word_idx)
           {
             printf("%08lx", words[word_idx]);
@@ -369,7 +369,7 @@ void process_cat_control(rx_settings & settings_to_apply, rx_status & status, rx
         printf("?;");
     }
 
-    //apply settings to receiver
-    apply_settings_to_rx(receiver, settings_to_apply, settings, false, settings_changed);
+    //apply settings to transceiver
+    apply_settings_to_xcvr(transceiver, settings_to_apply, settings, false, settings_changed);
 
 }

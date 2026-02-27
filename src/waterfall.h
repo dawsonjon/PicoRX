@@ -2,7 +2,7 @@
 #define __waterfall_h__
 #include <cstdint>
 #include "ili934x.h"
-#include "rx.h"
+#include "xcvr.h"
 #include "settings.h"
 #include "codecs/sstv_decoder_picorx.h"
 
@@ -12,16 +12,16 @@ class waterfall
 {
 
   public:
-  waterfall(rx &_receiver);
+  waterfall(xcvr &_transceiver);
   ~waterfall();
   void update(s_settings& ui_settings,
-                       rx_settings& settings, rx_status& status,
+                       xcvr_settings& settings, xcvr_status& status,
                        uint8_t spectrum[], uint8_t dB10, uint8_t zoom);
   void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver);
   void powerOn(bool state);
 
   private:
-  void update_spectrum(rx_settings& settings, rx_status& status,
+  void update_spectrum(xcvr_settings& settings, xcvr_status& status,
                        uint8_t spectrum[], uint8_t dB10, uint8_t zoom);
   e_aux_display_state m_aux_display_state = waterfall_active;
   void draw();
@@ -31,7 +31,7 @@ class waterfall
   int dBm_to_S(float power_dBm);
   uint8_t waterfall_buffer[120][256];
   ILI934X *display;
-  rx &receiver;
+  xcvr &transceiver;
   c_sstv_decoder_picorx sstv_decoder;
   bool enabled = false;
   bool power_state = true;

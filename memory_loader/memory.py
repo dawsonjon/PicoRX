@@ -22,7 +22,7 @@ const uint32_t __in_flash() __attribute__((aligned(4096))) radio_memory[%s][%s] 
 %s
 };
 """%(num_channels, channel_size, data)
-      with open("memory.cpp", "w") as outf:
+      with open("src/memory.cpp", "w") as outf:
         outf.write(buffer)
 
 mem = Memory()

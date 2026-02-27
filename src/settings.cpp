@@ -5,62 +5,62 @@
 #include "pico/multicore.h"
 #include <cstring>
 
-void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings & settings, bool suspend, bool settings_changed)
+void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s_settings & settings, bool suspend, bool settings_changed)
 {
-  receiver.access(settings_changed);
-  rx_settings.tuned_frequency_Hz = settings.channel.frequency;
-  rx_settings.agc_setting = settings.channel.agc_setting;
-  rx_settings.agc_gain = settings.global.agc_gain;
-  rx_settings.enable_auto_notch = settings.global.enable_auto_notch;
-  rx_settings.enable_noise_reduction = settings.global.enable_noise_reduction;
-  rx_settings.mode = settings.channel.mode;
-  rx_settings.volume = settings.global.volume;
-  rx_settings.squelch_threshold = settings.global.squelch_threshold;
-  rx_settings.squelch_timeout = settings.global.squelch_timeout;
-  rx_settings.step_Hz = step_sizes[settings.channel.step];
-  rx_settings.cw_sidetone_Hz = settings.global.cw_sidetone*100;
-  rx_settings.gain_cal = settings.global.gain_cal;
-  rx_settings.suspend = suspend;
-  rx_settings.swap_iq = settings.global.swap_iq;
-  rx_settings.bandwidth = settings.channel.bandwidth;
-  rx_settings.deemphasis = settings.global.deemphasis;
-  rx_settings.band_1_limit = settings.global.band1;
-  rx_settings.band_2_limit = settings.global.band2;
-  rx_settings.band_3_limit = settings.global.band3;
-  rx_settings.band_4_limit = settings.global.band4;
-  rx_settings.band_5_limit = settings.global.band5;
-  rx_settings.band_6_limit = settings.global.band6;
-  rx_settings.band_7_limit = settings.global.band7;
-  rx_settings.ppm = settings.global.ppm;
-  rx_settings.iq_correction = settings.global.iq_correction;
-  rx_settings.if_mode = settings.global.if_mode;
-  rx_settings.if_frequency_hz_over_100 = settings.global.if_frequency_hz_over_100;
-  rx_settings.noise_estimation = settings.global.noise_estimation + 8;
-  rx_settings.noise_threshold = settings.global.noise_threshold;
-  rx_settings.spectrum_smoothing = settings.global.spectrum_smoothing;
-  rx_settings.enable_external_nco = settings.global.enable_external_nco;
-  rx_settings.treble = settings.global.treble;
-  rx_settings.bass = settings.global.bass;
-  rx_settings.stream_raw_iq = settings.global.usb_stream;
-  rx_settings.tuning_option = settings.global.tuning_option;
-  rx_settings.impulse_threshold = settings.global.impulse_threshold;
+  transceiver.access(settings_changed);
+  xcvr_settings.tuned_frequency_Hz = settings.channel.frequency;
+  xcvr_settings.agc_setting = settings.channel.agc_setting;
+  xcvr_settings.agc_gain = settings.global.agc_gain;
+  xcvr_settings.enable_auto_notch = settings.global.enable_auto_notch;
+  xcvr_settings.enable_noise_reduction = settings.global.enable_noise_reduction;
+  xcvr_settings.mode = settings.channel.mode;
+  xcvr_settings.volume = settings.global.volume;
+  xcvr_settings.squelch_threshold = settings.global.squelch_threshold;
+  xcvr_settings.squelch_timeout = settings.global.squelch_timeout;
+  xcvr_settings.step_Hz = step_sizes[settings.channel.step];
+  xcvr_settings.cw_sidetone_Hz = settings.global.cw_sidetone*100;
+  xcvr_settings.gain_cal = settings.global.gain_cal;
+  xcvr_settings.suspend = suspend;
+  xcvr_settings.swap_iq = settings.global.swap_iq;
+  xcvr_settings.bandwidth = settings.channel.bandwidth;
+  xcvr_settings.deemphasis = settings.global.deemphasis;
+  xcvr_settings.band_1_limit = settings.global.band1;
+  xcvr_settings.band_2_limit = settings.global.band2;
+  xcvr_settings.band_3_limit = settings.global.band3;
+  xcvr_settings.band_4_limit = settings.global.band4;
+  xcvr_settings.band_5_limit = settings.global.band5;
+  xcvr_settings.band_6_limit = settings.global.band6;
+  xcvr_settings.band_7_limit = settings.global.band7;
+  xcvr_settings.ppm = settings.global.ppm;
+  xcvr_settings.iq_correction = settings.global.iq_correction;
+  xcvr_settings.if_mode = settings.global.if_mode;
+  xcvr_settings.if_frequency_hz_over_100 = settings.global.if_frequency_hz_over_100;
+  xcvr_settings.noise_estimation = settings.global.noise_estimation + 8;
+  xcvr_settings.noise_threshold = settings.global.noise_threshold;
+  xcvr_settings.spectrum_smoothing = settings.global.spectrum_smoothing;
+  xcvr_settings.enable_external_nco = settings.global.enable_external_nco;
+  xcvr_settings.treble = settings.global.treble;
+  xcvr_settings.bass = settings.global.bass;
+  xcvr_settings.stream_raw_iq = settings.global.usb_stream;
+  xcvr_settings.tuning_option = settings.global.tuning_option;
+  xcvr_settings.impulse_threshold = settings.global.impulse_threshold;
 
-  rx_settings.test_tone_setting = settings.global.test_tone_setting;
-  rx_settings.test_tone_frequency = settings.global.test_tone_frequency;
-  rx_settings.cw_paddle = settings.global.cw_paddle;
-  rx_settings.cw_speed = settings.global.cw_speed;
-  rx_settings.mic_gain = settings.global.mic_gain;
-  rx_settings.tx_modulation = settings.global.tx_modulation;
-  rx_settings.pwm_min = settings.global.pwm_min;
-  rx_settings.pwm_max = settings.global.pwm_max;
-  rx_settings.pwm_threshold = settings.global.pwm_threshold;
-  rx_settings.tx_phase_dither = settings.global.tx_phase_dither;
-  rx_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
-  rx_settings.tx_monitor = settings.global.tx_monitor;
-  rx_settings.tx_band_limits = settings.global.tx_band_limits;
+  xcvr_settings.test_tone_setting = settings.global.test_tone_setting;
+  xcvr_settings.test_tone_frequency = settings.global.test_tone_frequency;
+  xcvr_settings.cw_paddle = settings.global.cw_paddle;
+  xcvr_settings.cw_speed = settings.global.cw_speed;
+  xcvr_settings.mic_gain = settings.global.mic_gain;
+  xcvr_settings.tx_modulation = settings.global.tx_modulation;
+  xcvr_settings.pwm_min = settings.global.pwm_min;
+  xcvr_settings.pwm_max = settings.global.pwm_max;
+  xcvr_settings.pwm_threshold = settings.global.pwm_threshold;
+  xcvr_settings.tx_phase_dither = settings.global.tx_phase_dither;
+  xcvr_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
+  xcvr_settings.tx_monitor = settings.global.tx_monitor;
+  xcvr_settings.tx_band_limits = settings.global.tx_band_limits;
 
 
-  receiver.release();
+  transceiver.release();
 }
 
 s_memory_channel get_channel(uint16_t channel_number)
@@ -72,7 +72,7 @@ s_memory_channel get_channel(uint16_t channel_number)
   return memory_channel;
 }
 
-void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, rx & receiver, rx_settings & rx_settings)
+void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_number, s_settings & settings, xcvr & transceiver, xcvr_settings & xcvr_settings)
 {
   static_assert(sizeof(s_memory_channel) < memory_chan_size*4);
 
@@ -103,7 +103,7 @@ void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_numb
 
   //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
+  apply_settings_to_xcvr(transceiver, xcvr_settings, settings, true, false); //suspend xcvr to disable all DMA transfers
   sleep_us(10000);                                    //wait for suspension to take effect
   multicore_lockout_start_blocking();                  //halt the second core
   const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
@@ -116,7 +116,7 @@ void memory_store_channel(s_memory_channel memory_channel, uint16_t channel_numb
 
   restore_interrupts (ints);                           //restore interrupts
   multicore_lockout_end_blocking();                    //restart the second core
-  apply_settings_to_rx(receiver, rx_settings, settings, false, false); //resume rx operation
+  apply_settings_to_xcvr(transceiver, xcvr_settings, settings, false, false); //resume xcvr operation
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   //!!! Normal operation resumed
 
@@ -149,7 +149,7 @@ void autosave_restore_settings(s_settings &settings)
 
 }
 
-void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & rx_settings)
+void autosave_store_settings(s_settings settings, xcvr & transceiver, xcvr_settings & xcvr_settings)
 {
 
   //make sure that the memory channels are large enough to store the struct
@@ -184,7 +184,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
     const uint32_t flash_address = address - XIP_BASE;
     //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
+    apply_settings_to_xcvr(transceiver, xcvr_settings, settings, true, false); //suspend xcvr to disable all DMA transfers
     sleep_us(10000);                                    //wait for suspension to take effect
     multicore_lockout_start_blocking();                  //halt the second core
     const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
@@ -196,7 +196,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
 
     restore_interrupts (ints);                           //restore interrupts
     multicore_lockout_end_blocking();                    //restart the second core
-    apply_settings_to_rx(receiver, rx_settings, settings, false, false); //resume rx operation
+    apply_settings_to_xcvr(transceiver, xcvr_settings, settings, false, false); //resume xcvr operation
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //!!! Normal operation resumed
   }
@@ -231,7 +231,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
 
   //!!! PICO is **very** fussy about flash erasing, there must be no code running in flash.  !!!
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  apply_settings_to_rx(receiver, rx_settings, settings, true, false); //suspend rx to disable all DMA transfers
+  apply_settings_to_xcvr(transceiver, xcvr_settings, settings, true, false); //suspend xcvr to disable all DMA transfers
   sleep_us(10000);                                    //wait for suspension to take effect
   multicore_lockout_start_blocking();                  //halt the second core
   const uint32_t ints = save_and_disable_interrupts(); //disable all interrupts
@@ -243,7 +243,7 @@ void autosave_store_settings(s_settings settings, rx & receiver, rx_settings & r
 
   restore_interrupts (ints);                           //restore interrupts
   multicore_lockout_end_blocking();                    //restart the second core
-  apply_settings_to_rx(receiver, rx_settings, settings, false, false);  //resume rx operation
+  apply_settings_to_xcvr(transceiver, xcvr_settings, settings, false, false);  //resume xcvr operation
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   //!!! Normal operation resumed
 

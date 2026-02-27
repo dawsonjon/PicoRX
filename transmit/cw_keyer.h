@@ -2,7 +2,7 @@
 #define __CW_KEYER__
 
 #include <cstdint>
-#include "button.h"
+#include "../src/button.h"
 
 const uint8_t STRAIGHT = 0;
 const uint8_t IAMBIC_A = 1;

@@ -1,5 +1,5 @@
 #include "tx_best_clock.h"
-#include "../clocks.h"
+#include "../src/clocks.h"
 
 #include "hardware/clocks.h"
 #include "pico/stdlib.h"

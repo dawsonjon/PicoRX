@@ -25,7 +25,7 @@ struct s_tx_band_limits
   uint16_t upper[NUM_BANDS];
 };
 
-struct rx_settings
+struct xcvr_settings
 {
   double tuned_frequency_Hz;
   int step_Hz;
@@ -80,7 +80,7 @@ struct rx_settings
   s_tx_band_limits tx_band_limits;
 };
 
-struct rx_status
+struct xcvr_status
 {
   int32_t signal_strength_dBm;
   uint32_t busy_time;
@@ -93,7 +93,7 @@ struct rx_status
   bool transmitting;
 };
 
-class rx
+class xcvr
 {
   private:
 
@@ -121,7 +121,6 @@ class rx
   PIO pio;
   uint offset;
   uint sm;
-
 
   //capture buffer DMA
   static int capture_dma;
@@ -184,7 +183,7 @@ class rx
 
   public:
   semaphore_t i2c_semaphore;
-  rx(rx_settings & settings_to_apply, rx_status & status);
+  xcvr(xcvr_settings & settings_to_apply, xcvr_status & status);
   void apply_settings();
   void run();
   void tune_rx();
@@ -192,8 +191,8 @@ class rx
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void get_audio(uint8_t audio[]);
   void set_alarm_pool(alarm_pool_t *p);
-  rx_settings &settings_to_apply;
-  rx_status &status;
+  xcvr_settings &settings_to_apply;
+  xcvr_status &status;
   rx_dsp rx_dsp_inst;
   void read_batt_temp();
   void access(bool settings_changed);

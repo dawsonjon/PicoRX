@@ -8,7 +8,7 @@
 #include "ssd1306.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
-#include "rx.h"
+#include "xcvr.h"
 #include "memory.h"
 #include "autosave_memory.h"
 #include "waterfall.h"
@@ -97,7 +97,7 @@ class ui
   uint32_t display_timeout_max = 0;
 
   // Status
-  float calculate_signal_strength(rx_status &status);
+  float calculate_signal_strength(xcvr_status &status);
 
   uint16_t audio_vu_meter_update(void);
 
@@ -162,9 +162,9 @@ class ui
   bool display_timeout(bool encoder_change);
 
   uint32_t regmode = 1;
-  rx_settings &settings_to_apply;
-  rx_status &status;
-  rx &receiver;
+  xcvr_settings &settings_to_apply;
+  xcvr_status &status;
+  xcvr &transceiver;
   uint8_t const * const spectrum;
   uint8_t const * const audio;
   uint8_t &dB10;
@@ -180,7 +180,7 @@ class ui
   void autorestore();
   void do_ui(void);
   void update_sdcard_counter(uint32_t c);
-  ui(rx_settings& _settings_to_apply, rx_status& _status, rx& _receiver,
+  ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
      uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
      waterfall& _waterfall_inst);
 

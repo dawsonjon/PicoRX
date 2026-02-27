@@ -16,7 +16,7 @@
 
 #include "half_band_filter.h"
 #include "half_band_filter2.h"
-#include "../rx_definitions.h"
+#include "../src/rx_definitions.h"
 
 class modulator
 {

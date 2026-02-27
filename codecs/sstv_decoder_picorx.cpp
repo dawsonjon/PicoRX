@@ -1,9 +1,9 @@
 #include <algorithm>
 
 #include "sstv_decoder_picorx.h"
-#include "ili934x.h"
-#include "font_16x12.h"
-#include "font_8x5.h"
+#include "../src/ili934x.h"
+#include "../src/font_16x12.h"
+#include "../src/font_8x5.h"
 
 void c_sstv_decoder_picorx :: image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
 {
