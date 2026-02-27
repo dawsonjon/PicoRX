@@ -621,7 +621,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
     pwm magnitude_pwm(PIN_MAGNITUDE);
 
     // Use PIO to output phase/frequency controlled oscillator
-    double sample_frequency_Hz = 9600;
+    double sample_frequency_Hz = 8000;
 
     // create modulator
     modulator audio_modulator;
@@ -895,10 +895,10 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     const float sample_rates[] = {
         12e3, //AM = 0u;
         12e3, //AMSYNC = 1u;
-        10e3, //LSB = 2u;
-        10e3, //USB = 3u;
+        9.6e3, //LSB = 2u;
+        9.6e3, //USB = 3u;
         15e3, //FM = 4u;
-        10e3, //CW = 5u;
+        9.6e3, //CW = 5u;
     };
 
     // Use ADC to capture MIC input
