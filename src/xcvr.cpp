@@ -221,6 +221,8 @@ void xcvr::update_status()
 
 void xcvr::apply_settings()
 {
+
+   bool needs_tune = false;
    if(sem_try_acquire(&settings_semaphore))
    {
 
@@ -372,13 +374,14 @@ void xcvr::apply_settings()
         if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
         enable_external_nco = settings_to_apply.enable_external_nco;
         tuning_option = settings_to_apply.tuning_option;
-        tune_rx();
-
+        needs_tune = true;
       }
 
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
+   if(needs_tune) tune_rx();
+
 }
 
 void xcvr::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
