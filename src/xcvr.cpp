@@ -709,6 +709,8 @@ void __not_in_flash_func(xcvr::transmit_iq)()
     int16_t phase = 0;
     int16_t i = 0;
     int16_t q = 0;
+    int32_t i_dc = 0;
+    int32_t q_dc = 0;
 
     gpio_put(LED, 1);
     while (ptt()) {
@@ -728,16 +730,24 @@ void __not_in_flash_func(xcvr::transmit_iq)()
         frequency_shift_phase += frequency_shift_steps;
         const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
         const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
-        i = i_shifted;
-        q = q_shifted;
 
-        //Apply offsets
-        i += tx_i_offset * 32;
-        q += tx_q_offset * 32;
+        //reduce to slightly less than full scale
+        i = ((int32_t)i_shifted * 31000) >> 15;
+        q = ((int32_t)q_shifted * 31000) >> 15;
+
+        //Automatic DC removal
+        i_dc = i_dc - (i_dc >> 14) + i;
+        q_dc = q_dc - (q_dc >> 14) + q;
+        i -= (i_dc >> 14);
+        q -= (q_dc >> 14);
+
+        //Manual DC offset
+        i += tx_i_offset * 8;
+        q += tx_q_offset * 8;
 
         //IQ Balance
-        //int32_t gain_q = 16384 + tx_iq_balance;
-        //q = ((int32_t)q * gain_q)>>14;
+        int32_t gain_q = 16384 + tx_iq_balance*32;
+        q = ((int32_t)q * gain_q)>>14;
 
         //Output IQ
         iq_pwm_inst.output_sample(i, q);

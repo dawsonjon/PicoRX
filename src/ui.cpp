@@ -2118,14 +2118,17 @@ bool ui::transmit_menu(bool &ok)
 
         case 12 :
           done = number_entry("I Offset", "%i", -128, 127, 1, settings.global.tx_i_offset, ok, changed);
+          if(changed) apply_settings(false);
           break;
 
         case 13 :
           done = number_entry("Q Offset", "%i", -128, 127, 1, settings.global.tx_q_offset, ok, changed);
+          if(changed) apply_settings(false);
           break;
 
         case 14 :
           done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok, changed);
+          if(changed) apply_settings(false);
           break;
 
       }

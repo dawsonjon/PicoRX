@@ -164,8 +164,8 @@ const s_settings default_settings = {
   0x40, //band6
   0x80, //band7
   32,   //phase dither
-  2,    //tx_i_offset
-  -2,   //tx_q_offset
+  -8,    //tx_i_offset
+  -8,   //tx_q_offset
   0,    //tx_iq_balance
   0x00, //pwm_min
   0xff, //pwm_max
@@ -173,7 +173,7 @@ const s_settings default_settings = {
   0,    //test_tone_setting
   0,    //cw_paddle;
   12,   //cw_speed;
-  0,    //mic_gain;
+  4,    //mic_gain;
   0,    //pwm_threshold;
   45, //if_frequency_hz_over_100 = 4500Hz
   2,  //if_mode = nearest
