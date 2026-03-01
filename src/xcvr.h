@@ -12,6 +12,8 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
+#include "transmit/adc.h"
+#include "transmit/cw_keyer.h"
 #include "quadrature_si5351.h"
 #include "button.h"
 
@@ -75,6 +77,9 @@ struct xcvr_settings
   uint8_t pwm_max;
   uint8_t pwm_threshold;
   uint8_t tx_phase_dither;
+  int8_t tx_i_offset;
+  int8_t tx_q_offset;
+  int8_t tx_iq_balance;
   bool tx_use_best_clock;
   bool tx_monitor;
   s_tx_band_limits tx_band_limits;
@@ -155,6 +160,17 @@ class xcvr
   bool internal_nco_active = true;
 
   //Transmit
+  void initialise_signal_generator(const double sample_frequency_Hz);
+  int32_t get_tx_sample(adc &mic_adc, cw_keyer &keyer);
+  uint32_t m_test_tone_frequency_steps;
+  uint32_t m_test_tone1_frequency_steps;
+  uint32_t m_test_tone2_frequency_steps;
+  uint32_t m_side_tone_frequency_steps;
+  uint32_t m_test_tone_phase = 0;
+  uint32_t m_test_tone1_phase = 0;
+  uint32_t m_test_tone2_phase = 0;
+  uint32_t m_side_tone_phase = 0;
+  uint16_t m_scaled_mic_gain = 0;
   button dit;
   button dah;
   uint8_t transmit_mode;
@@ -173,6 +189,9 @@ class xcvr
   uint8_t tx_pwm_max;
   uint8_t tx_pwm_threshold;
   uint8_t tx_phase_dither;
+  int8_t tx_i_offset;
+  int8_t tx_q_offset;
+  int8_t tx_iq_balance;
   bool tx_use_best_clock;
   bool tx_monitor;
   bool tx_enable;

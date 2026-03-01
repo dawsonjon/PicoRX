@@ -359,6 +359,9 @@ void xcvr::apply_settings()
       tx_monitor = settings_to_apply.tx_monitor;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
+      tx_i_offset = settings_to_apply.tx_i_offset;
+      tx_q_offset = settings_to_apply.tx_q_offset;
+      tx_iq_balance = settings_to_apply.tx_iq_balance;
       stream_raw_iq = settings_to_apply.stream_raw_iq;
 
       if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) ||
@@ -610,8 +613,153 @@ bool __not_in_flash_func(xcvr::ptt)()
   return gpio_get(PIN_PTT) == 0;
 }
 
+void xcvr::initialise_signal_generator(const double sample_frequency_Hz)
+{
+    m_test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
+    m_test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
+    m_test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
+    m_side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
+    m_scaled_mic_gain = 16 << tx_mic_gain;
+}
+
+int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
+{
+
+    int32_t audio = 0;
+    int32_t monitor = 0;
+
+    if(test_tone_setting == 1)
+    {
+      monitor = audio = sin_table[m_test_tone_phase >> 21];
+      m_test_tone_phase += m_test_tone_frequency_steps;
+    }
+    else if(test_tone_setting == 2)
+    {
+      monitor = audio = sin_table[m_test_tone1_phase >> 21]/2 + sin_table[m_test_tone2_phase >> 21]/2;
+      m_test_tone1_phase += m_test_tone1_frequency_steps;
+      m_test_tone2_phase += m_test_tone2_frequency_steps;
+    }
+    else
+    {
+      if(transmit_mode == CW)
+      {
+        audio = keyer.get_sample();
+        monitor = (int32_t)audio * (int32_t)sin_table[m_side_tone_phase >> 21] >> 16;
+        m_side_tone_phase += m_side_tone_frequency_steps;
+      }
+      else
+      {
+        // read audio from mic
+        audio = mic_adc.get_sample() * m_scaled_mic_gain;
+        monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+      }
+    }
+    tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+
+    //transmit monitor
+    if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
+    else pwm_audio_sink_set_value(0, gain_numerator);
+
+    return audio;
+
+}
 
 //TRANSMIT
+void __not_in_flash_func(xcvr::transmit_iq)()
+{
+
+    tune_tx();
+
+    gpio_set_function(PIN_TX_I, GPIO_FUNC_PWM);
+    gpio_set_function(PIN_TX_Q, GPIO_FUNC_PWM);
+
+    const float sample_rates[] = {
+        12e3, //AM = 0u;
+        12e3, //AMSYNC = 1u;
+        10e3, //LSB = 2u;
+        10e3, //USB = 3u;
+        15e3, //FM = 4u;
+        10e3, //CW = 5u;
+    };
+    const double sample_frequency_Hz = sample_rates[transmit_mode];
+    initialise_signal_generator(sample_frequency_Hz);
+
+    // Use ADC to capture MIC input
+    adc mic_adc(PIN_MIC, 2);
+
+    // Use PWM to output magnitude
+    const double clock_frequency_Hz = system_clock_rate;
+    iq_pwm iq_pwm_inst(PIN_TX_I, PIN_TX_Q, sample_frequency_Hz, clock_frequency_Hz);
+
+    // create modulator
+    modulator audio_modulator;
+
+    // scale FM deviation
+    const double fm_deviation_Hz = 2.5e3;
+    const uint32_t fm_deviation_f15 = round(2 * 32768.0 * fm_deviation_Hz / sample_frequency_Hz);
+
+    //create CW keyer
+    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, sample_frequency_Hz, dit, dah);
+
+    const int32_t frequency_shift_steps = pow(2, 32) * offset_frequency_Hz / sample_frequency_Hz;
+    uint32_t frequency_shift_phase = 0;
+
+    int32_t audio = 0;
+    uint16_t magnitude = 0;
+    int16_t phase = 0;
+    int16_t i = 0;
+    int16_t q = 0;
+
+    gpio_put(LED, 1);
+    while (ptt()) {
+
+      for(uint16_t idx=0; idx<1000; idx++)
+      {
+        //get audio sample from e.g. MIC
+        audio = get_tx_sample(mic_adc, keyer);
+
+        //Apply Modulation
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+
+        //Apply frequency shift
+        const uint16_t scaled_phase = (frequency_shift_phase >> 21);
+        const int16_t rotation_i =  sin_table[(scaled_phase+512u) & 0x7ff]; //32 - 21 = 11MSBs
+        const int16_t rotation_q = -sin_table[scaled_phase & 0x7ff];
+        frequency_shift_phase += frequency_shift_steps;
+        const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
+        const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
+        i = i_shifted;
+        q = q_shifted;
+
+        //Apply offsets
+        i += tx_i_offset * 32;
+        q += tx_q_offset * 32;
+
+        //IQ Balance
+        //int32_t gain_q = 16384 + tx_iq_balance;
+        //q = ((int32_t)q * gain_q)>>14;
+
+        //Output IQ
+        iq_pwm_inst.output_sample(i, q);
+
+      }
+
+      //update_status
+      tx_update_status();
+    }
+
+    //restore clock settings for receive
+    pwm_audio_sink_set_value(0, gain_numerator);
+
+    tune_rx();
+
+    gpio_put(LED, 0);
+    gpio_set_function(PIN_TX_I, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_TX_Q, GPIO_FUNC_SIO);
+
+}
+
+
 void __not_in_flash_func(xcvr::transmit_polar_external)()
 {
 
@@ -625,6 +773,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
 
     // Use PIO to output phase/frequency controlled oscillator
     double sample_frequency_Hz = 8000;
+    initialise_signal_generator(sample_frequency_Hz);
 
     // create modulator
     modulator audio_modulator;
@@ -637,25 +786,14 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
     //create CW keyer
     cw_keyer keyer(tx_cw_paddle, tx_cw_speed, sample_frequency_Hz, dit, dah);
 
-    //mic gain
-    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
-
-    //test tone
-    uint32_t test_tone_phase = 0;
-    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
-    uint32_t test_tone1_phase = 0;
-    uint32_t test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
-    uint32_t test_tone2_phase = 0;
-    uint32_t test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
-
     int32_t audio = 0;
     uint16_t magnitude = 0;
     uint16_t last_magnitude = 0;
     int16_t phase = 0;
     uint16_t next_magnitude = 0;
     int16_t next_phase = 0;
-    int16_t i = 0; // not used in this design
-    int16_t q = 0; // not used in this design
+    int16_t i = 0;
+    int16_t q = 0;
 
     //external nco setup
     sem_acquire_blocking(&i2c_semaphore);
@@ -674,31 +812,8 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
-        if(test_tone_setting == 1)
-        {
-          audio = sin_table[test_tone_phase >> 21];
-          test_tone_phase += test_tone_frequency_steps;
-        }
-        else if(test_tone_setting == 2)
-        {
-          audio = sin_table[test_tone1_phase >> 21]/2 + sin_table[test_tone2_phase >> 21]/2;
-          test_tone1_phase += test_tone1_frequency_steps;
-          test_tone2_phase += test_tone2_frequency_steps;
-        }
-        else
-        {
-          if(transmit_mode == CW)
-          {
-            audio = keyer.get_sample();
-          }
-          else
-          {
-            // read audio from mic
-            audio = mic_adc.get_sample() * scaled_mic_gain;
-            audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
-          }
-        }
-        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
+        //get audio sample from e.g. MIC
+        audio = get_tx_sample(mic_adc, keyer);
 
         // demodulate
         audio_modulator.process_sample(transmit_mode, audio, i, q, next_magnitude, next_phase, fm_deviation_f15);
@@ -752,134 +867,6 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
 
 }
 
-void __not_in_flash_func(xcvr::transmit_iq)()
-{
-
-    tune_tx();
-
-    gpio_set_function(PIN_TX_I, GPIO_FUNC_PWM);
-    gpio_set_function(PIN_TX_Q, GPIO_FUNC_PWM);
-
-    const float sample_rates[] = {
-        12e3, //AM = 0u;
-        12e3, //AMSYNC = 1u;
-        10e3, //LSB = 2u;
-        10e3, //USB = 3u;
-        15e3, //FM = 4u;
-        10e3, //CW = 5u;
-    };
-    const double sample_frequency_Hz = sample_rates[transmit_mode];
-
-    // Use ADC to capture MIC input
-    adc mic_adc(PIN_MIC, 2);
-
-    // Use PWM to output magnitude
-    const double clock_frequency_Hz = system_clock_rate;
-    iq_pwm iq_pwm_inst(PIN_TX_I, PIN_TX_Q, sample_frequency_Hz, clock_frequency_Hz);
-
-    // create modulator
-    modulator audio_modulator;
-
-    // scale FM deviation
-    const double fm_deviation_Hz = 2.5e3;
-    const uint32_t fm_deviation_f15 = round(2 * 32768.0 * fm_deviation_Hz / sample_frequency_Hz);
-
-    //create CW keyer
-    cw_keyer keyer(tx_cw_paddle, tx_cw_speed, sample_frequency_Hz, dit, dah);
-
-    //mic gain
-    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
-
-    //test tone
-    uint32_t test_tone_phase = 0;
-    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
-    uint32_t test_tone1_phase = 0;
-    uint32_t test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
-    uint32_t test_tone2_phase = 0;
-    uint32_t test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
-    uint32_t side_tone_phase = 0;
-    uint32_t side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
-
-    const int32_t frequency_shift_steps = pow(2, 32) * offset_frequency_Hz / sample_frequency_Hz;
-    uint32_t frequency_shift_phase = 0;
-
-    int32_t audio = 0;
-    int32_t monitor = 0;
-    uint16_t magnitude = 0;
-    int16_t phase = 0;
-    int16_t i = 0;
-    int16_t q = 0;
-
-    gpio_put(LED, 1);
-    while (ptt()) {
-
-      for(uint16_t idx=0; idx<1000; idx++)
-      {
-        if(test_tone_setting == 1)
-        {
-          monitor = audio = sin_table[test_tone_phase >> 21];
-          test_tone_phase += test_tone_frequency_steps;
-        }
-        else if(test_tone_setting == 2)
-        {
-          monitor = audio = sin_table[test_tone1_phase >> 21]/2 + sin_table[test_tone2_phase >> 21]/2;
-          test_tone1_phase += test_tone1_frequency_steps;
-          test_tone2_phase += test_tone2_frequency_steps;
-        }
-        else
-        {
-          if(transmit_mode == CW)
-          {
-            audio = keyer.get_sample();
-            monitor = (int32_t)audio * (int32_t)sin_table[side_tone_phase >> 21] >> 16;
-            side_tone_phase += side_tone_frequency_steps;
-          }
-          else
-          {
-            // read audio from mic
-            audio = mic_adc.get_sample() * scaled_mic_gain;
-            monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
-          }
-        }
-        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
-
-        //transmit monitor
-        if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
-        else pwm_audio_sink_set_value(0, gain_numerator);
-
-        // demodulate
-        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
-
-        //Apply frequency shift
-        const uint16_t scaled_phase = (frequency_shift_phase >> 21);
-        const int16_t rotation_i =  sin_table[(scaled_phase+512u) & 0x7ff]; //32 - 21 = 11MSBs
-        const int16_t rotation_q = -sin_table[scaled_phase & 0x7ff];
-        frequency_shift_phase += frequency_shift_steps;
-        const int16_t i_shifted = (((int32_t)i * rotation_i) - ((int32_t)q * rotation_q)) >> 15;
-        const int16_t q_shifted = (((int32_t)q * rotation_i) + ((int32_t)i * rotation_q)) >> 15;
-        i = i_shifted;
-        q = q_shifted;
-
-        //Output IQ
-        iq_pwm_inst.output_sample(i, q);
-
-      }
-
-      //update_status
-      tx_update_status();
-    }
-
-    //restore clock settings for receive
-    pwm_audio_sink_set_value(0, gain_numerator);
-
-    tune_rx();
-
-    gpio_put(LED, 0);
-    gpio_set_function(PIN_TX_I, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_TX_Q, GPIO_FUNC_SIO);
-
-}
-
 void __not_in_flash_func(xcvr::transmit_polar)()
 {
 
@@ -913,6 +900,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     // Use PIO to output phase/frequency controlled oscillator
     transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, adjusted_tuned_frequency_Hz, tx_phase_dither);
     const double sample_frequency_Hz = sample_rates[transmit_mode];
+    initialise_signal_generator(sample_frequency_Hz);
     const uint8_t waveforms_per_sample =
         rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
 
@@ -928,21 +916,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     //create CW keyer
     cw_keyer keyer(tx_cw_paddle, tx_cw_speed, rf_nco.get_sample_frequency_Hz(clock_frequency_Hz, waveforms_per_sample), dit, dah);
 
-    //mic gain
-    uint16_t scaled_mic_gain = 16 << tx_mic_gain;
-
-    //test tone
-    uint32_t test_tone_phase = 0;
-    uint32_t test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
-    uint32_t test_tone1_phase = 0;
-    uint32_t test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
-    uint32_t test_tone2_phase = 0;
-    uint32_t test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
-    uint32_t side_tone_phase = 0;
-    uint32_t side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
-
     int32_t audio = 0;
-    int32_t monitor = 0;
     uint16_t magnitude = 0;
     int16_t phase = 0;
     int16_t i = 0; // not used in this design
@@ -953,37 +927,8 @@ void __not_in_flash_func(xcvr::transmit_polar)()
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
-        if(test_tone_setting == 1)
-        {
-          monitor = audio = sin_table[test_tone_phase >> 21];
-          test_tone_phase += test_tone_frequency_steps;
-        }
-        else if(test_tone_setting == 2)
-        {
-          monitor = audio = sin_table[test_tone1_phase >> 21]/2 + sin_table[test_tone2_phase >> 21]/2;
-          test_tone1_phase += test_tone1_frequency_steps;
-          test_tone2_phase += test_tone2_frequency_steps;
-        }
-        else
-        {
-          if(transmit_mode == CW)
-          {
-            audio = keyer.get_sample();
-            monitor = (int32_t)audio * (int32_t)sin_table[side_tone_phase >> 21] >> 16;
-            side_tone_phase += side_tone_frequency_steps;
-          }
-          else
-          {
-            // read audio from mic
-            audio = mic_adc.get_sample() * scaled_mic_gain;
-            monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
-          }
-        }
-        tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
-
-        //transmit monitor
-        if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
-        else pwm_audio_sink_set_value(0, gain_numerator);
+        //get audio sample from e.g. MIC
+        audio = get_tx_sample(mic_adc, keyer);
 
         // demodulate
         audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);

@@ -62,6 +62,9 @@ struct s_global_settings
   uint8_t band6;
   uint8_t band7;
   uint8_t tx_phase_dither;
+  int8_t tx_i_offset;
+  int8_t tx_q_offset;
+  int8_t tx_iq_balance;
   uint8_t pwm_min;
   uint8_t pwm_max;
   uint8_t test_tone_frequency;
@@ -161,6 +164,9 @@ const s_settings default_settings = {
   0x40, //band6
   0x80, //band7
   32,   //phase dither
+  2,    //tx_i_offset
+  -2,   //tx_q_offset
+  0,    //tx_iq_balance
   0x00, //pwm_min
   0xff, //pwm_max
   10,   //test_tone_frequency

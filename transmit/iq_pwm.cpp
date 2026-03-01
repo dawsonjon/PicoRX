@@ -38,7 +38,7 @@ iq_pwm::iq_pwm(const uint8_t i_pin,
   q_slice = pwm_gpio_to_slice_num(q_pin);
 
   // ----- configure PWM (same for both slices) -----
-  const uint16_t pwm_max = 254;   // 8-bit PWM
+  const uint16_t pwm_max = 255;   // 8-bit PWM
   pwm_config config_i = pwm_get_default_config();
   pwm_config config_q = pwm_get_default_config();
   pwm_config_set_clkdiv(&config_i, 1.f);
