@@ -192,7 +192,7 @@ const s_settings default_settings = {
   0,  //iq_correction
   0,  //enable_noise_reduction
   0,  //reverse_encoder
-  0,  //encoder_resolution
+  1,  //encoder_resolution
   0,  //swap_iq
   0,  //flip_oled
   0,  //oled_type = ssd1306

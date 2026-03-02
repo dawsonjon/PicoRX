@@ -21,10 +21,11 @@
 
 class adc {
 private:
-  int32_t dc = 0;
+  uint32_t dc = 0;
 
 public:
   adc(const uint8_t mic_pin, const uint8_t adc_input);
+  ~adc();
   int16_t get_sample();
 };
 
