@@ -82,6 +82,7 @@ struct xcvr_settings
   int8_t tx_iq_balance;
   bool tx_use_best_clock;
   bool tx_monitor;
+  bool tx_speech_processor;
   s_tx_band_limits tx_band_limits;
 };
 
@@ -194,6 +195,7 @@ class xcvr
   int8_t tx_iq_balance;
   bool tx_use_best_clock;
   bool tx_monitor;
+  bool tx_speech_processor;
   bool tx_enable;
   uint16_t cw_sidetone_frequency_Hz;
 

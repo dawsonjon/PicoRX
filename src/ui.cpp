@@ -2041,7 +2041,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#I offset#Q offset#IQ\nBalance#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#I offset#Q offset#IQ\nBalance#Speech\nProcessor#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2129,6 +2129,10 @@ bool ui::transmit_menu(bool &ok)
         case 14 :
           done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok, changed);
           if(changed) apply_settings(false);
+          break;
+
+        case 15 :
+          done = bit_entry("Speech Px", "Off#On#", settings.global.tx_speech_processor, ok);
           break;
 
       }

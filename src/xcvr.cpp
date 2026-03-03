@@ -18,8 +18,7 @@
 #include "transmit/iq_pwm.h"
 #include "transmit/transmit_pico2_nco.h"
 #include "transmit/tx_best_clock.h"
-
-
+#include "transmit/speech_processor.h"
 #include "transmit/modulator.h"
 #include "transmit/cw_keyer.h"
 
@@ -357,6 +356,7 @@ void xcvr::apply_settings()
       tx_pwm_threshold = settings_to_apply.pwm_threshold;
       tx_use_best_clock = settings_to_apply.tx_use_best_clock;
       tx_monitor = settings_to_apply.tx_monitor;
+      tx_speech_processor = settings_to_apply.tx_speech_processor;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
       tx_i_offset = settings_to_apply.tx_i_offset;
@@ -650,7 +650,9 @@ int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
       else
       {
         // read audio from mic
-        audio = mic_adc.get_sample() * m_scaled_mic_gain;
+        audio = mic_adc.get_sample();
+        if(tx_speech_processor) audio = process_speech(audio);
+        audio *= m_scaled_mic_gain;
         monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
       }
     }

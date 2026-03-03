@@ -97,6 +97,7 @@ struct s_global_settings
   bool    tx_modulation;
   bool    tx_use_best_clock;
   bool    tx_monitor;
+  bool    tx_speech_processor;
   bool    enable_external_nco;
   bool    spectrum_hold;
 };
@@ -199,6 +200,7 @@ const s_settings default_settings = {
   0,  //tx_modulation
   1,  //tx_use_best_clock
   0,  //tx_monitor
+  0,  //tx_speech_processor
   0,  //enable_external_nco
   0,  //spectrum_hold
 }};

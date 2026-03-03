@@ -95,10 +95,10 @@ int16_t __not_in_flash_func(adc::get_sample)() {
 
     // Grab last 4 samples
     uint32_t sum = 0;
-    for(int i=0;i<25;i++) {
+    for(int i=0;i<50;i++) {
         sum += adc_buf[(dma_pos - i) & (ADC_BUF_SIZE - 1)];
     }
-    uint32_t avg = sum / 25;
+    uint32_t avg = sum / 50;
 
     // DC removal
     dc = dc - (dc >> 10) + avg;

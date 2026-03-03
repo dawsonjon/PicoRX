@@ -60,6 +60,7 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.tx_iq_balance = settings.global.tx_iq_balance;
   xcvr_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
   xcvr_settings.tx_monitor = settings.global.tx_monitor;
+  xcvr_settings.tx_speech_processor = settings.global.tx_speech_processor;
   xcvr_settings.tx_band_limits = settings.global.tx_band_limits;
 
 
