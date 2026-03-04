@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "pico/stdlib.h"
+#include "pico/bootrom.h"
 
 void process_cat_control(xcvr_settings & settings_to_apply, xcvr_status & status, xcvr &transceiver, s_settings &settings)
 {
@@ -363,6 +364,10 @@ void process_cat_control(xcvr_settings & settings_to_apply, xcvr_status & status
 
         } else {
             printf("?;");
+        }
+    } else if (strncmp(cmd, "ZR", 2) == 0) {
+        if (cmd[2] == ';') {
+          reset_usb_boot(0, 0);
         }
     } else {
         // Unknown command
