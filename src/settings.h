@@ -82,7 +82,6 @@ struct s_global_settings
   uint8_t treble;
   uint8_t bass;
   uint8_t aux_view;
-  uint8_t tuning_option;
   uint8_t impulse_threshold;
   uint8_t agc_gain;
   bool    usb_stream;
@@ -185,7 +184,6 @@ const s_settings default_settings = {
   0,  //treble
   0,  //bass
   0,  //aux_view
-  2,  //tuning_option
   0,  //impulse blanker threshold
   6,  //agc_gain
   0,  //usb_stream

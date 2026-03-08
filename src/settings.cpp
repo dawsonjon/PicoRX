@@ -42,7 +42,6 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.treble = settings.global.treble;
   xcvr_settings.bass = settings.global.bass;
   xcvr_settings.stream_raw_iq = settings.global.usb_stream;
-  xcvr_settings.tuning_option = settings.global.tuning_option;
   xcvr_settings.impulse_threshold = settings.global.impulse_threshold;
 
   xcvr_settings.test_tone_setting = settings.global.test_tone_setting;

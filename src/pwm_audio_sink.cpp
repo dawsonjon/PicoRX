@@ -24,8 +24,8 @@ static int16_t pong_audio[NUM_OUT_SAMPLES];
 static uint32_t pwm_max;
 static uint32_t pwm_scale;
 
-const uint32_t ramp_samples = 500;
-static uint32_t ramp=ramp_samples;
+const uint32_t ramp_samples = 2048;
+static uint32_t ramp=0;
 static bool ground = false;
 
 static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
@@ -65,6 +65,7 @@ void pwm_audio_sink_init(void) {
   pwm_config_set_clkdiv(&config, 1.f);
   pwm_config_set_wrap(&config, pwm_max);
   pwm_init(audio_pwm_slice_num, &config, true);
+  pwm_set_chan_level(audio_pwm_slice_num, PWM_CHAN_A, 0);
 
   pwm_dma_ping = dma_claim_unused_channel(true);
   pwm_dma_pong = dma_claim_unused_channel(true);
@@ -131,39 +132,19 @@ uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gai
   return time;
 }
 
-void disable_pwm(uint8_t tuning_option)
+void disable_pwm()
 {
-
-  if(tuning_option == 0){
-    //do nothing
-  } else if(tuning_option == 1) {
-    //ramp down to ground before changing frequency
-    gpio_set_function(PIN_AUDIO, GPIO_FUNC_SIO);
-    gpio_disable_pulls(PIN_AUDIO);
-  } else {
-    //tristate before changing frequency
-    ground = true;
-    ramp = ramp_samples; //100ms
-    sleep_us(40000);
-  }
-
+  ground = true;
 }
 
-void enable_pwm(uint8_t tuning_option)
+bool pwm_is_disabled()
 {
+  return ramp == 0 && ground;
+}
 
-  if(tuning_option == 0){
-    //do nothing
-  } else if(tuning_option == 1) {
-    //ramp down to ground before changing frequency
-    sleep_us(15000);
-    gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
-  } else {
-    //tristate before changing frequency
-    ground = false;
-    ramp = 0;
-  }
-
+void enable_pwm()
+{
+  ground = false;
 }
 
 void pwm_audio_sink_update_pwm_max(uint32_t new_max) {

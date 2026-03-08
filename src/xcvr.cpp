@@ -84,11 +84,9 @@ void xcvr::tune_tx()
   else
   {
     double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    disable_pwm(1);
     nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, 0, if_mode);
     offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
     pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
-    enable_pwm(1);
   }
 
 }
@@ -140,6 +138,7 @@ void xcvr::tune_rx()
         offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
         rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
         rx_dsp_inst.amsync_reset();
+        m_needs_tune = false;
     }
   }
   else
@@ -163,15 +162,18 @@ void xcvr::tune_rx()
       internal_nco_active = true;
     }
 
-    double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    disable_pwm(tuning_option);
-    nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
-    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
-    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
-    rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
-    enable_pwm(tuning_option);
-    rx_dsp_inst.amsync_reset();
 
+    disable_pwm();
+    if(pwm_is_disabled()) {
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
+      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+      rx_dsp_inst.amsync_reset();
+      enable_pwm();
+      m_needs_tune = false;
+    }
   }
 
 }
@@ -221,7 +223,6 @@ void xcvr::update_status()
 void xcvr::apply_settings()
 {
 
-   bool needs_tune = false;
    if(sem_try_acquire(&settings_semaphore))
    {
 
@@ -376,14 +377,12 @@ void xcvr::apply_settings()
         if_mode = settings_to_apply.if_mode;
         if_frequency_hz_over_100 = settings_to_apply.if_frequency_hz_over_100;
         enable_external_nco = settings_to_apply.enable_external_nco;
-        tuning_option = settings_to_apply.tuning_option;
-        needs_tune = true;
+        m_needs_tune = true;
       }
 
       settings_changed = false;
       sem_release(&settings_semaphore);
    }
-   if(needs_tune) tune_rx();
 
 }
 
@@ -593,6 +592,8 @@ void __not_in_flash_func(xcvr::process_block)(uint16_t adc_samples[], int16_t au
 
 bool __not_in_flash_func(xcvr::ptt)()
 {
+  if(!tx_enable) return false;
+
   static uint16_t timer = 0;
 
   //while transmitting this gets called about 10000 times per second
@@ -613,13 +614,19 @@ bool __not_in_flash_func(xcvr::ptt)()
   return gpio_get(PIN_PTT) == 0;
 }
 
-void xcvr::initialise_signal_generator(const double sample_frequency_Hz)
+void xcvr::begin_signal_generator(const double sample_frequency_Hz)
 {
     m_test_tone_frequency_steps = pow(2, 32) * 100 * test_tone_frequency / sample_frequency_Hz;
     m_test_tone1_frequency_steps = pow(2, 32) * 800 / sample_frequency_Hz;
     m_test_tone2_frequency_steps = pow(2, 32) * 1200 / sample_frequency_Hz;
     m_side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
     m_scaled_mic_gain = 16 << tx_mic_gain;
+    if(tx_monitor) enable_pwm();
+}
+
+void xcvr::end_signal_generator()
+{
+    if(tx_monitor) disable_pwm();
 }
 
 int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
@@ -684,7 +691,7 @@ void __not_in_flash_func(xcvr::transmit_iq)()
         10e3, //CW = 5u;
     };
     const double sample_frequency_Hz = sample_rates[transmit_mode];
-    initialise_signal_generator(sample_frequency_Hz);
+    begin_signal_generator(sample_frequency_Hz);
 
     // Use ADC to capture MIC input
     adc mic_adc(PIN_MIC, 2);
@@ -761,8 +768,7 @@ void __not_in_flash_func(xcvr::transmit_iq)()
     }
 
     //restore clock settings for receive
-    pwm_audio_sink_set_value(0, gain_numerator);
-
+    end_signal_generator();
     tune_rx();
 
     gpio_put(LED, 0);
@@ -785,7 +791,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
 
     // Use PIO to output phase/frequency controlled oscillator
     double sample_frequency_Hz = 8000;
-    initialise_signal_generator(sample_frequency_Hz);
+    begin_signal_generator(sample_frequency_Hz);
 
     // create modulator
     modulator audio_modulator;
@@ -871,6 +877,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
       tx_update_status();
     }
 
+    end_signal_generator();
     //external nco
     sem_release(&i2c_semaphore);
 
@@ -886,12 +893,10 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     gpio_set_function(PIN_RF, GPIO_FUNC_PIO0);
 
     double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    disable_pwm(1);
     if(tx_use_best_clock) {
       system_clock_rate = tx_best_clock(adjusted_tuned_frequency_Hz);
     }
     pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
-    enable_pwm(1);
     const double clock_frequency_Hz = system_clock_rate;
 
     const float sample_rates[] = {
@@ -912,7 +917,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     // Use PIO to output phase/frequency controlled oscillator
     transmit_nco rf_nco(PIN_RF, clock_frequency_Hz, adjusted_tuned_frequency_Hz, tx_phase_dither);
     const double sample_frequency_Hz = sample_rates[transmit_mode];
-    initialise_signal_generator(sample_frequency_Hz);
+    begin_signal_generator(sample_frequency_Hz);
     const uint8_t waveforms_per_sample =
         rf_nco.get_waveforms_per_sample(clock_frequency_Hz, sample_frequency_Hz);
 
@@ -957,7 +962,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     }
 
     //restore clock settings for receive
-    pwm_audio_sink_set_value(0, gain_numerator);
+    end_signal_generator();
     tune_rx();
 
     gpio_put(LED, 0);
@@ -983,8 +988,8 @@ void xcvr::run()
 
     while(true)
     {
-      if(settings_changed) apply_settings();
 
+      apply_settings();
 
       //read other adc channels when streaming is not running
       uint32_t timeout = 15000;
@@ -1010,10 +1015,14 @@ void xcvr::run()
       while(true)
       {
           //exchange data with UI (runing in core 0)
+          if(settings_changed) apply_settings();
+          if(m_needs_tune) tune_rx();
           update_status();
 
+          if(ptt())disable_pwm();
+
           //periodically (or when requested) suspend streaming
-          if(timeout-- == 0 || suspend || settings_changed || ptt())
+          if(timeout-- == 0 || suspend || pwm_is_disabled())
           {
 
             dma_channel_cleanup(adc_dma_ping);
@@ -1054,7 +1063,7 @@ void xcvr::run()
         }
       }
 
-      if(ptt() && tx_enable)
+      if(ptt())
       {
 
         if(tx_modulation){
@@ -1067,6 +1076,7 @@ void xcvr::run()
           pio_sm_set_enabled(pio, sm, true);
         }
         else transmit_iq();
+        enable_pwm();
 
       }
 

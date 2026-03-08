@@ -62,7 +62,6 @@ struct xcvr_settings
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
-  uint8_t tuning_option;
   bool enable_external_nco;
   bool stream_raw_iq;
 
@@ -119,7 +118,6 @@ class xcvr
   uint16_t battery;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
-  uint8_t tuning_option=0;
   int8_t ppm=0;
   s_tx_band_limits tx_band_limits;
 
@@ -161,7 +159,8 @@ class xcvr
   bool internal_nco_active = true;
 
   //Transmit
-  void initialise_signal_generator(const double sample_frequency_Hz);
+  void begin_signal_generator(const double sample_frequency_Hz);
+  void end_signal_generator();
   int32_t get_tx_sample(adc &mic_adc, cw_keyer &keyer);
   uint32_t m_test_tone_frequency_steps;
   uint32_t m_test_tone1_frequency_steps;
@@ -198,6 +197,7 @@ class xcvr
   bool tx_speech_processor;
   bool tx_enable;
   uint16_t cw_sidetone_frequency_Hz;
+  bool m_needs_tune = true;
 
   // USB streaming mode
   uint8_t stream_raw_iq;
