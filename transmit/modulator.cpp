@@ -12,7 +12,10 @@
 //
 
 #include <cmath>
+
+#ifndef SIMULATION
 #include "pico/stdlib.h"
+#endif
 
 #include "../src/utils.h"
 #include "cordic.h"
@@ -22,20 +25,46 @@
 
 modulator ::modulator() { cordic_init(); }
 
+
+#ifndef SIMULATION
+void __not_in_flash_func(modulator::process_envelope)(int16_t &i, int16_t &q, s_debug &debug) {
+#else
+void modulator ::process_envelope(int16_t &i, int16_t &q, s_debug &debug) {
+#endif
+
+  //uint16_t env = rectangular_2_magnitude(i, q);
+  uint16_t env = sqrt(i*i+q*q);
+  debug.env = env;
+
+  uint16_t limit = 5910; //32767/(2*filter_gain*filter_gain)
+
+  if(env > limit) {
+    uint16_t overshoot;
+    overshoot = env-limit;
+    overshoot = overshoot * 3;
+    overshoot += limit;
+    i = (int32_t)i*limit/overshoot;
+    q = (int32_t)q*limit/overshoot;
+  }
+  i = (int32_t)i*32767/limit;
+  q = (int32_t)q*32767/limit;
+
+}
+
+#ifndef SIMULATION
 void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio, int16_t &i,
                                 int16_t &q, uint16_t &magnitude, int16_t &phase,
-                                uint32_t fm_deviation_f15) {
+                                uint32_t fm_deviation_f15, s_debug &debug) {
+#else
+void modulator ::process_sample(uint8_t mode, int16_t audio, int16_t &i,
+                                int16_t &q, uint16_t &magnitude, int16_t &phase,
+                                uint32_t fm_deviation_f15, s_debug &debug) {
+#endif
 
-  static uint32_t max_audio_magnitude = 0;
-  //static uint32_t audio_gain = 0;
   if(mode != CW)
   {
     audio_filter.filter(audio);
-    if(abs(audio) > max_audio_magnitude) {
-      max_audio_magnitude = abs(audio);
-      //audio_gain = (62260/max_audio_magnitude) << 8;
-    }
-    //audio = (int32_t)audio * audio_gain >> 8;
+    debug.filtered_audio = audio;
   }
 
   if (mode == AM || mode == AMSYNC) {
@@ -86,6 +115,12 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
     int16_t ii = audio_i[ssb_phase];
     int16_t qq = audio_q[ssb_phase];
     ssb_filter.filter(ii, qq);
+    debug.raw_i = ii;
+    debug.raw_q = qq;
+    process_envelope(ii, qq, debug);
+    debug.clipped_i = ii;
+    debug.clipped_q = qq;
+    ssb_filter2.filter(ii, qq);
 
     // shift frequency by -FS/4
     //         | __
@@ -100,29 +135,13 @@ void __not_in_flash_func(modulator ::process_sample)(uint8_t mode, int16_t audio
 
     const int16_t sample_i[4] = {(int16_t)(-qq), (int16_t)(-ii), qq, ii};
     const int16_t sample_q[4] = {ii, (int16_t)(-qq), (int16_t)(-ii), qq};
-    i = sample_i[ssb_phase] << 1;
-    q = sample_q[ssb_phase] << 1;
-
-    static uint32_t max_iq_magnitude = 0;
-    static uint32_t iq_gain = 450; //1.5
-    if(abs(i) > max_iq_magnitude) {
-      max_iq_magnitude = abs(i);
-      //iq_gain = (62260/max_iq_magnitude) << 8;
-    }
-    if(abs(q) > max_iq_magnitude) {
-      max_iq_magnitude = abs(q);
-      //iq_gain = (62260/max_iq_magnitude) << 8;
-    }
-    i = (int32_t)i * iq_gain >> 8;
-    q = (int32_t)q * iq_gain >> 8;
-
+    i = sample_i[ssb_phase];
+    q = sample_q[ssb_phase];
+    audio_filter2.filter(i, q);
+    i = (int32_t)i*2798 >> 10; // gain = 1.67 0.98 * 1024/(gain * gain)
+    q = (int32_t)q*2798 >> 10;
     cordic_rectangular_to_polar(i, q, magnitude, phase);
     magnitude = magnitude > 32767 ? 32767 : magnitude;
     magnitude <<= 1;
-    static uint32_t max_magnitude = 0;
-    if(magnitude > max_magnitude) {
-      max_magnitude = magnitude;
-      //iq_gain = (62260/max_iq_magnitude) << 8;
-    }
   }
 }

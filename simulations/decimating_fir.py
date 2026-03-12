@@ -35,24 +35,24 @@ if __name__ == "__main__":
     fs_kHz = 500
     bits = 16
     taps1=27
-    taps2=63
+    taps2=127
 
     plt.figure()
     plt.grid(True)
     plt.xlabel("Frequency (kHz)")
     plt.ylabel("Gain (dB)")
     plt.ylim(-150, 10)
-    plot_kernel(0.5, taps1, bits, fs_kHz, "Half Band FIR Filter 1")
-    dB3attenuation = plot_kernel(0.5, taps2, bits, fs_kHz, "Half Band FIR Filter 2")#second filter
+    plot_kernel(1.0/8.0, taps1, bits, fs_kHz, "Half Band FIR Filter 1")
+    dB3attenuation = plot_kernel(1.0/8.0, taps2, bits, fs_kHz, "Half Band FIR Filter 2")#second filter
     plt.legend()
     plt.show()
 
     print("FIR filter 1")
-    kernel = make_kernel(0.5, taps1, bits)
+    kernel = make_kernel(1.0/8.0, taps1, bits)
     kernel = [int(i) for i in kernel]
     print(kernel)
 
     print("FIR Filter 2")
-    kernel = make_kernel(0.5, taps2, bits)
+    kernel = make_kernel(1.0/8.0, taps2, bits)
     kernel = [int(i) for i in kernel]
     print(kernel)

@@ -658,9 +658,13 @@ int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
       {
         // read audio from mic
         audio = mic_adc.get_sample();
-        if(tx_speech_processor) audio = process_speech(audio);
         audio *= m_scaled_mic_gain;
-        monitor = audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+        audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
+        if(tx_speech_processor) audio = process_speech(audio);
+        static float envelope=0;
+        int16_t short_audio = audio;
+        if(tx_speech_processor) compress(short_audio, envelope, 8192);
+        monitor = audio = short_audio;
       }
     }
     tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
@@ -730,7 +734,8 @@ void __not_in_flash_func(xcvr::transmit_iq)()
         audio = get_tx_sample(mic_adc, keyer);
 
         //Apply Modulation
-        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+        s_debug debug;
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15, debug);
 
         //Apply frequency shift
         const uint16_t scaled_phase = (frequency_shift_phase >> 21);
@@ -834,7 +839,8 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
         audio = get_tx_sample(mic_adc, keyer);
 
         // demodulate
-        audio_modulator.process_sample(transmit_mode, audio, i, q, next_magnitude, next_phase, fm_deviation_f15);
+        s_debug debug;
+        audio_modulator.process_sample(transmit_mode, audio, i, q, next_magnitude, next_phase, fm_deviation_f15, debug);
 
         // output phase
         if(toggle){ //only output at half rate when using external nco
@@ -948,7 +954,8 @@ void __not_in_flash_func(xcvr::transmit_polar)()
         audio = get_tx_sample(mic_adc, keyer);
 
         // demodulate
-        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15);
+        s_debug debug;
+        audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15, debug);
 
         // output magnitude
         magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);

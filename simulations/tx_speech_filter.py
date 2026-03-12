@@ -105,6 +105,21 @@ def high_shelf(f0, g):
 
     return [b0 / a0, b1 / a0, b2 / a0], [1.0, a1 / a0, a2 / a0]
 
+def high_pass(f0, g):
+    S = 1
+    A = math.pow(10, g / 40)
+    w0 = 2 * math.pi * f0 / SR
+    alpha = math.sin(w0) / 2 * math.sqrt((A + 1 / A) * (1 / S - 1) + 2)
+
+    b0 = (1 + math.cos(w0))/2
+    b1 = -(1 + math.cos(w0))
+    b2 = (1 + math.cos(w0))/2
+    a0 = 1 + alpha
+    a1 = -2 * math.cos(w0)
+    a2 = 1 - alpha
+
+    return [b0 / a0, b1 / a0, b2 / a0], [1.0, a1 / a0, a2 / a0]
+
 
 def add_plot(b, a, ax1, ax2):
     w, h = sig.freqz(b, a, fs=SR)
@@ -122,16 +137,30 @@ def print_ba(b, a):
     a = ", ".join(list(map(format, np.round(np.array(a) * FIX_ONE))))
     print(f"   {{ {{{b}}}, {{{a}}} }},")
 
-
 _, ax1 = plt.subplots(tight_layout=True)
-ax1.set_title("Treble filters")
+ax1.set_title("Bass filters")
 ax1.grid(True)
 ax1.set_xlabel("Frequency in Hz", color="C2")
 ax1.set_ylabel("Amplitude in dB", color="C0")
 ax2 = ax1.twinx()
 ax2.set_ylabel("Phase [rad]", color="C1")
 
-print("// treble")
+print("// bass cut")
+for g in [-20]:
+    b, a = low_shelf(1000, g)
+    add_plot(b, a, ax1, ax2)
+    print_ba(b, a)
+plt.show()
+
+_, ax1 = plt.subplots(tight_layout=True)
+ax1.set_title("Treble Boost")
+ax1.grid(True)
+ax1.set_xlabel("Frequency in Hz", color="C2")
+ax1.set_ylabel("Amplitude in dB", color="C0")
+ax2 = ax1.twinx()
+ax2.set_ylabel("Phase [rad]", color="C1")
+
+print("// treble boost")
 for g in [8]:
     b, a = high_shelf(1200, g)
     add_plot(b, a, ax1, ax2)

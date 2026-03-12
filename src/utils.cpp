@@ -2,7 +2,9 @@
 #include <cstdint>
 #include <math.h>
 
+#ifndef SIMULATION
 #include "pico/stdlib.h"
+#endif
 
 #define CORDIC_ITERS (6)
 
@@ -11,7 +13,11 @@ int16_t sin_table[2048];
 static const uint32_t CORDIC_GAIN = 39803;
 static int16_t CORDIC_ATAN_LUT[CORDIC_ITERS] = {8192, 4836, 2555, 1297, 651, 326};
 
+#ifndef SIMULATION
 void __time_critical_func(rectangular_2_polar)(int16_t i, int16_t q, uint16_t *mag, int16_t *phase) {
+#else
+void rectangular_2_polar(int16_t i, int16_t q, uint16_t *mag, int16_t *phase) {
+#endif
   int16_t temp_i;
   int16_t angle = 0;
 

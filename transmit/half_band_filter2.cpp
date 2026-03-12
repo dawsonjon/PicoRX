@@ -12,7 +12,9 @@
 //
 
 #include "half_band_filter2.h"
+#ifndef SIMULATION
 #include "pico/stdlib.h"
+#endif
 
 half_band_filter2 ::half_band_filter2() {
   pointer = 0;
@@ -22,7 +24,11 @@ half_band_filter2 ::half_band_filter2() {
   }
 }
 
+#ifndef SIMULATION
 void __not_in_flash_func(half_band_filter2::filter)(int16_t &i, int16_t &q) {
+#else
+void half_band_filter2::filter(int16_t &i, int16_t &q) {
+#endif
 
   // filter kernel:
   // 0, 0, 1, 0, -6, 0, 16, 0, -32, 0, 60, 0, -102, 0, 164, 0, -254, 0, 381, 0,

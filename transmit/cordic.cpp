@@ -13,7 +13,9 @@
 
 #include <cstdint>
 #include <math.h>
+#ifndef SIMULATION
 #include "pico/stdlib.h"
+#endif
 
 const uint8_t cordic_iterations = 16;
 int16_t thetas[cordic_iterations + 1];
@@ -41,8 +43,13 @@ void cordic_init() {
   recip_gain = 32767 / gain;
 }
 
+#ifndef SIMULATION
 void __not_in_flash_func(cordic_rectangular_to_polar)(int16_t i, int16_t q, uint16_t &magnitude,
                                  int16_t &phase) {
+#else
+void cordic_rectangular_to_polar(int16_t i, int16_t q, uint16_t &magnitude,
+                                 int16_t &phase) {
+#endif
   int32_t temp_i;
   int32_t i_32 = i;
   int32_t q_32 = q;
