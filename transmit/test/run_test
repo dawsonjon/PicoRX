@@ -1,0 +1,2 @@
+g++ transmit_test_harness.cpp -DSIMULATION ../modulator.cpp ../half_band_filter.cpp ../half_band_filter2.cpp ../cordic.cpp ../speech_processor.cpp ../../src/utils.cpp -o transmit_test_harness
+./transmit_test_harness
