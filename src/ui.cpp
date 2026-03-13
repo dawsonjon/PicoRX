@@ -2041,7 +2041,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#I offset#Q offset#IQ\nBalance#Speech\nProcessor#", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#I offset#Q offset#IQ\nBalance#Noise\nGate#Treble#Bass#Compress", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2132,7 +2132,19 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 15 :
-          done = bit_entry("Speech Px", "Off#On#", settings.global.tx_speech_processor, ok);
+          done = bit_entry("Noise Gate", "Off#On#", settings.global.tx_noise_gate, ok);
+          break;
+
+        case 16 :
+          done = number_entry("Treble", "%i", -5, 5, 1, settings.global.tx_treble, ok, changed);
+          break;
+
+        case 17 :
+          done = number_entry("Bass", "%i", -5, 5, 1, settings.global.tx_bass, ok, changed);
+          break;
+
+        case 18 :
+          done = number_entry("Compress", "%i", 0, 5, 1, settings.global.tx_compression, ok, changed);
           break;
 
       }

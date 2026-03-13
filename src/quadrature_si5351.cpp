@@ -60,18 +60,30 @@ bool quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin
 
 }
 
-void quad_si5351 :: start()
+void quad_si5351 :: start_rx()
 {
+  //enable outputs 0 and 1 (disable 2)
   //high impedance when disabled
+  m_pll_needs_reset = true;
   write_reg(SI_CLK_DIS_STATE, 0xAA);
-  write_reg(SI_OUPUT_ENABLE, 0xF8);
+  write_reg(SI_OUPUT_ENABLE, 0xFC);
 }
 
 void quad_si5351 :: stop()
 {
   //high impedance when disabled
+  m_pll_needs_reset = true;
   write_reg(SI_CLK_DIS_STATE, 0xAA);
   write_reg(SI_OUPUT_ENABLE, 0xFF);
+}
+
+void quad_si5351 :: start_tx()
+{
+  //enable output 2 (disable 0 and 1)
+  //high impedance when disabled
+  m_pll_needs_reset = true;
+  write_reg(SI_CLK_DIS_STATE, 0xAA);
+  write_reg(SI_OUPUT_ENABLE, 0xFB);
 }
 
 void quad_si5351 :: write_reg(uint8_t address, uint8_t data)

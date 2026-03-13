@@ -53,13 +53,16 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.pwm_min = settings.global.pwm_min;
   xcvr_settings.pwm_max = settings.global.pwm_max;
   xcvr_settings.pwm_threshold = settings.global.pwm_threshold;
+  xcvr_settings.tx_treble = settings.global.tx_treble;
+  xcvr_settings.tx_bass = settings.global.tx_bass;
+  xcvr_settings.tx_compression = settings.global.tx_compression;
   xcvr_settings.tx_phase_dither = settings.global.tx_phase_dither;
   xcvr_settings.tx_i_offset = settings.global.tx_i_offset;
   xcvr_settings.tx_q_offset = settings.global.tx_q_offset;
   xcvr_settings.tx_iq_balance = settings.global.tx_iq_balance;
   xcvr_settings.tx_use_best_clock = settings.global.tx_use_best_clock;
   xcvr_settings.tx_monitor = settings.global.tx_monitor;
-  xcvr_settings.tx_speech_processor = settings.global.tx_speech_processor;
+  xcvr_settings.tx_noise_gate = settings.global.tx_noise_gate;
   xcvr_settings.tx_band_limits = settings.global.tx_band_limits;
 
 

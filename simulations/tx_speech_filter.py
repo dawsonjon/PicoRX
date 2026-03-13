@@ -146,7 +146,7 @@ ax2 = ax1.twinx()
 ax2.set_ylabel("Phase [rad]", color="C1")
 
 print("// bass cut")
-for g in [-20]:
+for g in range(-10, 11, 2):
     b, a = low_shelf(1000, g)
     add_plot(b, a, ax1, ax2)
     print_ba(b, a)
@@ -161,7 +161,7 @@ ax2 = ax1.twinx()
 ax2.set_ylabel("Phase [rad]", color="C1")
 
 print("// treble boost")
-for g in [8]:
+for g in range(-10, 11, 2):
     b, a = high_shelf(1200, g)
     add_plot(b, a, ax1, ax2)
     print_ba(b, a)

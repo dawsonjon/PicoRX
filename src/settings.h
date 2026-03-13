@@ -73,6 +73,9 @@ struct s_global_settings
   uint8_t cw_speed;
   uint8_t mic_gain;
   uint8_t pwm_threshold;
+  uint8_t tx_compression;
+  int8_t tx_treble;
+  int8_t tx_bass;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
   uint8_t noise_estimation;
@@ -96,7 +99,7 @@ struct s_global_settings
   bool    tx_modulation;
   bool    tx_use_best_clock;
   bool    tx_monitor;
-  bool    tx_speech_processor;
+  bool    tx_noise_gate;
   bool    enable_external_nco;
   bool    spectrum_hold;
 };
@@ -175,6 +178,9 @@ const s_settings default_settings = {
   12,   //cw_speed;
   4,    //mic_gain;
   0,    //pwm_threshold;
+  0,    //tx_compression;
+  3,    //tx_treble;
+  -3,   //tx_bass;
   45, //if_frequency_hz_over_100 = 4500Hz
   2,  //if_mode = nearest
   2,  //noise_estimation very_fast, fast, normal, slow, very_slow
@@ -198,7 +204,7 @@ const s_settings default_settings = {
   0,  //tx_modulation
   1,  //tx_use_best_clock
   0,  //tx_monitor
-  0,  //tx_speech_processor
+  1,  //tx_noise_gate
   0,  //enable_external_nco
   0,  //spectrum_hold
 }};

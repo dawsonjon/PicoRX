@@ -52,7 +52,8 @@ class quad_si5351
   double set_frequency_hz(uint32_t frequency);
   double set_tx_frequency_hz(uint32_t frequency);
   void set_tx_freq_adjustment(uint32_t frequency_steps);
-  void start();
+  void start_rx();
+  void start_tx();
   void stop();
   void set_drive(uint8_t drive_strength);
 

@@ -100,12 +100,24 @@ void pwm_audio_sink_stop(void) {
 }
 
 void pwm_audio_sink_set_value(int16_t sample, int16_t gain) {
+
+
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
 
   // shift up
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
+
+  //apply soft mute
+  if (ground) {
+    sample = ramp*sample/ramp_samples;
+    if(ramp) ramp--;
+  } else {
+    sample = ramp*sample/ramp_samples;
+    if(ramp<ramp_samples) ramp++;
+  }
+
   pwm_set_chan_level(audio_pwm_slice_num, PWM_CHAN_A, sample);
 }
 

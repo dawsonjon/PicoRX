@@ -79,9 +79,12 @@ struct xcvr_settings
   int8_t tx_i_offset;
   int8_t tx_q_offset;
   int8_t tx_iq_balance;
+  int8_t tx_treble;
+  int8_t tx_bass;
+  uint8_t tx_compression;
   bool tx_use_best_clock;
   bool tx_monitor;
-  bool tx_speech_processor;
+  bool tx_noise_gate;
   s_tx_band_limits tx_band_limits;
 };
 
@@ -192,10 +195,14 @@ class xcvr
   int8_t tx_i_offset;
   int8_t tx_q_offset;
   int8_t tx_iq_balance;
+  int8_t tx_treble;
+  int8_t tx_bass;
+  uint8_t tx_compression;
   bool tx_use_best_clock;
   bool tx_monitor;
-  bool tx_speech_processor;
+  bool tx_noise_gate;
   bool tx_enable;
+  bool tx_complete = false;
   uint16_t cw_sidetone_frequency_Hz;
   bool m_needs_tune = true;
 
@@ -208,7 +215,7 @@ class xcvr
   void apply_settings();
   void run();
   void tune_rx();
-  void tune_tx();
+  void tune_tx(bool transmit_enable);
   void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
   void get_audio(uint8_t audio[]);
   void set_alarm_pool(alarm_pool_t *p);

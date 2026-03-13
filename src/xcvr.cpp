@@ -70,23 +70,47 @@ void xcvr::access(bool s)
   settings_changed |= s;
 }
 
-void xcvr::tune_tx()
+//r-etunes the quadrature NCO when operating in IQ mode
+//also restores the RX tuning after TX in internal polar mode
+void xcvr::tune_tx(bool transmit_enable)
 {
 
-  if(external_nco_active)
-  {
-    double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    sem_acquire_blocking(&i2c_semaphore);
-    nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz);
-    sem_release(&i2c_semaphore);
-    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
-  }
-  else
-  {
-    double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
-    nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, 0, if_mode);
-    offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
-    pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+  if(transmit_enable) {
+    if(external_nco_active)
+    {
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
+      sem_acquire_blocking(&i2c_semaphore);
+      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz);
+      sem_release(&i2c_semaphore);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+    }
+    else
+    {
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
+      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, 0, if_mode);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+    }
+  } else {
+    if(external_nco_active)
+    {
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
+      sem_acquire_blocking(&i2c_semaphore);
+      nco_frequency_Hz = external_nco.set_frequency_hz(adjusted_tuned_frequency_Hz + ((uint16_t)if_frequency_hz_over_100*100));
+      sem_release(&i2c_semaphore);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+      rx_dsp_inst.amsync_reset();
+    }
+    else
+    {
+      double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6/(1e6+ppm);
+      nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate, if_frequency_hz_over_100, if_mode);
+      offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
+      pwm_audio_sink_update_pwm_max((system_clock_rate/pwm_audio_sample_rate)-1);
+      rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
+      rx_dsp_inst.amsync_reset();
+    }
   }
 
 }
@@ -118,14 +142,14 @@ void xcvr::tune_rx()
       external_nco_good = external_nco.initialise(i2c1, PIN_DISPLAY_SDA, PIN_DISPLAY_SCL, 0x60, 25000000);
       external_nco.set_drive(3);
       external_nco.crystal_load(3);
-      external_nco.start();
+      external_nco.start_rx();
       external_nco_initialised = true;
     }
 
     //start external oscillator each time it is enabled
     if(!external_nco_active)
     {
-      external_nco.start();
+      external_nco.start_rx();
       external_nco_active = true;
     }
 
@@ -161,7 +185,6 @@ void xcvr::tune_rx()
       pio_sm_set_enabled(pio, sm, true);
       internal_nco_active = true;
     }
-
 
     disable_pwm();
     if(pwm_is_disabled()) {
@@ -357,7 +380,10 @@ void xcvr::apply_settings()
       tx_pwm_threshold = settings_to_apply.pwm_threshold;
       tx_use_best_clock = settings_to_apply.tx_use_best_clock;
       tx_monitor = settings_to_apply.tx_monitor;
-      tx_speech_processor = settings_to_apply.tx_speech_processor;
+      tx_noise_gate = settings_to_apply.tx_noise_gate;
+      tx_treble = settings_to_apply.tx_treble;
+      tx_bass = settings_to_apply.tx_bass;
+      tx_compression = settings_to_apply.tx_compression;
       tx_band_limits = settings_to_apply.tx_band_limits;
       tx_phase_dither = settings_to_apply.tx_phase_dither;
       tx_i_offset = settings_to_apply.tx_i_offset;
@@ -431,7 +457,8 @@ xcvr::xcvr(xcvr_settings & _settings_to_apply, xcvr_status & _status) : dit(PIN_
     //Configure PTT
     gpio_init(PIN_PTT);
     gpio_set_function(PIN_PTT, GPIO_FUNC_SIO);
-    gpio_set_dir(PIN_PTT, GPIO_IN);
+    gpio_set_dir(PIN_PTT, GPIO_OUT);
+    gpio_put(PIN_PTT, 1);
     gpio_pull_up(PIN_PTT);
     gpio_init(LED);
     gpio_set_function(LED, GPIO_FUNC_SIO);
@@ -593,25 +620,11 @@ void __not_in_flash_func(xcvr::process_block)(uint16_t adc_samples[], int16_t au
 bool __not_in_flash_func(xcvr::ptt)()
 {
   if(!tx_enable) return false;
-
   static uint16_t timer = 0;
-
-  //while transmitting this gets called about 10000 times per second
-  if((dit.is_keyed() || dah.is_keyed()) && (transmit_mode == CW)) timer = 5;
+  if(dit.is_keyed() || dah.is_keyed()) timer = 5000;
   else if(timer) timer--;
 
-  if(timer != 0) //force ptt because dit/dah is recently keyed
-  {
-    gpio_set_dir(PIN_PTT, GPIO_OUT);
-    gpio_put(PIN_PTT, 0);
-  }
-  else
-  {
-    gpio_set_dir(PIN_PTT, GPIO_IN);
-  }
-  sleep_us(1);
-
-  return gpio_get(PIN_PTT) == 0;
+  return timer;
 }
 
 void xcvr::begin_signal_generator(const double sample_frequency_Hz)
@@ -622,6 +635,7 @@ void xcvr::begin_signal_generator(const double sample_frequency_Hz)
     m_side_tone_frequency_steps = pow(2, 32) * cw_sidetone_frequency_Hz / sample_frequency_Hz;
     m_scaled_mic_gain = 16 << tx_mic_gain;
     if(tx_monitor) enable_pwm();
+    tx_complete = false;
 }
 
 void xcvr::end_signal_generator()
@@ -660,19 +674,25 @@ int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
         audio = mic_adc.get_sample();
         audio *= m_scaled_mic_gain;
         audio = std::max((int32_t)-32767, std::min((int32_t)32767, audio));
-        if(tx_speech_processor) audio = process_speech(audio);
+        audio = process_speech(audio, tx_noise_gate, tx_treble, tx_bass);
         static float envelope=0;
         int16_t short_audio = audio;
-        if(tx_speech_processor) compress(short_audio, envelope, 8192);
+        const uint16_t compression_lookup[6] = {32767, 16383, 8191, 4095, 2047, 1023};
+        const uint16_t compression_threshold = compression_lookup[tx_compression];
+        compress(short_audio, envelope, compression_threshold);
         monitor = audio = short_audio;
       }
     }
     tx_audio_level = tx_audio_level - (tx_audio_level >> 5) + (abs(audio) >> 5);
 
-    //transmit monitor
-    if(tx_monitor) pwm_audio_sink_set_value(monitor, gain_numerator);
-    else pwm_audio_sink_set_value(0, gain_numerator);
-
+    //transmit monitor -  shut down PWM cleanly before returning to RX
+    if(tx_monitor){
+      if(!ptt()) disable_pwm();
+      tx_complete = pwm_is_disabled();
+      pwm_audio_sink_set_value(monitor, gain_numerator);
+    } else {
+      tx_complete = !ptt();
+    }
     return audio;
 
 }
@@ -681,7 +701,7 @@ int32_t __not_in_flash_func(xcvr::get_tx_sample)(adc &mic_adc, cw_keyer &keyer)
 void __not_in_flash_func(xcvr::transmit_iq)()
 {
 
-    tune_tx();
+    tune_tx(true);
 
     gpio_set_function(PIN_TX_I, GPIO_FUNC_PWM);
     gpio_set_function(PIN_TX_Q, GPIO_FUNC_PWM);
@@ -726,7 +746,7 @@ void __not_in_flash_func(xcvr::transmit_iq)()
     int32_t q_dc = 0;
 
     gpio_put(LED, 1);
-    while (ptt()) {
+    while (!tx_complete) {
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
@@ -750,10 +770,10 @@ void __not_in_flash_func(xcvr::transmit_iq)()
         q = ((int32_t)q_shifted * 31000) >> 15;
 
         //Automatic DC removal
-        i_dc = i_dc - (i_dc >> 14) + i;
-        q_dc = q_dc - (q_dc >> 14) + q;
-        i -= (i_dc >> 14);
-        q -= (q_dc >> 14);
+        i_dc = i_dc - (i_dc >> 8) + i;
+        q_dc = q_dc - (q_dc >> 8) + q;
+        i -= (i_dc >> 8);
+        q -= (q_dc >> 8);
 
         //Manual DC offset
         i += tx_i_offset * 8;
@@ -774,7 +794,7 @@ void __not_in_flash_func(xcvr::transmit_iq)()
 
     //restore clock settings for receive
     end_signal_generator();
-    tune_rx();
+    tune_tx(false);
 
     gpio_put(LED, 0);
     gpio_set_function(PIN_TX_I, GPIO_FUNC_SIO);
@@ -821,6 +841,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
     //external nco setup
     sem_acquire_blocking(&i2c_semaphore);
     double frequency_resolution_Hz = external_nco.set_tx_frequency_hz(tuned_frequency_Hz);
+    external_nco.start_tx();
     int32_t frequency_steps_per_sample = round(sample_frequency_Hz/frequency_resolution_Hz);
     uint32_t centre_frequency = round(tuned_frequency_Hz/frequency_resolution_Hz);
     int16_t last_phase_f16 = 0;
@@ -831,7 +852,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
     const uint16_t MAG_THR = 200;
 
     gpio_put(LED, 1);
-    while (ptt()) {
+    while (!tx_complete) {
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
@@ -884,6 +905,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
     }
 
     end_signal_generator();
+    external_nco.start_rx();
     //external nco
     sem_release(&i2c_semaphore);
 
@@ -946,7 +968,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
     int16_t q = 0; // not used in this design
 
     gpio_put(LED, 1);
-    while (ptt()) {
+    while (!tx_complete) {
 
       for(uint16_t idx=0; idx<1000; idx++)
       {
@@ -970,7 +992,7 @@ void __not_in_flash_func(xcvr::transmit_polar)()
 
     //restore clock settings for receive
     end_signal_generator();
-    tune_rx();
+    tune_tx(false);
 
     gpio_put(LED, 0);
     gpio_set_function(PIN_MAGNITUDE, GPIO_FUNC_SIO);
@@ -1026,7 +1048,7 @@ void xcvr::run()
           if(m_needs_tune) tune_rx();
           update_status();
 
-          if(ptt())disable_pwm();
+          if(ptt()) disable_pwm();
 
           //periodically (or when requested) suspend streaming
           if(timeout-- == 0 || suspend || pwm_is_disabled())
@@ -1073,16 +1095,18 @@ void xcvr::run()
       if(ptt())
       {
 
+        gpio_put(PIN_PTT, 0);
         if(tx_modulation){
-          pio_sm_set_enabled(pio, sm, false);
           if(external_nco_active) {
             transmit_polar_external();
           } else {
+            pio_sm_set_enabled(pio, sm, false);
             transmit_polar();
+            pio_sm_set_enabled(pio, sm, true);
           }
-          pio_sm_set_enabled(pio, sm, true);
         }
         else transmit_iq();
+        gpio_put(PIN_PTT, 1);
         enable_pwm();
 
       }

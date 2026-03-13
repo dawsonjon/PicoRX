@@ -69,6 +69,9 @@ adc::adc(const uint8_t mic_pin, const uint8_t adc_input) {
     );
 
     adc_run(true);
+
+    dc = 2048 << 8;
+
 }
 
 adc::~adc() {
@@ -85,6 +88,7 @@ adc::~adc() {
     for (int i = 0; i < ADC_BUF_SIZE; i++) {
         adc_buf[i] = 0;
     }
+
 }
 
 int16_t __not_in_flash_func(adc::get_sample)() {
@@ -101,8 +105,8 @@ int16_t __not_in_flash_func(adc::get_sample)() {
     uint32_t avg = sum / 50;
 
     // DC removal
-    dc = dc - (dc >> 10) + avg;
-    int16_t sample = avg - (dc >> 10);
+    dc = dc - (dc >> 8) + avg;
+    int16_t sample = avg - (dc >> 8);
 
     return sample;
 }
