@@ -963,7 +963,12 @@ void __not_in_flash_func(xcvr::transmit_polar)()
 
     int32_t audio = 0;
     uint16_t magnitude = 0;
+    uint16_t prev_magnitude = 0;
+    //uint16_t prev_magnitude2 = 0;
     int16_t phase = 0;
+    //int16_t last_phase = 0;
+    //int16_t output_phase = 0;
+    //int16_t frequency = 0;
     int16_t i = 0; // not used in this design
     int16_t q = 0; // not used in this design
 
@@ -980,7 +985,9 @@ void __not_in_flash_func(xcvr::transmit_polar)()
         audio_modulator.process_sample(transmit_mode, audio, i, q, magnitude, phase, fm_deviation_f15, debug);
 
         // output magnitude
-        magnitude_pwm.output_sample(magnitude, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
+        magnitude_pwm.output_sample((magnitude+prev_magnitude)/2, tx_pwm_min, tx_pwm_max, tx_pwm_threshold);
+        //prev_magnitude2 = prev_magnitude;
+        prev_magnitude = magnitude;
 
         // output phase
         rf_nco.output_sample(phase, waveforms_per_sample);

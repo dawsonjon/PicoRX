@@ -26,7 +26,7 @@ int main()
 
     int32_t audio_clipped = 4095.0f*sin(2.0f*M_PI*test_phase*0.2);// audio[idx];
     test_phase += 1.0f;
-    audio_processed = process_speech(audio_clipped);
+    audio_processed = process_speech(audio_clipped, 0, 0, 0);
     int16_t audio_uncompressed = audio_processed;
     compress(audio_processed, env, 2048);
     the_modulator.process_sample(USB, audio_processed, i, q, magnitude, phase, 0, debug);
@@ -44,7 +44,7 @@ int main()
 
       int32_t audio_clipped = audio[idx];
       test_phase += 1.0f;
-      audio_processed = process_speech(audio_clipped);
+      audio_processed = process_speech(audio_clipped, 0, 0, 0);
       int16_t audio_uncompressed = audio_processed;
       compress(audio_processed, env, 1024);
       the_modulator.process_sample(USB, audio_processed, i, q, magnitude, phase, 0, debug);

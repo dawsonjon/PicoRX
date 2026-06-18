@@ -140,7 +140,34 @@ void modulator ::process_sample(uint8_t mode, int16_t audio, int16_t &i,
     audio_filter2.filter(i, q);
     i = (int32_t)i*2798 >> 10; // gain = 1.67 0.98 * 1024/(gain * gain)
     q = (int32_t)q*2798 >> 10;
+
+    //static int16_t i_prev=0, q_prev=0;
+    //ii = (int32_t(i)*i_prev + int32_t(q)*q_prev)>>15;
+    //qq = (int32_t(q)*i_prev - int32_t(i)*q_prev)>>15;
+    //i_prev = i;
+    //q_prev = q;
+
+    //int16_t dphase=0;
+    //static int16_t phase_acc=0;
+    //cordic_rectangular_to_polar(ii, qq, magnitude, dphase);
+    //if(dphase > 16384) dphase = 16384;
+    //if(dphase < -16384) dphase = -16384;
+    //uint32_t gain = (magnitude << 15) / (magnitude + 1000);
+    //dphase = (int32_t)dphase * gain >> 15;
+    //printf("i %i q %i ii %i qq %i magnitude %u dphase %i gain %u\n", i, q, ii, qq, magnitude, dphase, magnitude+100);
+
+    //phase_acc+=dphase;
+    //phase = phase_acc;
     cordic_rectangular_to_polar(i, q, magnitude, phase);
+    //static int16_t prev_phase = 0;
+    //int16_t dphase = phase - prev_phase;
+
+    //if(magnitude < 100) {
+       //phase = prev_phase;
+    //} else {
+       //prev_phase = phase;
+    //}
+
     magnitude = magnitude > 32767 ? 32767 : magnitude;
     magnitude <<= 1;
   }

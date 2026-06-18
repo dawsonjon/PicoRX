@@ -201,7 +201,7 @@ const s_settings default_settings = {
   0,  //swap_iq
   0,  //flip_oled
   0,  //oled_type = ssd1306
-  0,  //tx_modulation
+  1,  //tx_modulation
   1,  //tx_use_best_clock
   0,  //tx_monitor
   1,  //tx_noise_gate
