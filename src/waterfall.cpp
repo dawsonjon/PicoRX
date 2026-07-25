@@ -275,7 +275,7 @@ int waterfall::dBm_to_S(float power_dBm) {
   return (power_s);
 }
 
-void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
+void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
@@ -309,16 +309,18 @@ void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_st
     }
     else
     {
-      update_spectrum(settings, status, spectrum, dB10, zoom);
+      update_spectrum(settings, status, spectrum, hold, dB10, zoom, ui_settings.global.spectrum_hold);
     }
 
 }
 
-void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t dB10, uint8_t zoom)
+void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom, bool spectrum_hold)
 {
 
     //update spectrum and waterfall display
     const uint16_t scope_fg = display->colour565(255, 255, 255);
+    const uint16_t hold_fg = display->colour565(255, 0, 0);
+    const uint16_t hold_fill = display->colour565(255, 128, 128);
     static uint16_t top_row = 0u;
 
     //scroll waterfall
@@ -437,9 +439,11 @@ void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, ui
 
     //draw scope
     uint8_t data_points[num_cols];
+    uint8_t data_points_hold[num_cols];
     for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
     {
       data_points[scope_col] = (scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
+      data_points_hold[scope_col] = (scope_height * (uint16_t)hold[scope_col])/270;
     }
     uint16_t tick_spacing;
     if(zoom >= 3)
@@ -465,7 +469,15 @@ void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, ui
        for(uint16_t scope_col=0; scope_col<num_cols; ++scope_col)
        {
 
-         uint8_t data_point = data_points[scope_col];//(scope_height * (uint16_t)waterfall_buffer[top_row][scope_col])/270;
+         uint8_t y = data_points[scope_col];
+         uint8_t y_m_1 = data_points[scope_col > 0?scope_col - 1:0];
+         uint8_t data_point_min = std::min(y, y_m_1);
+         uint8_t data_point_max = std::max(y, y_m_1);
+
+         uint8_t h = 1+data_points_hold[scope_col];
+         uint8_t h_p_1 = 1+data_points_hold[scope_col < num_cols-1?scope_col + 1:num_cols-1];
+         uint8_t data_point_hold_min = std::min(h, h_p_1);
+         uint8_t data_point_hold_max = std::max(h, h_p_1);
 
          const int16_t fbin = scope_col-128;
          const bool is_usb_col = (fbin > (status.filter_config.start_bin * zoom)) && (fbin < (status.filter_config.stop_bin * zoom)) && status.filter_config.upper_sideband;
@@ -473,16 +485,24 @@ void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, ui
          const bool is_passband = is_usb_col || is_lsb_col;
          const bool col_is_tick = (fbin%tick_spacing == 0) && fbin;
 
-         if(scope_row < data_point)
+         if(scope_row < data_point_min)
          {
            uint16_t colour = scope_row_colour;
            colour = is_passband?scope_row_colour_passband:colour;
            colour = fbin==0?scope_row_colour_cursor:colour;
            hline[scope_col] = colour;
          }
-         else if(scope_row == data_point)
+         else if(scope_row >= data_point_min && scope_row <= data_point_max)
          {
            hline[scope_col] = scope_fg;
+         }
+         else if(spectrum_hold && scope_row > data_point_max && scope_row < data_point_hold_min)
+         {
+           hline[scope_col] = hold_fill;
+         }
+         else if(spectrum_hold && scope_row >= data_point_hold_min && scope_row <= data_point_hold_max)
+         {
+           hline[scope_col] = hold_fg;
          }
          else
          {

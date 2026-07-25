@@ -1,4 +1,4 @@
-build
+build_pico
 build_pico2
 build_pico2_riscv
 test_dsp

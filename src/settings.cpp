@@ -38,6 +38,7 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.noise_estimation = settings.global.noise_estimation + 8;
   xcvr_settings.noise_threshold = settings.global.noise_threshold;
   xcvr_settings.spectrum_smoothing = settings.global.spectrum_smoothing;
+  xcvr_settings.hold_smoothing = settings.global.hold_smoothing;
   xcvr_settings.enable_external_nco = settings.global.enable_external_nco;
   xcvr_settings.treble = settings.global.treble;
   xcvr_settings.bass = settings.global.bass;

@@ -860,10 +860,18 @@ void ui::draw_spectrum(uint16_t startY, uint16_t endY)
   const uint8_t max_height = (endY-startY-2);
   const uint8_t scale = 256/max_height;
 
+  int16_t y_hold_m_1 = 0;
   for(uint16_t x=0; x<128; x++)
   {
     const int16_t y = spectrum[x*2]/scale;
     ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
+    if(settings.global.spectrum_hold) {
+      const int16_t y_hold = 2+hold[x*2]/scale;
+      const uint16_t y_min = std::min(y_hold, y_hold_m_1);
+      const uint16_t y_max = std::max(y_hold, y_hold_m_1);
+      y_hold_m_1 = y_hold;
+      ssd1306_draw_line(&disp, x, endY-y_max, x, endY-y_min, 1);
+    }
   }
 
   for (int16_t y = 0; y < max_height; ++y)
@@ -2559,7 +2567,7 @@ bool ui::spectrum_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#", &menu_selection, ok))
+      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2589,11 +2597,15 @@ bool ui::spectrum_menu(bool & ok)
             zoom = settings.global.spectrum_zoom;
             break;
           case 1 :
-            done = number_entry("Spectrum\nSmoothing", "%i", 1, 4, 1, settings.global.spectrum_smoothing, ok, changed);
+            done = number_entry("Spectrum\nSmoothing", "%i", 1, 6, 1, settings.global.spectrum_smoothing, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 2:
             done = bit_entry("Spectrum\nHold", "Off#On#", settings.global.spectrum_hold, ok);
+            break;
+          case 3 :
+            done = number_entry("Hold\nSmoothing", "%i", 1, 8, 1, settings.global.hold_smoothing, ok, changed);
+            if(changed) apply_settings(false);
             break;
         }
         if(done)
@@ -3080,7 +3092,7 @@ void ui::update_display_type(void)
 }
 
 ui::ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
-       uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
+       uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
        waterfall& _waterfall_inst)
     : settings(default_settings),
       main_encoder(settings.global),
@@ -3091,6 +3103,7 @@ ui::ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiv
       status(_status),
       transceiver(_transceiver),
       spectrum(_spectrum),
+      hold(_hold),
       audio(_audio),
       dB10(_dB10),
       zoom(_zoom),

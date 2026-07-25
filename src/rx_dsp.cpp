@@ -649,6 +649,11 @@ void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
   filter_control.spectrum_smoothing = spectrum_smoothing;
 }
 
+void rx_dsp :: set_hold_smoothing(uint8_t _hold_smoothing)
+{
+  hold_smoothing = _hold_smoothing;
+}
+
 void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold)
 {
   filter_control.enable_noise_reduction = enable_noise_reduction;
@@ -735,6 +740,7 @@ void rx_dsp :: set_frequency_offset_Hz(double offset_frequency)
   offset_frequency_Hz = offset_frequency;
   const float bin_width = adc_sample_rate/(cic_decimation_rate*256);
   filter_control.fft_bin = offset_frequency/bin_width;
+  fft_bin = offset_frequency/bin_width;
   frequency = ((double)(1ull<<32)*offset_frequency)*cic_decimation_rate/(adc_sample_rate);
 }
 
@@ -829,7 +835,7 @@ static inline uint8_t fft_shift(uint8_t bin)
   return bin ^ 0x80;
 }
 
-void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
+void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom)
 {
   //FFT and magnitude
   sem_acquire_blocking(&spectrum_semaphore);
@@ -842,7 +848,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
   uint16_t new_min=65535u;
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
+    const uint16_t magnitude = cic_correct(freq_bin(i), fft_bin, capture[i]);
     if(magnitude == 0) continue;
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
@@ -858,11 +864,12 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
 
   //clamp and convert to log scale 0 -> 255
   uint8_t temp_spectrum[256];
+  const float  dc_bin = fmod(-fft_bin, 256.0f);
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t raw_magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
-    const uint8_t  dc_bin = -capture_filter_control.fft_bin;
-    const uint8_t  mirror_idx = dc_bin-(i-dc_bin);
+    const uint16_t raw_magnitude = cic_correct(freq_bin(i), fft_bin, capture[i]);
+    const int32_t  mirror_idx_signed = round(dc_bin-(static_cast<float>(i)-dc_bin));
+    const uint8_t  mirror_idx = mirror_idx_signed; //mod256
     const uint16_t mirror_magnitude = capture[mirror_idx];
     const uint16_t noise_estimate = std::min(mirror_magnitude, raw_magnitude);
     const uint16_t magnitude = raw_magnitude > noise_estimate ? raw_magnitude - noise_estimate : 0;
@@ -887,6 +894,10 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
       total += temp_spectrum[from_idx];
     }
     spectrum[i] = total/zoom;
+
+    if(spectrum[i] > hold[i]) hold[i] = spectrum[i];
+    else if(hold[i] > (1<<hold_smoothing)) hold[i] = hold[i] - (hold[i] >> hold_smoothing);
+    else if(hold[i] > 0) hold[i]--;
   }
 
   sem_release(&spectrum_semaphore);

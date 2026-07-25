@@ -1,65 +1,30 @@
 #include "rotary_encoder.h"
-
-#include "pins.h"
+#include "quadrature_encoder.pio.h"
 #include "ui.h"
+#include "pins.h"
 
-static int32_t count;
-static critical_section_t crit;
 
-static void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
+rotary_encoder::rotary_encoder(s_global_settings &_settings) : encoder(_settings) {
+  gpio_set_function(PIN_AB, GPIO_FUNC_PIO1);
+  gpio_set_function(PIN_AB + 1, GPIO_FUNC_PIO1);
+  uint offset = pio_add_program(pio, &quadrature_encoder_program);
+  quadrature_encoder_program_init(pio, sm, offset, PIN_AB, 1000);
 
-    (void)gpio;
-    (void)events;
+  if (settings.encoder_resolution) {
+    new_position = -((quadrature_encoder_get_count(pio, sm) + 1) / 2);
+  } else {
+    new_position = -((quadrature_encoder_get_count(pio, sm) + 2) / 4);
+  }
 
-    static uint8_t state = 0;
-    static const int8_t transition_table[16] =
-    {
-         0, -1,  1,  0,
-         1,  0,  0, -1,
-        -1,  0,  0,  1,
-         0,  1, -1,  0
-    };
-
-    uint8_t new_state = (gpio_get(PIN_AB) << 1) | gpio_get(PIN_B);
-    uint8_t index = (state << 2) | new_state;
-
-    count += transition_table[index];
-    state = new_state;
-
-}
-
-rotary_encoder::rotary_encoder(s_global_settings& _settings)
-    : encoder(_settings) {
-  gpio_init(PIN_AB);
-  gpio_set_dir(PIN_AB, GPIO_IN);
-  gpio_pull_up(PIN_AB);
-
-  gpio_init(PIN_B);
-  gpio_set_dir(PIN_B, GPIO_IN);
-  gpio_pull_up(PIN_B);
-
-  critical_section_init(&crit);
-
-  gpio_set_irq_callback(gpio_callback);
-  gpio_set_irq_enabled(PIN_AB, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-  gpio_set_irq_enabled(PIN_B, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-  irq_set_enabled(IO_IRQ_BANK0, true);
-
-  old_position = new_position = 0;
+  old_position = new_position;
 }
 
 int32_t rotary_encoder::get_change(void) {
-  int32_t c = 0;
-  critical_section_enter_blocking(&crit);
-  c = count;
-  critical_section_exit(&crit);
-
   if (settings.encoder_resolution) {
-    new_position = (c+1)/2;
+    new_position = -((quadrature_encoder_get_count(pio, sm) + 1) / 2);
   } else {
-    new_position = (c+2)/4;
+    new_position = -((quadrature_encoder_get_count(pio, sm) + 2) / 4);
   }
-
   int32_t delta = new_position - old_position;
   old_position = new_position;
   if (settings.reverse_encoder & 1) {

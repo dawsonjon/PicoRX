@@ -82,6 +82,7 @@ struct s_global_settings
   uint8_t noise_threshold;
   uint8_t view;
   uint8_t spectrum_smoothing;
+  uint8_t hold_smoothing;
   uint8_t treble;
   uint8_t bass;
   uint8_t aux_view;
@@ -187,6 +188,7 @@ const s_settings default_settings = {
   0,  //noise_threshold normal, high, very_high
   0,  //view
   4,  //spectrum_smoothing
+  6,  //hold_smoothing
   0,  //treble
   0,  //bass
   0,  //aux_view
@@ -206,7 +208,7 @@ const s_settings default_settings = {
   0,  //tx_monitor
   1,  //tx_noise_gate
   0,  //enable_external_nco
-  0,  //spectrum_hold
+  1,  //spectrum_hold
 }};
 
 

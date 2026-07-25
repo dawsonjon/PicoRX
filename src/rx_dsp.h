@@ -38,11 +38,12 @@ class rx_dsp
   void set_auto_notch(bool enable_auto_notch);
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
+  void set_hold_smoothing(uint8_t hold_smoothing);
   int16_t get_signal_strength_dBm();
-  void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
+  void get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom);
   void get_audio_capture(uint8_t audio[]);
   s_filter_control get_filter_config();
-  void get_spectrum(float spectrum[]);
+  //void get_spectrum(float spectrum[]);
   bool get_raw_data(int16_t &i, int16_t &q);
   uint32_t get_iq_buffer_level();
   float get_tuning_offset_Hz();
@@ -85,7 +86,7 @@ class rx_dsp
   int32_t delayi3, delayq3;
 
   //used in fft filter
-  int16_t fft_bin;
+  //int16_t fft_bin;
   fft_filter fft_filter_inst;
   s_filter_control filter_control;
   s_filter_control capture_filter_control;
@@ -148,6 +149,9 @@ class rx_dsp
 
   // synchronous AM demodulator state
   amsync_t amsync;
+
+  uint8_t hold_smoothing;
+  float fft_bin;
 
 };
 

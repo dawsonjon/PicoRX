@@ -326,6 +326,9 @@ void xcvr::apply_settings()
       //apply Spectrum Smoothing
       rx_dsp_inst.set_spectrum_smoothing(settings_to_apply.spectrum_smoothing);
 
+      //apply Hold Smoothing
+      rx_dsp_inst.set_hold_smoothing(settings_to_apply.hold_smoothing);
+
       //apply Noise Reduction
       rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction, settings_to_apply.noise_estimation, settings_to_apply.noise_threshold);
 
@@ -422,9 +425,9 @@ void xcvr::apply_settings()
 
 }
 
-void xcvr::get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
+void xcvr::get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom)
 {
-  rx_dsp_inst.get_spectrum(spectrum, dB10, zoom);
+  rx_dsp_inst.get_spectrum(spectrum, hold, dB10, zoom);
 }
 
 void xcvr::get_audio(uint8_t audio[])

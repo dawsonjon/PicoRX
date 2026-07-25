@@ -20,6 +20,7 @@
 #define STACK_UPDATE_US (1000000UL) // 1s
 
 uint8_t spectrum[256];
+uint8_t hold[256];
 uint8_t audio[128];
 uint8_t dB10=10;
 uint8_t zoom=1;
@@ -27,7 +28,7 @@ static xcvr_settings settings_to_apply;
 static xcvr_status status;
 static xcvr transceiver(settings_to_apply, status);
 static waterfall waterfall_inst(transceiver);
-static ui user_interface(settings_to_apply, status, transceiver, spectrum, audio, dB10, zoom, waterfall_inst);
+static ui user_interface(settings_to_apply, status, transceiver, spectrum, hold, audio, dB10, zoom, waterfall_inst);
 
 void core1_main()
 {
@@ -72,7 +73,7 @@ int main()
       {
         last_ui_update = time_us_32();
         user_interface.do_ui();
-        transceiver.get_spectrum(spectrum, dB10, zoom);
+        transceiver.get_spectrum(spectrum, hold, dB10, zoom);
         transceiver.get_audio(audio);
       }
       //sem_release(&transceiver.i2c_semaphore);
@@ -87,7 +88,7 @@ int main()
     if(time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US)
     {
       last_waterfall_update = time_us_32();
-      waterfall_inst.update(user_interface.get_settings(), settings_to_apply, status, spectrum, dB10, zoom);
+      waterfall_inst.update(user_interface.get_settings(), settings_to_apply, status, spectrum, hold, dB10, zoom);
     }
 
     if(time_us_32() - last_stack_update > STACK_UPDATE_US)

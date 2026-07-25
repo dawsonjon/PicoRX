@@ -166,6 +166,7 @@ class ui
   xcvr_status &status;
   xcvr &transceiver;
   uint8_t const * const spectrum;
+  uint8_t const * const hold;
   uint8_t const * const audio;
   uint8_t &dB10;
   uint8_t &zoom;
@@ -181,7 +182,7 @@ class ui
   void do_ui(void);
   void update_sdcard_counter(uint32_t c);
   ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
-     uint8_t* _spectrum, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
+     uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
      waterfall& _waterfall_inst);
 
 };

@@ -65,6 +65,7 @@ struct xcvr_settings
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
+  uint8_t hold_smoothing;
   bool enable_external_nco;
   bool stream_raw_iq;
 
@@ -222,7 +223,7 @@ class xcvr
   void run();
   void tune_rx();
   void tune_tx(bool transmit_enable);
-  void get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom);
+  void get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom);
   void get_audio(uint8_t audio[]);
   void set_alarm_pool(alarm_pool_t *p);
   xcvr_settings &settings_to_apply;
