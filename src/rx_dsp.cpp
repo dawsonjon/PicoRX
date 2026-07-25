@@ -847,8 +847,12 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
     new_max = std::max(magnitude, new_max);
     new_min = std::min(magnitude, new_min);
   }
-  max=new_max;
-  min=new_min;
+  if(new_max > max) {
+    max= 0.9*max+0.1*new_max;
+  } else {
+    max= 0.99*max+0.01*new_max;
+  }
+  min= 0.9*min+0.1*new_min;
   const float logmin = log10f(min);
   const float logmax = log10f(std::max(max, lowest_max));
 
@@ -856,7 +860,13 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t &dB10, uint8_t zoom)
   uint8_t temp_spectrum[256];
   for(uint16_t i=0; i<256; ++i)
   {
-    const uint16_t magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
+    const uint16_t raw_magnitude = cic_correct(freq_bin(i), capture_filter_control.fft_bin, capture[i]);
+    const uint8_t  dc_bin = -capture_filter_control.fft_bin;
+    const uint8_t  mirror_idx = dc_bin-(i-dc_bin);
+    const uint16_t mirror_magnitude = capture[mirror_idx];
+    const uint16_t noise_estimate = std::min(mirror_magnitude, raw_magnitude);
+    const uint16_t magnitude = raw_magnitude > noise_estimate ? raw_magnitude - noise_estimate : 0;
+
     if(magnitude == 0)
     {
       temp_spectrum[fft_shift(i)] = 0u;

@@ -12,13 +12,16 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/dma.h"
-#include "transmit/adc.h"
-#include "transmit/cw_keyer.h"
+
 #include "quadrature_si5351.h"
 #include "button.h"
-
 #include "rx_definitions.h"
 #include "rx_dsp.h"
+
+#ifdef WITH_TX
+#include "transmit/adc.h"
+#include "transmit/cw_keyer.h"
+#endif
 
 static const uint8_t NUM_BANDS = 8;
 struct s_tx_band_limits
@@ -161,10 +164,14 @@ class xcvr
   bool external_nco_active = false;
   bool internal_nco_active = true;
 
+#ifdef WITH_TX
   //Transmit
   void begin_signal_generator(const double sample_frequency_Hz);
   void end_signal_generator();
   int32_t get_tx_sample(adc &mic_adc, cw_keyer &keyer);
+  void transmit_iq();
+  void transmit_polar();
+  void transmit_polar_external();
   uint32_t m_test_tone_frequency_steps;
   uint32_t m_test_tone1_frequency_steps;
   uint32_t m_test_tone2_frequency_steps;
@@ -177,9 +184,6 @@ class xcvr
   button dit;
   button dah;
   uint8_t transmit_mode;
-  void transmit_iq();
-  void transmit_polar();
-  void transmit_polar_external();
   bool ptt();
   uint8_t test_tone_setting;
   uint8_t test_tone_frequency;
@@ -203,6 +207,8 @@ class xcvr
   bool tx_noise_gate;
   bool tx_enable;
   bool tx_complete = false;
+#endif
+
   uint16_t cw_sidetone_frequency_Hz;
   bool m_needs_tune = true;
 

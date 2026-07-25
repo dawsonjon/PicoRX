@@ -13,6 +13,8 @@
 #include "pins.h"
 #include "pwm_audio_sink.h"
 #include "clocks.h"
+
+#ifdef WITH_TX
 #include "transmit/adc.h"
 #include "transmit/pwm.h"
 #include "transmit/iq_pwm.h"
@@ -21,6 +23,7 @@
 #include "transmit/speech_processor.h"
 #include "transmit/modulator.h"
 #include "transmit/cw_keyer.h"
+#endif
 
 //ring buffer for USB data
 #define USB_BUF_SIZE (sizeof(int16_t) * 8 * (1 + (adc_block_size/decimation_rate)))
@@ -201,6 +204,7 @@ void xcvr::tune_rx()
 
 }
 
+#ifdef WITH_TX
 void xcvr::tx_update_status()
 {
 
@@ -212,6 +216,7 @@ void xcvr::tx_update_status()
      sem_release(&settings_semaphore);
    }
 }
+#endif
 
 void xcvr::release()
 {
@@ -236,8 +241,10 @@ void xcvr::update_status()
      avg_level = (avg_level - (avg_level >> 2)) + (ring_buffer_get_num_bytes(&usb_ring_buffer) >> 2);
      status.usb_buf_level = 100 * avg_level / USB_BUF_SIZE;
      status.tuning_offset_Hz = rx_dsp_inst.get_tuning_offset_Hz();
+#ifdef WITH_TX
      status.audio_level = tx_audio_level;
      status.transmitting = false;
+#endif
 
      sem_release(&settings_semaphore);
    }
@@ -298,13 +305,7 @@ void xcvr::apply_settings()
         gpio_put(PIN_BAND_2, 1);
       }
 
-      tx_enable = false;
-      for(int band=0; band < NUM_BANDS; ++band) {
-        if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.tx_band_limits.lower[band] * 50000) &&
-           settings_to_apply.tuned_frequency_Hz < (settings_to_apply.tx_band_limits.upper[band] * 50000)) {
-          tx_enable = true;
-        }
-      }
+
 
       //apply frequency offset
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);
@@ -368,6 +369,14 @@ void xcvr::apply_settings()
       rx_dsp_inst.set_iq_correction(settings_to_apply.iq_correction);
 
       //apply transmit settings
+#ifdef WITH_TX
+      tx_enable = false;
+      for(int band=0; band < NUM_BANDS; ++band) {
+        if(settings_to_apply.tuned_frequency_Hz > (settings_to_apply.tx_band_limits.lower[band] * 50000) &&
+           settings_to_apply.tuned_frequency_Hz < (settings_to_apply.tx_band_limits.upper[band] * 50000)) {
+          tx_enable = true;
+        }
+      }
       transmit_mode = settings_to_apply.mode;
       test_tone_setting = settings_to_apply.test_tone_setting;
       test_tone_frequency = settings_to_apply.test_tone_frequency;
@@ -389,8 +398,9 @@ void xcvr::apply_settings()
       tx_i_offset = settings_to_apply.tx_i_offset;
       tx_q_offset = settings_to_apply.tx_q_offset;
       tx_iq_balance = settings_to_apply.tx_iq_balance;
-      stream_raw_iq = settings_to_apply.stream_raw_iq;
+#endif
 
+      stream_raw_iq = settings_to_apply.stream_raw_iq;
       if((tuned_frequency_Hz != settings_to_apply.tuned_frequency_Hz) ||
          (ppm != settings_to_apply.ppm) ||
          (if_mode != settings_to_apply.if_mode) ||
@@ -422,7 +432,11 @@ void xcvr::get_audio(uint8_t audio[])
   rx_dsp_inst.get_audio_capture(audio);
 }
 
+#ifdef WITH_TX
 xcvr::xcvr(xcvr_settings & _settings_to_apply, xcvr_status & _status) : dit(PIN_DIT), dah(PIN_DAH), settings_to_apply(_settings_to_apply), status(_status)
+#else
+xcvr::xcvr(xcvr_settings & _settings_to_apply, xcvr_status & _status) : settings_to_apply(_settings_to_apply), status(_status)
+#endif
 {
 
     settings_to_apply.suspend = false;
@@ -617,15 +631,7 @@ void __not_in_flash_func(xcvr::process_block)(uint16_t adc_samples[], int16_t au
   }
 }
 
-bool __not_in_flash_func(xcvr::ptt)()
-{
-  if(!tx_enable) return false;
-  static uint16_t timer = 0;
-  if(dit.is_keyed() || dah.is_keyed()) timer = 5000;
-  else if(timer) timer--;
-
-  return timer;
-}
+#ifdef WITH_TX
 
 void xcvr::begin_signal_generator(const double sample_frequency_Hz)
 {
@@ -914,6 +920,7 @@ void __not_in_flash_func(xcvr::transmit_polar_external)()
 
 }
 
+
 void __not_in_flash_func(xcvr::transmit_polar)()
 {
 
@@ -1007,6 +1014,17 @@ void __not_in_flash_func(xcvr::transmit_polar)()
 
 }
 
+bool __not_in_flash_func(xcvr::ptt)()
+{
+  if(!tx_enable) return false;
+  static uint16_t timer = 0;
+  if(dit.is_keyed() || dah.is_keyed()) timer = 5000;
+  else if(timer) timer--;
+
+  return timer;
+}
+#endif
+
 void xcvr::run()
 {
     usb_audio_device_init();
@@ -1055,7 +1073,9 @@ void xcvr::run()
           if(m_needs_tune) tune_rx();
           update_status();
 
+#ifdef WITH_TX
           if(ptt()) disable_pwm();
+#endif
 
           //periodically (or when requested) suspend streaming
           if(timeout-- == 0 || suspend || pwm_is_disabled())
@@ -1099,6 +1119,7 @@ void xcvr::run()
         }
       }
 
+#ifdef WITH_TX
       if(ptt())
       {
 
@@ -1117,6 +1138,7 @@ void xcvr::run()
         enable_pwm();
 
       }
+#endif
 
     }
 }

@@ -67,7 +67,7 @@ int main()
     watchdog_update();
 
     //schedule tasks
-    if(sem_try_acquire(&transceiver.i2c_semaphore))  {
+    //if(sem_try_acquire(&transceiver.i2c_semaphore))  {
       if(time_us_32() - last_ui_update > UI_REFRESH_US)
       {
         last_ui_update = time_us_32();
@@ -75,8 +75,8 @@ int main()
         transceiver.get_spectrum(spectrum, dB10, zoom);
         transceiver.get_audio(audio);
       }
-      sem_release(&transceiver.i2c_semaphore);
-    }
+      //sem_release(&transceiver.i2c_semaphore);
+    //}
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)
     {

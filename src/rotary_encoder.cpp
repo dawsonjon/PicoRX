@@ -7,31 +7,25 @@ static int32_t count;
 static critical_section_t crit;
 
 static void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
-  static const int8_t rot_enc_table[] = {0, 1, 1, 0, 1, 0, 0, 1,
-                                         1, 0, 0, 1, 0, 1, 1, 0};
 
-  static uint8_t prevNextCode = 0;
-  static uint16_t store = 0;
+    (void)gpio;
+    (void)events;
 
-  (void)gpio;
-  (void)events;
+    static uint8_t state = 0;
+    static const int8_t transition_table[16] =
+    {
+         0, -1,  1,  0,
+         1,  0,  0, -1,
+        -1,  0,  0,  1,
+         0,  1, -1,  0
+    };
 
-  prevNextCode <<= 2;
-  if (gpio_get(PIN_AB)) prevNextCode |= 0x02;
-  if (gpio_get(PIN_B)) prevNextCode |= 0x01;
-  prevNextCode &= 0x0f;
+    uint8_t new_state = (gpio_get(PIN_AB) << 1) | gpio_get(PIN_B);
+    uint8_t index = (state << 2) | new_state;
 
-  if (rot_enc_table[prevNextCode]) {
-    store <<= 4;
-    store |= prevNextCode;
-    // for less noisy encoders
-    // if (store==0xd42b) count--;
-    // if (store==0xe817) count++;
-    critical_section_enter_blocking(&crit);
-    if ((store & 0xff) == 0x2b) count--;
-    if ((store & 0xff) == 0x17) count++;
-    critical_section_exit(&crit);
-  }
+    count += transition_table[index];
+    state = new_state;
+
 }
 
 rotary_encoder::rotary_encoder(s_global_settings& _settings)
@@ -61,9 +55,9 @@ int32_t rotary_encoder::get_change(void) {
   critical_section_exit(&crit);
 
   if (settings.encoder_resolution) {
-    new_position = -c;
+    new_position = (c+1)/2;
   } else {
-    new_position = -(c + 1) / 2;
+    new_position = (c+2)/4;
   }
 
   int32_t delta = new_position - old_position;

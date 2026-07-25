@@ -77,22 +77,9 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
     ${CMAKE_CURRENT_LIST_DIR}/usb_audio_device.c
     ${CMAKE_CURRENT_LIST_DIR}/src/ring_buffer_lib.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/clocks_pico2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/adc.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/tx_best_clock.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/transmit_pico2_nco.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/half_band_filter2.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/cordic.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/pwm.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/iq_pwm.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/modulator.cpp
-    #${CMAKE_CURRENT_LIST_DIR}/transmit/signal_generator.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/speech_processor.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transmit/cw_keyer.cpp
 )
 
 set(PICORX_LIBS
@@ -113,16 +100,91 @@ set(PICORX_LIBS
     u8g2
 )
 
-list(APPEND PICORX_SRCS src/clocks_pico2.cpp)
-#main application
-add_executable(pico2rx ${PICORX_SRCS})
-target_compile_features(pico2rx PUBLIC c_std_11)
-pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/src/nco.pio)
-pico_add_extra_outputs(pico2rx)
-pico_enable_stdio_usb(pico2rx 1)
-pico_enable_stdio_uart(pico2rx 0)
-target_include_directories(pico2rx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(pico2rx PRIVATE ${PICORX_LIBS})
-target_compile_definitions(pico2rx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128 PICO_STACK_SIZE=4096)
-set_target_properties(pico2rx PROPERTIES SUFFIX ".elf")
-add_custom_command(TARGET pico2rx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/pico2rx.elf COMMENT "=== Memory / Code Size Report ===")
+if(BUTTON_ENCODER)
+    add_definitions(-DBUTTON_ENCODER)
+    list(APPEND PICORX_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/button_encoder.cpp)
+else()
+    list(APPEND PICORX_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/rotary_encoder.cpp)
+endif()
+
+if(PICO_BOARD STREQUAL "pico")
+
+    list(APPEND PICORX_SRCS src/clocks_pico.cpp)
+    list(APPEND PICORX_SRCS transmit/cordic.cpp)
+    #main application
+    add_executable(picorx ${PICORX_SRCS})
+    target_compile_features(picorx PUBLIC c_std_11)
+    pico_generate_pio_header(picorx ${CMAKE_CURRENT_LIST_DIR}/src/nco.pio)
+    pico_add_extra_outputs(picorx)
+    pico_enable_stdio_usb(picorx 1)
+    pico_enable_stdio_uart(picorx 0)
+    target_include_directories(picorx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    target_link_libraries(picorx PRIVATE ${PICORX_LIBS})
+    target_compile_definitions(picorx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128  PICO_STACK_SIZE=4096)
+    set_target_properties(picorx PROPERTIES SUFFIX ".elf")
+    add_custom_command(TARGET picorx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/picorx.elf COMMENT "=== Memory / Code Size Report ===")
+
+elseif(PICO_BOARD STREQUAL "pico2")
+
+    add_compile_definitions(WITH_TX)
+
+    if(PICO_PLATFORM STREQUAL "rp2350-riscv")
+
+        list(APPEND PICORX_SRCS src/clocks_pico2.cpp)
+        list(APPEND PICORX_SRCS transmit/adc.cpp)
+        list(APPEND PICORX_SRCS transmit/tx_best_clock.cpp)
+        list(APPEND PICORX_SRCS transmit/transmit_pico2_nco.cpp)
+        list(APPEND PICORX_SRCS transmit/half_band_filter.cpp)
+        list(APPEND PICORX_SRCS transmit/half_band_filter2.cpp)
+        list(APPEND PICORX_SRCS transmit/cordic.cpp)
+        list(APPEND PICORX_SRCS transmit/pwm.cpp)
+        list(APPEND PICORX_SRCS transmit/iq_pwm.cpp)
+        list(APPEND PICORX_SRCS transmit/modulator.cpp)
+        list(APPEND PICORX_SRCS transmit/speech_processor.cpp)
+        list(APPEND PICORX_SRCS transmit/cw_keyer.cpp)
+
+        #main application
+        add_executable(pico2rx-riscv ${PICORX_SRCS})
+        target_compile_features(pico2rx-riscv PUBLIC c_std_11)
+        pico_generate_pio_header(pico2rx-riscv ${CMAKE_CURRENT_LIST_DIR}/src/nco.pio)
+        pico_add_extra_outputs(pico2rx-riscv)
+        # enable usb output, disable uart output
+        pico_enable_stdio_usb(pico2rx-riscv 1)
+        pico_enable_stdio_uart(pico2rx-riscv 0)
+        target_include_directories(pico2rx-riscv PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+        target_link_libraries(pico2rx-riscv PRIVATE ${PICORX_LIBS})
+        target_compile_definitions(pico2rx-riscv PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128  PICO_STACK_SIZE=4096)
+        set_target_properties(pico2rx-riscv PROPERTIES SUFFIX ".elf")
+        add_custom_command(TARGET pico2rx-riscv POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/picorx-riscv.elf COMMENT "=== Memory / Code Size Report ===")
+
+    else()
+
+        list(APPEND PICORX_SRCS src/clocks_pico2.cpp)
+        list(APPEND PICORX_SRCS src/clocks_pico2.cpp)
+        list(APPEND PICORX_SRCS transmit/adc.cpp)
+        list(APPEND PICORX_SRCS transmit/tx_best_clock.cpp)
+        list(APPEND PICORX_SRCS transmit/transmit_pico2_nco.cpp)
+        list(APPEND PICORX_SRCS transmit/half_band_filter.cpp)
+        list(APPEND PICORX_SRCS transmit/half_band_filter2.cpp)
+        list(APPEND PICORX_SRCS transmit/cordic.cpp)
+        list(APPEND PICORX_SRCS transmit/pwm.cpp)
+        list(APPEND PICORX_SRCS transmit/iq_pwm.cpp)
+        list(APPEND PICORX_SRCS transmit/modulator.cpp)
+        list(APPEND PICORX_SRCS transmit/speech_processor.cpp)
+        list(APPEND PICORX_SRCS transmit/cw_keyer.cpp)
+
+        #main application
+        add_executable(pico2rx ${PICORX_SRCS})
+        target_compile_features(pico2rx PUBLIC c_std_11)
+        pico_generate_pio_header(pico2rx ${CMAKE_CURRENT_LIST_DIR}/src/nco.pio)
+        pico_add_extra_outputs(pico2rx)
+        pico_enable_stdio_usb(pico2rx 1)
+        pico_enable_stdio_uart(pico2rx 0)
+        target_include_directories(pico2rx PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+        target_link_libraries(pico2rx PRIVATE ${PICORX_LIBS})
+        target_compile_definitions(pico2rx PUBLIC PICO_XOSC_STARTUP_DELAY_MULTIPLIER=128  PICO_STACK_SIZE=4096)
+        set_target_properties(pico2rx PROPERTIES SUFFIX ".elf")
+        add_custom_command(TARGET pico2rx POST_BUILD COMMAND ${CMAKE_SIZE} ${CMAKE_CURRENT_BINARY_DIR}/pico2rx.elf COMMENT "=== Memory / Code Size Report ===")
+
+    endif()
+endif()

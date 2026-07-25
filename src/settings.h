@@ -148,12 +148,12 @@ const s_settings default_settings = {
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
   0,  //squelch_timeout = never
-  2,  //spectrum_zoom
+  1,  //spectrum_zoom
   0,  //deemphasis
   0,  //regmode
   0,  //display_timeout = never
   15, //display_contrast = 255
-  0,  //tft_rotation
+  5,  //tft_rotation
   1,  //tft_colour
   0,  //tft_invert
   0,  //tft_driver
@@ -186,7 +186,7 @@ const s_settings default_settings = {
   2,  //noise_estimation very_fast, fast, normal, slow, very_slow
   0,  //noise_threshold normal, high, very_high
   0,  //view
-  1,  //spectrum_smoothing
+  4,  //spectrum_smoothing
   0,  //treble
   0,  //bass
   0,  //aux_view
@@ -197,7 +197,7 @@ const s_settings default_settings = {
   0,  //iq_correction
   0,  //enable_noise_reduction
   0,  //reverse_encoder
-  1,  //encoder_resolution
+  0,  //encoder_resolution
   0,  //swap_iq
   0,  //flip_oled
   0,  //oled_type = ssd1306

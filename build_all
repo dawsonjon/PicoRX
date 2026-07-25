@@ -1,5 +1,15 @@
 #! /usr/bin/env bash
 
+mkdir -p build_pico
+cd build_pico
+cmake -DPICO_BOARD=pico -DPICO_PLATFORM=rp2040 ..
+make
+cd ..
+
+cp build_pico/picorx.uf2 .
+zip -r binaries-rp2040-pico.zip picorx.uf2
+rm picorx.uf2
+
 mkdir -p build_pico2
 cd build_pico2
 cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350 ..
@@ -9,3 +19,5 @@ cd ..
 cp build_pico2/pico2rx.uf2 .
 zip -r binaries-rp2350-pico2.zip pico2rx.uf2
 rm pico2rx.uf2
+
+
