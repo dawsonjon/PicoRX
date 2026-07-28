@@ -283,6 +283,9 @@ void rx::apply_settings()
       //apply nn_denoiser
       rx_dsp_inst.set_nn_denoiser(settings_to_apply.nn_denoiser);
 
+      //IQ AGC
+      rx_dsp_inst.set_iq_agc(settings_to_apply.iq_agc);
+
       //apply volume
       static const int16_t gain[] = {
         0,   // 0 = 0/256 -infdB

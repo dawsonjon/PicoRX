@@ -2311,7 +2311,7 @@ bool ui::main_menu(bool & ok)
                      "Impulse\nBlanker#Auto "
                      "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
                      "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
-                     "Tone\nFrequency#USB Stream#SD card\nrecord#HW Config#",
+                     "Tone\nFrequency#USB Stream#SD card\nrecord#IQ AGC#HW Config#",
                      &menu_selection, ok)) {
         if(ok)
         {
@@ -2427,7 +2427,10 @@ bool ui::main_menu(bool & ok)
           case 25 :
             done = bit_entry("SD card\nrecord", "Off#On#", settings.global.sd_card_save, ok);
             break;
-          case 26 :
+          case 26:
+            done = bit_entry("IQ AGC", "Off#On#", settings.global.iq_agc, ok);
+            break;
+          case 27 :
             done = configuration_menu(ok);
             break;
         }

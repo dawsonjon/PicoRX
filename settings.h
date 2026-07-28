@@ -95,6 +95,7 @@ struct s_global_settings
   bool    tx_modulation;
   bool    enable_external_nco;
   bool    spectrum_hold;
+  bool    iq_agc;
 };
 
 struct s_settings
@@ -170,6 +171,7 @@ const s_settings default_settings = {
   0,  //tx_modulation
   0,  //enable_external_nco
   0,  //spectrum_hold
+  0, //iq_agc
 }};
 
 
