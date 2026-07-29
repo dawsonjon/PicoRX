@@ -38,6 +38,7 @@ class rx_dsp
   void set_auto_notch(bool enable_auto_notch);
   void set_nn_denoiser(uint8_t val);
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
+  void set_iq_agc(bool _iq_agc);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
   void set_sd_card_save(bool enable);
   int16_t get_signal_strength_dBm();
@@ -152,6 +153,7 @@ class rx_dsp
   amsync_t amsync;
 
   bool sd_card_save;
+  bool iq_agc;
 
 };
 

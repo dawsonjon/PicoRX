@@ -46,6 +46,7 @@ void apply_settings_to_rx(rx & receiver, rx_settings & rx_settings, s_settings &
   rx_settings.tuning_option = settings.global.tuning_option;
   rx_settings.impulse_threshold = settings.global.impulse_threshold;
   rx_settings.nn_denoiser = settings.global.nn_denoiser;
+  rx_settings.iq_agc = settings.global.iq_agc;
   receiver.release();
 }
 

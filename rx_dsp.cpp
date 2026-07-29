@@ -166,6 +166,34 @@ static uint32_t __not_in_flash_func(intsqrt)(const uint32_t n) {
     return result;
 }
 
+#define AGC_R (32767 / 32)
+static uint32_t __not_in_flash_func(agcc)(int16_t i, int16_t q)
+{
+  static uint8_t k = 0;
+  static uint32_t mv_prev = 0;
+  static int32_t g_prev = 0;
+  static uint32_t mv_buf[4] = {0};
+
+  // amplitude estimate
+  uint32_t a = abs(i) + abs(q);
+
+  // moving average
+  uint32_t az = mv_buf[k];
+  uint32_t mv = a - az + mv_prev;
+  mv_buf[k++] = a;
+  if (k >= 4)
+  {
+    k = 0;
+  }
+  mv_prev = mv;
+
+  int32_t e = ((int32_t)AGC_R) - (mv >> 2);
+  e >>= 2;
+  int32_t g = e + g_prev;
+  g_prev = g;
+  return g;
+}
+
 void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
 {
     if (iq_correction)
@@ -216,6 +244,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
   uint16_t decimated_index = 0;
   int16_t iq[2 * adc_block_size / cic_decimation_rate];
+  static int32_t g = 0;
 
   for(uint16_t idx=0; idx<adc_block_size; idx++)
   {
@@ -266,6 +295,13 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
           bias_measurement += i;
         }
         #endif
+
+        if (iq_agc)
+        {
+          i = ((int32_t)i * g) >> 15;
+          q = ((int32_t)q * g) >> 15;
+          g = agcc(i, q);
+        }
 
         iq[decimated_index] = i;
         iq[decimated_index + 1] = q;
@@ -667,6 +703,11 @@ void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smo
   filter_control.enable_noise_reduction = enable_noise_reduction;
   filter_control.noise_smoothing = noise_smoothing;
   filter_control.noise_threshold = noise_threshold;
+}
+
+void rx_dsp :: set_iq_agc(bool _iq_agc)
+{
+  iq_agc = _iq_agc;
 }
 
 void rx_dsp :: set_deemphasis(uint8_t deemph)
