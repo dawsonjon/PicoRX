@@ -77,15 +77,6 @@ static void rnn_process(const rnn_num_t input[GRNN0_HIDD_DIM0],
   memcpy(hidden, output, sizeof(rnn_num_t) * GRNN0_HIDD_DIM1);
 }
 
-static uint32_t __time_critical_func(avg)(uint16_t x[RNND_NFFT]) {
-  static uint32_t avg = 0;
-  uint32_t m = std::accumulate(x, x + RNND_NFFT, 0);
-  m /= RNND_NFFT;
-  avg += m - (avg / 128);
-
-  return avg;
-}
-
 static void __time_critical_func(interp)(rnn_num_t g_in[MEL_BINS],
                                          rnn_num_t g_out[RNND_NFFT]) {
   memset(g_out, 0, RNND_NFFT * sizeof(rnn_num_t));
@@ -102,19 +93,14 @@ void rnn_denoiser_denoise(uint16_t x[RNND_NFFT], rnn_num_t g[RNND_NFFT]) {
   rnn_num_t out[GRNN0_HIDD_DIM1] = {0};
   rnn_num_t input[MEL_BINS];
 
-  const uint32_t a = avg(x);
   for (uint16_t i = 0; i < MEL_BINS; i++) {
     rnn_num_t s = 0;
     for (uint16_t j = 0; j < FB_LEN; j++) {
       if (FILTERBANK_MAT[i][j] > 0) {
-        s += FILTERBANK_MAT[i][j] * x[FILTERBANK_OFF[i] + j];
+        s += FILTERBANK_MAT[i][j] * (x[FILTERBANK_OFF[i] + j] << 1);
       }
     }
-    rnn_num_t v = s;
-    const uint32_t k = (a >> 1);
-    if (k > 0) {
-      v = s / k;
-    }
+    rnn_num_t v = s / 32767;
     input[i] = ((log10f(1e-8f + v) - MEAN_VEC[i]) / STD_VEC[i]);
   }
 
