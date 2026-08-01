@@ -109,7 +109,10 @@ class ui
   void renderpage_status(void);
   void renderpage_fun(bool view_changed);
   void renderpage_smeter(bool view_changed);
+
+#ifdef WITH_TX
   void renderpage_transmit(void);
+#endif
 
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);
@@ -136,9 +139,12 @@ class ui
   bool noise_menu(bool &ok);
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
-  bool tx_bands_menu(bool &ok, bool upper);
   bool spectrum_menu(bool &ok);
+#ifdef WITH_TX
+  bool tx_configuration_menu(bool &ok);
   bool transmit_menu(bool &ok);
+  bool tx_bands_menu(bool &ok, bool upper);
+#endif
 
   //menu items
   void print_enum_option(const char options[], uint8_t option);

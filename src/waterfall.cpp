@@ -40,8 +40,18 @@ waterfall::~waterfall()
     delete display;
 }
 
-void waterfall::configure_display(uint8_t settings, bool invert_colours, bool invert_display, uint8_t display_driver)
+void waterfall::configure_display(uint8_t settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
 {
+
+    if(baud_rate == 0){
+      spi_set_baudrate(SPI_PORT, 75000000);
+    } else if(baud_rate == 1){
+      spi_set_baudrate(SPI_PORT, 50000000);
+    } else if(baud_rate == 2){
+      spi_set_baudrate(SPI_PORT, 25000000);
+    } else {
+      spi_set_baudrate(SPI_PORT, 10000000);
+    }
 
     e_display_type display_type = display_driver?ILI9341:ILI9341_2;
     if(settings == 0)

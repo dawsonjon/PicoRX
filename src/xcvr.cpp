@@ -329,6 +329,12 @@ void xcvr::apply_settings()
       //apply Hold Smoothing
       rx_dsp_inst.set_hold_smoothing(settings_to_apply.hold_smoothing);
 
+      //apply Hold Smoothing
+      rx_dsp_inst.set_noise_limit(settings_to_apply.noise_limit);
+
+      //apply Hold Smoothing
+      rx_dsp_inst.set_view_mode(settings_to_apply.view_mode);
+
       //apply Noise Reduction
       rx_dsp_inst.set_noise_reduction(settings_to_apply.enable_noise_reduction, settings_to_apply.noise_estimation, settings_to_apply.noise_threshold);
 

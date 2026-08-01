@@ -654,6 +654,16 @@ void rx_dsp :: set_hold_smoothing(uint8_t _hold_smoothing)
   hold_smoothing = _hold_smoothing;
 }
 
+void rx_dsp :: set_noise_limit(uint16_t _noise_limit)
+{
+  noise_limit = _noise_limit;
+}
+
+void rx_dsp :: set_view_mode(uint8_t _view_mode)
+{
+  view_mode = _view_mode;
+}
+
 void rx_dsp :: set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold)
 {
   filter_control.enable_noise_reduction = enable_noise_reduction;
@@ -841,7 +851,6 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   sem_acquire_blocking(&spectrum_semaphore);
 
   //find minimum and maximum values
-  const uint16_t lowest_max = 2500u;
   static uint16_t max=65523u;//long term maximum
   uint16_t new_max=0u;
   static uint16_t min=1u;//long term maximum
@@ -858,9 +867,15 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   } else {
     max= 0.99*max+0.01*new_max;
   }
-  min= 0.9*min+0.1*new_min;
-  const float logmin = log10f(min);
-  const float logmax = log10f(std::max(max, lowest_max));
+  min=0.9*min+0.1*new_min;
+
+  //min is clamped so that it can't go below 1.
+  //max is clamped so it can't be less than 40dB above the minimum
+  const uint16_t clamped_min = std::max(min, static_cast<uint16_t>(1));
+  const uint16_t clamped_max = std::max(max, static_cast<uint16_t>(clamped_min*100));
+
+  const float logmin = log10f(clamped_min);
+  const float logmax = log10f(clamped_max);
 
   //clamp and convert to log scale 0 -> 255
   uint8_t temp_spectrum[256];
@@ -869,10 +884,18 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   {
     const uint16_t raw_magnitude = cic_correct(freq_bin(i), fft_bin, capture[i]);
     const int32_t  mirror_idx_signed = round(dc_bin-(static_cast<float>(i)-dc_bin));
-    const uint8_t  mirror_idx = mirror_idx_signed; //mod256
+    const uint8_t  mirror_idx = mirror_idx_signed;
     const uint16_t mirror_magnitude = capture[mirror_idx];
-    const uint16_t noise_estimate = std::min(mirror_magnitude, raw_magnitude);
-    const uint16_t magnitude = raw_magnitude > noise_estimate ? raw_magnitude - noise_estimate : 0;
+    const uint16_t noise_estimate = std::min(std::min(mirror_magnitude, raw_magnitude), static_cast<uint16_t>(clamped_min*noise_limit));
+
+    uint16_t magnitude;
+    if(view_mode == 0){
+      magnitude = noise_estimate;
+    } else if(view_mode == 1){
+      magnitude = raw_magnitude;
+    } else {
+      magnitude = raw_magnitude > noise_estimate ? raw_magnitude - noise_estimate : 0;
+    }
 
     if(magnitude == 0)
     {
@@ -903,7 +926,8 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   sem_release(&spectrum_semaphore);
 
   //number steps representing 10dB
-  dB10 = 256/(2*logf(max/min));
+  dB10 = 256/(2*(logmax-logmin));
+
 }
 
 static uint16_t __time_critical_func(audio_correlate)(int16_t a[128],

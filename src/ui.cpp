@@ -277,6 +277,7 @@ void ui::display_show()
   u8g2_SendBuffer(&u8g2);
 }
 
+#ifdef WITH_TX
 void ui::renderpage_transmit(void)
 {
 
@@ -347,6 +348,7 @@ void ui::renderpage_transmit(void)
 
   display_show();
 }
+#endif
 
 
 uint16_t ui::audio_vu_meter_update(void) {
@@ -1203,7 +1205,8 @@ void ui::autorestore()
       settings.global.tft_rotation,
       settings.global.tft_colour,
       settings.global.tft_invert,
-      settings.global.tft_driver);
+      settings.global.tft_driver,
+      settings.global.baud_rate);
 
   //reset the zoom setting
   zoom = settings.global.spectrum_zoom;
@@ -2038,7 +2041,7 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
 
 }
 
-
+#ifdef WITH_TX
 bool ui::transmit_menu(bool &ok)
 {
     enum e_ui_state{select_menu_item, menu_item_active};
@@ -2049,7 +2052,7 @@ bool ui::transmit_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Transmit", "MIC Gain#Monitor#Test Tone\nSetting#Test Tone\nFrequency#CW Paddle#CW Speed#Modulation#PWM\nMinimum#PWM\nMaximum#PWM\nThreshold#Adapt\nClock#Phase\nDither#I offset#Q offset#IQ\nBalance#Noise\nGate#Treble#Bass#Compress", &menu_selection, ok))
+      if(menu_entry("Transmit", "MIC Gain#Monitor#CW Paddle#CW Speed#Noise\nGate#Treble#Bass#Compress#Test Tone\nSetting#Test Tone\nFrequency#TX Config#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2085,74 +2088,39 @@ bool ui::transmit_menu(bool &ok)
           break;
 
         case 2 :
-          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
-          break;
-
-        case 3 :
-          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
-          break;
-
-        case 4 :
           done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle, ok, changed);
           break;
 
-        case 5 :
+        case 3 :
           done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
           break;
 
-        case 6 :
-          done = bit_entry("Modulation", "IQ#Polar#", settings.global.tx_modulation, ok);
-          break;
-
-        case 7 :
-          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
-          break;
-
-        case 8 :
-          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
-          break;
-
-        case 9 :
-          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
-          break;
-
-        case 10 :
-          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
-          break;
-
-        case 11 :
-          done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
-          break;
-
-        case 12 :
-          done = number_entry("I Offset", "%i", -128, 127, 1, settings.global.tx_i_offset, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 13 :
-          done = number_entry("Q Offset", "%i", -128, 127, 1, settings.global.tx_q_offset, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 14 :
-          done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 15 :
+        case 4 :
           done = bit_entry("Noise Gate", "Off#On#", settings.global.tx_noise_gate, ok);
           break;
 
-        case 16 :
+        case 5 :
           done = number_entry("Treble", "%i", -5, 5, 1, settings.global.tx_treble, ok, changed);
           break;
 
-        case 17 :
+        case 6 :
           done = number_entry("Bass", "%i", -5, 5, 1, settings.global.tx_bass, ok, changed);
           break;
 
-        case 18 :
+        case 7 :
           done = number_entry("Compress", "%i", 0, 5, 1, settings.global.tx_compression, ok, changed);
+          break;
+
+        case 8 :
+          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
+          break;
+
+        case 9 :
+          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
+          break;
+
+        case 10:
+          done = tx_configuration_menu(ok);
           break;
 
       }
@@ -2167,6 +2135,102 @@ bool ui::transmit_menu(bool &ok)
 
 }
 
+bool ui::tx_configuration_menu(bool &ok)
+{
+    enum e_ui_state{select_menu_item, menu_item_active};
+    static e_ui_state ui_state = select_menu_item;
+
+    static uint32_t menu_selection = 0;
+
+    //chose menu item
+    if(ui_state == select_menu_item)
+    {
+      if(menu_entry("TX Config", "Modulation#PWM Min#PWM Max#PWM\nThreshold#Adapt\nClocks#Phase\nDither#I Offset#Q Offset#IQ\nBalance#TX Bands\nLower#TX Bands\nUpper#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      {
+        if(ok)
+        {
+          //OK button pressed, more work to do
+          ui_state = menu_item_active;
+          return false;
+        }
+        else
+        {
+          //cancel button pressed, done with menu
+          menu_selection = 0;
+          ui_state = select_menu_item;
+          return true;
+        }
+      }
+    }
+
+    //menu item active
+    else if(ui_state == menu_item_active)
+    {
+      bool done = false;
+      bool changed = false;
+      switch(menu_selection)
+      {
+
+        case 0 :
+          done = bit_entry("Modulation", "IQ#Polar#", settings.global.tx_modulation, ok);
+          break;
+
+        case 1 :
+          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
+          break;
+
+        case 2 :
+          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
+          break;
+
+        case 3 :
+          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
+          break;
+
+        case 4 :
+          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+          break;
+
+        case 5 :
+          done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
+          break;
+
+        case 6 :
+          done = number_entry("I Offset", "%i", -128, 127, 1, settings.global.tx_i_offset, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 7 :
+          done = number_entry("Q Offset", "%i", -128, 127, 1, settings.global.tx_q_offset, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 8 :
+          done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 9:
+          done = tx_bands_menu(ok, false);
+          break;
+
+        case 10:
+          done = tx_bands_menu(ok, true);
+          break;
+
+      }
+      if(done)
+      {
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
+      }
+    }
+    return false;
+
+}
+#endif
+
 
 bool ui::configuration_menu(bool &ok)
 {
@@ -2178,7 +2242,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#TX Bands\nLower#TX Bands\nUpper#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2279,56 +2343,54 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 10:
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          done =  enumerate_entry("SPI\nSpeed", "Normal#Slow#Slower#", settings.global.baud_rate, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
           break;
 
         case 11:
-          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
           break;
 
         case 12:
-          done =  enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
           break;
 
         case 13:
-          done =  enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver);
+          done =  enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
           break;
 
         case 14:
-          done = tx_bands_menu(ok, false);
+          done =  enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok, changed);
+          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
+          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
           break;
 
         case 15:
-          done = tx_bands_menu(ok, true);
-          break;
-
-        case 16:
           done = bands_menu(ok);
           break;
 
-        case 17:
+        case 16:
           done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 18:
+        case 17:
           done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
           if(changed) apply_settings(false);
           break;
 
-        case 19:
+        case 18:
           done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
           break;
 
-        case 20:
+        case 19:
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
@@ -2429,7 +2491,11 @@ bool ui::main_menu(bool & ok)
                      "Impulse\nBlanker#Auto "
                      "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
                      "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
-                     "Tone\nFrequency#USB Stream#Transmit\nMenu#HW Config#",
+                     "Tone\nFrequency#USB Stream#"
+#ifdef WITH_TX
+                     "Transmit\nMenu#"
+#endif
+                     "HW Config#",
                      &menu_selection, ok)) {
         if(ok)
         {
@@ -2472,7 +2538,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 5 :
-            done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual", settings.channel.agc_setting, ok, changed);
+            done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual", settings.global.agc_setting, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 6 :
@@ -2480,7 +2546,7 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 7 :
-            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", settings.channel.bandwidth, ok, changed);
+            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", settings.global.bandwidth, ok, changed);
             if(changed) apply_settings(false);
             break;
           case 8 :
@@ -2539,12 +2605,18 @@ bool ui::main_menu(bool & ok)
           case 23 :
             done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
             break;
+#ifdef WITH_TX
           case 24 :
             done = transmit_menu(ok);
             break;
           case 25 :
             done = configuration_menu(ok);
             break;
+#else
+          case 24 :
+            done = configuration_menu(ok);
+            break;
+#endif
         }
         if(done)
         {
@@ -2567,7 +2639,7 @@ bool ui::spectrum_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#", &menu_selection, ok))
+      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#Noise\nLimit#View\nMode#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2607,6 +2679,14 @@ bool ui::spectrum_menu(bool & ok)
             done = number_entry("Hold\nSmoothing", "%i", 1, 8, 1, settings.global.hold_smoothing, ok, changed);
             if(changed) apply_settings(false);
             break;
+          case 4 :
+            done = number_entry("Noise\nLimit", "%i", 0, 1000, 5, settings.global.noise_limit, ok, changed);
+            if(changed) apply_settings(false);
+            break;
+          case 5 :
+            done = number_entry("View\nMode", "%i", 0, 2, 1, settings.global.view_mode, ok, changed);
+            if(changed) apply_settings(false);
+            break;
         }
         if(done)
         {
@@ -2619,6 +2699,7 @@ bool ui::spectrum_menu(bool & ok)
     return false;
 }
 
+#ifdef WITH_TX
 bool ui::tx_bands_menu(bool &ok, bool upper)
 {
     enum e_ui_state {select_menu_item, menu_item_active};
@@ -2685,6 +2766,7 @@ bool ui::tx_bands_menu(bool &ok, bool upper)
 
     return false;
 }
+#endif
 
 bool ui::bands_menu(bool &ok)
 {
@@ -2810,16 +2892,17 @@ void ui::do_ui(void)
 
     if(ui_state != idle) view_changed = true;
 
+#ifdef WITH_TX
     transceiver.access(false);
     const bool transmitting = status.transmitting;
     transceiver.release();
-
     if(transmitting)
     {
       renderpage_transmit();
       view_changed = true;
       return;
     }
+#endif
 
     //gui is idle, just update the display
     if(ui_state == splash)
@@ -2975,6 +3058,12 @@ void ui::do_ui(void)
       {
         display_time = time_us_32();
         u8g2_SetPowerSave(&u8g2, 0);
+        waterfall_inst.configure_display(
+            settings.global.tft_rotation,
+            settings.global.tft_colour,
+            settings.global.tft_invert,
+            settings.global.tft_driver,
+            settings.global.baud_rate);
         waterfall_inst.powerOn(1);
         ui_state = idle;
       }

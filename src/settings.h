@@ -31,14 +31,19 @@ struct s_channel_settings
   uint32_t max_frequency;
   uint32_t min_frequency;
   uint8_t  mode;
-  uint8_t  agc_setting;
+  uint8_t  spare0;
   uint8_t  step;
-  uint8_t  bandwidth;
+  uint8_t  spare1;
 };
 
 struct s_global_settings
 {
   s_tx_band_limits tx_band_limits;
+  uint16_t noise_limit;
+  uint8_t view_mode;
+  uint8_t baud_rate;
+  uint8_t agc_setting;
+  uint8_t bandwidth;
   uint8_t volume;
   uint8_t cw_sidetone;
   uint8_t squelch_threshold;
@@ -117,9 +122,7 @@ const s_settings default_settings = {
   30000000, //max_frequency
   0,        //min_frequency
   0,        //mode = AM
-  3,        //agc_setting = very_slow
   4,        //step = 1kHz
-  2,        //bandwidth = normal
 }, {
   {
     //TX Bands Lower
@@ -145,6 +148,11 @@ const s_settings default_settings = {
       429, //*0.05 = 21.45 (15m)
     },
   },
+  200,//noise_limit
+  2,  //view_mode
+  0,  //baud rate = normal
+  3,  //agc_setting = very_slow
+  2,  //bandwidth = normal
   5,  //volume
   10, //cw_sidetone = 1000Hz
   0,  //squelch_threshold
@@ -208,7 +216,7 @@ const s_settings default_settings = {
   0,  //tx_monitor
   1,  //tx_noise_gate
   0,  //enable_external_nco
-  1,  //spectrum_hold
+  0,  //spectrum_hold
 }};
 
 

@@ -17,7 +17,7 @@ class waterfall
   void update(s_settings& ui_settings,
                        xcvr_settings& settings, xcvr_status& status,
                        uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom);
-  void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver);
+  void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver, uint8_t baud_rate);
   void powerOn(bool state);
 
   private:

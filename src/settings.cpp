@@ -9,7 +9,7 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
 {
   transceiver.access(settings_changed);
   xcvr_settings.tuned_frequency_Hz = settings.channel.frequency;
-  xcvr_settings.agc_setting = settings.channel.agc_setting;
+  xcvr_settings.agc_setting = settings.global.agc_setting;
   xcvr_settings.agc_gain = settings.global.agc_gain;
   xcvr_settings.enable_auto_notch = settings.global.enable_auto_notch;
   xcvr_settings.enable_noise_reduction = settings.global.enable_noise_reduction;
@@ -22,7 +22,7 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.gain_cal = settings.global.gain_cal;
   xcvr_settings.suspend = suspend;
   xcvr_settings.swap_iq = settings.global.swap_iq;
-  xcvr_settings.bandwidth = settings.channel.bandwidth;
+  xcvr_settings.bandwidth = settings.global.bandwidth;
   xcvr_settings.deemphasis = settings.global.deemphasis;
   xcvr_settings.band_1_limit = settings.global.band1;
   xcvr_settings.band_2_limit = settings.global.band2;
@@ -39,6 +39,8 @@ void apply_settings_to_xcvr(xcvr & transceiver, xcvr_settings & xcvr_settings, s
   xcvr_settings.noise_threshold = settings.global.noise_threshold;
   xcvr_settings.spectrum_smoothing = settings.global.spectrum_smoothing;
   xcvr_settings.hold_smoothing = settings.global.hold_smoothing;
+  xcvr_settings.noise_limit = settings.global.noise_limit;
+  xcvr_settings.view_mode = settings.global.view_mode;
   xcvr_settings.enable_external_nco = settings.global.enable_external_nco;
   xcvr_settings.treble = settings.global.treble;
   xcvr_settings.bass = settings.global.bass;
