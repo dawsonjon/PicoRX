@@ -57,11 +57,21 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   uint16_t peak_bin = 0;
   uint16_t magnitudes[(new_fft_size/2u) + 1] = {0};
   filter_control.magnitude_sum = 0;
+  uint16_t _start_bin = filter_control.start_bin;
+  uint16_t _stop_bin = filter_control.stop_bin;
+
+  const bool nn_denoiser_active = (!(filter_control.upper_sideband && filter_control.lower_sideband) && filter_control.nn_denoiser);
+
+  if (nn_denoiser_active)
+  {
+    _start_bin = 2;
+    _stop_bin = 32;
+  }
 
   //DC and positive frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u) + 1; i++) {
     //clear bins outside pass band
-    if(!filter_control.upper_sideband || i < filter_control.start_bin || i > filter_control.stop_bin)
+    if(!filter_control.upper_sideband || i < _start_bin || i > _stop_bin)
     {
       sample_real[i] = 0;
       sample_imag[i] = 0;
@@ -104,11 +114,12 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       filter_control.noise_threshold);
   }
 
-  if (filter_control.nn_denoiser && filter_control.upper_sideband &&
-      (!filter_control.lower_sideband)) {
+  if (nn_denoiser_active && filter_control.upper_sideband)
+  {
     rnn_num_t g[new_fft_size / 2u + 1];
     rnn_denoiser_denoise(magnitudes, g);
-    for (uint16_t i = 0; i < (new_fft_size / 2u); i++) {
+    for (uint16_t i = 0; i < (new_fft_size / 2u); i++)
+    {
       sample_real[i] *= g[i];
       sample_imag[i] *= g[i];
     }
@@ -119,7 +130,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   for (uint16_t i = 0; i < (new_fft_size/2u)-1; i++) {
     const uint16_t bin = new_fft_size/2 - i - 1;
     const uint16_t new_idx = (new_fft_size/2u) + 1 + i;
-    if(!filter_control.lower_sideband || bin < filter_control.start_bin || bin > filter_control.stop_bin)
+    if(!filter_control.lower_sideband || bin < _start_bin || bin > _stop_bin)
     {
       sample_real[new_idx] = 0;
       sample_imag[new_idx] = 0;
@@ -161,15 +172,16 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
       filter_control.noise_threshold);
   }
 
-  if (filter_control.nn_denoiser && filter_control.lower_sideband &&
-      (!filter_control.upper_sideband)) {
+  if (nn_denoiser_active && filter_control.lower_sideband)
+  {
     rnn_num_t g[new_fft_size / 2u + 1];
     std::reverse(std::begin(magnitudes), std::end(magnitudes));
     rnn_denoiser_denoise(magnitudes, g);
     std::reverse(std::begin(g), std::end(g));
-    for (uint16_t i = 0; i < (new_fft_size / 2u); i++) {
-      sample_real[(new_fft_size/2u) + i] *= g[i];
-      sample_imag[(new_fft_size/2u) + i] *= g[i];
+    for (uint16_t i = 0; i < (new_fft_size / 2u); i++)
+    {
+      sample_real[(new_fft_size / 2u) + i] *= g[i];
+      sample_imag[(new_fft_size / 2u) + i] *= g[i];
     }
   }
 
