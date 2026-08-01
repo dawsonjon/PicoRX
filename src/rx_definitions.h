@@ -23,7 +23,7 @@ const uint8_t  FM = 4u;
 const uint8_t  CW = 5u;
 
 const uint16_t interpolation_rate = decimation_rate/2u;
-const uint16_t extra_bits = 1u;
+const uint16_t extra_bits = 2u;
 const uint8_t  cic_order = 4u;
 const uint8_t  cic_bit_growth = 1 + ceilf(cic_order*log2f(cic_decimation_rate));
 const float    cic_gain = powf(2.0f, (cic_order*log2f(cic_decimation_rate)) - (cic_bit_growth - extra_bits));
