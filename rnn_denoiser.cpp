@@ -14,7 +14,11 @@
 #include "pico/stdlib.h"
 #include "rnn_denoiser_cfg.h"
 
-static inline rnn_num_t sigmoidf(rnn_num_t x) { return (1 / (1 + expf(-x))); }
+static inline float sigmoidf(float x)
+{
+  return 1.0f / (1.0f + expf(-x));
+}
+
 static inline rnn_num_t hardsigmoid(rnn_num_t x) {
   if (x <= -3.0f) {
     return 0.0f;
@@ -64,7 +68,7 @@ static void __time_critical_func(fc_process)(const rnn_num_t input[FC_IN_DIM],
       output[j] += (input[i] * FC_W[j][i]);
     }
     output[j] += FC_B[j];
-    output[j] = hardsigmoid(output[j]);
+    output[j] = sigmoidf(output[j]);
   }
 }
 
