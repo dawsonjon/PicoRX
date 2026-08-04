@@ -799,7 +799,7 @@ void rx_dsp :: set_squelch(uint8_t threshold, uint8_t timeout)
 {
   //0-9 = s0 to s9, 10 to 12 = S9+10dB to S9+30dB
   const int16_t thresholds[] = {
-    (int16_t)(s9_threshold>>9), //s0
+    (int16_t)(0), //Off
     (int16_t)(s9_threshold>>8), //s1
     (int16_t)(s9_threshold>>7), //s2
     (int16_t)(s9_threshold>>6), //s3
