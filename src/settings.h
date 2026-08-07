@@ -39,7 +39,7 @@ struct s_channel_settings
 struct s_global_settings
 {
   s_tx_band_limits tx_band_limits;
-  uint16_t noise_limit;
+  uint8_t scaling;
   uint8_t view_mode;
   uint8_t baud_rate;
   uint8_t agc_setting;
@@ -148,7 +148,7 @@ const s_settings default_settings = {
       429, //*0.05 = 21.45 (15m)
     },
   },
-  200,//noise_limit
+  1,  //scaling
   2,  //view_mode
   0,  //baud rate = normal
   3,  //agc_setting = very_slow

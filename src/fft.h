@@ -8,7 +8,7 @@ const int16_t K  =  (1 << (fraction_bits - 1));
 
 void fft_initialise();
 void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale=true);
-void fixed_ifft(int16_t reals[], int16_t imaginaries[], unsigned m);
+void fixed_ifft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale=true);
 
 static inline int16_t float2fixed(float float_value) {
         return round(float_value * (1 << fraction_bits));

@@ -54,7 +54,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   int16_t next_peak = 0;
   uint16_t peak_bin = 0;
   uint16_t magnitudes[(new_fft_size/2u) + 1] = {0};
-  filter_control.magnitude_sum = 0;
 
   //DC and positive frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u) + 1; i++) {
@@ -71,7 +70,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
       //capture highest and second highest peak
       magnitudes[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
-      filter_control.magnitude_sum += magnitudes[i];
       if(magnitudes[i] > peak)
       {
         peak = magnitudes[i];
@@ -118,7 +116,6 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
       //capture highest and second highest peak
       magnitudes[i + 1] = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
-      filter_control.magnitude_sum += magnitudes[i + 1];
       if(magnitudes[i + 1] > peak)
       {
         peak = magnitudes[i + 1];
@@ -170,7 +167,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   }
 
   // inverse FFT
-  fixed_ifft(sample_real, sample_imag, 7);
+  fixed_ifft(sample_real, sample_imag, 7, false);
 
 }
 

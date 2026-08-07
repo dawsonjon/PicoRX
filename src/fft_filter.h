@@ -27,7 +27,6 @@ struct s_filter_control
   int8_t noise_smoothing;
   int8_t noise_threshold;
   uint8_t spectrum_smoothing;
-  uint32_t magnitude_sum;
   bool lower_sideband;
   bool upper_sideband;
   bool capture;

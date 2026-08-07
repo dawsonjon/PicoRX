@@ -279,6 +279,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
   fft_filter_inst.process_sample(iq, filter_control, capture);
   if(filter_control.capture) sem_release(&spectrum_semaphore);
 
+  uint32_t magnitude_accumulator = 0;
   for(uint16_t idx=0; idx<adc_block_size/decimation_rate; idx++)
   {
     int16_t i = iq[2 * idx];
@@ -291,6 +292,7 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     uint16_t magnitude;
     int16_t _phase;
     rectangular_2_polar(i, q, &magnitude, &_phase);
+    magnitude_accumulator += magnitude;
 
     // Impulse noise blanker
     apply_impulse_blanker(i, q, magnitude);
@@ -335,8 +337,8 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
         2 * sizeof(int16_t) * adc_block_size / decimation_rate);
   }
 
-  //average over the number of samples
-  signal_amplitude = (filter_control.magnitude_sum * decimation_rate)/adc_block_size;
+  signal_amplitude_sum = magnitude_accumulator;
+  signal_amplitude_num_samples = adc_block_size/decimation_rate;
 
   return adc_block_size/decimation_rate;
 }
@@ -403,8 +405,12 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         delayq3 = combq3;
 
         //remove bit growth, but keep some extra bits since noise floor is now lower
-        i = combi4>>(cic_bit_growth-extra_bits);
-        q = combq4>>(cic_bit_growth-extra_bits);
+        //i = combi4>>(cic_bit_growth-extra_bits);
+        //q = combq4>>(cic_bit_growth-extra_bits);
+        //i = combi4>>(cic_bit_growth-scaling);
+        //q = combq4>>(cic_bit_growth-scaling);
+        i = combi4>>(cic_bit_growth);
+        q = combq4>>(cic_bit_growth);
 
         return true;
       }
@@ -518,7 +524,7 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
 
 int16_t __not_in_flash_func(rx_dsp::squelch)(int16_t audio)
 {
-    if(signal_amplitude > squelch_threshold)
+    if(signal_amplitude_sum >= squelch_threshold*signal_amplitude_num_samples)
       squelch_time_ms = to_ms_since_boot(get_absolute_time());
     const uint32_t time_since_active = to_ms_since_boot(get_absolute_time())-squelch_time_ms;
 
@@ -654,9 +660,9 @@ void rx_dsp :: set_hold_smoothing(uint8_t _hold_smoothing)
   hold_smoothing = _hold_smoothing;
 }
 
-void rx_dsp :: set_noise_limit(uint16_t _noise_limit)
+void rx_dsp :: set_scaling(uint8_t _scaling)
 {
-  noise_limit = _noise_limit;
+  scaling = _scaling;
 }
 
 void rx_dsp :: set_view_mode(uint8_t _view_mode)
@@ -822,11 +828,12 @@ void rx_dsp :: set_squelch(uint8_t threshold, uint8_t timeout)
 
 int16_t rx_dsp :: get_signal_strength_dBm()
 {
-  if(signal_amplitude == 0)
+  if(signal_amplitude_sum == 0)
   {
-    return -130;
+    return -150;
   }
-  const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude / full_scale_signal_strength);
+  //printf("%lu %u %f\n", signal_amplitude_sum, signal_amplitude_num_samples, full_scale_signal_strength);
+  const float signal_strength_dBFS = 20.0*log10f((float)signal_amplitude_sum / (signal_amplitude_num_samples * full_scale_signal_strength));
   return roundf(full_scale_dBm - amplifier_gain_dB + signal_strength_dBFS);
 }
 
@@ -851,6 +858,7 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   sem_acquire_blocking(&spectrum_semaphore);
 
   //find minimum and maximum values
+  const uint8_t noise_limit = 200u;
   static uint16_t max=65523u;//long term maximum
   uint16_t new_max=0u;
   static uint16_t min=1u;//long term maximum
@@ -870,9 +878,9 @@ void rx_dsp :: get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, u
   min=0.9*min+0.1*new_min;
 
   //min is clamped so that it can't go below 1.
-  //max is clamped so it can't be less than 40dB above the minimum
+  //max is clamped so it can't be less than 30dB above the minimum
   const uint16_t clamped_min = std::max(min, static_cast<uint16_t>(1));
-  const uint16_t clamped_max = std::max(max, static_cast<uint16_t>(clamped_min*100));
+  const uint16_t clamped_max = std::max(max, static_cast<uint16_t>(clamped_min*32));
 
   const float logmin = log10f(clamped_min);
   const float logmax = log10f(clamped_max);

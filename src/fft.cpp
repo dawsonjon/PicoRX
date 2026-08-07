@@ -93,7 +93,7 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
      subdft_size = 2 << stage;
      span = subdft_size >> 1;
      uint16_t shift = (max_m - stage - 1);
-     uint16_t apply_scaling_this_stage = stage & 1;
+     uint16_t apply_scaling_this_stage = stage & scale;
      uint16_t quarter_turn = 1 << (stage-1);
 
      for (j = 0; j < span; ++j) {
@@ -194,9 +194,9 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 }
 
 #ifndef SIMULATION
-void __not_in_flash_func(fixed_ifft)(int16_t reals[], int16_t imaginaries[], unsigned m) {
+void __not_in_flash_func(fixed_ifft)(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #else
-void fixed_ifft(int16_t reals[], int16_t imaginaries[], unsigned m) {
+void fixed_ifft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #endif
-  fixed_fft(imaginaries, reals, m, true);
+  fixed_fft(imaginaries, reals, m, scale);
 }

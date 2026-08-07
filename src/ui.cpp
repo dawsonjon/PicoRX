@@ -2242,7 +2242,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Scaling#USB\nUpload#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2391,6 +2391,11 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 19:
+          done = number_entry("Scaling", "%i", 0, 3, 1, settings.global.scaling, ok, changed);
+          if(changed) apply_settings(false);
+          break;
+
+        case 20:
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
@@ -2639,7 +2644,7 @@ bool ui::spectrum_menu(bool & ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#Noise\nLimit#View\nMode#", &menu_selection, ok))
+      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#View\nMode#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2680,11 +2685,7 @@ bool ui::spectrum_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 4 :
-            done = number_entry("Noise\nLimit", "%i", 0, 1000, 5, settings.global.noise_limit, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 5 :
-            done = number_entry("View\nMode", "%i", 0, 2, 1, settings.global.view_mode, ok, changed);
+            done = enumerate_entry("View\nMode", "Noise#Raw#Clean#", settings.global.view_mode, ok, changed);
             if(changed) apply_settings(false);
             break;
         }
