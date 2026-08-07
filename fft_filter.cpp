@@ -56,6 +56,7 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   int16_t next_peak = 0;
   uint16_t peak_bin = 0;
   uint16_t magnitudes[(new_fft_size/2u) + 1] = {0};
+  uint16_t magnitudes_buf[(new_fft_size/2u) + 1] = {0};
   filter_control.magnitude_sum = 0;
   uint16_t _start_bin = filter_control.start_bin;
   uint16_t _stop_bin = filter_control.stop_bin;
@@ -68,10 +69,18 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     _stop_bin = 32;
   }
 
+  // gather, possibly wider, range of magnitudes for nn denoiser
+  for (uint16_t i = _start_bin; i < _stop_bin + 1; i++)
+  {
+    sample_real[i] = cic_correct(i, filter_control.fft_bin, sample_real[i]);
+    sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
+    magnitudes_buf[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+  }
+
   //DC and positive frequencies
   for (uint16_t i = 0; i < (new_fft_size/2u) + 1; i++) {
     //clear bins outside pass band
-    if(!filter_control.upper_sideband || i < _start_bin || i > _stop_bin)
+    if(!filter_control.upper_sideband || i < filter_control.start_bin || i > filter_control.stop_bin)
     {
       sample_real[i] = 0;
       sample_imag[i] = 0;
@@ -79,11 +88,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
     else
     {
-      sample_real[i] = cic_correct(i, filter_control.fft_bin, sample_real[i]);
-      sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
-
       //capture highest and second highest peak
-      magnitudes[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
+      magnitudes[i] = magnitudes_buf[i];
       filter_control.magnitude_sum += magnitudes[i];
       if(magnitudes[i] > peak)
       {
@@ -117,8 +123,8 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if (nn_denoiser_active && filter_control.upper_sideband)
   {
     rnn_num_t g[new_fft_size / 2u + 1];
-    rnn_denoiser_denoise(magnitudes, g);
-    for (uint16_t i = 0; i < (new_fft_size / 2u); i++)
+    rnn_denoiser_denoise(magnitudes_buf, g);
+    for (uint16_t i = filter_control.start_bin; i < (filter_control.stop_bin + 1); i++)
     {
       sample_real[i] *= g[i];
       sample_imag[i] *= g[i];
@@ -127,10 +133,24 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
 
   //negative frequencies
   magnitudes[0] = magnitudes[(new_fft_size/2u)];
+  magnitudes_buf[0] = magnitudes[0];
+
+  // gather, possibly wider, range of magnitudes for nn denoiser
   for (uint16_t i = 0; i < (new_fft_size/2u)-1; i++) {
     const uint16_t bin = new_fft_size/2 - i - 1;
     const uint16_t new_idx = (new_fft_size/2u) + 1 + i;
-    if(!filter_control.lower_sideband || bin < _start_bin || bin > _stop_bin)
+    if(bin >= _start_bin && bin <= _stop_bin)
+    {
+      sample_real[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_real[fft_size - (new_fft_size/2u) + i + 1]);
+      sample_imag[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_imag[fft_size - (new_fft_size/2u) + i + 1]);
+      magnitudes_buf[i + 1] = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+    }
+  }
+
+  for (uint16_t i = 0; i < (new_fft_size/2u)-1; i++) {
+    const uint16_t bin = new_fft_size/2 - i - 1;
+    const uint16_t new_idx = (new_fft_size/2u) + 1 + i;
+    if(!filter_control.lower_sideband || bin < filter_control.start_bin || bin > filter_control.stop_bin)
     {
       sample_real[new_idx] = 0;
       sample_imag[new_idx] = 0;
@@ -138,11 +158,9 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
     }
     else
     {
-      sample_real[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_real[fft_size - (new_fft_size/2u) + i + 1]);
-      sample_imag[new_idx] = cic_correct(bin, filter_control.fft_bin, sample_imag[fft_size - (new_fft_size/2u) + i + 1]);
 
       //capture highest and second highest peak
-      magnitudes[i + 1] = rectangular_2_magnitude(sample_real[new_idx], sample_imag[new_idx]);
+      magnitudes[i + 1] = magnitudes_buf[i + 1];
       filter_control.magnitude_sum += magnitudes[i + 1];
       if(magnitudes[i + 1] > peak)
       {
@@ -175,13 +193,18 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   if (nn_denoiser_active && filter_control.lower_sideband)
   {
     rnn_num_t g[new_fft_size / 2u + 1];
-    std::reverse(std::begin(magnitudes), std::end(magnitudes));
-    rnn_denoiser_denoise(magnitudes, g);
+    std::reverse(std::begin(magnitudes_buf), std::end(magnitudes_buf));
+    rnn_denoiser_denoise(magnitudes_buf, g);
     std::reverse(std::begin(g), std::end(g));
-    for (uint16_t i = 0; i < (new_fft_size / 2u); i++)
+    for (uint16_t i = 0; i < (new_fft_size / 2u)-1; i++)
     {
-      sample_real[(new_fft_size / 2u) + i] *= g[i];
-      sample_imag[(new_fft_size / 2u) + i] *= g[i];
+      const uint16_t bin = new_fft_size / 2 - i - 1;
+      const uint16_t new_idx = (new_fft_size / 2u) + 1 + i;
+      if (bin >= filter_control.start_bin && bin <= filter_control.stop_bin)
+      {
+        sample_real[new_idx] *= g[i];
+        sample_imag[new_idx] *= g[i];
+      }
     }
   }
 
