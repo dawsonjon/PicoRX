@@ -3,7 +3,7 @@
 
 /*
  * Format
- * <height>, <width>, <additional spacing per char>, 
+ * <height>, <width>, <additional spacing per char>,
  * <first ascii char>, <last ascii char>,
  * <data>
  */

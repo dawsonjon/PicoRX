@@ -80,6 +80,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/eibi/eibi.cpp
 )
 
 set(PICORX_LIBS

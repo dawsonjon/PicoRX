@@ -2,7 +2,8 @@
 #include <float.h>
 #include <math.h>
 
-#include "pico/multicore.h"
+#include "ctime"
+#include "pico/util/datetime.h"
 #include "ui.h"
 #include "fft_filter.h"
 #include <hardware/flash.h>
@@ -11,6 +12,7 @@
 #include "settings.h"
 #include "rotary_encoder.h"
 #include "utils.h"
+#include "../eibi/eibi.h"
 
 #include <algorithm>
 
@@ -492,6 +494,148 @@ void ui::renderpage_oscilloscope(void)
   draw_slim_status(0);
   const uint16_t vu = audio_vu_meter_update();
   u8g2_DrawBox(&u8g2, 0, 62, vu, 2);
+  display_show();
+}
+
+
+int16_t lookup_frequency(uint16_t frequency, int16_t &from, int16_t &to) {
+
+  int left = 0;
+  int right = NUM_FREQUENCIES-1;
+
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (frequencies[mid].frequency == frequency) {
+      from = mid;
+      while(from-1 > 0 && frequencies[from-1].frequency==frequency) from--;
+      to = mid;
+      while(to+1 < NUM_FREQUENCIES && frequencies[to+1].frequency==frequency) to++;
+      return mid; // found
+    } else if (frequencies[mid].frequency < frequency) {
+      left = mid + 1; // search right half
+    } else {
+      right = mid - 1; // search left half
+    }
+  }
+
+  return -1;
+}
+
+static float deg2rad(float d) { return d * M_PI / 180.0; }
+double distance_km(float lon_a, float lat_a, float lon_b, float lat_b) {
+    const double R = 6371.0; // Earth radius in km
+
+    double lat1 = deg2rad(lat_a);
+    double lat2 = deg2rad(lat_b);
+    double dlat = lat2 - lat1;
+    double dlon = deg2rad(lon_b - lon_a);
+
+    double h = sin(dlat/2)*sin(dlat/2) +
+               cos(lat1)*cos(lat2)*sin(dlon/2)*sin(dlon/2);
+
+    return 2 * R * atan2(sqrt(h), sqrt(1 - h));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Home page status display with bigger spectrum view
+////////////////////////////////////////////////////////////////////////////////
+void ui::renderpage_station_info(bool view_changed)
+{
+  (void)view_changed;
+  display_clear();
+  draw_slim_status(0);
+  u8g2_DrawHLine(&u8g2, 0, 8, 128);
+
+
+  static uint32_t last_frequency_displayed = 0;
+  static int16_t id = -1;
+  static int16_t from = -1;
+  static int16_t to = -1;
+  static int16_t display_id = -1;
+  static uint16_t timeout = 0;
+  static uint16_t day_minute = 0;
+  static uint8_t weekday_flag = 0;
+  static bool frequency_active = false;
+
+  //lookup frequency in database
+  if(view_changed || (settings.channel.frequency != last_frequency_displayed)) {
+    timeout = 0;
+    last_frequency_displayed = settings.channel.frequency;
+    id = lookup_frequency(settings.channel.frequency/1000, from, to);
+    display_id = from;
+
+    frequency_active = false;
+    for(int16_t idx = from; idx<=to; idx++){
+      if(day_minute >= frequencies[idx].from && day_minute <= frequencies[idx].to && (weekday_flag & frequencies[idx].dayflags)) {
+        frequency_active = true;
+        break;
+      }
+    }
+
+  }
+
+  if(timeout==0 && id>0){
+    timeout=20;
+    display_id++;
+    if(display_id > to) display_id = from;
+
+    //get time
+    time_t now;
+    time(&now);
+    tm *t = gmtime(&now);
+    printf("%04u-%02u-%02u %02u:%02u:%02u\n", t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+    day_minute = t->tm_hour*60+t->tm_min;
+    weekday_flag = 1<<t->tm_wday;
+    //weekday = t->tm_wday;
+
+  } else timeout--;
+
+  if(id<0){
+    u8g2_SetDrawColor(&u8g2, 1);
+    u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+    u8g2_DrawStr(&u8g2, 0, 18, "Unknown");
+  } else {
+    char buff[24];
+    u8g2_SetDrawColor(&u8g2, 1);
+    u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+    s_locations location = locations[frequencies[display_id].transmitter_id];
+    float distance = distance_km(location.lon, location.lat, -2, 52);
+    char active_char = frequency_active?'*':' ';
+    if(location.lat == 999) {
+      snprintf(buff, 21, "%c(%u of %u) ??? km", active_char, (display_id-from)+1, (to-from)+1);
+    } else {
+      snprintf(buff, 21, "%c(%u of %u) %.0f km", active_char, (display_id-from)+1, (to-from)+1, distance);
+    }
+    u8g2_DrawStr(&u8g2, 0, 18, buff);
+    u8g2_DrawStr(&u8g2, 0, 18+8, stations[frequencies[display_id].station_id]);
+    u8g2_DrawStr(&u8g2, 0, 18+16, countries[frequencies[display_id].country_id]);
+    u8g2_DrawStr(&u8g2, 0, 18+24, languages[frequencies[display_id].language_id]);
+    u8g2_DrawStr(&u8g2, 0, 18+32, transmitters[frequencies[display_id].transmitter_id]);
+
+    if(day_minute >= frequencies[display_id].from && day_minute <= frequencies[display_id].to && (weekday_flag & frequencies[display_id].dayflags)) {
+      snprintf(buff, 21, "live until %02u:%02u", frequencies[display_id].to/60, frequencies[display_id].to%60);
+      u8g2_DrawStr(&u8g2, 0, 18+40, buff);
+    } else {
+      if((weekday_flag & frequencies[display_id].dayflags) && (day_minute < frequencies[display_id].from)){
+        snprintf(buff, 21, "starts %02u:%02u today", frequencies[display_id].from/60, frequencies[display_id].from%60);
+      } else {
+        const char weekdays[]="SMTWTFS";
+        char activedays[8];
+        for(uint8_t d=0; d<7; d++) {
+          if(frequencies[display_id].dayflags & (1<<d)) {
+            activedays[d] = weekdays[d];
+          } else {
+            activedays[d] = ' ';
+          }
+        }
+        activedays[7] = 0;
+        snprintf(buff, 24, "%7s %02u:%02u-%02u:%02u", activedays, frequencies[display_id].from/60, frequencies[display_id].from%60, frequencies[display_id].to/60, frequencies[display_id].to%60);
+      }
+      u8g2_DrawStr(&u8g2, 0, 18+40, buff);
+    }
+
+  }
+
   display_show();
 }
 
@@ -1115,6 +1259,13 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
   int32_t extended_value = value;
   bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
   value = (uint16_t)extended_value;
+  return return_value;
+}
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int16_t &value, bool &ok, bool &changed)
+{
+  int32_t extended_value = value;
+  bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
+  value = (int16_t)extended_value;
   return return_value;
 }
 bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed)
@@ -1933,6 +2084,83 @@ int ui::string_entry(char string[], bool &ok, bool &del){
 
 }
 
+bool ui::location_menu(bool &ok)
+{
+    enum e_ui_state{state_lat, state_lon};
+    static e_ui_state ui_state = state_lat;
+
+    bool done = false;
+    bool changed = false;
+
+    if(ui_state == state_lat)
+    {
+      done = number_entry("Latitude", "%i", -90, 90, 1, settings.global.lat, ok, changed);
+      if(done) ui_state = state_lon;
+    }
+    else if(ui_state == state_lon)
+    {
+      done = number_entry("Longitude", "%i", -180, 180, 1, settings.global.lon, ok, changed);
+      if(done){
+        ui_state = state_lat;
+        return true;
+      }
+    }
+    return false;
+
+}
+
+bool ui::time_menu(bool &ok)
+{
+    enum e_ui_state{state_year, state_month, state_day, state_hour, state_minute};
+    static e_ui_state ui_state = state_year;
+
+    bool done = false;
+    bool changed = false;
+    static uint16_t year=2026, month=01, day=01, hour=00, minute=00;
+
+    if(ui_state == state_year)
+    {
+      done = number_entry("Year", "%i", 2026, 3000, 1, year, ok, changed);
+      if(done) ui_state = state_month;
+    }
+    else if(ui_state == state_month)
+    {
+      done = number_entry("Month", "%i", 1, 12, 1, month, ok, changed);
+      if(done) ui_state = state_day;
+    }
+    else if(ui_state == state_day)
+    {
+      done = number_entry("Day", "%i", 1, 12, 1, day, ok, changed);
+      if(done) ui_state = state_hour;
+    }
+    else if(ui_state == state_hour)
+    {
+      done = number_entry("Hour", "%i", 0, 23, 1, hour, ok, changed);
+      if(done) ui_state = state_minute;
+    }
+    else if(ui_state == state_minute)
+    {
+      done = number_entry("Minute", "%i", 0, 59, 1, minute, ok, changed);
+      if(done){
+        ui_state = state_year;
+
+        tm timeinfo;
+        timeinfo.tm_year = year-1900;
+        timeinfo.tm_mon = month-1;
+        timeinfo.tm_mday = day;
+        timeinfo.tm_hour = hour;
+        timeinfo.tm_min = minute;
+        timeinfo.tm_sec = 0;
+        timeval tv = {.tv_sec = mktime(&timeinfo)};
+        settimeofday(&tv, NULL);
+
+        return true;
+      }
+    }
+    return false;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
@@ -2242,7 +2470,7 @@ bool ui::configuration_menu(bool &ok)
     //chose menu item
     if(ui_state == select_menu_item)
     {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Scaling#USB\nUpload#", &menu_selection, ok))
+      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Set\nTime#Location#USB\nUpload#", &menu_selection, ok))
       {
         if(ok)
         {
@@ -2391,11 +2619,14 @@ bool ui::configuration_menu(bool &ok)
           break;
 
         case 19:
-          done = number_entry("Scaling", "%i", 0, 3, 1, settings.global.scaling, ok, changed);
-          if(changed) apply_settings(false);
+          done = time_menu(ok);
           break;
 
         case 20:
+          done = location_menu(ok);
+          break;
+
+        case 21:
         {
           static uint8_t usb_upload = 0;
           done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
@@ -2888,7 +3119,7 @@ void ui::do_ui(void)
     bool update_settings = false;
     enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
     static e_ui_state ui_state = splash;
-    const uint8_t num_display_options = 8;
+    const uint8_t num_display_options = 9;
     static bool view_changed = false;
 
     if(ui_state != idle) view_changed = true;
@@ -2995,13 +3226,14 @@ void ui::do_ui(void)
       switch(settings.global.view)
       {
         case 0: renderpage_original(); break;
-        case 1: renderpage_bigspectrum(view_changed);break;
-        case 2: renderpage_combinedspectrum(view_changed);break;
-        case 3: renderpage_waterfall(view_changed);break;
-        case 4: renderpage_oscilloscope();break;
-        case 5: renderpage_status();break;
-        case 6: renderpage_smeter(view_changed); break;
-        case 7: renderpage_fun(view_changed);break;
+        case 1: renderpage_station_info(view_changed); break;
+        case 2: renderpage_bigspectrum(view_changed);break;
+        case 3: renderpage_combinedspectrum(view_changed);break;
+        case 4: renderpage_waterfall(view_changed);break;
+        case 5: renderpage_oscilloscope();break;
+        case 6: renderpage_status();break;
+        case 7: renderpage_smeter(view_changed); break;
+        case 8: renderpage_fun(view_changed);break;
       }
       view_changed = false;
     }

@@ -109,6 +109,7 @@ class ui
   void renderpage_status(void);
   void renderpage_fun(bool view_changed);
   void renderpage_smeter(bool view_changed);
+  void renderpage_station_info(bool view_changed);
 
 #ifdef WITH_TX
   void renderpage_transmit(void);
@@ -140,6 +141,8 @@ class ui
   bool configuration_menu(bool &ok);
   bool bands_menu(bool &ok);
   bool spectrum_menu(bool &ok);
+  bool time_menu(bool &ok);
+  bool location_menu(bool &ok);
 #ifdef WITH_TX
   bool tx_configuration_menu(bool &ok);
   bool transmit_menu(bool &ok);
@@ -156,6 +159,7 @@ class ui
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint16_t &value, bool &ok, bool &changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int16_t &value, bool &ok, bool &changed);
   bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed);
   bool frequency_entry(const char title[], uint32_t &which_setting, bool &ok);
   int string_entry(char string[], bool &ok, bool &del);

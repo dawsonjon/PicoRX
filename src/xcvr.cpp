@@ -329,9 +329,6 @@ void xcvr::apply_settings()
       //apply Hold Smoothing
       rx_dsp_inst.set_hold_smoothing(settings_to_apply.hold_smoothing);
 
-      //apply Scaling
-      rx_dsp_inst.set_scaling(settings_to_apply.scaling);
-
       //apply View Mode
       rx_dsp_inst.set_view_mode(settings_to_apply.view_mode);
 

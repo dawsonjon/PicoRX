@@ -66,7 +66,6 @@ struct xcvr_settings
   uint8_t if_mode;
   uint8_t spectrum_smoothing;
   uint8_t hold_smoothing;
-  uint8_t scaling;
   uint8_t view_mode;
   bool enable_external_nco;
   bool stream_raw_iq;

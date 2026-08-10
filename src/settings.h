@@ -39,7 +39,8 @@ struct s_channel_settings
 struct s_global_settings
 {
   s_tx_band_limits tx_band_limits;
-  uint8_t scaling;
+  int16_t lat;
+  int16_t lon;
   uint8_t view_mode;
   uint8_t baud_rate;
   uint8_t agc_setting;
@@ -148,7 +149,8 @@ const s_settings default_settings = {
       429, //*0.05 = 21.45 (15m)
     },
   },
-  1,  //scaling
+  51, //lat
+  0,  //lon
   2,  //view_mode
   0,  //baud rate = normal
   3,  //agc_setting = very_slow

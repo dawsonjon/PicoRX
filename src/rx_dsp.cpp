@@ -405,10 +405,6 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
         delayq3 = combq3;
 
         //remove bit growth, but keep some extra bits since noise floor is now lower
-        //i = combi4>>(cic_bit_growth-extra_bits);
-        //q = combq4>>(cic_bit_growth-extra_bits);
-        //i = combi4>>(cic_bit_growth-scaling);
-        //q = combq4>>(cic_bit_growth-scaling);
         i = combi4>>(cic_bit_growth);
         q = combq4>>(cic_bit_growth);
 
@@ -658,11 +654,6 @@ void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
 void rx_dsp :: set_hold_smoothing(uint8_t _hold_smoothing)
 {
   hold_smoothing = _hold_smoothing;
-}
-
-void rx_dsp :: set_scaling(uint8_t _scaling)
-{
-  scaling = _scaling;
 }
 
 void rx_dsp :: set_view_mode(uint8_t _view_mode)

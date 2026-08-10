@@ -1,0 +1,2 @@
+wget -N --no-check-certificate https://www.eibispace.de/dx/sked-a26.csv
+wget -N --no-check-certificate https://www.eibispace.de/dx/README.TXT

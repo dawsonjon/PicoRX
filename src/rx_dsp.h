@@ -39,7 +39,6 @@ class rx_dsp
   void set_noise_reduction(bool enable_noise_reduction, int8_t noise_smoothing, int8_t noise_threshold);
   void set_spectrum_smoothing(uint8_t spectrum_smoothing);
   void set_hold_smoothing(uint8_t hold_smoothing);
-  void set_scaling(uint8_t scaling);
   void set_view_mode(uint8_t view_mode);
   int16_t get_signal_strength_dBm();
   void get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom);
@@ -156,8 +155,6 @@ class rx_dsp
   uint8_t hold_smoothing;
   float fft_bin;
   uint8_t view_mode=0;
-
-  uint8_t scaling=1;
 
 };
 
