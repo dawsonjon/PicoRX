@@ -497,45 +497,6 @@ void ui::renderpage_oscilloscope(void)
   display_show();
 }
 
-
-int16_t lookup_frequency(uint16_t frequency, int16_t &from, int16_t &to) {
-
-  int left = 0;
-  int right = NUM_FREQUENCIES-1;
-
-  while (left <= right) {
-    int mid = left + (right - left) / 2;
-    if (frequencies[mid].frequency == frequency) {
-      from = mid;
-      while(from-1 > 0 && frequencies[from-1].frequency==frequency) from--;
-      to = mid;
-      while(to+1 < NUM_FREQUENCIES && frequencies[to+1].frequency==frequency) to++;
-      return mid; // found
-    } else if (frequencies[mid].frequency < frequency) {
-      left = mid + 1; // search right half
-    } else {
-      right = mid - 1; // search left half
-    }
-  }
-
-  return -1;
-}
-
-static float deg2rad(float d) { return d * M_PI / 180.0; }
-double distance_km(float lon_a, float lat_a, float lon_b, float lat_b) {
-    const double R = 6371.0; // Earth radius in km
-
-    double lat1 = deg2rad(lat_a);
-    double lat2 = deg2rad(lat_b);
-    double dlat = lat2 - lat1;
-    double dlon = deg2rad(lon_b - lon_a);
-
-    double h = sin(dlat/2)*sin(dlat/2) +
-               cos(lat1)*cos(lat2)*sin(dlon/2)*sin(dlon/2);
-
-    return 2 * R * atan2(sqrt(h), sqrt(1 - h));
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
@@ -555,7 +516,6 @@ void ui::renderpage_station_info(bool view_changed)
   static uint16_t timeout = 0;
   static uint16_t day_minute = 0;
   static uint8_t weekday_flag = 0;
-  static bool frequency_active = false;
 
   //lookup frequency in database
   if(view_changed || (settings.channel.frequency != last_frequency_displayed)) {
@@ -563,15 +523,6 @@ void ui::renderpage_station_info(bool view_changed)
     last_frequency_displayed = settings.channel.frequency;
     id = lookup_frequency(settings.channel.frequency/1000, from, to);
     display_id = from;
-
-    frequency_active = false;
-    for(int16_t idx = from; idx<=to; idx++){
-      if(day_minute >= frequencies[idx].from && day_minute <= frequencies[idx].to && (weekday_flag & frequencies[idx].dayflags)) {
-        frequency_active = true;
-        break;
-      }
-    }
-
   }
 
   if(timeout==0 && id>0){
@@ -598,15 +549,18 @@ void ui::renderpage_station_info(bool view_changed)
     char buff[24];
     u8g2_SetDrawColor(&u8g2, 1);
     u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+
+    //calculate distance
     s_locations location = locations[frequencies[display_id].transmitter_id];
     float distance = distance_km(location.lon, location.lat, -2, 52);
-    char active_char = frequency_active?'*':' ';
     if(location.lat == 999) {
-      snprintf(buff, 21, "%c(%u of %u) ??? km", active_char, (display_id-from)+1, (to-from)+1);
+      snprintf(buff, 21, "(%u of %u)", (display_id-from)+1, (to-from)+1);
     } else {
-      snprintf(buff, 21, "%c(%u of %u) %.0f km", active_char, (display_id-from)+1, (to-from)+1, distance);
+      snprintf(buff, 21, "(%u of %u) %.0f km", (display_id-from)+1, (to-from)+1, distance);
     }
     u8g2_DrawStr(&u8g2, 0, 18, buff);
+
+    //list station info
     u8g2_DrawStr(&u8g2, 0, 18+8, stations[frequencies[display_id].station_id]);
     u8g2_DrawStr(&u8g2, 0, 18+16, countries[frequencies[display_id].country_id]);
     u8g2_DrawStr(&u8g2, 0, 18+24, languages[frequencies[display_id].language_id]);
@@ -2101,6 +2055,7 @@ bool ui::location_menu(bool &ok)
     {
       done = number_entry("Longitude", "%i", -180, 180, 1, settings.global.lon, ok, changed);
       if(done){
+        if(ok) waterfall_inst.draw();
         ui_state = state_lat;
         return true;
       }
@@ -2130,7 +2085,7 @@ bool ui::time_menu(bool &ok)
     }
     else if(ui_state == state_day)
     {
-      done = number_entry("Day", "%i", 1, 12, 1, day, ok, changed);
+      done = number_entry("Day", "%i", 1, 31, 1, day, ok, changed);
       if(done) ui_state = state_hour;
     }
     else if(ui_state == state_hour)
@@ -2153,6 +2108,7 @@ bool ui::time_menu(bool &ok)
         timeinfo.tm_sec = 0;
         timeval tv = {.tv_sec = mktime(&timeinfo)};
         settimeofday(&tv, NULL);
+        waterfall_inst.draw();
 
         return true;
       }
@@ -2822,7 +2778,7 @@ bool ui::main_menu(bool & ok)
             done = spectrum_menu(ok);
             break;
           case 18:
-            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#", settings.global.aux_view, ok, changed);
+            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#Map", settings.global.aux_view, ok, changed);
             break;
           case 19 :
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
@@ -3413,10 +3369,10 @@ void ui::update_display_type(void)
   }
 }
 
-ui::ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
+ui::ui(s_settings &_ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
        uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
        waterfall& _waterfall_inst)
-    : settings(default_settings),
+    : settings(_ui_settings),
       main_encoder(settings.global),
       menu_button(PIN_MENU),
       back_button(PIN_BACK),

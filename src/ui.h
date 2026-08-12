@@ -48,7 +48,7 @@ class ui
 
   private:
 
-  s_settings settings;
+  s_settings &settings;
   const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
   const char smeter[13][12]  = {
     "S0",          "S1|",         "S2-|",        "S3--|",
@@ -191,7 +191,7 @@ class ui
   void autorestore();
   void do_ui(void);
   void update_sdcard_counter(uint32_t c);
-  ui(xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
+  ui(s_settings &ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
      uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
      waterfall& _waterfall_inst);
 

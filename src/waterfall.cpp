@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <algorithm>
+#include <ctime>
 
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
@@ -14,12 +16,150 @@
 #include "ui.h"
 #include "pins.h"
 #include "utils.h"
+#include "eibi/eibi.h"
 
 #define SPI_PORT spi1
 
 
+const uint8_t MAX_NUM_LOCATIONS = 20;
+uint8_t num_inactive_locations = 0;
+uint8_t num_active_locations = 0;
+float nearest_distance = 1000000;
+s_locations nearest = {0, 0};
+s_frequency nearest_frequency = {0};
 
-waterfall::waterfall(xcvr &_transceiver) : transceiver(_transceiver), sstv_decoder(_transceiver)
+static bool in_locations(s_locations *_locations, s_locations location, uint8_t num_locations){
+    for(uint8_t i=0; i<num_locations; i++)
+      if(_locations[i].lon == location.lon && _locations[i].lat == location.lat) return true;
+    return false;
+}
+
+static void refresh_map(ILI934X *display) {
+
+    if(num_active_locations) {
+      uint16_t text_width = strlen(stations[nearest_frequency.station_id]) * 12;
+      display->drawString((320-text_width)/2, 4, font_16x12, stations[nearest_frequency.station_id], COLOUR_WHITE, COLOUR_BLACK);
+
+      char buff[50];
+      snprintf(buff, 50, "%s - %s %.0fkm",
+        countries[nearest_frequency.country_id],
+        transmitters[nearest_frequency.transmitter_id],
+        nearest_distance
+      );
+      text_width = strlen(buff) * 6;
+      display->drawString((320-text_width)/2, 240-20, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
+
+      char weekdays[]="SMTWTFS";
+      for(uint8_t d=0; d<7; d++) {
+        if(!(nearest_frequency.dayflags & (1<<d))){
+          weekdays[d] = '-';
+        }
+      }
+      snprintf(buff, 50, "%7s %02u:%02u-%02u:%02u",
+        weekdays,
+        nearest_frequency.from/60,
+        nearest_frequency.from%60,
+        nearest_frequency.to/60,
+        nearest_frequency.to%60
+      );
+      text_width = strlen(buff) * 6;
+      display->drawString((320-text_width)/2, 240-10, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
+
+    }
+}
+
+static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *display, bool force_redraw)
+{
+
+  display->fillRect(0, 0, 20, 320, COLOUR_BLACK);
+  display->fillRect(0, 220, 20, 320, COLOUR_BLACK);
+
+  time_t now;
+  time(&now);
+  float lon_field = 340.0f;
+  float lat_field = 160.0f;
+  float start_lon = ui_settings.global.lon - lon_field/2;
+  float start_lat = std::clamp(ui_settings.global.lat + lat_field/2, -90.0f+lat_field, 90.0f);
+  spotter.set_view(start_lon, start_lat, lon_field, lat_field);
+  spotter.draw_map(display, now, force_redraw);
+  spotter.qth(display, ui_settings.global.lon, ui_settings.global.lat);
+
+  tm *t = gmtime(&now);
+  uint8_t day_minute = t->tm_hour*60+t->tm_min;
+  uint8_t weekday_flag = 1<<t->tm_wday;
+
+  //lookup frequency in database
+  int16_t from = -1;
+  int16_t to = -1;
+  int16_t id = -1;
+  id = lookup_frequency(ui_settings.channel.frequency/1000, from, to);
+
+  s_locations inactive_locations[MAX_NUM_LOCATIONS];
+  s_locations active_locations[MAX_NUM_LOCATIONS];
+  num_active_locations = 0;
+  num_inactive_locations = 0;
+  nearest_distance = 1000000;
+  nearest = {0, 0};
+  nearest_frequency = {0};
+
+  //make a condensed list of active and inactive transmitters on this frequency
+  if(id >= 0) {
+    for(int16_t idx = from; idx<=to; idx++){
+      bool active = day_minute >= frequencies[idx].from && day_minute <= frequencies[idx].to && (weekday_flag & frequencies[idx].dayflags);
+      s_locations location = locations[frequencies[idx].transmitter_id];
+
+      //if there is an active transmitter with an unknown location, display that
+      if(!num_active_locations && active) {
+        nearest = location;
+        nearest_frequency = frequencies[idx];
+      }
+
+      if(location.lon != 999 && location.lat != 999) {
+        if(active) {
+          if(!in_locations(active_locations, location, num_active_locations) && num_active_locations < MAX_NUM_LOCATIONS) {
+            float distance = distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat);
+            active_locations[num_active_locations++] = location;
+            if(distance < nearest_distance){
+              nearest_distance = distance;
+              nearest = location;
+              nearest_frequency = frequencies[idx];
+            }
+          }
+        } else {
+          if(!in_locations(inactive_locations, location, num_inactive_locations) && num_inactive_locations < MAX_NUM_LOCATIONS)
+            inactive_locations[num_inactive_locations++] = location;
+        }
+      }
+    }
+  }
+
+  //plot inactive transmitters first
+  for(uint8_t idx=0; idx < num_inactive_locations; idx++){
+    spotter.spot(display, inactive_locations[idx].lon, inactive_locations[idx].lat, false);
+  }
+
+  //then plot active transmitters
+  for(uint8_t idx=0; idx < num_active_locations; idx++){
+    s_locations location = active_locations[idx];
+    spotter.spot(display, location.lon, location.lat, true);
+  }
+
+  if(num_active_locations) {
+    spotter.great_circle(display, ui_settings.global.lon, ui_settings.global.lat, nearest.lon, nearest.lat);
+  }
+
+  refresh_map(display);
+
+}
+
+
+
+waterfall::waterfall(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status) :
+  transceiver(_transceiver),
+  ui_settings(_ui_settings),
+  settings(_settings),
+  status(_status),
+  sstv_decoder(_transceiver)
 {
     //using ili9341 library from here:
     //https://github.com/bizzehdee/pico-libs
@@ -40,7 +180,7 @@ waterfall::~waterfall()
     delete display;
 }
 
-void waterfall::configure_display(uint8_t settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
+void waterfall::configure_display(uint8_t display_settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
 {
 
     if(baud_rate == 0){
@@ -54,46 +194,46 @@ void waterfall::configure_display(uint8_t settings, bool invert_colours, bool in
     }
 
     e_display_type display_type = display_driver?ILI9341:ILI9341_2;
-    if(settings == 0)
+    if(display_settings == 0)
     {
       enabled = false;
     }
-    else if(settings == 1)
+    else if(display_settings == 1)
     {
       enabled = true;
       display->init(R0DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 2)
+    else if(display_settings == 2)
     {
       enabled = true;
       display->init(R180DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 3)
+    else if(display_settings == 3)
     {
       enabled = true;
       display->init(MIRRORED0DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 4)
+    else if(display_settings == 4)
     {
       enabled = true;
       display->init(MIRRORED180DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 5)
+    else if(display_settings == 5)
     {
       enabled = true;
       display->init(R90DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 6)
+    else if(display_settings == 6)
     {
       enabled = true;
       display->init(R270DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 7)
+    else if(display_settings == 7)
     {
       enabled = true;
       display->init(MIRRORED90DEG, invert_colours, invert_display, display_type);
     }
-    else if(settings == 8)
+    else if(display_settings == 8)
     {
       enabled = true;
       display->init(MIRRORED270DEG, invert_colours, invert_display, display_type);
@@ -153,6 +293,11 @@ void waterfall::draw()
       display->fillRoundedRect((320-box_width)/2, (240-box_height)/2, box_height, box_width, 5, COLOUR_BLACK);
       display->drawString((320-text_width)/2, (240-text_height)/2, font_16x12, "SSTV Decoder", COLOUR_WHITE, COLOUR_BLACK);
 
+      return;
+    }
+    if(m_aux_display_state == map_active)
+    {
+      draw_map(ui_settings, spotter, display, true);
       return;
     }
 
@@ -285,7 +430,21 @@ int waterfall::dBm_to_S(float power_dBm) {
   return (power_s);
 }
 
-void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
+
+
+void waterfall::update_map()
+{
+  static uint32_t last_frequency = 0;
+
+  if(ui_settings.channel.frequency != last_frequency)
+  {
+    last_frequency = ui_settings.channel.frequency;
+    draw_map(ui_settings, spotter, display, false);
+  }
+
+}
+
+void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
@@ -300,6 +459,11 @@ void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_st
           m_aux_display_state = sstv_active;
           draw();
         }
+        else if(ui_settings.global.aux_view == 2)
+        {
+          m_aux_display_state = map_active;
+          draw_map(ui_settings, spotter, display, true);
+        }
         break;
 
       case sstv_active:
@@ -309,6 +473,25 @@ void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_st
           draw();
           refresh = true;
         }
+        if(ui_settings.global.aux_view == 2)
+        {
+          m_aux_display_state = map_active;
+          draw_map(ui_settings, spotter, display, true);
+        }
+        break;
+
+      case map_active:
+        if(ui_settings.global.aux_view == 0)
+        {
+          m_aux_display_state = waterfall_active;
+          draw();
+          refresh = true;
+        }
+        if(ui_settings.global.aux_view == 1)
+        {
+          m_aux_display_state = sstv_active;
+          draw();
+        }
         break;
     }
 
@@ -317,14 +500,19 @@ void waterfall::update(s_settings &ui_settings, xcvr_settings &settings, xcvr_st
       decode_sstv();
       return;
     }
+    else if(m_aux_display_state == map_active)
+    {
+      update_map();
+      return;
+    }
     else
     {
-      update_spectrum(settings, status, spectrum, hold, dB10, zoom, ui_settings.global.spectrum_hold);
+      update_spectrum(spectrum, hold, dB10, zoom, ui_settings.global.spectrum_hold);
     }
 
 }
 
-void waterfall::update_spectrum(xcvr_settings &settings, xcvr_status &status, uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom, bool spectrum_hold)
+void waterfall::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom, bool spectrum_hold)
 {
 
     //update spectrum and waterfall display
@@ -598,3 +786,4 @@ void waterfall::decode_sstv()
   if(!image_in_progress) sstv_decoder.reset();
 
 }
+

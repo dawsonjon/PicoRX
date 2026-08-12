@@ -148,7 +148,7 @@ public:
     void fillRect(uint16_t x, uint16_t y, uint16_t h, uint16_t w, uint16_t colour);
     void fillRoundedRect(int x, int y, int h, int w, int r, uint16_t colour);
     void drawRoundedRect(int x, int y, int h, int w, int r, uint16_t colour);
-    void drawEllipse(int xc, int yc, int rx, int ry, uint16_t color); 
+    void drawEllipse(int xc, int yc, int rx, int ry, uint16_t color);
     void fillEllipse(int xc, int yc, int rx, int ry, uint16_t color);
     void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colour);
     void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colour);
@@ -171,7 +171,7 @@ private:
     void _data(uint8_t *data, size_t dataLen = 0);
     uint32_t dma_tx;
     dma_channel_config dma_config;
-    
+
 private:
     spi_inst_t *_spi = NULL;
     uint8_t _cs;

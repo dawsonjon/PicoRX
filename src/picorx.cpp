@@ -5,6 +5,7 @@
 #include "pico/time.h"
 #include "hardware/exception.h"
 #include "hardware/watchdog.h"
+#include "hardware/clocks.h"
 
 #include "xcvr.h"
 #include "ui.h"
@@ -27,8 +28,9 @@ uint8_t zoom=1;
 static xcvr_settings settings_to_apply;
 static xcvr_status status;
 static xcvr transceiver(settings_to_apply, status);
-static waterfall waterfall_inst(transceiver);
-static ui user_interface(settings_to_apply, status, transceiver, spectrum, hold, audio, dB10, zoom, waterfall_inst);
+static s_settings ui_settings = default_settings;
+static waterfall waterfall_inst(transceiver, ui_settings, settings_to_apply, status);
+static ui user_interface(ui_settings, settings_to_apply, status, transceiver, spectrum, hold, audio, dB10, zoom, waterfall_inst);
 
 void core1_main()
 {
@@ -49,8 +51,11 @@ int main()
 
   stdio_init_all();
   init_stack_watermark();
-  watchdog_enable(2000, true);
+  watchdog_enable(10000, true);
   multicore_launch_core1(core1_main);
+
+  //run SPI from USB clock so that it isn't affected by sys_clk changes
+  clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB, 48 * MHZ, 48 * MHZ);
 
   // create an alarm pool for USB streaming with highest priority (0), so
   // that it can pre-empt the default pool
@@ -68,7 +73,7 @@ int main()
     watchdog_update();
 
     //schedule tasks
-    //if(sem_try_acquire(&transceiver.i2c_semaphore))  {
+    if(sem_try_acquire(&transceiver.i2c_semaphore))  {
       if(time_us_32() - last_ui_update > UI_REFRESH_US)
       {
         last_ui_update = time_us_32();
@@ -76,8 +81,8 @@ int main()
         transceiver.get_spectrum(spectrum, hold, dB10, zoom);
         transceiver.get_audio(audio);
       }
-      //sem_release(&transceiver.i2c_semaphore);
-    //}
+      sem_release(&transceiver.i2c_semaphore);
+    }
 
     if(time_us_32() - last_cat_update > CAT_REFRESH_US)
     {
@@ -85,11 +90,14 @@ int main()
       process_cat_control(settings_to_apply, status, transceiver, user_interface.get_settings());
     }
 
-    if(time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US)
-    {
-      last_waterfall_update = time_us_32();
-      waterfall_inst.update(user_interface.get_settings(), settings_to_apply, status, spectrum, hold, dB10, zoom);
-    }
+    //if(sem_try_acquire(&transceiver.i2c_semaphore))  {
+      if(time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US)
+      {
+        last_waterfall_update = time_us_32();
+        waterfall_inst.update(spectrum, hold, dB10, zoom);
+      }
+      sem_release(&transceiver.i2c_semaphore);
+    //}
 
     if(time_us_32() - last_stack_update > STACK_UPDATE_US)
     {
