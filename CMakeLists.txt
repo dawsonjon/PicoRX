@@ -80,6 +80,8 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/usb_audio_device.c
     ${CMAKE_CURRENT_LIST_DIR}/sdcard.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ring_buffer_lib.c
+    ${CMAKE_CURRENT_LIST_DIR}/rnn_cfg_mse.c
+    ${CMAKE_CURRENT_LIST_DIR}/rnn_cfg_l1.c
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/cordic.cpp

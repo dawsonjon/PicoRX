@@ -80,7 +80,7 @@ struct s_global_settings
   uint8_t tuning_option;
   uint8_t impulse_threshold;
   uint32_t sd_card_counter;
-  bool    nn_denoiser;
+  uint8_t  nn_denoiser;
   bool    usb_stream;
   bool    sd_card_save;
   bool    enable_auto_notch;
