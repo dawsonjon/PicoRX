@@ -17,56 +17,12 @@
 #include "pins.h"
 #include "utils.h"
 #include "eibi/eibi.h"
+#include "eibi/eibi_utils.h"
 
 #define SPI_PORT spi1
 
-
-const uint8_t MAX_NUM_LOCATIONS = 20;
-uint8_t num_inactive_locations = 0;
-uint8_t num_active_locations = 0;
-float nearest_distance = 1000000;
-s_locations nearest = {0, 0};
-s_frequency nearest_frequency = {0};
-
-static bool in_locations(s_locations *_locations, s_locations location, uint8_t num_locations){
-    for(uint8_t i=0; i<num_locations; i++)
-      if(_locations[i].lon == location.lon && _locations[i].lat == location.lat) return true;
-    return false;
-}
-
 static void refresh_map(ILI934X *display) {
-
-    if(num_active_locations) {
-      uint16_t text_width = strlen(stations[nearest_frequency.station_id]) * 12;
-      display->drawString((320-text_width)/2, 4, font_16x12, stations[nearest_frequency.station_id], COLOUR_WHITE, COLOUR_BLACK);
-
-      char buff[50];
-      snprintf(buff, 50, "%s - %s %.0fkm",
-        countries[nearest_frequency.country_id],
-        transmitters[nearest_frequency.transmitter_id],
-        nearest_distance
-      );
-      text_width = strlen(buff) * 6;
-      display->drawString((320-text_width)/2, 240-20, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
-
-      char weekdays[]="SMTWTFS";
-      for(uint8_t d=0; d<7; d++) {
-        if(!(nearest_frequency.dayflags & (1<<d))){
-          weekdays[d] = '-';
-        }
-      }
-      snprintf(buff, 50, "%s %7s %02u:%02u-%02u:%02u",
-        languages[nearest_frequency.language_id],
-        weekdays,
-        nearest_frequency.from/60,
-        nearest_frequency.from%60,
-        nearest_frequency.to/60,
-        nearest_frequency.to%60
-      );
-      text_width = strlen(buff) * 6;
-      display->drawString((320-text_width)/2, 240-10, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
-
-    }
+  (void) display;
 }
 
 static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *display, bool force_redraw)
@@ -77,7 +33,6 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
 
   time_t now;
   time(&now);
-  tm *t = gmtime(&now);
   float lon_field = 340.0f;
   float lat_field = 160.0f;
   float start_lon = ui_settings.global.lon - lon_field/2;
@@ -86,9 +41,88 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
   spotter.draw_map(display, now, force_redraw);
   spotter.qth(display, ui_settings.global.lon, ui_settings.global.lat);
 
-  printf("%04u-%02u-%02u %02u:%02u:%02u\n", t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
-  uint16_t day_minute = t->tm_hour*60+t->tm_min;
-  uint8_t weekday_flag = 1<<t->tm_wday;
+  //lookup frequency in database
+  int16_t from = -1;
+  int16_t to = -1;
+  int16_t id = -1;
+  id = lookup_frequency(ui_settings.channel.frequency/1000, from, to);
+
+  if(is_valid_id(id)) {
+    for(int16_t idx = from; idx<=to; idx++){
+      s_locations location = locations[frequencies[idx].transmitter_id];
+      if(is_valid_location(location) && !is_active(frequencies[idx]))
+        spotter.spot(display, location.lon, location.lat, false);
+    }
+    for(int16_t idx = from; idx<=to; idx++){
+      s_locations location = locations[frequencies[idx].transmitter_id];
+      if(is_valid_location(location) && is_active(frequencies[idx]))
+        spotter.spot(display, location.lon, location.lat, true);
+    }
+  }
+
+  float nearest_distance = 1000000;
+  s_frequency nearest_frequency = {0};
+  if(get_nearest_active(ui_settings.channel.frequency/1000, ui_settings.global.lon, ui_settings.global.lat, nearest_frequency, nearest_distance)) {
+
+    spotter.great_circle(display, ui_settings.global.lon, ui_settings.global.lat, locations[nearest_frequency.station_id].lon, locations[nearest_frequency.station_id].lat);
+
+    uint16_t text_width = strlen(stations[nearest_frequency.station_id]) * 12;
+    display->drawString((320-text_width)/2, 4, font_16x12, stations[nearest_frequency.station_id], COLOUR_WHITE, COLOUR_BLACK);
+
+    char buff[50];
+    snprintf(buff, 50, "%s - %s %.0fkm",
+      countries[nearest_frequency.country_id],
+      transmitters[nearest_frequency.transmitter_id],
+      nearest_distance
+    );
+    text_width = strlen(buff) * 6;
+    display->drawString((320-text_width)/2, 240-20, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
+
+    char weekdays[]="SMTWTFS";
+    for(uint8_t d=0; d<7; d++) {
+      if(!(nearest_frequency.dayflags & (1<<d))){
+        weekdays[d] = '-';
+      }
+    }
+    snprintf(buff, 50, "%s %7s %02u:%02u-%02u:%02u",
+      languages[nearest_frequency.language_id],
+      weekdays,
+      nearest_frequency.from/60,
+      nearest_frequency.from%60,
+      nearest_frequency.to/60,
+      nearest_frequency.to%60
+    );
+    text_width = strlen(buff) * 6;
+    display->drawString((320-text_width)/2, 240-10, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
+
+  }
+
+  refresh_map(display);
+}
+
+const char* scroll(const char *string, uint8_t display_len, uint8_t phase){
+  static char wrapped_scroll_buff[51];
+  uint8_t length = strlen(string);
+  for(uint8_t i=0; i<display_len; i++){
+    wrapped_scroll_buff[i] = string[(i+phase)%length];
+  }
+  wrapped_scroll_buff[50]=0;
+  return wrapped_scroll_buff;
+}
+
+static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_redraw)
+{
+
+  static uint8_t phase = 0;
+
+  if(full_redraw) {
+    display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
+    display->fillRect(0, 0, 240, 320, display->colour565(200, 200, 200));
+    display->fillRect(7, 15, 220, 306, display->colour565(255, 255, 255));
+    display->drawRect(7, 15, 220, 306, display->colour565(128, 128, 128));
+    display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
+    display->drawString(10, 3, font_8x5, "Time UTC, Station, Country, Lang, Site, km, Days", COLOUR_BLACK, display->colour565(128, 128, 128));
+  }
 
   //lookup frequency in database
   int16_t from = -1;
@@ -96,78 +130,45 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
   int16_t id = -1;
   id = lookup_frequency(ui_settings.channel.frequency/1000, from, to);
 
-  s_locations inactive_locations[MAX_NUM_LOCATIONS];
-  s_locations active_locations[MAX_NUM_LOCATIONS];
-  num_active_locations = 0;
-  num_inactive_locations = 0;
-  nearest_distance = 1000000;
-  nearest = {0, 0};
-  nearest_frequency = {0};
-
-  //make a condensed list of active and inactive transmitters on this frequency
-  if(id >= 0) {
+  if(is_valid_id(id)) {
+    uint8_t count = 0;
     for(int16_t idx = from; idx<=to; idx++){
-      bool active = day_minute >= frequencies[idx].from && day_minute <= frequencies[idx].to && (weekday_flag & frequencies[idx].dayflags);
       s_locations location = locations[frequencies[idx].transmitter_id];
 
-      printf("active: %u minute: %u from:%u to:%u weekday:%u weekdayflags:%u\n",
-          active,
-          day_minute,
-          frequencies[idx].from,
-          frequencies[idx].to,
-          (uint16_t)weekday_flag,
-          (uint16_t)frequencies[idx].dayflags);
-      printf("station: %s country: %s transmitter:%s distance:%f\n",
-          stations[frequencies[idx].station_id],
-          countries[frequencies[idx].country_id],
-          transmitters[frequencies[idx].transmitter_id],
-          distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat));
-
-      //if there is an active transmitter with an unknown location, display that
-      if(!num_active_locations && active) {
-        nearest = location;
-        nearest_frequency = frequencies[idx];
-      }
-
-      if(location.lon != 999 && location.lat != 999) {
-        if(active) {
-          if(!in_locations(active_locations, location, num_active_locations) && num_active_locations < MAX_NUM_LOCATIONS) {
-            float distance = distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat);
-            active_locations[num_active_locations++] = location;
-            if(distance < nearest_distance){
-              nearest_distance = distance;
-              nearest = location;
-              nearest_frequency = frequencies[idx];
-            }
-          }
-        } else {
-          if(!in_locations(inactive_locations, location, num_inactive_locations) && num_inactive_locations < MAX_NUM_LOCATIONS)
-            inactive_locations[num_inactive_locations++] = location;
+      char weekdays[]="SMTWTFS";
+      for(uint8_t d=0; d<7; d++) {
+        if(!(frequencies[idx].dayflags & (1<<d))){
+          weekdays[d] = '-';
         }
       }
+
+      char scroll_buff[100];
+      snprintf(scroll_buff, 100, "%s %s %s %s %.0f km %s -- ",
+          stations[frequencies[idx].station_id],
+          countries[frequencies[idx].country_id],
+          languages[frequencies[idx].language_id],
+          transmitters[frequencies[idx].transmitter_id],
+          distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat),
+          weekdays
+      );
+
+      char buff[52];
+      snprintf(buff, 52, "%02u:%02u-%02u:%02u %-38.38s",
+          frequencies[idx].from/60%24,
+          frequencies[idx].from%60,
+          frequencies[idx].to/60%24,
+          frequencies[idx].to%60,
+          scroll(scroll_buff, 40, phase));
+
+      uint16_t colour = is_active(frequencies[idx])?COLOUR_RED:COLOUR_BLUE;
+      display->drawString(10, 20+count++*10, font_8x5, buff, colour, COLOUR_WHITE);
+      if(count > 20) break;
     }
   }
 
-  //plot inactive transmitters first
-  for(uint8_t idx=0; idx < num_inactive_locations; idx++){
-    spotter.spot(display, inactive_locations[idx].lon, inactive_locations[idx].lat, false);
-  }
-
-  //then plot active transmitters
-  for(uint8_t idx=0; idx < num_active_locations; idx++){
-    s_locations location = active_locations[idx];
-    spotter.spot(display, location.lon, location.lat, true);
-  }
-
-  if(num_active_locations) {
-    spotter.great_circle(display, ui_settings.global.lon, ui_settings.global.lat, nearest.lon, nearest.lat);
-  }
-
-  refresh_map(display);
+  phase++;
 
 }
-
-
 
 waterfall::waterfall(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status) :
   transceiver(_transceiver),
@@ -310,9 +311,14 @@ void waterfall::draw()
 
       return;
     }
-    if(m_aux_display_state == map_active)
+    else if(m_aux_display_state == map_active)
     {
       draw_map(ui_settings, spotter, display, true);
+      return;
+    }
+    else if(m_aux_display_state == listing_active)
+    {
+      draw_listing(ui_settings, display, true);
       return;
     }
 
@@ -459,17 +465,40 @@ void waterfall::update_map()
 
 }
 
+void waterfall::update_listing()
+{
+  static uint32_t last_frequency = 0;
+  static uint32_t timeout = 2;
+
+  if(!timeout--)
+  {
+    timeout = 2;
+    draw_listing(ui_settings, display, false);
+  }
+
+  if(ui_settings.channel.frequency != last_frequency)
+  {
+    last_frequency = ui_settings.channel.frequency;
+    draw_listing(ui_settings, display, true);
+  }
+
+}
+
 void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
     if(!power_state) return;
 
-    //state machine to select other display options
-    switch(m_aux_display_state)
-    {
-      case waterfall_active:
-        if(ui_settings.global.aux_view == 1)
+    if(m_aux_display_state != ui_settings.global.aux_view) {
+
+        if(ui_settings.global.aux_view == 0)
+        {
+          m_aux_display_state = waterfall_active;
+          draw();
+          refresh = true;
+        }
+        else if(ui_settings.global.aux_view == 1)
         {
           m_aux_display_state = sstv_active;
           draw();
@@ -479,36 +508,13 @@ void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t
           m_aux_display_state = map_active;
           draw_map(ui_settings, spotter, display, true);
         }
-        break;
-
-      case sstv_active:
-        if(ui_settings.global.aux_view == 0)
+        else if(ui_settings.global.aux_view == 3)
         {
-          m_aux_display_state = waterfall_active;
-          draw();
-          refresh = true;
+          m_aux_display_state = listing_active;
+          draw_listing(ui_settings, display, true);
         }
-        if(ui_settings.global.aux_view == 2)
-        {
-          m_aux_display_state = map_active;
-          draw_map(ui_settings, spotter, display, true);
-        }
-        break;
-
-      case map_active:
-        if(ui_settings.global.aux_view == 0)
-        {
-          m_aux_display_state = waterfall_active;
-          draw();
-          refresh = true;
-        }
-        if(ui_settings.global.aux_view == 1)
-        {
-          m_aux_display_state = sstv_active;
-          draw();
-        }
-        break;
     }
+
 
     if(m_aux_display_state == sstv_active)
     {
@@ -518,6 +524,11 @@ void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t
     else if(m_aux_display_state == map_active)
     {
       update_map();
+      return;
+    }
+    else if(m_aux_display_state == listing_active)
+    {
+      update_listing();
       return;
     }
     else

@@ -2777,7 +2777,7 @@ bool ui::main_menu(bool & ok)
             done = spectrum_menu(ok);
             break;
           case 18:
-            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#Map", settings.global.aux_view, ok, changed);
+            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#Map#Listing", settings.global.aux_view, ok, changed);
             break;
           case 19 :
             done = frequency_entry("Band Start", settings.channel.min_frequency, ok);

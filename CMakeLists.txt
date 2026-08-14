@@ -81,6 +81,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eibi/eibi.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/eibi/eibi_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eibi/spotter.cpp
 )
 

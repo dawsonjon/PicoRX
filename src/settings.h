@@ -201,7 +201,7 @@ const s_settings default_settings = {
   6,  //hold_smoothing
   0,  //treble
   0,  //bass
-  2,  //aux_view
+  3,  //aux_view
   0,  //impulse blanker threshold
   6,  //agc_gain
   0,  //usb_stream

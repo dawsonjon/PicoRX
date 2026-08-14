@@ -7,7 +7,7 @@
 #include "codecs/sstv_decoder_picorx.h"
 #include "eibi/spotter.h"
 
-enum e_aux_display_state{waterfall_active, sstv_active, map_active};
+enum e_aux_display_state{waterfall_active, sstv_active, map_active, listing_active};
 
 class waterfall
 {
@@ -40,6 +40,7 @@ class waterfall
   bool refresh = true;
   void decode_sstv();
   void update_map();
+  void update_listing();
 
 };
 
