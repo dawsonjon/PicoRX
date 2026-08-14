@@ -55,7 +55,8 @@ static void refresh_map(ILI934X *display) {
           weekdays[d] = '-';
         }
       }
-      snprintf(buff, 50, "%7s %02u:%02u-%02u:%02u",
+      snprintf(buff, 50, "%s %7s %02u:%02u-%02u:%02u",
+        languages[nearest_frequency.language_id],
         weekdays,
         nearest_frequency.from/60,
         nearest_frequency.from%60,
@@ -76,6 +77,7 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
 
   time_t now;
   time(&now);
+  tm *t = gmtime(&now);
   float lon_field = 340.0f;
   float lat_field = 160.0f;
   float start_lon = ui_settings.global.lon - lon_field/2;
@@ -84,8 +86,8 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
   spotter.draw_map(display, now, force_redraw);
   spotter.qth(display, ui_settings.global.lon, ui_settings.global.lat);
 
-  tm *t = gmtime(&now);
-  uint8_t day_minute = t->tm_hour*60+t->tm_min;
+  printf("%04u-%02u-%02u %02u:%02u:%02u\n", t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+  uint16_t day_minute = t->tm_hour*60+t->tm_min;
   uint8_t weekday_flag = 1<<t->tm_wday;
 
   //lookup frequency in database
@@ -107,6 +109,19 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
     for(int16_t idx = from; idx<=to; idx++){
       bool active = day_minute >= frequencies[idx].from && day_minute <= frequencies[idx].to && (weekday_flag & frequencies[idx].dayflags);
       s_locations location = locations[frequencies[idx].transmitter_id];
+
+      printf("active: %u minute: %u from:%u to:%u weekday:%u weekdayflags:%u\n",
+          active,
+          day_minute,
+          frequencies[idx].from,
+          frequencies[idx].to,
+          (uint16_t)weekday_flag,
+          (uint16_t)frequencies[idx].dayflags);
+      printf("station: %s country: %s transmitter:%s distance:%f\n",
+          stations[frequencies[idx].station_id],
+          countries[frequencies[idx].country_id],
+          transmitters[frequencies[idx].transmitter_id],
+          distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat));
 
       //if there is an active transmitter with an unknown location, display that
       if(!num_active_locations && active) {

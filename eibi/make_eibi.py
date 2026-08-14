@@ -12,21 +12,6 @@ first_transmitter_line = get_first_occurance("AFG:")
 last_transmitter_line = get_first_occurance("ZWE:")
 
 def shorten(station):
-    #for i, j in [("Radio", "R."), ("Numbers", "Nrs."), ("Meteo Fax", "Wefax"), ("Met Fax", "Wefax")]:
-        #station = station.replace(i, j)
-
-    #if "(" in station:
-        #station = station.split("(")[0]
-
-    #if "," in station:
-        #station = station.split(",")[0]
-
-    #if len(station) > 21:
-        #for i in "aeiou":
-            #station = station.replace(i, "")
-            #if len(station) <= 21:
-                #break
-
     return station
 
 def has_number(word):
@@ -259,7 +244,16 @@ compressed, stations, countries, languages, transmitter_names, transmitter_locat
 
 with open("reconstructed.txt", "w") as outf:
     for f, s, c, l, t, fr, to, dy in compressed:
-        outf.write("%10u %21s %21s %21s %21s\n"%(f, list(stations.keys())[s], list(countries.keys())[c], list(languages.keys())[l], list(transmitter_names.keys())[t]))
+        print(transmitter_locations[t][0])
+        outf.write("%10u %21s %21s %21s %21s %i %i\n"%(
+            f,
+            list(stations.keys())[s],
+            list(countries.keys())[c],
+            list(languages.keys())[l],
+            list(transmitter_names.keys())[t],
+            transmitter_locations[t][0],
+            transmitter_locations[t][1],
+        ))
 
 
 

@@ -12,7 +12,9 @@ class c_spotter {
   float m_field_lat;
   void lat_lon_to_pixel(uint16_t &x, uint16_t &y, float lon, float lat);
   void map_to_lat_lon(uint16_t x, uint16_t y, float &lon, float &lat);
-  float is_night(uint16_t x, uint16_t y, float sun_lon, float sun_lat);
+  //float is_night(uint16_t x, uint16_t y, float sun_lon, float sun_lat);
+  float map_y_to_lat(uint16_t y);
+  float map_x_to_lon(uint16_t x);
 
   uint16_t dirty_min_y = UINT16_MAX;
   uint16_t dirty_max_y = 0;

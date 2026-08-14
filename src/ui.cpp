@@ -534,7 +534,6 @@ void ui::renderpage_station_info(bool view_changed)
     time_t now;
     time(&now);
     tm *t = gmtime(&now);
-    printf("%04u-%02u-%02u %02u:%02u:%02u\n", t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
     day_minute = t->tm_hour*60+t->tm_min;
     weekday_flag = 1<<t->tm_wday;
     //weekday = t->tm_wday;
@@ -2713,7 +2712,7 @@ bool ui::main_menu(bool & ok)
        switch(menu_selection)
         {
           case 0 :
-            done = frequency_entry("frequency", settings.channel.frequency, ok);
+            done = frequency_entry("Frequency", settings.channel.frequency, ok);
             break;
           case 1 :
             done = memory_recall(ok);

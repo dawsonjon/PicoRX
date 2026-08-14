@@ -54,6 +54,18 @@ void c_spotter::map_to_lat_lon(uint16_t x, uint16_t y, float &lon, float &lat)
   lat = 90.0f-(180.0f * y/map_height);
 }
 
+float c_spotter::map_y_to_lat(uint16_t y)
+{
+  return 90.0f-(180.0f * y/map_height);
+}
+float c_spotter::map_x_to_lon(uint16_t x)
+{
+  float lon = (360.0f * x/map_width)-180.0f;
+  if (lon > 180) lon -= 360;
+  if (lon < -180) lon += 360;
+  return lon;
+}
+
 
 // Convert lat/lon to 3D unit vector
 static void to_xyz(float lon, float lat, float& x, float& y, float& z)
@@ -114,22 +126,6 @@ static void subsolar_point(std::time_t t, float &lat, float &lon)
     if (lon < -180) lon += 360;
 }
 
-float c_spotter::is_night(uint16_t x, uint16_t y, float sun_lon, float sun_lat)
-{
-    float lat, lon;
-    map_to_lat_lon(x, y, lon, lat);
-
-    float lat1 = deg2rad(lat);
-    float lon1 = deg2rad(lon);
-    float lat2 = deg2rad(sun_lat);
-    float lon2 = deg2rad(sun_lon);
-
-    float cos_theta =
-        sin(lat1)*sin(lat2) +
-        cos(lat1)*cos(lat2)*cos(lon1 - lon2);
-
-    return cos_theta;
-}
 
 void c_spotter::great_circle(ILI934X * display, float lon1, float lat1, float lon2, float lat2){
 
@@ -138,7 +134,6 @@ void c_spotter::great_circle(ILI934X * display, float lon1, float lat1, float lo
     float x2, y2, z2;
     to_xyz(lon1, lat1, x1, y1, z1);
     to_xyz(lon2, lat2, x2, y2, z2);
-
 
     // Angle between them
     float dot = x1*x2 + y1*y2 + z1*z2;
@@ -187,7 +182,6 @@ void c_spotter::great_circle(ILI934X * display, float lon1, float lat1, float lo
     dirty_max_y = std::max((uint16_t)(pixel_y+2), dirty_max_y);
 }
 
-/*
 static uint16_t shade_rgb565_night(uint16_t pixel, uint8_t shade)
 {
     uint16_t p = (pixel >> 8) | (pixel << 8);
@@ -211,7 +205,6 @@ static uint16_t shade_rgb565_night(uint16_t pixel, uint8_t shade)
 
     return (out >> 8) | (out << 8);
 }
-*/
 
 void c_spotter::draw_map(ILI934X * display, std::time_t t, bool force_redraw){
 
@@ -221,6 +214,8 @@ void c_spotter::draw_map(ILI934X * display, std::time_t t, bool force_redraw){
 
   float sun_lat, sun_lon;
   subsolar_point(t, sun_lat, sun_lon);
+  float tan_sun_lat = tan(deg2rad(sun_lat));
+
   int16_t view_x = (map_width * ((m_view_lon+180.0f)/360.0f));
   int16_t view_y = (map_height * ((90.0f-m_view_lat)/180.0f));
   uint16_t view_width = (map_width * m_field_lon/360.0f);
@@ -228,17 +223,36 @@ void c_spotter::draw_map(ILI934X * display, std::time_t t, bool force_redraw){
 
   for(uint16_t yy=0; yy<display_height; ++yy){
     if((display_y+yy < dirty_min_y || display_y+yy > dirty_max_y) && drawn) continue;
+
     uint16_t map_y = view_y + (yy*view_height/display_height);
+    float lat = map_y_to_lat(map_y);
+    float v = -tan(deg2rad(lat)) * tan_sun_lat;
+    float delta = acos(v);
+    float lon1 = deg2rad(sun_lon) - delta;
+    float lon2 = deg2rad(sun_lon) + delta;
+    if (lon1 > M_PI) lon1 -= 2*M_PI;
+    if (lon1 < -M_PI) lon1 += 2*M_PI;
+    if (lon2 > M_PI) lon2 -= 2*M_PI;
+    if (lon2 < -M_PI) lon2 += 2*M_PI;
+
     uint16_t line[display_width];
     for(uint16_t xx=0; xx<display_width; ++xx){
       int16_t map_x = view_x + (xx*view_width/display_width);
       if(map_x < 0) map_x += map_width;
       if(map_x >= map_width) map_x -= map_width;
       if(map_y < map_height){
-        //float day_night = is_night(map_x, map_y, sun_lon, sun_lat);
-        //float brightness = std::clamp((day_night * 15.0f), 0.4f, 1.0f);
-        //line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 255*brightness);
-        line[xx] = Blue_Marble_2002_320x160[(map_y*map_width)+map_x];
+        float lon = deg2rad(map_x_to_lon(map_x));
+        if(v < -1.0f) {
+            line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 255);
+        } else if (v >= 1.0f) {
+            line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 180);
+        } else if (lon2 > lon1 && lon >= lon1 && lon <= lon2) {
+            line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 255);
+        } else if((lon > lon1 || lon < lon2)) {
+            line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 255);
+        } else {
+            line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y*map_width)+map_x], 180);
+        }
       } else {
         line[xx] = COLOUR_BLUE;
       }
