@@ -455,9 +455,27 @@ void rx::read_batt_temp()
   }
 }
 
+static void on_usb_audio_tx_ready()
+{
+  static uint32_t start_ms = 0;
+  uint32_t curr_ms = time_us_64() / 1000;
+  if (start_ms == curr_ms)
+    return; // not enough time
+  start_ms = curr_ms;
+
+  uint16_t _usb_buf[SAMPLE_BUFFER_SIZE] = {0};
+  const uint16_t s = ring_buffer_get_num_bytes(&usb_ring_buffer);
+  if (s >= sizeof(_usb_buf))
+  {
+    ring_buffer_pop(&usb_ring_buffer, (uint8_t *)_usb_buf, sizeof(_usb_buf));
+    usb_audio_device_write(_usb_buf, sizeof(_usb_buf));
+  }
+}
+
 static bool __not_in_flash_func(usb_callback)(repeating_timer_t *rt)
 {
   (void)rt;
+  on_usb_audio_tx_ready();
   usb_audio_device_task();
   return true; // keep repeating
 }
@@ -479,14 +497,6 @@ static void on_usb_set_mutevol(bool mute, int16_t vol)
   usb_volume = 32767 * powf(10, (float)vol / (20 * 256));
   usb_mute = mute;
   critical_section_exit(&usb_volumute);
-}
-
-static void on_usb_audio_tx_ready()
-{
-  uint16_t _usb_buf[SAMPLE_BUFFER_SIZE] = {0};
-
-  ring_buffer_pop(&usb_ring_buffer, (uint8_t *)_usb_buf, sizeof(_usb_buf));
-  usb_audio_device_write(_usb_buf, sizeof(_usb_buf));
 }
 
 //thread safe method to get raw IQ data
@@ -542,15 +552,11 @@ void rx::run()
 {
     usb_audio_device_init();
     critical_section_init(&usb_volumute);
-    usb_audio_device_set_tx_ready_handler(on_usb_audio_tx_ready);
     usb_audio_device_set_mutevol_handler(on_usb_set_mutevol);
     repeating_timer_t usb_timer;
     hard_assert(pool);
 
-    // here the delay theoretically should be 1067 (1ms = 1 / (15000 / 16))
-    // however the 'usb_microphone_task' should be called more often, but not too often
-    // to save compute
-    bool ret = alarm_pool_add_repeating_timer_us(pool, 1067 / 2, usb_callback, NULL, &usb_timer);
+    bool ret = alarm_pool_add_repeating_timer_us(pool, 500, usb_callback, NULL, &usb_timer);
     hard_assert(ret);
 
     while(true)
