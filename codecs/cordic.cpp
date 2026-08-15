@@ -21,7 +21,8 @@ int16_t thetas[cordic_iterations + 1];
 const int16_t half_pi = 16384;
 int16_t recip_gain;
 
-void cordic_init() {
+void cordic_init()
+{
   double k;
 
   // calculate theta lookup table
@@ -33,7 +34,7 @@ void cordic_init() {
 
   // calculate cordic gain
   double gain = 1.0;
-  for (uint8_t idx=0; idx < cordic_iterations; idx++) {
+  for (uint8_t idx = 0; idx < cordic_iterations; idx++) {
     const double d = pow(2.0, idx);
     const double magnitude = sqrt(1 + (1.0 / d) * (1.0 / d));
     gain *= magnitude;
@@ -42,8 +43,8 @@ void cordic_init() {
   recip_gain = 32767 / gain;
 }
 
-void cordic_rectangular_to_polar(int16_t i, int16_t q, uint16_t &magnitude,
-                                 int16_t &phase) {
+void cordic_rectangular_to_polar(int16_t i, int16_t q, uint16_t& magnitude, int16_t& phase)
+{
   int32_t temp_i;
   int32_t i_32 = i;
   int32_t q_32 = q;

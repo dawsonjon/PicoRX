@@ -1,0 +1,35 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+ColumnLimit: 100
+
+# --- Brace rules ---
+BreakBeforeBraces: Custom
+
+BraceWrapping:
+  AfterFunction: true        # functions get brace on new line
+  AfterClass: true           # classes/structs get brace on new line
+  AfterStruct: true
+  AfterEnum: true
+  AfterNamespace: false
+  AfterControlStatement: false
+  BeforeElse: false
+  BeforeCatch: false
+  IndentBraces: false
+
+# --- Other formatting preferences ---
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+
+Cpp11BracedListStyle: true
+
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+

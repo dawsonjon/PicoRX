@@ -14,6 +14,8 @@
 #ifndef __SSTV_DECODER_H__
 #define __SSTV_DECODER_H__
 
+#include <cstdint>
+
 enum e_sstv_mode
 {
   martin_m1,
@@ -58,14 +60,13 @@ struct s_sstv_mode
   uint32_t samples_per_colour_gap;
   uint32_t samples_per_pixel;
   uint32_t samples_per_hsync;
-  char const * mode_string;
+  char const* mode_string;
 };
 
 class c_sstv_decoder
 {
 
-  private:
-
+private:
   s_sstv_mode sstv_mode;
   float m_Fs;
   uint32_t m_scale;
@@ -79,7 +80,7 @@ class c_sstv_decoder
   uint32_t confirmed_sync_sample = 0;
   e_sstv_state state = detect_sync;
   e_sync_state sync_state = detect;
-  void sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour, int32_t image_sample);
+  void sample_to_pixel(uint16_t& x, uint16_t& y, uint8_t& colour, int32_t image_sample);
   uint8_t frequency_to_brightness(uint16_t x);
   uint32_t mean_samples_per_line;
   uint32_t sync_timeout = 0;
@@ -95,30 +96,39 @@ class c_sstv_decoder
   uint32_t m_timeout;
   bool m_image_open_flag = false;
   bool m_image_complete_flag = false;
-  uint8_t m_line[640][5]; //array to contain seperate colour components of each decoded line
+  uint8_t m_line[640][5]; // array to contain seperate colour components of each decoded line
 
-  void decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
+  void decode_sample(uint16_t sample, uint16_t& pixel_y, uint16_t& pixel_x, uint8_t& pixel_colour,
+                     uint8_t& pixel, bool& pixel_complete, bool& line_complete,
+                     bool& image_complete);
 
-
-  //override one of these hardware dependent functions.
+  // override one of these hardware dependent functions.
   /////////////////////////////////////////////////////////////////////////////
 
-  //The decoder can work with frequency data, IQ data or (real, mono) audio samples.
-  //override one of these deneding on what you need.
+  // The decoder can work with frequency data, IQ data or (real, mono) audio samples.
+  // override one of these deneding on what you need.
 
   virtual int16_t get_audio_sample() = 0;
-  virtual void get_iq_sample(int16_t &i, int16_t &q){(void)i; (void)q;};
+  virtual void get_iq_sample(int16_t& i, int16_t& q)
+  {
+    (void)i;
+    (void)q;
+  };
   virtual uint16_t get_frequency_sample();
 
-  //Override this function to output a line of image
-  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
-  virtual void scope(uint16_t mag, int16_t freq)  {(void)mag; (void)freq;};
+  // Override this function to output a line of image
+  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height,
+                                const char* mode_string) = 0;
+  virtual void scope(uint16_t mag, int16_t freq)
+  {
+    (void)mag;
+    (void)freq;
+  };
 
-  public:
+public:
   c_sstv_decoder(float Fs);
   void decode_image(uint8_t timeout_s, bool slant_correction);
-  bool decode_image_non_blocking(uint8_t timeout_s, bool slant_correction, bool & image_in_progress);
-
+  bool decode_image_non_blocking(uint8_t timeout_s, bool slant_correction, bool& image_in_progress);
 };
 
 #endif

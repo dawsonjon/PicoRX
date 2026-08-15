@@ -1,9 +1,10 @@
 #pragma once
 #include <stdint.h>
 
-struct Flag{
-    uint8_t w, h;
-    const uint8_t* data;
+struct Flag
+{
+  uint8_t w, h;
+  const uint8_t* data;
 };
 
 extern const uint16_t FLAG_PALETTE[16];

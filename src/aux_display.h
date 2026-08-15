@@ -9,12 +9,12 @@
 
 enum e_aux_display_state{waterfall_active, sstv_active, map_active, listing_active};
 
-class waterfall
+class c_aux_display
 {
 
   public:
-  waterfall(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status);
-  ~waterfall();
+  c_aux_display(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status);
+  ~c_aux_display();
   void update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom);
   void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver, uint8_t baud_rate);
   void powerOn(bool state);

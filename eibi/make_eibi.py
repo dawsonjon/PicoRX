@@ -213,6 +213,9 @@ def parse_database():
             language_count+=1
             languages[language] = language_id
 
+        if station.endswith("Met Fax") or station.endswith("Meteo Fax"):
+            frequency -= 2
+
         if((frequency, station_id, country_id, language_id)) not in compressed[:5]:
             compressed.append((frequency, station_id, country_id, language_id, transmitter_id, _from, _to, day_int))
 
@@ -244,7 +247,6 @@ compressed, stations, countries, languages, transmitter_names, transmitter_locat
 
 with open("reconstructed.txt", "w") as outf:
     for f, s, c, l, t, fr, to, dy in compressed:
-        print(transmitter_locations[t][0])
         outf.write("%10u %21s %21s %21s %21s %i %i\n"%(
             f,
             list(stations.keys())[s],

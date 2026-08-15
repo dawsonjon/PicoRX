@@ -1,20 +1,20 @@
 #ifndef RX__
 #define RX__
 
-#include <stdio.h>
-#include <math.h>
-#include <ctime>
 #include "nco.pio.h"
+#include <ctime>
+#include <math.h>
+#include <stdio.h>
 
-#include "pico/stdlib.h"
-#include "pico/sem.h"
-#include "hardware/pio.h"
 #include "hardware/adc.h"
-#include "hardware/pwm.h"
 #include "hardware/dma.h"
+#include "hardware/pio.h"
+#include "hardware/pwm.h"
+#include "pico/sem.h"
+#include "pico/stdlib.h"
 
-#include "quadrature_si5351.h"
 #include "button.h"
+#include "quadrature_si5351.h"
 #include "rx_definitions.h"
 #include "rx_dsp.h"
 
@@ -70,7 +70,7 @@ struct xcvr_settings
   bool enable_external_nco;
   bool stream_raw_iq;
 
-  //transmit
+  // transmit
   uint8_t test_tone_setting;
   uint8_t test_tone_frequency;
   uint8_t cw_paddle;
@@ -108,13 +108,12 @@ struct xcvr_status
 
 class xcvr
 {
-  private:
-
+private:
   void update_status();
   void tx_update_status();
   void set_usb_callbacks();
 
-  //receiver configuration
+  // receiver configuration
   uint32_t system_clock_rate;
   double tuned_frequency_Hz;
   double nco_frequency_Hz;
@@ -126,7 +125,7 @@ class xcvr
   uint16_t battery;
   uint8_t if_frequency_hz_over_100;
   uint8_t if_mode;
-  int8_t ppm=0;
+  int8_t ppm = 0;
   s_tx_band_limits tx_band_limits;
 
   // Choose which PIO instance to use (there are two instances)
@@ -134,11 +133,11 @@ class xcvr
   uint offset;
   uint sm;
 
-  //capture buffer DMA
+  // capture buffer DMA
   static int capture_dma;
   static dma_channel_config capture_cfg;
 
-  //buffers and dma for adc
+  // buffers and dma for adc
   static int adc_dma_ping;
   static int adc_dma_pong;
   static dma_channel_config ping_cfg;
@@ -150,13 +149,13 @@ class xcvr
   static void dma_handler();
   void process_block(uint16_t adc_samples[], int16_t audio[]);
 
-  //store busy time for performance monitoring
+  // store busy time for performance monitoring
   uint32_t busy_time;
 
-  alarm_pool_t *pool = NULL;
+  alarm_pool_t* pool = NULL;
 
-  //volume control
-  int16_t gain_numerator=0;
+  // volume control
+  int16_t gain_numerator = 0;
 
   //(optional) external oscillator
   bool enable_external_nco;
@@ -167,10 +166,10 @@ class xcvr
   bool internal_nco_active = true;
 
 #ifdef WITH_TX
-  //Transmit
+  // Transmit
   void begin_signal_generator(const double sample_frequency_Hz);
   void end_signal_generator();
-  int32_t get_tx_sample(adc &mic_adc, cw_keyer &keyer);
+  int32_t get_tx_sample(adc& mic_adc, cw_keyer& keyer);
   void transmit_iq();
   void transmit_polar();
   void transmit_polar_external();
@@ -193,7 +192,7 @@ class xcvr
   uint8_t tx_cw_speed;
   uint8_t tx_mic_gain;
   bool tx_modulation;
-  uint16_t tx_audio_level=0;
+  uint16_t tx_audio_level = 0;
   uint8_t tx_pwm_min;
   uint8_t tx_pwm_max;
   uint8_t tx_pwm_threshold;
@@ -217,23 +216,23 @@ class xcvr
   // USB streaming mode
   uint8_t stream_raw_iq;
 
-  public:
+public:
   semaphore_t i2c_semaphore;
-  xcvr(xcvr_settings & settings_to_apply, xcvr_status & status);
+  xcvr(xcvr_settings& settings_to_apply, xcvr_status& status);
   void apply_settings();
   void run();
   void tune_rx();
   void tune_tx(bool transmit_enable);
-  void get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t &dB10, uint8_t zoom);
+  void get_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t& dB10, uint8_t zoom);
   void get_audio(uint8_t audio[]);
-  void set_alarm_pool(alarm_pool_t *p);
-  xcvr_settings &settings_to_apply;
-  xcvr_status &status;
+  void set_alarm_pool(alarm_pool_t* p);
+  xcvr_settings& settings_to_apply;
+  xcvr_status& status;
   rx_dsp rx_dsp_inst;
   void read_batt_temp();
   void access(bool settings_changed);
   void release();
-  bool get_raw_data(int16_t &i, int16_t &q);
+  bool get_raw_data(int16_t& i, int16_t& q);
   uint32_t get_iq_buffer_level();
 };
 

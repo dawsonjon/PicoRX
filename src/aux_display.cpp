@@ -1,4 +1,4 @@
-#include "waterfall.h"
+#include "aux_display.h"
 
 #include <cmath>
 #include <cstdio>
@@ -100,7 +100,7 @@ static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *displ
   refresh_map(display);
 }
 
-const char* scroll(const char *string, uint8_t display_len, uint8_t phase){
+static const char* scroll(const char *string, uint8_t display_len, uint8_t phase){
   static char wrapped_scroll_buff[51];
   uint8_t length = strlen(string);
   for(uint8_t i=0; i<display_len; i++){
@@ -110,7 +110,7 @@ const char* scroll(const char *string, uint8_t display_len, uint8_t phase){
   return wrapped_scroll_buff;
 }
 
-static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_redraw)
+static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_redraw, bool text_redraw)
 {
 
   static uint8_t phase = 0;
@@ -118,10 +118,12 @@ static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_re
   if(full_redraw) {
     display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
     display->fillRect(0, 0, 240, 320, display->colour565(200, 200, 200));
-    display->fillRect(7, 15, 220, 306, display->colour565(255, 255, 255));
     display->drawRect(7, 15, 220, 306, display->colour565(128, 128, 128));
     display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
     display->drawString(10, 3, font_8x5, "Time UTC, Station, Country, Lang, Site, km, Days", COLOUR_BLACK, display->colour565(128, 128, 128));
+  }
+  if(text_redraw) {
+    display->fillRect(7, 15, 220, 306, display->colour565(255, 255, 255));
   }
 
   //lookup frequency in database
@@ -170,7 +172,7 @@ static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_re
 
 }
 
-waterfall::waterfall(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status) :
+c_aux_display::c_aux_display(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status) :
   transceiver(_transceiver),
   ui_settings(_ui_settings),
   settings(_settings),
@@ -191,12 +193,12 @@ waterfall::waterfall(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings
     sstv_decoder.set_display(display);
 }
 
-waterfall::~waterfall()
+c_aux_display::~c_aux_display()
 {
     delete display;
 }
 
-void waterfall::configure_display(uint8_t display_settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
+void c_aux_display::configure_display(uint8_t display_settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
 {
 
     if(baud_rate == 0){
@@ -267,7 +269,7 @@ void waterfall::configure_display(uint8_t display_settings, bool invert_colours,
     }
 }
 
-void waterfall::powerOn(bool state)
+void c_aux_display::powerOn(bool state)
 {
     power_state = state;
     if(enabled && state)
@@ -295,7 +297,7 @@ const uint16_t scope_x = 4u;
 const uint16_t scope_y = 61u;
 const uint16_t dial_width = 320u;
 
-void waterfall::draw()
+void c_aux_display::draw()
 {
 
     if(m_aux_display_state == sstv_active)
@@ -308,7 +310,6 @@ void waterfall::draw()
       display->clear(COLOUR_BLUE);
       display->fillRoundedRect((320-box_width)/2, (240-box_height)/2, box_height, box_width, 5, COLOUR_BLACK);
       display->drawString((320-text_width)/2, (240-text_height)/2, font_16x12, "SSTV Decoder", COLOUR_WHITE, COLOUR_BLACK);
-
       return;
     }
     else if(m_aux_display_state == map_active)
@@ -318,7 +319,7 @@ void waterfall::draw()
     }
     else if(m_aux_display_state == listing_active)
     {
-      draw_listing(ui_settings, display, true);
+      draw_listing(ui_settings, display, true, true);
       return;
     }
 
@@ -363,7 +364,7 @@ void waterfall::draw()
     }
 }
 
-uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
+uint16_t c_aux_display::heatmap(uint8_t value, bool blend, bool highlight)
 {
     uint8_t section = ((uint16_t)value*6)>>8;
     uint8_t fraction = ((uint16_t)value*6)&0xff;
@@ -425,7 +426,7 @@ uint16_t waterfall::heatmap(uint8_t value, bool blend, bool highlight)
     return display->colour565(r,g,b);
 }
 
-uint16_t waterfall::dBm_to_px(float power_dBm, int16_t px) {
+uint16_t c_aux_display::dBm_to_px(float power_dBm, int16_t px) {
   int16_t power = floorf((power_dBm-S0));
   power = power * px / (S9_10 + 20 - S0);
   if (power<0) power=0;
@@ -433,7 +434,7 @@ uint16_t waterfall::dBm_to_px(float power_dBm, int16_t px) {
   return (power);
 }
 
-float waterfall::S_to_dBm(int S) {
+float c_aux_display::S_to_dBm(int S) {
   float dBm = 0;
   if (S<=9) {
     dBm = S0 + 6.0f * S;
@@ -443,7 +444,7 @@ float waterfall::S_to_dBm(int S) {
   return (dBm);
 }
 
-int waterfall::dBm_to_S(float power_dBm) {
+int c_aux_display::dBm_to_S(float power_dBm) {
   int power_s = floorf((power_dBm-S0)/6.0f);
   if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
   if(power_s < 0) power_s = 0;
@@ -453,7 +454,7 @@ int waterfall::dBm_to_S(float power_dBm) {
 
 
 
-void waterfall::update_map()
+void c_aux_display::update_map()
 {
   static uint32_t last_frequency = 0;
 
@@ -465,7 +466,7 @@ void waterfall::update_map()
 
 }
 
-void waterfall::update_listing()
+void c_aux_display::update_listing()
 {
   static uint32_t last_frequency = 0;
   static uint32_t timeout = 2;
@@ -473,18 +474,18 @@ void waterfall::update_listing()
   if(!timeout--)
   {
     timeout = 2;
-    draw_listing(ui_settings, display, false);
+    draw_listing(ui_settings, display, false, false);
   }
 
   if(ui_settings.channel.frequency != last_frequency)
   {
     last_frequency = ui_settings.channel.frequency;
-    draw_listing(ui_settings, display, true);
+    draw_listing(ui_settings, display, false, true);
   }
 
 }
 
-void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
+void c_aux_display::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom)
 {
 
     if(!enabled) return;
@@ -511,7 +512,7 @@ void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t
         else if(ui_settings.global.aux_view == 3)
         {
           m_aux_display_state = listing_active;
-          draw_listing(ui_settings, display, true);
+          draw_listing(ui_settings, display, true, true);
         }
     }
 
@@ -538,7 +539,7 @@ void waterfall::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t
 
 }
 
-void waterfall::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom, bool spectrum_hold)
+void c_aux_display::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom, bool spectrum_hold)
 {
 
     //update spectrum and waterfall display
@@ -784,7 +785,7 @@ void waterfall::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t dB10
 
 }
 
-void waterfall::decode_sstv()
+void c_aux_display::decode_sstv()
 {
   #ifdef MONITOR_BUFFER_LEVEL
 

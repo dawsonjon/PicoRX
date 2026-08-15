@@ -1,32 +1,31 @@
-#include <string.h>
 #include <float.h>
 #include <math.h>
+#include <string.h>
 
-#include "ctime"
-#include "pico/util/datetime.h"
-#include "ui.h"
-#include "fft_filter.h"
-#include <hardware/flash.h>
-#include "pico/util/queue.h"
-#include "fonts.h"
-#include "settings.h"
-#include "rotary_encoder.h"
-#include "utils.h"
 #include "../eibi/eibi.h"
+#include "../eibi/eibi_utils.h"
+#include "ctime"
+#include "fft_filter.h"
+#include "fonts.h"
+#include "pico/util/datetime.h"
+#include "pico/util/queue.h"
+#include "rotary_encoder.h"
+#include "settings.h"
+#include "ui.h"
+#include "utils.h"
+#include <hardware/flash.h>
 
 #include <algorithm>
 
 #define WATERFALL_WIDTH (128)
 #define WATERFALL_MAX_VALUE (64)
 
-void strip_trailing_space(const char *x, char *y)
+void strip_trailing_space(const char* x, char* y)
 {
 
   uint8_t stripped_len = 0;
-  for(uint8_t i=0; i<16; i++)
-  {
-    if(x[15-i] != ' ')
-    {
+  for (uint8_t i = 0; i < 16; i++) {
+    if (x[15 - i] != ' ') {
       stripped_len = 15 - i + 1;
       break;
     }
@@ -34,14 +33,14 @@ void strip_trailing_space(const char *x, char *y)
 
   memcpy(y, x, stripped_len);
   y[stripped_len] = 0;
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Display
 ////////////////////////////////////////////////////////////////////////////////
-void ui::setup_display() {
-  disp.external_vcc=false;
+void ui::setup_display()
+{
+  disp.external_vcc = false;
   ssd1306_init(&disp, 128, 64, 0x3C, i2c1);
 }
 
@@ -54,12 +53,12 @@ void ui::display_clear(bool colour)
 
 void ui::display_clear_str(uint32_t scale, bool colour)
 {
-  ssd1306_fill_rectangle(&disp, 0, cursor_y, 128, 9*scale, colour);
+  ssd1306_fill_rectangle(&disp, 0, cursor_y, 128, 9 * scale, colour);
 }
 
 void ui::display_linen(uint8_t line)
 {
-  cursor_y = 9*(line-1);
+  cursor_y = 9 * (line - 1);
   cursor_x = 0;
 }
 
@@ -75,43 +74,54 @@ void ui::display_add_xy(int16_t x, int16_t y)
   cursor_y += y;
 }
 
-uint16_t ui::display_get_x() { return cursor_x; }
-uint16_t ui::display_get_y() { return cursor_y; }
+uint16_t ui::display_get_x()
+{
+  return cursor_x;
+}
+uint16_t ui::display_get_y()
+{
+  return cursor_y;
+}
 
-void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour){
+void ui::display_draw_separator(uint16_t y, uint32_t scale, bool colour)
+{
   // always draw top line
   ssd1306_draw_line(&disp, 0, y, 127, y, colour);
   // for 2px, just draw another below
   if (scale == 2) {
-    ssd1306_draw_line(&disp, 0, y+1, 127, y+1, colour);
+    ssd1306_draw_line(&disp, 0, y + 1, 127, y + 1, colour);
   }
   // for 3px draw top and bottom, middle blank
   if (scale == 3) {
-    ssd1306_draw_line(&disp, 0, y+2, 127, y+2, colour);
+    ssd1306_draw_line(&disp, 0, y + 2, 127, y + 2, colour);
   }
 }
 
 void ui::display_print_char(char x, uint32_t scale, uint32_t style)
 {
-  if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
+  if (!(style & style_nowrap) && (cursor_x > 128 - 6 * (signed)scale)) {
     cursor_x = 0;
-    cursor_y += 9*scale;
+    cursor_y += 9 * scale;
   }
   int colour = 1;
-  if (style & style_reverse) colour=0;
-  if (style & style_xor) colour=2;
+  if (style & style_reverse)
+    colour = 0;
+  if (style & style_xor)
+    colour = 2;
   if (scale & 0x01) { // odd numbers use 8x6 chars
     ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, x, colour);
   } else { // even, use 16x12
-    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, x, colour);
+    ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale / 2, font_16x12, x, colour);
   }
-  cursor_x += (6*scale);
+  cursor_x += (6 * scale);
 }
 
 /* return index of 1st match. -1 if not found */
-int ui::strchr_idx(const char str[], uint8_t c) {
-  for (unsigned int i=0; i<strlen(str);i++){
-    if (str[i] == c) return i;
+int ui::strchr_idx(const char str[], uint8_t c)
+{
+  for (unsigned int i = 0; i < strlen(str); i++) {
+    if (str[i] == c)
+      return i;
   }
   return -1;
 }
@@ -123,63 +133,70 @@ void ui::display_print_str(const char str[], uint32_t scale, uint32_t style)
   int16_t box_x2 = INT16_MIN;
   int16_t box_y2 = INT16_MIN;
 
-  bool colour = !(style&style_reverse);
+  bool colour = !(style & style_reverse);
   int next_ln;
   unsigned int length;
 
   // find the index of the next \n
-  next_ln = strchr_idx( str, '\n');
+  next_ln = strchr_idx(str, '\n');
   // if found, compute length of string, if not, length to end of str
-  length = (next_ln<0) ? strlen(str) : (unsigned)next_ln;
+  length = (next_ln < 0) ? strlen(str) : (unsigned)next_ln;
 
   if (style & style_centered) {
-    cursor_x = (128- 6*scale*length)/2;
+    cursor_x = (128 - 6 * scale * length) / 2;
   }
   if (style & style_right) {
-    cursor_x = (128 - 6*scale*length);
+    cursor_x = (128 - 6 * scale * length);
   }
 
-  for (size_t i=0; i<strlen(str); i++) {
+  for (size_t i = 0; i < strlen(str); i++) {
     if (str[i] == '\a') {
       colour = !colour;
       continue;
     }
     if (str[i] == '\n') {
-      next_ln = strchr_idx( &str[i+1], '\n');
-      length = (next_ln<0) ? strlen(str)-(i+1) : (unsigned)next_ln-(i+1);
+      next_ln = strchr_idx(&str[i + 1], '\n');
+      length = (next_ln < 0) ? strlen(str) - (i + 1) : (unsigned)next_ln - (i + 1);
 
       if (style & style_centered) {
-        cursor_x = (128- 6*scale*length)/2;
+        cursor_x = (128 - 6 * scale * length) / 2;
       } else if (style & style_right) {
-        cursor_x = (128- 6*scale*length);
+        cursor_x = (128 - 6 * scale * length);
       } else {
         cursor_x = 0;
       }
-      cursor_y += 9*scale;
+      cursor_y += 9 * scale;
       continue;
     }
-    if ( !(style&style_nowrap) && (cursor_x > 128 - 6*(signed)scale)) {
+    if (!(style & style_nowrap) && (cursor_x > 128 - 6 * (signed)scale)) {
       cursor_x = 0;
-      cursor_y += 9*scale;
+      cursor_y += 9 * scale;
     }
     if (scale & 0x01) { // odd numbers use 8x6 chars
       ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale, font_8x5, str[i], colour);
     } else { // even, use 16x12
-      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale/2, font_16x12, str[i], colour);
+      ssd1306_draw_char_with_font(&disp, cursor_x, cursor_y, scale / 2, font_16x12, str[i], colour);
     }
-    if (style&style_bordered) {
-      if (cursor_x < box_x1) box_x1=cursor_x;
-      if (cursor_y < box_y1) box_y1=cursor_y;
-      if ((signed)(cursor_x + 5*scale) > box_x2) box_x2 = (cursor_x + 5*scale);
-      if ((signed)(cursor_y + 8*scale) > box_y2) box_y2 = (cursor_y + 8*scale);
+    if (style & style_bordered) {
+      if (cursor_x < box_x1)
+        box_x1 = cursor_x;
+      if (cursor_y < box_y1)
+        box_y1 = cursor_y;
+      if ((signed)(cursor_x + 5 * scale) > box_x2)
+        box_x2 = (cursor_x + 5 * scale);
+      if ((signed)(cursor_y + 8 * scale) > box_y2)
+        box_y2 = (cursor_y + 8 * scale);
     }
-    cursor_x += 6*scale;
+    cursor_x += 6 * scale;
   }
-  if (style&style_bordered) {
+  if (style & style_bordered) {
     // text, black, white, black
-    ssd1306_draw_rectangle(&disp, box_x1-1, box_y1-1, box_x2-box_x1+1, box_y2-box_y1+1, 1-colour);
-    ssd1306_draw_rectangle(&disp, box_x1-2, box_y1-2, box_x2-box_x1+3, box_y2-box_y1+3, colour);
-    ssd1306_draw_rectangle(&disp, box_x1-3, box_y1-3, box_x2-box_x1+5, box_y2-box_y1+5, 1-colour);
+    ssd1306_draw_rectangle(&disp, box_x1 - 1, box_y1 - 1, box_x2 - box_x1 + 1, box_y2 - box_y1 + 1,
+                           1 - colour);
+    ssd1306_draw_rectangle(&disp, box_x1 - 2, box_y1 - 2, box_x2 - box_x1 + 3, box_y2 - box_y1 + 3,
+                           colour);
+    ssd1306_draw_rectangle(&disp, box_x1 - 3, box_y1 - 3, box_x2 - box_x1 + 5, box_y2 - box_y1 + 5,
+                           1 - colour);
   }
 }
 
@@ -204,56 +221,48 @@ void ui::display_print_freq(char separator, uint32_t frequency, uint32_t scale, 
 
 void ui::display_draw_icon(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint16_t pixels[])
 {
-  for (uint8_t yy = 0; yy < h; ++yy)
-  {
-    for (uint8_t xx = 0; xx < w; ++xx)
-    {
-      ssd1306_draw_pixel(&disp, x+h-xx-1, y+yy, (pixels[yy] >> xx) & 1);
+  for (uint8_t yy = 0; yy < h; ++yy) {
+    for (uint8_t xx = 0; xx < w; ++xx) {
+      ssd1306_draw_pixel(&disp, x + h - xx - 1, y + yy, (pixels[yy] >> xx) & 1);
     }
   }
 }
 
 void ui::display_draw_volume(uint8_t v, uint8_t x)
 {
-  const uint16_t mute_icon[15] = {0x0, 0xa, 0x1a, 0x38, 0x78, 0x6f8, 0x6f8, 0x6f8, 0x7f8, 0x6f8, 0x478, 0x838, 0x1018, 0x8, 0x0};
-  const uint8_t scaled_volume = (v+5)*12/9;
-  if (v == 0)
-  {
+  const uint16_t mute_icon[15] = {0x0,   0xa,   0x1a,  0x38,  0x78,   0x6f8, 0x6f8, 0x6f8,
+                                  0x7f8, 0x6f8, 0x478, 0x838, 0x1018, 0x8,   0x0};
+  const uint8_t scaled_volume = (v + 5) * 12 / 9;
+  if (v == 0) {
     display_draw_icon(x, 0, 16, 15, mute_icon);
-  }
-  else
-  {
-    for (uint8_t i = 0; i < 16; i++)
-    {
-      uint8_t h = i * 12/16;
-      if(scaled_volume >= i) u8g2_DrawVLine(&u8g2, x + i, 13-h, h);
+  } else {
+    for (uint8_t i = 0; i < 16; i++) {
+      uint8_t h = i * 12 / 16;
+      if (scaled_volume >= i)
+        u8g2_DrawVLine(&u8g2, x + i, 13 - h, h);
     }
   }
 }
 
 void ui::display_draw_battery(float v, uint8_t x)
 {
-  u8g2_DrawVLine(&u8g2, x+0 , 2, 12);
-  u8g2_DrawVLine(&u8g2, x+14, 2, 12);
-  u8g2_DrawVLine(&u8g2, x+15, 6,  4);
+  u8g2_DrawVLine(&u8g2, x + 0, 2, 12);
+  u8g2_DrawVLine(&u8g2, x + 14, 2, 12);
+  u8g2_DrawVLine(&u8g2, x + 15, 6, 4);
 
-  u8g2_DrawHLine(&u8g2, x+0, 2,  14);
-  u8g2_DrawHLine(&u8g2, x+0, 13, 14);
-
+  u8g2_DrawHLine(&u8g2, x + 0, 2, 14);
+  u8g2_DrawHLine(&u8g2, x + 0, 13, 14);
 
   const bool vbus_present = gpio_get(PIN_VBUS_SENSE);
 
-  if(vbus_present)
-  {
+  if (vbus_present) {
     const uint16_t power_icon[8] = {0x10, 0x18, 0x11C, 0xDC, 0xF6, 0x72, 0x31, 0x10};
-    display_draw_icon(x+4, 4, 9, 8, power_icon);
-  }
-  else
-  {
+    display_draw_icon(x + 4, 4, 9, 8, power_icon);
+  } else {
     const float v_min = 1.8f;
     const float v_max = 5.5f;
-    const uint8_t pixels = 11.0f*(v-v_min)/(v_max-v_min);
-    u8g2_DrawBox(&u8g2, x+2, 4, pixels, 8);
+    const uint8_t pixels = 11.0f * (v - v_min) / (v_max - v_min);
+    u8g2_DrawBox(&u8g2, x + 2, 4, pixels, 8);
   }
 }
 
@@ -288,28 +297,29 @@ void ui::renderpage_transmit(void)
   transceiver.release();
 
   const uint8_t buffer_size = 21;
-  char buff [buffer_size];
+  char buff[buffer_size];
   display_clear();
 
-  //Animate TX
+  // Animate TX
   u8g2_DrawLine(&u8g2, 10, 14, 10, 0);
   u8g2_DrawLine(&u8g2, 10, 7, 5, 0);
   u8g2_DrawLine(&u8g2, 10, 7, 15, 0);
   const uint8_t animation_y = 8;
-  const int8_t fx[] = {0, 1, 3, 4, 5, 6, 6, 7, 7, 7, 6, 6, 5, 3, 1, 0, -1, -3, -4, -5, -6, -6, -7, -7, -7, -6, -6, -5, -4, -3, -1, 0};
+  const int8_t fx[] = {0,  1,  3,  4,  5,  6,  6,  7,  7,  7,  6,  6,  5,  3,  1,  0,
+                       -1, -3, -4, -5, -6, -6, -7, -7, -7, -6, -6, -5, -4, -3, -1, 0};
   static uint8_t step = 0;
-  for(int x=20; x<128; x+=2) {
-    int8_t y = fx[(step+(x/8))&0x1f];
+  for (int x = 20; x < 128; x += 2) {
+    int8_t y = fx[(step + (x / 8)) & 0x1f];
     u8g2_DrawLine(&u8g2, x, animation_y + y, x, animation_y);
   }
   step--;
 
-  //frequency
+  // frequency
   uint32_t remainder, MHz, kHz, Hz;
-  MHz = (uint32_t)settings.channel.frequency/1000000u;
-  remainder = (uint32_t)settings.channel.frequency%1000000u;
-  kHz = remainder/1000u;
-  remainder = remainder%1000u;
+  MHz = (uint32_t)settings.channel.frequency / 1000000u;
+  remainder = (uint32_t)settings.channel.frequency % 1000000u;
+  kHz = remainder / 1000u;
+  remainder = remainder % 1000u;
   Hz = remainder;
 
   u8g2_SetFont(&u8g2, font_seg_big);
@@ -323,28 +333,26 @@ void ui::renderpage_transmit(void)
   u8g2_DrawStr(&u8g2, 94, 31, buff);
   u8g2_DrawBox(&u8g2, 90, 29, 3, 3);
 
-  //mode
+  // mode
   u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
   u8g2_GetStrWidth(&u8g2, mode_to_str(0));
 
-  //Microphone
-  int8_t mic_power = std::max(log2(audio_level)-2.0, 0.0);
+  // Microphone
+  int8_t mic_power = std::max(log2(audio_level) - 2.0, 0.0);
   const uint16_t seg_w = 8;
   const uint16_t seg_h = 12;
   const uint16_t seg_y = 47;
   const uint16_t seg_x = 3;
 
   u8g2_SetDrawColor(&u8g2, 1);
-  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w+1)*13+4, seg_h+5, 2);
-  for (int8_t i = 0; i < 13; i++)
-  {
+  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w + 1) * 13 + 4, seg_h + 5, 2);
+  for (int8_t i = 0; i < 13; i++) {
     u8g2_SetDrawColor(&u8g2, 0);
-    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y+2, seg_w + 2, seg_h + 2, 2);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y + 2, seg_w + 2, seg_h + 2, 2);
     u8g2_SetDrawColor(&u8g2, 1);
 
-    if (i < mic_power)
-    {
-      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
+    if (i < mic_power) {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y + 2, seg_w, seg_h, 2);
     }
   }
 
@@ -352,8 +360,8 @@ void ui::renderpage_transmit(void)
 }
 #endif
 
-
-uint16_t ui::audio_vu_meter_update(void) {
+uint16_t ui::audio_vu_meter_update(void)
+{
   static uint16_t vu;
   static int16_t avg;
 
@@ -368,7 +376,7 @@ uint16_t ui::audio_vu_meter_update(void) {
   } else {
     ret -= 13;
   }
-  return ret;  // vu roughly in the range 0-128
+  return ret; // vu roughly in the range 0-128
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -379,19 +387,19 @@ void ui::renderpage_original(void)
 
   transceiver.access(false);
   const float power_dBm = status.signal_strength_dBm;
-  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
+  const float battery_voltage = 3.0f * 3.3f * (status.battery / 65535.0f);
   transceiver.release();
 
   const uint8_t buffer_size = 21;
-  char buff [buffer_size];
+  char buff[buffer_size];
   display_clear();
 
-  //frequency
+  // frequency
   uint32_t remainder, MHz, kHz, Hz;
-  MHz = settings.channel.frequency/1000000u;
-  remainder = settings.channel.frequency%1000000u;
-  kHz = remainder/1000u;
-  remainder = remainder%1000u;
+  MHz = settings.channel.frequency / 1000000u;
+  remainder = settings.channel.frequency % 1000000u;
+  kHz = remainder / 1000u;
+  remainder = remainder % 1000u;
   Hz = remainder;
 
   u8g2_SetFont(&u8g2, font_seg_big);
@@ -405,22 +413,21 @@ void ui::renderpage_original(void)
   u8g2_DrawStr(&u8g2, 94, 31, buff);
   u8g2_DrawBox(&u8g2, 90, 29, 3, 3);
 
-
-  //mode
+  // mode
   const uint8_t text_height = 14u;
   u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
   u8g2_DrawStr(&u8g2, 0, text_height, mode_to_str(settings.channel.mode));
   uint16_t x = u8g2_GetStrWidth(&u8g2, mode_to_str(0)) + 2;
 
-  //volume
+  // volume
   display_draw_volume(settings.global.volume, x);
   x += 18;
 
-  //battery
+  // battery
   display_draw_battery(battery_voltage, x);
   x += 18;
 
-  //power
+  // power
   snprintf(buff, buffer_size, "% 4d ", (int)power_dBm);
   uint16_t w = u8g2_GetStrWidth(&u8g2, buff);
   u8g2_DrawStr(&u8g2, 127 - w - 8, text_height, buff);
@@ -429,7 +436,7 @@ void ui::renderpage_original(void)
   w = u8g2_GetStrWidth(&u8g2, "dBm");
   u8g2_DrawStr(&u8g2, 127 - w - 1, text_height, "dBm");
 
-  //step size
+  // step size
   u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
   w = u8g2_GetStrWidth(&u8g2, steps[settings.channel.step]);
   u8g2_DrawStr(&u8g2, 127 - w, 42, steps[settings.channel.step]);
@@ -441,27 +448,27 @@ void ui::renderpage_original(void)
   const uint16_t seg_x = 3;
 
   u8g2_SetDrawColor(&u8g2, 1);
-  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w+1)*13+4, seg_h+5, 2);
-  for (int8_t i = 0; i < 13; i++)
-  {
+  u8g2_DrawRFrame(&u8g2, seg_x, seg_y, (seg_w + 1) * 13 + 4, seg_h + 5, 2);
+  for (int8_t i = 0; i < 13; i++) {
     u8g2_SetDrawColor(&u8g2, 0);
-    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y+2, seg_w + 2, seg_h + 2, 2);
+    u8g2_DrawRBox(&u8g2, i * (seg_w + 1) - 1 + seg_x + 2, seg_y + 2, seg_w + 2, seg_h + 2, 2);
     u8g2_SetDrawColor(&u8g2, 1);
 
-    if (i < power_s)
-    {
-      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y+2, seg_w, seg_h, 2);
+    if (i < power_s) {
+      u8g2_DrawRBox(&u8g2, i * (seg_w + 1) + seg_x + 2, seg_y + 2, seg_w, seg_h, 2);
     }
   }
-  u8g2_DrawVLine(&u8g2, settings.global.squelch_threshold * (seg_w + 1) + seg_x + 2, seg_y, seg_h+4);
+  u8g2_DrawVLine(&u8g2, settings.global.squelch_threshold * (seg_w + 1) + seg_x + 2, seg_y,
+                 seg_h + 4);
 
-  const char _smeter[13][6] = {"S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "+10", "+20", "+30"};
+  const char _smeter[13][6] = {"S0", "S1", "S2", "S3",  "S4",  "S5", "S6",
+                               "S7", "S8", "S9", "+10", "+20", "+30"};
   u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
   w = u8g2_GetStrWidth(&u8g2, _smeter[power_s]);
   u8g2_SetDrawColor(&u8g2, 0);
-  u8g2_DrawRBox(&u8g2, (128-(w+4))/2, 48, w+4, 14, 2);
+  u8g2_DrawRBox(&u8g2, (128 - (w + 4)) / 2, 48, w + 4, 14, 2);
   u8g2_SetDrawColor(&u8g2, 1);
-  u8g2_DrawStr(&u8g2, (128-w)/2, 60, _smeter[power_s]);
+  u8g2_DrawStr(&u8g2, (128 - w) / 2, 60, _smeter[power_s]);
 
   uint16_t vu = audio_vu_meter_update();
   if (vu > 121) {
@@ -469,8 +476,7 @@ void ui::renderpage_original(void)
   }
   u8g2_DrawBox(&u8g2, 3, 44, vu, 2);
   u8g2_SetDrawColor(&u8g2, 0);
-  for(uint16_t i = 3; i< 126; i+=4)
-  {
+  for (uint16_t i = 3; i < 126; i += 4) {
     u8g2_DrawLine(&u8g2, i, 44, i, 45);
   }
   u8g2_SetDrawColor(&u8g2, 1);
@@ -481,8 +487,7 @@ void ui::renderpage_original(void)
 void ui::renderpage_oscilloscope(void)
 {
   display_clear();
-  for(uint8_t i = 0; i < 127; i++)
-  {
+  for (uint8_t i = 0; i < 127; i++) {
     u8g2_DrawLine(&u8g2, i, audio[i], i + 1, audio[i + 1]);
     u8g2_DrawLine(&u8g2, i, audio[i] + 1, i + 1, audio[i + 1] + 1);
     u8g2_DrawLine(&u8g2, i, audio[i] - 1, i + 1, audio[i + 1] - 1);
@@ -500,6 +505,17 @@ void ui::renderpage_oscilloscope(void)
 ////////////////////////////////////////////////////////////////////////////////
 // Home page status display with bigger spectrum view
 ////////////////////////////////////////////////////////////////////////////////
+static const char* scroll(const char* string, uint8_t display_len, uint8_t phase)
+{
+  static char wrapped_scroll_buff[51];
+  uint8_t length = strlen(string);
+  for (uint8_t i = 0; i < display_len; i++) {
+    wrapped_scroll_buff[i] = string[(i + phase) % length];
+  }
+  wrapped_scroll_buff[50] = 0;
+  return wrapped_scroll_buff;
+}
+
 void ui::renderpage_station_info(bool view_changed)
 {
   (void)view_changed;
@@ -507,86 +523,40 @@ void ui::renderpage_station_info(bool view_changed)
   draw_slim_status(0);
   u8g2_DrawHLine(&u8g2, 0, 8, 128);
 
-
-  static uint32_t last_frequency_displayed = 0;
-  static int16_t id = -1;
-  static int16_t from = -1;
-  static int16_t to = -1;
-  static int16_t display_id = -1;
-  static uint16_t timeout = 0;
-  static uint16_t day_minute = 0;
-  static uint8_t weekday_flag = 0;
-
-  //lookup frequency in database
-  if(view_changed || (settings.channel.frequency != last_frequency_displayed)) {
-    timeout = 0;
-    last_frequency_displayed = settings.channel.frequency;
-    id = lookup_frequency(settings.channel.frequency/1000, from, to);
-    display_id = from;
-  }
-
-  if(timeout==0 && id>0){
-    timeout=20;
-    display_id++;
-    if(display_id > to) display_id = from;
-
-    //get time
-    time_t now;
-    time(&now);
-    tm *t = gmtime(&now);
-    day_minute = t->tm_hour*60+t->tm_min;
-    weekday_flag = 1<<t->tm_wday;
-    //weekday = t->tm_wday;
-
-  } else timeout--;
-
-  if(id<0){
-    u8g2_SetDrawColor(&u8g2, 1);
-    u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
-    u8g2_DrawStr(&u8g2, 0, 18, "Unknown");
-  } else {
-    char buff[24];
-    u8g2_SetDrawColor(&u8g2, 1);
-    u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
-
-    //calculate distance
-    s_locations location = locations[frequencies[display_id].transmitter_id];
-    float distance = distance_km(location.lon, location.lat, -2, 52);
-    if(location.lat == 999) {
-      snprintf(buff, 21, "(%u of %u)", (display_id-from)+1, (to-from)+1);
-    } else {
-      snprintf(buff, 21, "(%u of %u) %.0f km", (display_id-from)+1, (to-from)+1, distance);
-    }
-    u8g2_DrawStr(&u8g2, 0, 18, buff);
-
-    //list station info
-    u8g2_DrawStr(&u8g2, 0, 18+8, stations[frequencies[display_id].station_id]);
-    u8g2_DrawStr(&u8g2, 0, 18+16, countries[frequencies[display_id].country_id]);
-    u8g2_DrawStr(&u8g2, 0, 18+24, languages[frequencies[display_id].language_id]);
-    u8g2_DrawStr(&u8g2, 0, 18+32, transmitters[frequencies[display_id].transmitter_id]);
-
-    if(day_minute >= frequencies[display_id].from && day_minute <= frequencies[display_id].to && (weekday_flag & frequencies[display_id].dayflags)) {
-      snprintf(buff, 21, "live until %02u:%02u", frequencies[display_id].to/60, frequencies[display_id].to%60);
-      u8g2_DrawStr(&u8g2, 0, 18+40, buff);
-    } else {
-      if((weekday_flag & frequencies[display_id].dayflags) && (day_minute < frequencies[display_id].from)){
-        snprintf(buff, 21, "starts %02u:%02u today", frequencies[display_id].from/60, frequencies[display_id].from%60);
-      } else {
-        const char weekdays[]="SMTWTFS";
-        char activedays[8];
-        for(uint8_t d=0; d<7; d++) {
-          if(frequencies[display_id].dayflags & (1<<d)) {
-            activedays[d] = weekdays[d];
-          } else {
-            activedays[d] = ' ';
-          }
-        }
-        activedays[7] = 0;
-        snprintf(buff, 24, "%7s %02u:%02u-%02u:%02u", activedays, frequencies[display_id].from/60, frequencies[display_id].from%60, frequencies[display_id].to/60, frequencies[display_id].to%60);
+  float nearest_distance = 1000000;
+  s_frequency nearest_frequency = {0};
+  if (get_nearest_active(settings.channel.frequency / 1000, settings.global.lon,
+                         settings.global.lat, nearest_frequency, nearest_distance)) {
+    static uint8_t phase = 0;
+    s_locations location = locations[nearest_frequency.transmitter_id];
+    char weekdays[] = "SMTWTFS";
+    for (uint8_t d = 0; d < 7; d++) {
+      if (!(nearest_frequency.dayflags & (1 << d))) {
+        weekdays[d] = '-';
       }
-      u8g2_DrawStr(&u8g2, 0, 18+40, buff);
     }
 
+    char scroll_buff[100];
+    snprintf(scroll_buff, 100, "%s %s %s %s %.0f km -- ", stations[nearest_frequency.station_id],
+             countries[nearest_frequency.country_id], languages[nearest_frequency.language_id],
+             transmitters[nearest_frequency.transmitter_id],
+             distance_km(location.lon, location.lat, settings.global.lon, settings.global.lat));
+
+    u8g2_SetDrawColor(&u8g2, 1);
+    u8g2_SetFont(&u8g2, u8g2_font_9x15_tf);
+    u8g2_DrawStr(&u8g2, 0, 18 + 8, scroll(scroll_buff, 20, phase++ / 2));
+
+    snprintf(scroll_buff, 100, "%02u:%02u-%02u:%02u", nearest_frequency.from / 60,
+             nearest_frequency.from % 60, nearest_frequency.to / 60, nearest_frequency.to % 60);
+    u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+    u8g2_DrawStr(&u8g2, 20, 18 + 24, scroll_buff);
+
+    u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+    u8g2_DrawStr(&u8g2, 36, 18 + 39, weekdays);
+  } else {
+    u8g2_SetDrawColor(&u8g2, 1);
+    u8g2_SetFont(&u8g2, u8g2_font_7x14_tf);
+    u8g2_DrawStr(&u8g2, 14, 18 + 15, "None Scheduled");
   }
 
   display_show();
@@ -610,7 +580,8 @@ void ui::renderpage_bigspectrum(bool view_changed)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_combinedspectrum(bool view_changed)
 {
-  if (view_changed) display_clear();
+  if (view_changed)
+    display_clear();
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 48, 0);
   draw_waterfall(48);
   draw_slim_status(0);
@@ -624,7 +595,8 @@ void ui::renderpage_combinedspectrum(bool view_changed)
 ////////////////////////////////////////////////////////////////////////////////
 void ui::renderpage_waterfall(bool view_changed)
 {
-  if (view_changed) display_clear();
+  if (view_changed)
+    display_clear();
   ssd1306_fill_rectangle(&disp, 0, 0, 128, 13, 0);
   draw_waterfall(13);
   draw_h_tick_marks(8);
@@ -638,11 +610,11 @@ void ui::renderpage_waterfall(bool view_changed)
 void ui::renderpage_status(void)
 {
   transceiver.access(false);
-  const float battery_voltage = 3.0f * 3.3f * (status.battery/65535.0f);
-  const float temp_voltage = 3.3f * (status.temp/65535.0f);
-  const float temp = 27.0f - (temp_voltage - 0.706f)/0.001721f;
-  const float block_time = (float)adc_block_size/(float)adc_sample_rate;
-  const float busy_time = ((float)status.busy_time*1e-6f);
+  const float battery_voltage = 3.0f * 3.3f * (status.battery / 65535.0f);
+  const float temp_voltage = 3.3f * (status.temp / 65535.0f);
+  const float temp = 27.0f - (temp_voltage - 0.706f) / 0.001721f;
+  const float block_time = (float)adc_block_size / (float)adc_sample_rate;
+  const float busy_time = ((float)status.busy_time * 1e-6f);
   const uint8_t usb_buf_level = status.usb_buf_level;
   const float tuning_offset_Hz = status.tuning_offset_Hz;
   transceiver.release();
@@ -655,30 +627,30 @@ void ui::renderpage_status(void)
   u8g2_DrawHLine(&u8g2, 0, 8, 128);
 
   const uint8_t buffer_size = 23;
-  char buff [buffer_size];
+  char buff[buffer_size];
 
-  //battery
-  uint16_t y = 8; //draw from left
+  // battery
+  uint16_t y = 8; // draw from left
   y += 10;
   snprintf(buff, buffer_size, "Battery    : %2.1fV", battery_voltage);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
-  //temp
+  // temp
   y += 10;
   snprintf(buff, buffer_size, "CPU Temp   : %2.0f%cC", temp, '\xb0');
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
-  //cpu load
+  // cpu load
   y += 10;
   snprintf(buff, buffer_size, "CPU Load   : %3.0f%%", (100.0f * busy_time) / block_time);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
-  //usb buffer
+  // usb buffer
   y += 10;
   snprintf(buff, buffer_size, "USB Buff   : %3d%%", usb_buf_level);
   u8g2_DrawStr(&u8g2, 0, y, buff);
 
-  //usb buffer
+  // usb buffer
   y += 10;
   snprintf(buff, buffer_size, "Freq offset: %4.0fHz", tuning_offset_Hz);
   u8g2_DrawStr(&u8g2, 0, y, buff);
@@ -693,13 +665,15 @@ void ui::renderpage_fun(bool view_updated)
   (void)view_updated;
 
   if (degrees == 0) {
-    xm = rand()%10+1;
-    ym = rand()%10;
+    xm = rand() % 10 + 1;
+    ym = rand() % 10;
   }
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
-  ssd1306_scroll_screen(&disp, 40*cos(xm*M_PI*degrees/180), 20*sin(ym*M_PI*degrees/180));
-  if ((degrees+=3) >=360) degrees = 0;
+  ssd1306_scroll_screen(&disp, 40 * cos(xm * M_PI * degrees / 180),
+                        20 * sin(ym * M_PI * degrees / 180));
+  if ((degrees += 3) >= 360)
+    degrees = 0;
   display_show();
 }
 
@@ -710,49 +684,58 @@ void ui::draw_slim_status(uint16_t y)
   const float power_dBm = status.signal_strength_dBm;
   transceiver.release();
 
-  display_set_xy(0,y);
-  display_print_freq(',', settings.channel.frequency,1);
-  display_add_xy(4,0);
+  display_set_xy(0, y);
+  display_print_freq(',', settings.channel.frequency, 1);
+  display_add_xy(4, 0);
 
-  //mode
-  display_print_str(mode_to_str(settings.channel.mode),1);
+  // mode
+  display_print_str(mode_to_str(settings.channel.mode), 1);
 
-  //signal strength dBm
+  // signal strength dBm
   display_print_num("% 4ddBm", (int)power_dBm, 1, style_right);
 }
 
 // draw vertical signal strength
-void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch) {
-      int bar_len = dBm_to_63px(power_dBm);
-      int sq = dBm_to_63px(squelch);
-      ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
-      ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
-      ssd1306_draw_line(&disp, x, 63-sq, x+3, 63-sq, 2);
+void ui::draw_vertical_dBm(uint16_t x, float power_dBm, float squelch)
+{
+  int bar_len = dBm_to_63px(power_dBm);
+  int sq = dBm_to_63px(squelch);
+  ssd1306_fill_rectangle(&disp, x, 0, 3, 63, 0);
+  ssd1306_fill_rectangle(&disp, x, 63 - bar_len, 3, bar_len + 1, 1);
+  ssd1306_draw_line(&disp, x, 63 - sq, x + 3, 63 - sq, 2);
 }
 
-int ui::dBm_to_S(float power_dBm) {
-  int power_s = floorf((power_dBm-S0)/6.0f);
-  if(power_dBm >= S9) power_s = floorf((power_dBm-S9)/10.0f)+9;
-  if(power_s < 0) power_s = 0;
-  if(power_s > 12) power_s = 12;
+int ui::dBm_to_S(float power_dBm)
+{
+  int power_s = floorf((power_dBm - S0) / 6.0f);
+  if (power_dBm >= S9)
+    power_s = floorf((power_dBm - S9) / 10.0f) + 9;
+  if (power_s < 0)
+    power_s = 0;
+  if (power_s > 12)
+    power_s = 12;
   return (power_s);
 }
 
-float ui::S_to_dBm(int S) {
+float ui::S_to_dBm(int S)
+{
   float dBm = 0;
-  if (S<=9) {
+  if (S <= 9) {
     dBm = S0 + 6.0f * S;
   } else {
-    dBm = S9_10 + (S-10) * 10.f;
+    dBm = S9_10 + (S - 10) * 10.f;
   }
   return (dBm);
 }
 
-int32_t ui::dBm_to_63px(float power_dBm) {
-  int32_t power = floorf((power_dBm-S0));
+int32_t ui::dBm_to_63px(float power_dBm)
+{
+  int32_t power = floorf((power_dBm - S0));
   power = power * 63 / (S9_10 + 20 - S0);
-  if (power<0) power=0;
-  if (power>63) power=63;
+  if (power < 0)
+    power = 0;
+  if (power > 63)
+    power = 63;
   return (power);
 }
 
@@ -774,68 +757,62 @@ void ui::draw_h_tick_marks(uint16_t startY)
 ////////////////////////////////////////////////////////////////////////////////
 // height positive : a circle sector from the top down up to and including the full circle
 // height positive : draw a linear movement meter like all the cheap CBs in the 80s
-void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
-                              uint16_t width, int16_t height,
-                              float  needle_pct, int numticks,
-                              const char* legend, const char labels[][5]
-                              ) {
+void ui::draw_analogmeter(uint16_t startx, uint16_t starty, uint16_t width, int16_t height,
+                          float needle_pct, int numticks, const char* legend,
+                          const char labels[][5])
+{
 
-  #define TICK_LEN 3
+#define TICK_LEN 3
 
   // I hope you like high school trig and geometry...
-  int segment_h = height;  // pixels high
-  int segment_w2 = width/2;  // pixels wide
+  int segment_h = height;     // pixels high
+  int segment_w2 = width / 2; // pixels wide
   // compute the radius
   float radius;
   float halfdeg_range;
   float deg_min, deg_max, deg_range;
 
   // pointless and crashed with DIV0
-  if (height == 0) return;
+  if (height == 0)
+    return;
 
   if (height > 0) { // positive height, angular meter
     if (height <= segment_w2) {
       radius = (pow(segment_w2, 2) / segment_h + segment_h) / 2;
-      halfdeg_range = asinf(segment_w2/radius)*180.0 / M_PI;
-      deg_min = (90-halfdeg_range);
-      deg_max = (90+halfdeg_range);
-      deg_range = (deg_max-deg_min);
-    } else {  // (height > segment_w2)
+      halfdeg_range = asinf(segment_w2 / radius) * 180.0 / M_PI;
+      deg_min = (90 - halfdeg_range);
+      deg_max = (90 + halfdeg_range);
+      deg_range = (deg_max - deg_min);
+    } else { // (height > segment_w2)
       radius = segment_w2;
-      halfdeg_range = acosf((segment_h-radius)/radius)*180.0 / M_PI;
-      deg_min = (-90 +halfdeg_range);
-      deg_max = (270 -halfdeg_range);
-      deg_range = (deg_max-deg_min);
+      halfdeg_range = acosf((segment_h - radius) / radius) * 180.0 / M_PI;
+      deg_min = (-90 + halfdeg_range);
+      deg_max = (270 - halfdeg_range);
+      deg_range = (deg_max - deg_min);
     }
 
     // draw arc
-    for (int degrees=deg_min; degrees<=deg_max; degrees++) {
-        ssd1306_draw_pixel(&disp,
-            (startx+width/2) + radius*cos(M_PI*degrees/180),
-            (starty + radius) - radius*sin(M_PI*degrees/180),
-            1);
-        ssd1306_draw_pixel(&disp,
-            (startx+width/2) + (1+radius)*cos(M_PI*degrees/180),
-            (starty + radius) - (1+radius)*sin(M_PI*degrees/180),
-            1);
+    for (int degrees = deg_min; degrees <= deg_max; degrees++) {
+      ssd1306_draw_pixel(&disp, (startx + width / 2) + radius * cos(M_PI * degrees / 180),
+                         (starty + radius) - radius * sin(M_PI * degrees / 180), 1);
+      ssd1306_draw_pixel(&disp, (startx + width / 2) + (1 + radius) * cos(M_PI * degrees / 180),
+                         (starty + radius) - (1 + radius) * sin(M_PI * degrees / 180), 1);
     }
 
     // tick marks
     if (numticks) {
-      int i=0;
-      for (float degrees=deg_max; degrees>=deg_min; degrees-=(float)(deg_range/(numticks-1))) {
-        for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++){
-          ssd1306_draw_pixel(&disp,
-              (startx+width/2) + (radius+l)*cos(M_PI*degrees/180),
-              (starty + radius) - (radius+l)*sin(M_PI*degrees/180),
-              1);
+      int i = 0;
+      for (float degrees = deg_max; degrees >= deg_min;
+           degrees -= (float)(deg_range / (numticks - 1))) {
+        for (int8_t l = -TICK_LEN; l <= +TICK_LEN; l++) {
+          ssd1306_draw_pixel(&disp, (startx + width / 2) + (radius + l) * cos(M_PI * degrees / 180),
+                             (starty + radius) - (radius + l) * sin(M_PI * degrees / 180), 1);
         }
         // tick labels
-        if ( (labels) &&  (strlen(labels[i])) ) {
-          display_set_xy(
-              (startx+width/2) + (radius+6)*cos(M_PI*degrees/180) - 2*strlen(labels[i]),
-              (starty + radius) - (radius+6)*sin(M_PI*degrees/180) - 8
-              );
+        if ((labels) && (strlen(labels[i]))) {
+          display_set_xy((startx + width / 2) + (radius + 6) * cos(M_PI * degrees / 180) -
+                             2 * strlen(labels[i]),
+                         (starty + radius) - (radius + 6) * sin(M_PI * degrees / 180) - 8);
           display_print_str(labels[i]);
         }
         i++;
@@ -845,58 +822,59 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
     // draw legend
     if (strlen(legend)) {
       if (height == width) { // a circle
-        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h/2-8);
+        display_set_xy(startx + width / 2 - 12 * strlen(legend) / 2, starty + segment_h / 2 - 8);
       } else {
-        display_set_xy(startx + width/2 - 12*strlen(legend)/2, starty+segment_h-8);
+        display_set_xy(startx + width / 2 - 12 * strlen(legend) / 2, starty + segment_h - 8);
       }
       display_print_str(legend, 2);
     }
 
     // draw the needle
-    float degrees = needle_pct * deg_range/100.0;
+    float degrees = needle_pct * deg_range / 100.0;
     degrees = deg_max - degrees;
-    if (degrees < deg_min) degrees = deg_min;
-    if (degrees > deg_max) degrees = deg_max;
+    if (degrees < deg_min)
+      degrees = deg_min;
+    if (degrees > deg_max)
+      degrees = deg_max;
     // can skip invisible part of needle => radius-50
     // draw_line is crap at angled lines so plot pixels
-    int startr=0;
-    if (starty+radius > 64){
-      startr = starty+radius-64; // 64 is display height
+    int startr = 0;
+    if (starty + radius > 64) {
+      startr = starty + radius - 64; // 64 is display height
     }
-    for (int r=startr; r<radius; r++) {
-      ssd1306_draw_pixel(&disp,
-          (startx+width/2) + r*cos(M_PI*degrees/180),
-          (starty + radius) - r*sin(M_PI*degrees/180),
-          1);
+    for (int r = startr; r < radius; r++) {
+      ssd1306_draw_pixel(&disp, (startx + width / 2) + r * cos(M_PI * degrees / 180),
+                         (starty + radius) - r * sin(M_PI * degrees / 180), 1);
     }
-  }
-  else
-  {   // draw a CB style rectangular needle movement
+  } else { // draw a CB style rectangular needle movement
     height *= -1;
     // draw straight arc
-    ssd1306_draw_line(&disp, startx, starty+height/2-1, startx+width, starty+height/2-1, 1);
-    ssd1306_draw_line(&disp, startx, starty+height/2, startx+width, starty+height/2, 1);
+    ssd1306_draw_line(&disp, startx, starty + height / 2 - 1, startx + width,
+                      starty + height / 2 - 1, 1);
+    ssd1306_draw_line(&disp, startx, starty + height / 2, startx + width, starty + height / 2, 1);
 
     // tick marks
     if (numticks) {
-      for (int i=0; i < numticks; i++) {
-        int x = startx + i*width/(numticks-1);
-        ssd1306_draw_line(&disp, x, starty+(height/2)-TICK_LEN-1, x, starty+(height/2)+TICK_LEN, 1);
+      for (int i = 0; i < numticks; i++) {
+        int x = startx + i * width / (numticks - 1);
+        ssd1306_draw_line(&disp, x, starty + (height / 2) - TICK_LEN - 1, x,
+                          starty + (height / 2) + TICK_LEN, 1);
         // tick labels
-        if ( (labels) && strlen(labels[i]) ) {
-          display_set_xy( x - (3*strlen(labels[i])-1), starty+(height/2)-TICK_LEN-10);
+        if ((labels) && strlen(labels[i])) {
+          display_set_xy(x - (3 * strlen(labels[i]) - 1), starty + (height / 2) - TICK_LEN - 10);
           display_print_str(labels[i]);
         }
       }
     }
 
     // draw the needle
-    int x = startx + width*needle_pct/100;
-    ssd1306_draw_line(&disp, x, starty, x, starty+height, 1);
+    int x = startx + width * needle_pct / 100;
+    ssd1306_draw_line(&disp, x, starty, x, starty + height, 1);
 
     // draw legend
     if (strlen(legend)) {
-      display_set_xy(startx + width/2 - 6*strlen(legend)/2, starty+(height/2)+TICK_LEN+3);
+      display_set_xy(startx + width / 2 - 6 * strlen(legend) / 2,
+                     starty + (height / 2) + TICK_LEN + 3);
       display_print_str(legend, 1);
     }
   }
@@ -908,7 +886,7 @@ void ui::draw_analogmeter(    uint16_t startx, uint16_t starty,
 void ui::renderpage_smeter(bool view_changed)
 {
 
-  #define NUM_DBM 3
+#define NUM_DBM 3
   static int dBm_ptr = 0;
   static float dBm_avg[NUM_DBM] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
   (void)view_changed;
@@ -918,10 +896,11 @@ void ui::renderpage_smeter(bool view_changed)
   transceiver.release();
 
   dBm_avg[dBm_ptr++] = power_dBm;
-  if (dBm_ptr >= NUM_DBM) dBm_ptr = 0;
+  if (dBm_ptr >= NUM_DBM)
+    dBm_ptr = 0;
 
   float avg_power_dBm = 0.0;
-  for (uint8_t i=0; i<NUM_DBM; i++) {
+  for (uint8_t i = 0; i < NUM_DBM; i++) {
     avg_power_dBm += dBm_avg[i];
   }
   avg_power_dBm /= NUM_DBM;
@@ -932,19 +911,14 @@ void ui::renderpage_smeter(bool view_changed)
   // -127dBm is needle to left
   // 100 percent needle swing
   // 84 dB of swing range
-  uint16_t percent = (avg_power_dBm+127) * 100/84;
+  uint16_t percent = (avg_power_dBm + 127) * 100 / 84;
 
-  const char labels[13][5] = {
-      "",    "1",    "",    "3",
-      "",    "5",    "",    "7",
-      "",    "9",    "",    "+12",
-      ""
-  };
+  const char labels[13][5] = {"", "1", "", "3", "", "5", "", "7", "", "9", "", "+12", ""};
 
   // angular meter movement
-  draw_analogmeter( 9, 33, 110, 15, percent, 13, "S", labels );
+  draw_analogmeter(9, 33, 110, 15, percent, 13, "S", labels);
 
-  ssd1306_draw_rectangle(&disp, 0,9,127,54,1);
+  ssd1306_draw_rectangle(&disp, 0, 9, 127, 54, 1);
 
   display_show();
 }
@@ -955,37 +929,34 @@ void ui::renderpage_smeter(bool view_changed)
 void ui::draw_spectrum(uint16_t startY, uint16_t endY)
 {
 
-  //plot
-  const uint8_t max_height = (endY-startY-2);
-  const uint8_t scale = 256/max_height;
+  // plot
+  const uint8_t max_height = (endY - startY - 2);
+  const uint8_t scale = 256 / max_height;
 
   int16_t y_hold_m_1 = 0;
-  for(uint16_t x=0; x<128; x++)
-  {
-    const int16_t y = spectrum[x*2]/scale;
-    ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
-    if(settings.global.spectrum_hold) {
-      const int16_t y_hold = 2+hold[x*2]/scale;
+  for (uint16_t x = 0; x < 128; x++) {
+    const int16_t y = spectrum[x * 2] / scale;
+    ssd1306_draw_line(&disp, x, endY - y, x, endY, 1);
+    if (settings.global.spectrum_hold) {
+      const int16_t y_hold = 2 + hold[x * 2] / scale;
       const uint16_t y_min = std::min(y_hold, y_hold_m_1);
       const uint16_t y_max = std::max(y_hold, y_hold_m_1);
       y_hold_m_1 = y_hold;
-      ssd1306_draw_line(&disp, x, endY-y_max, x, endY-y_min, 1);
+      ssd1306_draw_line(&disp, x, endY - y_max, x, endY - y_min, 1);
     }
   }
 
-  for (int16_t y = 0; y < max_height; ++y)
-  {
-    if (y == ((uint16_t)4*dB10/scale))
-    {
-      for (uint8_t x = 0; x < 128; x += 4)
-      {
+  for (int16_t y = 0; y < max_height; ++y) {
+    if (y == ((uint16_t)4 * dB10 / scale)) {
+      for (uint8_t x = 0; x < 128; x += 4) {
         ssd1306_draw_line(&disp, x, endY - y, x + 1, endY - y, 2);
       }
     }
   }
 }
 
-static inline int _cmp(const void* a, const void* b) {
+static inline int _cmp(const void* a, const void* b)
+{
   if (*(uint8_t*)a > *(uint8_t*)b) {
     return -1;
   }
@@ -1014,9 +985,8 @@ void ui::draw_waterfall(uint16_t starty)
     }
   }
   qsort(tmp_spectrum, 256, sizeof(tmp_spectrum[0]), _cmp);
-  const uint8_t noise = ((uint16_t)tmp_spectrum[WATERFALL_WIDTH - 1] +
-                         tmp_spectrum[WATERFALL_WIDTH]) /
-                        4;
+  const uint8_t noise =
+      ((uint16_t)tmp_spectrum[WATERFALL_WIDTH - 1] + tmp_spectrum[WATERFALL_WIDTH]) / 4;
 
   for (uint16_t x = 0; x < WATERFALL_WIDTH; x++) {
     int16_t y = 64 * (spectrum[2 * x] - noise) / (spec_max - noise);
@@ -1027,164 +997,169 @@ void ui::draw_waterfall(uint16_t starty)
     tmp_line[x] = 0;
   }
 
-  for(uint16_t x=0; x<WATERFALL_WIDTH; x++)
-  {
-      // Simple Floyd-Steinberg dithering
-      if(curr_line[x] > 32)
-      {
-        ssd1306_draw_pixel(&disp, x, starty, 1);
-        err = curr_line[x] - 64;
-      } else {
-        ssd1306_draw_pixel(&disp, x, starty, 0);
-        err = curr_line[x] - 0;
-      }
+  for (uint16_t x = 0; x < WATERFALL_WIDTH; x++) {
+    // Simple Floyd-Steinberg dithering
+    if (curr_line[x] > 32) {
+      ssd1306_draw_pixel(&disp, x, starty, 1);
+      err = curr_line[x] - 64;
+    } else {
+      ssd1306_draw_pixel(&disp, x, starty, 0);
+      err = curr_line[x] - 0;
+    }
 
-      if(x < (WATERFALL_WIDTH - 1))
-      {
-        curr_line[x + 1] += 7 * err / 16;
-        tmp_line[x + 1] += err / 16;
-      }
-      tmp_line[x] += 5 * err / 16;
-      if(x > 0)
-      {
-        tmp_line[x - 1] += 3 * err / 16;
-      }
+    if (x < (WATERFALL_WIDTH - 1)) {
+      curr_line[x + 1] += 7 * err / 16;
+      tmp_line[x + 1] += err / 16;
+    }
+    tmp_line[x] += 5 * err / 16;
+    if (x > 0) {
+      tmp_line[x - 1] += 3 * err / 16;
+    }
   }
-
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Generic Menu Options
 ////////////////////////////////////////////////////////////////////////////////
 
-void ui::print_enum_option(const char options[], uint8_t option){
-  const uint8_t MAX_OPTS=32;
-  char *splits[MAX_OPTS];
+void ui::print_enum_option(const char options[], uint8_t option)
+{
+  const uint8_t MAX_OPTS = 32;
+  char* splits[MAX_OPTS];
   int num_splits;
-  char *new_options;
+  char* new_options;
 
-  new_options = (char*)malloc(strlen(options)+1);
-  strcpy (new_options, options);
+  new_options = (char*)malloc(strlen(options) + 1);
+  strcpy(new_options, options);
 
   splits[0] = strtok(new_options, "#");
-  for ( num_splits = 1; num_splits < MAX_OPTS; num_splits++) {
-          splits[num_splits] = strtok(NULL, "#");
-          if (!splits[num_splits]) break;
+  for (num_splits = 1; num_splits < MAX_OPTS; num_splits++) {
+    splits[num_splits] = strtok(NULL, "#");
+    if (!splits[num_splits])
+      break;
   }
 
-  if ( (num_splits==2) && (strlen(splits[0])+strlen(splits[1]))*12 < 128) {
-    display_print_str(splits[0],2, (option==0) ? style_reverse : 0);
+  if ((num_splits == 2) && (strlen(splits[0]) + strlen(splits[1])) * 12 < 128) {
+    display_print_str(splits[0], 2, (option == 0) ? style_reverse : 0);
     display_print_str(" ");
-    display_print_str(splits[1],2, style_right|((option==1) ? style_reverse : 0));
+    display_print_str(splits[1], 2, style_right | ((option == 1) ? style_reverse : 0));
   } else {
     // default to 1st option if invalid
-    if (option > num_splits) option = 0;
+    if (option > num_splits)
+      option = 0;
     display_print_str(splits[option], 2, style_centered);
   }
 }
 
-bool ui::bit_entry(const char title[], const char options[], bool &value, bool &ok)
+bool ui::bit_entry(const char title[], const char options[], bool& value, bool& ok)
 {
-    bool changed = false;
-    uint8_t input = (uint8_t)value;
-    bool done = enumerate_entry(title, options, input, ok, changed);
-    value = input;
-    return done;
+  bool changed = false;
+  uint8_t input = (uint8_t)value;
+  bool done = enumerate_entry(title, options, input, ok, changed);
+  value = input;
+  return done;
 }
 
-//choose from an enumerate list of settings
-bool ui::menu_entry(const char title[], const char options[], uint32_t *value, bool &ok)
+// choose from an enumerate list of settings
+bool ui::menu_entry(const char title[], const char options[], uint32_t* value, bool& ok)
 {
-  enum e_state{idle, active};
+  enum e_state
+  {
+    idle,
+    active
+  };
   static e_state state = idle;
   static int32_t select = 0;
   bool draw_display = false;
 
-  if(state == idle)
-  {
+  if (state == idle) {
     draw_display = true;
     select = *value;
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
     uint32_t max = 0;
-    for (size_t i=0; i<strlen(options); i++) {
-      if (options[i] == '#') max++;
+    for (size_t i = 0; i < strlen(options); i++) {
+      if (options[i] == '#')
+        max++;
     }
     // workaround for accidental last # omissions
-    if (options[strlen(options)-1] != '#') max++;
-    if (max > 0) max--;
+    if (options[strlen(options) - 1] != '#')
+      max++;
+    if (max > 0)
+      max--;
 
-    draw_display = main_encoder.control(select, 0, max)!=0;
+    draw_display = main_encoder.control(select, 0, max) != 0;
 
-    //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    // select menu item
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
       *value = select;
       ok = true;
       state = idle;
       return true;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
+    // cancel
+    if (back_button.is_pressed()) {
       ok = false;
       state = idle;
       return true;
     }
   }
 
-  if(draw_display)
-  {
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(18,3);
-      display_linen(4);
-      print_enum_option(options, select);
-      display_show();
+  if (draw_display) {
+    display_clear();
+    display_print_str(title, 2, style_centered);
+    display_draw_separator(18, 3);
+    display_linen(4);
+    print_enum_option(options, select);
+    display_show();
   }
 
   return false;
 }
 
-//choose from an enumerate list of settings
-bool ui::enumerate_entry(const char title[], const char options[], uint8_t &value, bool &ok, bool &changed)
+// choose from an enumerate list of settings
+bool ui::enumerate_entry(const char title[], const char options[], uint8_t& value, bool& ok,
+                         bool& changed)
 {
-  enum e_state{idle, active};
+  enum e_state
+  {
+    idle,
+    active
+  };
   static e_state state = idle;
   static uint32_t original_value = 0;
   bool draw_display = false;
 
-  if(state == idle)
-  {
+  if (state == idle) {
     draw_display = true;
     original_value = value;
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
     uint32_t max = 0;
-    for (size_t i=0; i<strlen(options); i++) {
-      if (options[i] == '#') max++;
+    for (size_t i = 0; i < strlen(options); i++) {
+      if (options[i] == '#')
+        max++;
     }
     // workaround for accidental last # oissions
-    if (options[strlen(options)-1] != '#') max++;
-    if (max > 0) max--;
+    if (options[strlen(options) - 1] != '#')
+      max++;
+    if (max > 0)
+      max--;
 
     int32_t encoder_position = value;
-    draw_display = changed = main_encoder.control(encoder_position, 0, max)!=0;
+    draw_display = changed = main_encoder.control(encoder_position, 0, max) != 0;
     value = encoder_position;
 
-    //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    // select menu item
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
       ok = true;
       state = idle;
       return true;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
+    // cancel
+    if (back_button.is_pressed()) {
       value = original_value;
       changed = true;
       ok = false;
@@ -1193,76 +1168,81 @@ bool ui::enumerate_entry(const char title[], const char options[], uint8_t &valu
     }
   }
 
-  if(draw_display)
-  {
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
-      display_linen(6);
-      print_enum_option(options, value);
-      display_show();
+  if (draw_display) {
+    display_clear();
+    display_print_str(title, 2, style_centered);
+    display_draw_separator(40, 1);
+    display_linen(6);
+    print_enum_option(options, value);
+    display_show();
   }
 
   return false;
 }
 
-//select a number in a range
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint16_t &value, bool &ok, bool &changed)
+// select a number in a range
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                      int16_t multiple, uint16_t& value, bool& ok, bool& changed)
 {
   int32_t extended_value = value;
   bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
   value = (uint16_t)extended_value;
   return return_value;
 }
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int16_t &value, bool &ok, bool &changed)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                      int16_t multiple, int16_t& value, bool& ok, bool& changed)
 {
   int32_t extended_value = value;
   bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
   value = (int16_t)extended_value;
   return return_value;
 }
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                      int16_t multiple, uint8_t& value, bool& ok, bool& changed)
 {
   int32_t extended_value = value;
   bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
   value = (uint8_t)extended_value;
   return return_value;
 }
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                      int16_t multiple, int8_t& value, bool& ok, bool& changed)
 {
   int32_t extended_value = value;
   bool return_value = number_entry(title, format, min, max, multiple, extended_value, ok, changed);
   value = (int8_t)extended_value;
   return return_value;
 }
-bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed)
+bool ui::number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                      int16_t multiple, int32_t& value, bool& ok, bool& changed)
 {
-  enum e_state{idle, active};
+  enum e_state
+  {
+    idle,
+    active
+  };
   static e_state state = idle;
   static int32_t old_value = 0;
   bool draw_display = false;
 
-  if(state == idle)
-  {
+  if (state == idle) {
     draw_display = true;
-    old_value=value;
+    old_value = value;
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
     int32_t encoder = value;
-    draw_display = changed = main_encoder.control(encoder, min, max)!=0;
+    draw_display = changed = main_encoder.control(encoder, min, max) != 0;
     value = encoder;
 
-    //select menu item
-    if(menu_button.is_pressed() || encoder_button.is_pressed()){
+    // select menu item
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
       ok = true;
       state = idle;
       return true;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
+    // cancel
+    if (back_button.is_pressed()) {
       value = old_value;
       changed = true;
       ok = false;
@@ -1271,48 +1251,43 @@ bool ui::number_entry(const char title[], const char format[], int16_t min, int1
     }
   }
 
-  if(draw_display)
-  {
-      display_clear();
-      display_print_str(title, 2, style_centered);
-      display_draw_separator(40,1);
-      display_linen(6);
-      display_print_num(format, value*multiple, 2, style_centered);
-      display_show();
+  if (draw_display) {
+    display_clear();
+    display_print_str(title, 2, style_centered);
+    display_draw_separator(40, 1);
+    display_linen(6);
+    display_print_num(format, value * multiple, 2, style_centered);
+    display_show();
   }
 
   return false;
 }
 
-
-//remember settings across power cycles
+// remember settings across power cycles
 void ui::autosave()
 {
   autosave_store_settings(settings, transceiver, settings_to_apply);
 }
 
-//remember settings across power cycles
+// remember settings across power cycles
 void ui::autorestore()
 {
   autosave_restore_settings(settings);
   apply_settings(false);
 
-  //reset display timeout
+  // reset display timeout
   display_timeout_max = timeout_lookup[settings.global.display_timeout];
   display_time = time_us_32();
 
-  //set restored display settings
+  // set restored display settings
   u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
   update_display_type();
   u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
-  waterfall_inst.configure_display(
-      settings.global.tft_rotation,
-      settings.global.tft_colour,
-      settings.global.tft_invert,
-      settings.global.tft_driver,
-      settings.global.baud_rate);
+  aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                settings.global.tft_invert, settings.global.tft_driver,
+                                settings.global.baud_rate);
 
-  //reset the zoom setting
+  // reset the zoom setting
   zoom = settings.global.spectrum_zoom;
 }
 
@@ -1321,162 +1296,161 @@ void ui::apply_settings(bool suspend, bool settings_changed)
   apply_settings_to_xcvr(transceiver, settings_to_apply, settings, suspend, settings_changed);
 }
 
-//save current settings to memory
-bool ui::memory_store(bool &ok)
+// save current settings to memory
+bool ui::memory_store(bool& ok)
 {
 
-  //encoder loops through memories
+  // encoder loops through memories
   const int32_t min = 0;
-  const int32_t max = num_chans-1;
+  const int32_t max = num_chans - 1;
   static int32_t select = 0;
   static char name[17];
 
-  enum e_frequency_state{select_channel, enter_name, delete_channel, save_channel};
+  enum e_frequency_state
+  {
+    select_channel,
+    enter_name,
+    delete_channel,
+    save_channel
+  };
   static e_frequency_state state = select_channel;
 
-  if(state == select_channel)
-  {
-      main_encoder.control(select, min, max);
-      s_memory_channel memory_channel = get_channel(select);
+  if (state == select_channel) {
+    main_encoder.control(select, min, max);
+    s_memory_channel memory_channel = get_channel(select);
 
-      display_clear();
-      display_print_str("Store");
-      display_print_num(" %03i ", select, 1, style_centered);
-      display_print_str("\n", 1);
-      strip_trailing_space(memory_channel.label, name);
-      if (12*strlen(name) > 128) {
-        display_add_xy(0,4);
-        display_print_str(name,1,style_nowrap|style_centered);
+    display_clear();
+    display_print_str("Store");
+    display_print_num(" %03i ", select, 1, style_centered);
+    display_print_str("\n", 1);
+    strip_trailing_space(memory_channel.label, name);
+    if (12 * strlen(name) > 128) {
+      display_add_xy(0, 4);
+      display_print_str(name, 1, style_nowrap | style_centered);
+    } else {
+      display_print_str(name, 2, style_nowrap | style_centered);
+    }
+    display_show();
+
+    if (encoder_button.is_pressed() || menu_button.is_pressed()) {
+      memcpy(name, memory_channel.label, 16);
+      name[16] = 0;
+      state = enter_name;
+    }
+
+    // cancel
+    if (back_button.is_pressed()) {
+      ok = false;
+      state = select_channel;
+      return true;
+    }
+
+  } else if (state == enter_name) {
+    // modify the selected channel name
+    bool del = false;
+    if (string_entry(name, ok, del)) {
+      if (ok) {
+        if (del)
+          state = delete_channel;
+        else
+          state = save_channel;
       } else {
-        display_print_str(name,2,style_nowrap|style_centered);
-      }
-      display_show();
-
-      if(encoder_button.is_pressed()||menu_button.is_pressed()){
-        memcpy(name, memory_channel.label, 16);
-        name[16] = 0;
-        state = enter_name;
-      }
-
-      //cancel
-      if(back_button.is_pressed()){
-        ok=false;
         state = select_channel;
         return true;
       }
+    }
+  } else if (state == delete_channel) {
+    name[12] = 0xffu;
+    name[13] = 0xffu;
+    name[14] = 0xffu;
+    name[15] = 0xffu;
+    state = save_channel;
+  } else if (state == save_channel) {
+    s_memory_channel memory_channel;
+    memory_channel.channel = settings.channel;
+    memcpy(memory_channel.label, name, 16);
+    memory_store_channel(memory_channel, select, settings, transceiver, settings_to_apply);
+    ssd1306_invert(&disp, 0);
 
-  }
-  else if(state == enter_name)
-  {
-      //modify the selected channel name
-      bool del = false;
-      if(string_entry(name, ok, del))
-      {
-        if(ok)
-        {
-          if(del) state = delete_channel;
-          else state = save_channel;
-        }
-        else
-        {
-          state = select_channel;
-          return true;
-        }
-      }
-  }
-  else if(state == delete_channel)
-  {
-      name[12] = 0xffu; name[13] = 0xffu;
-      name[14] = 0xffu; name[15] = 0xffu;
-      state = save_channel;
-  }
-  else if(state == save_channel)
-  {
-      s_memory_channel memory_channel;
-      memory_channel.channel = settings.channel;
-      memcpy(memory_channel.label, name, 16);
-      memory_store_channel(memory_channel, select, settings, transceiver, settings_to_apply);
-      ssd1306_invert( &disp, 0);
-
-      ok = true;
-      state = select_channel;
-      return true;
-
+    ok = true;
+    state = select_channel;
+    return true;
   }
   return false;
 }
 
-//load a channel from memory
-bool ui::memory_recall(bool &ok)
+// load a channel from memory
+bool ui::memory_recall(bool& ok)
 {
-  //encoder loops through memories
+  // encoder loops through memories
   const int32_t min = 0;
-  const int32_t max = num_chans-1;
+  const int32_t max = num_chans - 1;
   static int32_t select = 0;
   static s_channel_settings stored_settings;
   bool load_and_update_display = false;
-  enum e_frequency_state{idle, active};
+  enum e_frequency_state
+  {
+    idle,
+    active
+  };
   static e_frequency_state state = idle;
   s_memory_channel memory_channel;
 
-  if(state == idle)
-  {
-    //remember where we were incase we need to cancel
+  if (state == idle) {
+    // remember where we were incase we need to cancel
     stored_settings = settings.channel;
 
-    //skip blank channels
+    // skip blank channels
     load_and_update_display = true;
-    for(uint16_t i = 0; i<num_chans; i++)
-    {
+    for (uint16_t i = 0; i < num_chans; i++) {
       memory_channel = get_channel(select);
-      if(memory_channel.channel.frequency != 0) break;
+      if (memory_channel.channel.frequency != 0)
+        break;
       select++;
-      if(select > max) select = min;
+      if (select > max)
+        select = min;
     }
 
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
 
     int32_t encoder_position = main_encoder.control(select, min, max);
     load_and_update_display = encoder_position != 0;
 
-    //skip blank channels
-    for(uint16_t i = 0; i<num_chans; i++)
-    {
+    // skip blank channels
+    for (uint16_t i = 0; i < num_chans; i++) {
       memory_channel = get_channel(select);
-      if(memory_channel.channel.frequency != 0) break;
-      select += encoder_position>0?1:-1;
-      if(select < min) select = max;
-      if(select > max) select = min;
+      if (memory_channel.channel.frequency != 0)
+        break;
+      select += encoder_position > 0 ? 1 : -1;
+      if (select < min)
+        select = max;
+      if (select > max)
+        select = min;
     }
 
-    //ok
-    if(encoder_button.is_pressed()||menu_button.is_pressed()){
-      ok=true;
+    // ok
+    if (encoder_button.is_pressed() || menu_button.is_pressed()) {
+      ok = true;
       state = idle;
       return true;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
-      //put things back how they were to start with
+    // cancel
+    if (back_button.is_pressed()) {
+      // put things back how they were to start with
       settings.channel = stored_settings;
       apply_settings(false);
-      ok=false;
+      ok = false;
       state = idle;
       return true;
     }
   }
 
-  if(load_and_update_display)
-  {
+  if (load_and_update_display) {
     // don't change mode if set mode "compatible"
-    if ((stored_settings.mode == MODE_AM) ||
-        (stored_settings.mode == MODE_AMS)) {
-      if ((memory_channel.channel.mode == MODE_AM) ||
-          (memory_channel.channel.mode == MODE_AMS)) {
+    if ((stored_settings.mode == MODE_AM) || (stored_settings.mode == MODE_AMS)) {
+      if ((memory_channel.channel.mode == MODE_AM) || (memory_channel.channel.mode == MODE_AMS)) {
         memory_channel.channel.mode = stored_settings.mode;
       }
     }
@@ -1485,48 +1459,47 @@ bool ui::memory_recall(bool &ok)
     settings.channel = memory_channel.channel;
     apply_settings(false);
 
-    //print selected menu item
+    // print selected menu item
     display_clear();
     display_print_str("Recall");
     display_print_num(" %03i ", select, 1, style_centered);
     const char* mode_ptr = mode_to_str(settings.channel.mode);
-    display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
-    display_print_str(mode_ptr,1);
+    display_set_xy(128 - 6 * strlen(mode_ptr) - 8, display_get_y());
+    display_print_str(mode_ptr, 1);
     display_print_str("\n", 1);
 
     char name[17];
     strip_trailing_space(memory_channel.label, name);
-    if (12*strlen(name) > 128) {
-      //use small font
-      display_add_xy(0,4);
-      display_print_str(name,1,style_nowrap|style_centered);
+    if (12 * strlen(name) > 128) {
+      // use small font
+      display_add_xy(0, 4);
+      display_print_str(name, 1, style_nowrap | style_centered);
     } else {
-      //use large font
-      display_print_str(name,2,style_nowrap|style_centered);
+      // use large font
+      display_print_str(name, 2, style_nowrap | style_centered);
     }
 
-    //draw frequency
-    display_set_xy(0,27);
+    // draw frequency
+    display_set_xy(0, 27);
     display_print_freq('.', settings.channel.frequency, 2);
-    display_print_str("\n",2);
+    display_print_str("\n", 2);
     display_print_str("from: ", 1);
     display_print_freq(',', settings.channel.min_frequency, 1);
-    display_print_str(" Hz\n",1);
+    display_print_str(" Hz\n", 1);
     display_print_str("  To: ", 1);
     display_print_freq(',', settings.channel.max_frequency, 1);
-    display_print_str(" Hz\n",1);
+    display_print_str(" Hz\n", 1);
     display_show();
   }
 
-  //draw power meter
+  // draw power meter
   transceiver.access(false);
   int8_t power_dBm = status.signal_strength_dBm;
   transceiver.release();
   static float last_power_dBm = FLT_MAX;
-  if(abs(power_dBm - last_power_dBm) > 1.0f)
-  {
+  if (abs(power_dBm - last_power_dBm) > 1.0f) {
     // draw vertical signal strength
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
+    draw_vertical_dBm(124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
     display_show();
   }
 
@@ -1534,10 +1507,10 @@ bool ui::memory_recall(bool &ok)
 }
 
 // Scan across the stored memories
-bool ui::memory_scan(bool &ok)
+bool ui::memory_scan(bool& ok)
 {
   const int32_t min = 0;
-  const int32_t max = num_chans-1;
+  const int32_t max = num_chans - 1;
   static int32_t select = 0;
   static s_channel_settings stored_settings;
   bool load = false;
@@ -1545,31 +1518,34 @@ bool ui::memory_scan(bool &ok)
   bool listen = false;
   bool wait = false;
   uint32_t time_since_last_listen = 0;
-  enum e_frequency_state{idle, active, menu_active};
+  enum e_frequency_state
+  {
+    idle,
+    active,
+    menu_active
+  };
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
   float power_dBm = 0;
 
-  if(state == idle)
-  {
-    //remember where we were incase we need to cancel
+  if (state == idle) {
+    // remember where we were incase we need to cancel
     stored_settings = settings.channel;
 
-    //skip blank channels
-    for(uint16_t i = 0; i<num_chans; i++)
-    {
-      if(get_channel(select).channel.frequency != 0) break;
+    // skip blank channels
+    for (uint16_t i = 0; i < num_chans; i++) {
+      if (get_channel(select).channel.frequency != 0)
+        break;
       select++;
-      if(select > max) select = min;
+      if (select > max)
+        select = min;
     }
 
     load = true;
     update_display = true;
     scan_speed = 0;
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
 
     static float last_power_dBm = FLT_MAX;
     transceiver.access(false);
@@ -1578,89 +1554,93 @@ bool ui::memory_scan(bool &ok)
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
-    //hang for 3 seconds
+    // hang for 3 seconds
     static uint32_t last_listen_time = 0u;
-    if(listen) last_listen_time = to_ms_since_boot(get_absolute_time());
+    if (listen)
+      last_listen_time = to_ms_since_boot(get_absolute_time());
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
     int32_t pos_change = main_encoder.get_change();
-    if(listen || wait)
-    {
-      //if scanning is stopped, nudge (and possibly change direction)
-      if(pos_change > 0 ){
-        if(scan_speed < 0) scan_speed *= -1;
-        last_listen_time = 0u; //cancel hang
+    if (listen || wait) {
+      // if scanning is stopped, nudge (and possibly change direction)
+      if (pos_change > 0) {
+        if (scan_speed < 0)
+          scan_speed *= -1;
+        last_listen_time = 0u; // cancel hang
         wait = false;
       }
-      if(pos_change < 0 ){
-        if(scan_speed > 0) scan_speed *= -1;
-        last_listen_time = 0u; //cancel hang
+      if (pos_change < 0) {
+        if (scan_speed > 0)
+          scan_speed *= -1;
+        last_listen_time = 0u; // cancel hang
         wait = false;
       }
-    }
-    else
-    {
-      if ( pos_change > 0 ){
-        if(++scan_speed>4) scan_speed=4;
+    } else {
+      if (pos_change > 0) {
+        if (++scan_speed > 4)
+          scan_speed = 4;
       }
-      if ( pos_change < 0 ){
-        if(--scan_speed<-4) scan_speed=-4;
+      if (pos_change < 0) {
+        if (--scan_speed < -4)
+          scan_speed = -4;
       }
     }
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+    if ((scan_speed && !(listen || wait) &&
+         (now_time - last_time) > (uint32_t)1000 / abs(scan_speed)) ||
+        pos_change) {
       int8_t direction = 1;
-      if(scan_speed == 0) direction = pos_change>0?1:-1;
-      else direction = scan_speed>0?1:-1;
+      if (scan_speed == 0)
+        direction = pos_change > 0 ? 1 : -1;
+      else
+        direction = scan_speed > 0 ? 1 : -1;
 
-      //skip blank channels
-      for(uint16_t i = 0; i<num_chans; i++)
-      {
+      // skip blank channels
+      for (uint16_t i = 0; i < num_chans; i++) {
         select += direction;
-        if(select < min) select = max;
-        if(select > max) select = min;
-        if(get_channel(select).channel.frequency != 0) break;
+        if (select < min)
+          select = max;
+        if (select > max)
+          select = min;
+        if (get_channel(select).channel.frequency != 0)
+          break;
       }
       update_display = true;
       load = true;
     }
 
-    //ok - launch menu
-    if(menu_button.is_pressed()){
+    // ok - launch menu
+    if (menu_button.is_pressed()) {
       state = menu_active;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
-      //put things back how they were to start with
+    // cancel
+    if (back_button.is_pressed()) {
+      // put things back how they were to start with
       settings.channel = stored_settings;
       apply_settings(false);
-      ok=false;
+      ok = false;
       state = idle;
       return true;
     }
-  }
-  else if(state == menu_active)
-  {
+  } else if (state == menu_active) {
     bool _ok = false;
-    if(main_menu(_ok))
-    {
+    if (main_menu(_ok)) {
       update_display = true;
       load = true;
       scan_speed = 0;
       state = active;
-      if(_ok){
+      if (_ok) {
         apply_settings(false);
         autosave();
       }
     }
   }
 
-  if(load)
-  {
+  if (load) {
     s_memory_channel memory_channel = get_channel(select);
 
     //(temporarily) apply lodaed settings to RX
@@ -1668,84 +1648,84 @@ bool ui::memory_scan(bool &ok)
     apply_settings(false);
   }
 
-  if(update_display)
-  {
+  if (update_display) {
     s_memory_channel memory_channel = get_channel(select);
 
-    //draw screen
+    // draw screen
     display_clear();
     display_print_str("Scanner");
     display_print_num(" %03i ", select, 1, style_centered);
 
     const char* mode_ptr = mode_to_str(settings.channel.mode);
-    display_set_xy(128-6*strlen(mode_ptr)-8, display_get_y());
-    display_print_str(mode_ptr,1);
+    display_set_xy(128 - 6 * strlen(mode_ptr) - 8, display_get_y());
+    display_print_str(mode_ptr, 1);
 
     display_print_str("\n", 1);
     char name[17];
     strip_trailing_space(memory_channel.label, name);
-    if (12*strlen(name) > 128) {
-      display_add_xy(0,4);
-      display_print_str(name,1,style_nowrap);
+    if (12 * strlen(name) > 128) {
+      display_add_xy(0, 4);
+      display_print_str(name, 1, style_nowrap);
     } else {
-      display_print_str(name,2,style_nowrap);
+      display_print_str(name, 2, style_nowrap);
     }
 
-    //draw frequency
-    display_set_xy(0,27);
+    // draw frequency
+    display_set_xy(0, 27);
     display_print_freq('.', settings.channel.frequency, 2);
-    display_print_str("\n",2);
+    display_print_str("\n", 2);
 
     if (listen) {
-      display_set_xy(0,48);
-      display_print_str("Listen",2);
-      display_set_xy(91-6,48);
+      display_set_xy(0, 48);
+      display_print_str("Listen", 2);
+      display_set_xy(91 - 6, 48);
       display_print_char(CHAR_SPEAKER, 2);
     } else if (wait) {
-      display_set_xy(0,48);
-      display_print_str("Listen",2);
-      display_set_xy(91-6,48);
+      display_set_xy(0, 48);
+      display_print_str("Listen", 2);
+      display_set_xy(91 - 6, 48);
       display_print_char(CHAR_SPEAKER, 2);
-      uint32_t width = time_since_last_listen*display_get_x()/3000u;
-      int32_t  x=display_get_x()-width;
+      uint32_t width = time_since_last_listen * display_get_x() / 3000u;
+      int32_t x = display_get_x() - width;
       ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
     } else {
-      display_set_xy(0,48);
-      display_print_str("Speed",2);
+      display_set_xy(0, 48);
+      display_print_str("Speed", 2);
       display_print_speed(91, display_get_y(), 2, scan_speed);
     }
-    draw_vertical_dBm( 124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
+    draw_vertical_dBm(124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
     display_show();
   }
 
   return false;
-
 }
 
 // print pause, play, reverse play with extra > or < based on speed
 // x is the midpoint of the graphic/central character
 void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
 {
-  display_set_xy(x-3*scale,y);
-  if (speed >= 1 ) {
+  display_set_xy(x - 3 * scale, y);
+  if (speed >= 1) {
     display_print_char(CHAR_PLAY, scale);
-    if (speed >= 2 ) {
-      for ( int i=1; i<speed; i++) {
-        display_add_xy(-3*scale,0);
+    if (speed >= 2) {
+      for (int i = 1; i < speed; i++) {
+        display_add_xy(-3 * scale, 0);
         display_print_char('>', scale, style_xor);
       }
     }
   }
-  if (speed == 0 ) {
+  if (speed == 0) {
     display_print_char(CHAR_PAUSE, scale);
   }
-  if (speed <= -1 ) {
-    if (scale==1) display_add_xy(1,0);  // workaround font differences
+  if (speed <= -1) {
+    if (scale == 1)
+      display_add_xy(1, 0); // workaround font differences
     display_print_char(CHAR_REVPLAY, scale);
-    if (scale==1) display_add_xy(-1,0);  // workaround font differences
-    if (speed <= -2 ) {
-      for ( int i = -1; i>speed; i--) {
-        display_add_xy(-9*scale,0);
+    if (scale == 1)
+      display_add_xy(-1, 0); // workaround font differences
+    if (speed <= -2) {
+      for (int i = -1; i > speed; i--) {
+        display_add_xy(-9 * scale, 0);
         display_print_char('<', scale, style_xor);
       }
     }
@@ -1753,25 +1733,27 @@ void ui::display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed)
 }
 
 // Scan across the frequency band
-bool ui::frequency_scan(bool &ok)
+bool ui::frequency_scan(bool& ok)
 {
   bool update_display = false;
   bool listen = false;
-  enum e_frequency_state{idle, active, menu_active};
+  enum e_frequency_state
+  {
+    idle,
+    active,
+    menu_active
+  };
   static e_frequency_state state = idle;
   static int32_t scan_speed = 0;
   float power_dBm = 0;
   bool wait = false;
   uint32_t time_since_last_listen = 0;
 
-  if(state == idle)
-  {
+  if (state == idle) {
     update_display = true;
     scan_speed = 0;
     state = active;
-  }
-  else if(state == active)
-  {
+  } else if (state == active) {
 
     static float last_power_dBm = FLT_MAX;
     transceiver.access(false);
@@ -1780,133 +1762,135 @@ bool ui::frequency_scan(bool &ok)
     update_display = abs(power_dBm - last_power_dBm) > 1.0f;
     listen = (power_dBm >= S_to_dBm(settings.global.squelch_threshold));
 
-    //hang for 3 seconds
+    // hang for 3 seconds
     static uint32_t last_listen_time = 0u;
-    if(listen) last_listen_time = to_ms_since_boot(get_absolute_time());
+    if (listen)
+      last_listen_time = to_ms_since_boot(get_absolute_time());
     time_since_last_listen = to_ms_since_boot(get_absolute_time()) - last_listen_time;
     wait = time_since_last_listen < 3000u;
 
     int32_t pos_change = main_encoder.get_change();
-    if(listen)
-    {
-      //if scanning is stopped, nudge (and possibly change direction)
-      if(pos_change > 0 ){
-        if(scan_speed < 0) scan_speed *= -1;
-        last_listen_time = 0u; //cancel hang
+    if (listen) {
+      // if scanning is stopped, nudge (and possibly change direction)
+      if (pos_change > 0) {
+        if (scan_speed < 0)
+          scan_speed *= -1;
+        last_listen_time = 0u; // cancel hang
         wait = false;
       }
-      if(pos_change < 0 ){
-        if(scan_speed > 0) scan_speed *= -1;
-        last_listen_time = 0u; //cancel hang
+      if (pos_change < 0) {
+        if (scan_speed > 0)
+          scan_speed *= -1;
+        last_listen_time = 0u; // cancel hang
         wait = false;
       }
-    }
-    else
-    {
-      if ( pos_change > 0 ){
-        if(++scan_speed>4) scan_speed=4;
+    } else {
+      if (pos_change > 0) {
+        if (++scan_speed > 4)
+          scan_speed = 4;
       }
-      if ( pos_change < 0 ){
-        if(--scan_speed<-4) scan_speed=-4;
+      if (pos_change < 0) {
+        if (--scan_speed < -4)
+          scan_speed = -4;
       }
     }
 
     static uint32_t last_time = 0u;
     uint32_t now_time = to_ms_since_boot(get_absolute_time());
-    if ((scan_speed && !(listen || wait) && (now_time - last_time) > (uint32_t)1000/abs(scan_speed))||pos_change) {
+    if ((scan_speed && !(listen || wait) &&
+         (now_time - last_time) > (uint32_t)1000 / abs(scan_speed)) ||
+        pos_change) {
       int8_t direction = 1;
-      if(scan_speed == 0) direction = pos_change>0?1:-1;
-      else direction = scan_speed>0?1:-1;
+      if (scan_speed == 0)
+        direction = pos_change > 0 ? 1 : -1;
+      else
+        direction = scan_speed > 0 ? 1 : -1;
 
-      //update frequency
+      // update frequency
       settings.channel.frequency += direction * step_sizes[settings.channel.step];
 
       if (settings.channel.frequency > settings.channel.max_frequency)
-          settings.channel.frequency = settings.channel.min_frequency;
+        settings.channel.frequency = settings.channel.min_frequency;
       if (settings.channel.frequency < settings.channel.min_frequency)
-          settings.channel.frequency = settings.channel.max_frequency;
+        settings.channel.frequency = settings.channel.max_frequency;
 
       update_display = true;
       apply_settings(false);
     }
 
-    //ok - launch menu
-    if(menu_button.is_pressed()){
+    // ok - launch menu
+    if (menu_button.is_pressed()) {
       state = menu_active;
     }
 
-    //cancel
-    if(back_button.is_pressed()){
-      ok=false;
+    // cancel
+    if (back_button.is_pressed()) {
+      ok = false;
       state = idle;
       return true;
     }
-  }
-  else if(state == menu_active)
-  {
+  } else if (state == menu_active) {
     bool _ok = false;
-    if(main_menu(_ok))
-    {
+    if (main_menu(_ok)) {
       update_display = true;
       scan_speed = 0;
       state = active;
-      if(_ok){
+      if (_ok) {
         apply_settings(false);
         autosave();
       }
     }
   }
 
-  if(update_display)
-  {
-      display_clear();
-      display_print_str("Scanner");
+  if (update_display) {
+    display_clear();
+    display_print_str("Scanner");
 
-      const char *p = steps[settings.channel.step];
-      uint16_t x_center = (display_get_x()+120-24)/2;
-      display_set_xy(x_center - 6*strlen(p)/2, 0);
-      display_print_str(p ,1 );
+    const char* p = steps[settings.channel.step];
+    uint16_t x_center = (display_get_x() + 120 - 24) / 2;
+    display_set_xy(x_center - 6 * strlen(p) / 2, 0);
+    display_print_str(p, 1);
 
-      // print mode
-      const char* mode_ptr = mode_to_str(settings.channel.mode);
-      display_set_xy(120-6*strlen(mode_ptr), display_get_y());
-      display_print_str(mode_ptr);
-      display_print_str("\n");
+    // print mode
+    const char* mode_ptr = mode_to_str(settings.channel.mode);
+    display_set_xy(120 - 6 * strlen(mode_ptr), display_get_y());
+    display_print_str(mode_ptr);
+    display_print_str("\n");
 
-      //frequency
-      display_print_freq('.', settings.channel.frequency,2);
-      display_print_str("\n",2);
+    // frequency
+    display_print_freq('.', settings.channel.frequency, 2);
+    display_print_str("\n", 2);
 
-      display_print_str("From:  ", 1);
-      display_print_freq(',', settings.channel.min_frequency, 1);
-      display_print_str(" Hz\n",1);
+    display_print_str("From:  ", 1);
+    display_print_freq(',', settings.channel.min_frequency, 1);
+    display_print_str(" Hz\n", 1);
 
-      display_print_str("  To:  ", 1);
-      display_print_freq(',', settings.channel.max_frequency, 1);
-      display_print_str(" Hz\n",1);
+    display_print_str("  To:  ", 1);
+    display_print_freq(',', settings.channel.max_frequency, 1);
+    display_print_str(" Hz\n", 1);
 
-      //draw scanning speed
-      if (listen) {
-        display_set_xy(0,48);
-        display_print_str("Listen",2);
-        display_set_xy(91-6,48);
-        display_print_char(CHAR_SPEAKER, 2);
-      } else if (wait) {
-        display_set_xy(0,48);
-        display_print_str("Listen",2);
-        display_set_xy(91-6,48);
-        display_print_char(CHAR_SPEAKER, 2);
-        uint32_t width = time_since_last_listen*display_get_x()/3000u;
-        int32_t  x=display_get_x()-width;
-        ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
-      } else {
-        display_set_xy(0,48);
-        display_print_str("Speed",2);
-        display_print_speed(91, display_get_y(), 2, scan_speed);
-      }
+    // draw scanning speed
+    if (listen) {
+      display_set_xy(0, 48);
+      display_print_str("Listen", 2);
+      display_set_xy(91 - 6, 48);
+      display_print_char(CHAR_SPEAKER, 2);
+    } else if (wait) {
+      display_set_xy(0, 48);
+      display_print_str("Listen", 2);
+      display_set_xy(91 - 6, 48);
+      display_print_char(CHAR_SPEAKER, 2);
+      uint32_t width = time_since_last_listen * display_get_x() / 3000u;
+      int32_t x = display_get_x() - width;
+      ssd1306_fill_rectangle(&disp, x, display_get_y(), width, 16, 0);
+    } else {
+      display_set_xy(0, 48);
+      display_print_str("Speed", 2);
+      display_print_speed(91, display_get_y(), 2, scan_speed);
+    }
 
-      draw_vertical_dBm(124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
-      display_show();
+    draw_vertical_dBm(124, power_dBm, S_to_dBm(settings.global.squelch_threshold));
+    display_show();
   }
 
   return false;
@@ -1915,251 +1899,253 @@ bool ui::frequency_scan(bool &ok)
 ////////////////////////////////////////////////////////////////////////////////
 // String Entry (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-int ui::string_entry(char string[], bool &ok, bool &del){
+int ui::string_entry(char string[], bool& ok, bool& del)
+{
 
-  static int32_t position=0;
+  static int32_t position = 0;
   del = false;
 
-  enum e_state{idle, select_position, select_char};
+  enum e_state
+  {
+    idle,
+    select_position,
+    select_char
+  };
   static e_state state = idle;
   int32_t encoder_position = 0;
   bool draw_display = false;
-  const char letters[] = " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789";
+  const char letters[] =
+      " abcdefghijklmnopqrstuvwxyz 0129356789 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0129456789";
   static int32_t val;
 
-  if(state == idle)
-  {
+  if (state == idle) {
     draw_display = true;
     state = select_position;
-  }
-  else if(state == select_position)
-  {
-      //change between chars
-      encoder_position = main_encoder.control(position, 0, 19);
-      if(encoder_position) draw_display = true;
+  } else if (state == select_position) {
+    // change between chars
+    encoder_position = main_encoder.control(position, 0, 19);
+    if (encoder_position)
+      draw_display = true;
 
-      if(menu_button.is_pressed() || encoder_button.is_pressed())
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
+      if (position == 16) // yes
       {
-        if(position==16)//yes
-        {
-          ok=true;
-          state=idle;
-          return true;
-        }
-        else if(position==17)//clear
-        {
-           memset(string, ' ', strlen(string));
-           position = 0;
-        }
-        else if(position==18)//delete
-        {
-          del=true;
-          ok=true;
-          state=idle;
-          return true;
-        }
-        else if(position==19)//exit
-        {
-          ok=false;
-          state=idle;
-          return true;
-        }
-        else
-        {
-          val = strchr(letters, string[position])-letters;
-          state = select_char;
-        }
-      }
-
-      if(back_button.is_pressed())
-      {
-        ok=false;
-        state=idle;
+        ok = true;
+        state = idle;
         return true;
-      }
-  }
-  else if(state == select_char)
-  {
-      //change value of char
-      encoder_position = main_encoder.control(val, 0, 75);
-      if(encoder_position) draw_display = true;
-      string[position]=letters[val];
-      if(menu_button.is_pressed() || encoder_button.is_pressed())
+      } else if (position == 17) // clear
       {
-        state = select_position;
+        memset(string, ' ', strlen(string));
+        position = 0;
+      } else if (position == 18) // delete
+      {
+        del = true;
+        ok = true;
+        state = idle;
+        return true;
+      } else if (position == 19) // exit
+      {
+        ok = false;
+        state = idle;
+        return true;
+      } else {
+        val = strchr(letters, string[position]) - letters;
+        state = select_char;
       }
+    }
+
+    if (back_button.is_pressed()) {
+      ok = false;
+      state = idle;
+      return true;
+    }
+  } else if (state == select_char) {
+    // change value of char
+    encoder_position = main_encoder.control(val, 0, 75);
+    if (encoder_position)
+      draw_display = true;
+    string[position] = letters[val];
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
+      state = select_position;
+    }
   }
 
-  if(draw_display)
-  {
-      display_set_xy(0,9);
-      display_clear_str(2,false);
+  if (draw_display) {
+    display_set_xy(0, 9);
+    display_clear_str(2, false);
 
-      // compute starting point to scroll display
-      const uint8_t screen_width = 10;
-      const uint8_t buffer_width = 16;
-      uint8_t start = 0;
-      if (position < screen_width) start = 0;
-      else if (position < buffer_width) start = position-(screen_width-1);
-      else start = (encoder_position > 0) ? (buffer_width-screen_width) : 0;
+    // compute starting point to scroll display
+    const uint8_t screen_width = 10;
+    const uint8_t buffer_width = 16;
+    uint8_t start = 0;
+    if (position < screen_width)
+      start = 0;
+    else if (position < buffer_width)
+      start = position - (screen_width - 1);
+    else
+      start = (encoder_position > 0) ? (buffer_width - screen_width) : 0;
 
-      //write preset name to lcd
-      for(int i=start; i<16; i++) {
-        if (state==select_position && (i==position)) {
-          display_print_char(string[i], 2, style_nowrap|style_reverse);
-        } else {
-          display_print_char(string[i], 2, style_nowrap);
-        }
+    // write preset name to lcd
+    for (int i = start; i < 16; i++) {
+      if (state == select_position && (i == position)) {
+        display_print_char(string[i], 2, style_nowrap | style_reverse);
+      } else {
+        display_print_char(string[i], 2, style_nowrap);
       }
+    }
 
-      // print scroll bar
-      const uint8_t yp = 25;
-      const uint8_t len = screen_width*128/buffer_width;
-      ssd1306_draw_line(&disp, 0, yp+1, 127, yp+1, false);
-      ssd1306_draw_line(&disp, start*8, yp+1, len+start*8, yp+1, true);
-      ssd1306_draw_line(&disp, 0, yp, 0, yp+2, true);
-      ssd1306_draw_line(&disp, 127, yp, 127, yp+2, true);
+    // print scroll bar
+    const uint8_t yp = 25;
+    const uint8_t len = screen_width * 128 / buffer_width;
+    ssd1306_draw_line(&disp, 0, yp + 1, 127, yp + 1, false);
+    ssd1306_draw_line(&disp, start * 8, yp + 1, len + start * 8, yp + 1, true);
+    ssd1306_draw_line(&disp, 0, yp, 0, yp + 2, true);
+    ssd1306_draw_line(&disp, 127, yp, 127, yp + 2, true);
 
-      display_draw_separator(40,1);
-      display_linen(6);
-      display_clear_str(2,false);
-      if (position>=16) {
-        display_set_xy(0, display_get_y());
-        display_print_str(">",2,style_reverse);
-        display_print_str("<",2,style_reverse|style_right);
-        print_enum_option("OK#CLEAR#DELETE#EXIT#", position-16);
-      }
+    display_draw_separator(40, 1);
+    display_linen(6);
+    display_clear_str(2, false);
+    if (position >= 16) {
       display_set_xy(0, display_get_y());
+      display_print_str(">", 2, style_reverse);
+      display_print_str("<", 2, style_reverse | style_right);
+      print_enum_option("OK#CLEAR#DELETE#EXIT#", position - 16);
+    }
+    display_set_xy(0, display_get_y());
 
-      display_show();
+    display_show();
   }
   return false;
-
 }
 
-bool ui::location_menu(bool &ok)
+bool ui::location_menu(bool& ok)
 {
-    enum e_ui_state{state_lat, state_lon};
-    static e_ui_state ui_state = state_lat;
+  enum e_ui_state
+  {
+    state_lat,
+    state_lon
+  };
+  static e_ui_state ui_state = state_lat;
 
-    bool done = false;
-    bool changed = false;
+  bool done = false;
+  bool changed = false;
 
-    if(ui_state == state_lat)
-    {
-      done = number_entry("Latitude", "%i", -90, 90, 1, settings.global.lat, ok, changed);
-      if(done) ui_state = state_lon;
+  if (ui_state == state_lat) {
+    done = number_entry("Latitude", "%i", -90, 90, 1, settings.global.lat, ok, changed);
+    if (done)
+      ui_state = state_lon;
+  } else if (ui_state == state_lon) {
+    done = number_entry("Longitude", "%i", -180, 180, 1, settings.global.lon, ok, changed);
+    if (done) {
+      if (ok)
+        aux_display.draw();
+      ui_state = state_lat;
+      return true;
     }
-    else if(ui_state == state_lon)
-    {
-      done = number_entry("Longitude", "%i", -180, 180, 1, settings.global.lon, ok, changed);
-      if(done){
-        if(ok) waterfall_inst.draw();
-        ui_state = state_lat;
-        return true;
-      }
-    }
-    return false;
-
+  }
+  return false;
 }
 
-bool ui::time_menu(bool &ok)
+bool ui::time_menu(bool& ok)
 {
-    enum e_ui_state{state_year, state_month, state_day, state_hour, state_minute};
-    static e_ui_state ui_state = state_year;
+  enum e_ui_state
+  {
+    state_year,
+    state_month,
+    state_day,
+    state_hour,
+    state_minute
+  };
+  static e_ui_state ui_state = state_year;
 
-    bool done = false;
-    bool changed = false;
-    static uint16_t year=2026, month=01, day=01, hour=00, minute=00;
+  bool done = false;
+  bool changed = false;
+  static uint16_t year = 2026, month = 01, day = 01, hour = 00, minute = 00;
 
-    if(ui_state == state_year)
-    {
-      done = number_entry("Year", "%i", 2026, 3000, 1, year, ok, changed);
-      if(done) ui_state = state_month;
-    }
-    else if(ui_state == state_month)
-    {
-      done = number_entry("Month", "%i", 1, 12, 1, month, ok, changed);
-      if(done) ui_state = state_day;
-    }
-    else if(ui_state == state_day)
-    {
-      done = number_entry("Day", "%i", 1, 31, 1, day, ok, changed);
-      if(done) ui_state = state_hour;
-    }
-    else if(ui_state == state_hour)
-    {
-      done = number_entry("Hour", "%i", 0, 23, 1, hour, ok, changed);
-      if(done) ui_state = state_minute;
-    }
-    else if(ui_state == state_minute)
-    {
-      done = number_entry("Minute", "%i", 0, 59, 1, minute, ok, changed);
-      if(done){
-        ui_state = state_year;
+  if (ui_state == state_year) {
+    done = number_entry("Year", "%i", 2026, 3000, 1, year, ok, changed);
+    if (done)
+      ui_state = state_month;
+  } else if (ui_state == state_month) {
+    done = number_entry("Month", "%i", 1, 12, 1, month, ok, changed);
+    if (done)
+      ui_state = state_day;
+  } else if (ui_state == state_day) {
+    done = number_entry("Day", "%i", 1, 31, 1, day, ok, changed);
+    if (done)
+      ui_state = state_hour;
+  } else if (ui_state == state_hour) {
+    done = number_entry("Hour", "%i", 0, 23, 1, hour, ok, changed);
+    if (done)
+      ui_state = state_minute;
+  } else if (ui_state == state_minute) {
+    done = number_entry("Minute", "%i", 0, 59, 1, minute, ok, changed);
+    if (done) {
+      ui_state = state_year;
 
-        tm timeinfo;
-        timeinfo.tm_year = year-1900;
-        timeinfo.tm_mon = month-1;
-        timeinfo.tm_mday = day;
-        timeinfo.tm_hour = hour;
-        timeinfo.tm_min = minute;
-        timeinfo.tm_sec = 0;
-        timeval tv = {.tv_sec = mktime(&timeinfo)};
-        settimeofday(&tv, NULL);
-        waterfall_inst.draw();
+      tm timeinfo;
+      timeinfo.tm_year = year - 1900;
+      timeinfo.tm_mon = month - 1;
+      timeinfo.tm_mday = day;
+      timeinfo.tm_hour = hour;
+      timeinfo.tm_min = minute;
+      timeinfo.tm_sec = 0;
+      timeval tv = {.tv_sec = mktime(&timeinfo)};
+      settimeofday(&tv, NULL);
+      aux_display.draw();
 
-        return true;
-      }
+      return true;
     }
-    return false;
-
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Frequency menu item (digit by digit)
 ////////////////////////////////////////////////////////////////////////////////
-bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
+bool ui::frequency_entry(const char title[], uint32_t& which_setting, bool& ok)
+{
 
-  static int32_t digit=0;
+  static int32_t digit = 0;
   static int32_t digits[8];
-  enum e_frequency_state{idle, digit_select, digit_change};
+  enum e_frequency_state
+  {
+    idle,
+    digit_select,
+    digit_change
+  };
   static e_frequency_state state = idle;
 
-  if(state == idle)
-  {
-    //convert to BCD representation
+  if (state == idle) {
+    // convert to BCD representation
     uint32_t frequency = which_setting;
     uint32_t digit_val = 10000000;
-    for(uint8_t i=0; i<8; i++){
-        digits[i] = frequency / digit_val;
-        frequency %= digit_val;
-        digit_val /= 10;
+    for (uint8_t i = 0; i < 8; i++) {
+      digits[i] = frequency / digit_val;
+      frequency %= digit_val;
+      digit_val /= 10;
     }
     state = digit_select;
   }
 
-  else if(state == digit_select)
-  {
-    //change between digits
+  else if (state == digit_select) {
+    // change between digits
     main_encoder.control(digit, 0, 9);
 
-    if(menu_button.is_pressed() || encoder_button.is_pressed())
-    {
-      if(digit==8) //Yes, Ok
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
+      if (digit == 8) // Yes, Ok
       {
 
-        //convert back to a binary representation
+        // convert back to a binary representation
         uint32_t digit_val = 10000000;
         which_setting = 0;
-        for(uint8_t i=0; i<8; i++)
-        {
+        for (uint8_t i = 0; i < 8; i++) {
           which_setting += (digits[i] * digit_val);
           digit_val /= 10;
         }
 
-        if((settings.channel.frequency > settings.channel.max_frequency) || (settings.channel.frequency < settings.channel.max_frequency))
-        {
+        if ((settings.channel.frequency > settings.channel.max_frequency) ||
+            (settings.channel.frequency < settings.channel.max_frequency)) {
           settings.channel.min_frequency = 0;
           settings.channel.max_frequency = 30000000;
         }
@@ -2169,857 +2155,920 @@ bool ui::frequency_entry(const char title[], uint32_t &which_setting, bool &ok){
         return true;
       }
 
-      //No
-      else if(digit==9)
-      {
+      // No
+      else if (digit == 9) {
         state = idle;
         ok = false;
         return true;
       }
 
-      else
-      {
+      else {
         state = digit_change;
       }
     }
 
-    if(back_button.is_pressed())
-    {
+    if (back_button.is_pressed()) {
       state = idle;
       ok = false;
       return true;
     }
 
-  }
-  else if(state == digit_change)
-  {
-    //change the value of a digit
+  } else if (state == digit_change) {
+    // change the value of a digit
     main_encoder.control(digits[digit], 0, 9);
 
-    if(menu_button.is_pressed() || encoder_button.is_pressed())
-    {
+    if (menu_button.is_pressed() || encoder_button.is_pressed()) {
       state = digit_select;
     }
   }
 
-  //Draw Display
+  // Draw Display
   display_clear();
-  display_print_str(title,1);
-  display_set_xy(4,9);
-  for(uint8_t i=0; i<8; i++)
-  {
-    if (state==digit_select && (i==digit)) {
+  display_print_str(title, 1);
+  display_set_xy(4, 9);
+  for (uint8_t i = 0; i < 8; i++) {
+    if (state == digit_select && (i == digit)) {
       display_print_char(digits[i] + '0', 2, style_reverse);
     } else {
-      display_print_char(digits[i] + '0', 2 );
+      display_print_char(digits[i] + '0', 2);
     }
-    if(i==1||i==4) display_print_char('.', 2 );
+    if (i == 1 || i == 4)
+      display_print_char('.', 2);
   }
-  display_draw_separator(40,1);
+  display_draw_separator(40, 1);
   display_linen(6);
-  print_enum_option(" OK #EXIT#", digit-8);
+  print_enum_option(" OK #EXIT#", digit - 8);
   display_show();
 
   return false;
-
 }
 
 #ifdef WITH_TX
-bool ui::transmit_menu(bool &ok)
+bool ui::transmit_menu(bool& ok)
 {
-    enum e_ui_state{select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
 
-    static uint32_t menu_selection = 0;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("Transmit", "MIC Gain#Monitor#CW Paddle#CW Speed#Noise\nGate#Treble#Bass#Compress#Test Tone\nSetting#Test Tone\nFrequency#TX Config#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //OK button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-      }
-    }
-
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-      bool done = false;
-      bool changed = false;
-      switch(menu_selection)
-      {
-
-        case 0 :
-          done = enumerate_entry("MIC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.global.mic_gain, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 1 :
-          done = bit_entry("Monitor", "Off#On#", settings.global.tx_monitor, ok);
-          break;
-
-        case 2 :
-          done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle, ok, changed);
-          break;
-
-        case 3 :
-          done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
-          break;
-
-        case 4 :
-          done = bit_entry("Noise Gate", "Off#On#", settings.global.tx_noise_gate, ok);
-          break;
-
-        case 5 :
-          done = number_entry("Treble", "%i", -5, 5, 1, settings.global.tx_treble, ok, changed);
-          break;
-
-        case 6 :
-          done = number_entry("Bass", "%i", -5, 5, 1, settings.global.tx_bass, ok, changed);
-          break;
-
-        case 7 :
-          done = number_entry("Compress", "%i", 0, 5, 1, settings.global.tx_compression, ok, changed);
-          break;
-
-        case 8 :
-          done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone", settings.global.test_tone_setting, ok, changed);
-          break;
-
-        case 9 :
-          done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.test_tone_frequency, ok, changed);
-          break;
-
-        case 10:
-          done = tx_configuration_menu(ok);
-          break;
-
-      }
-      if(done)
-      {
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("Transmit",
+                   "MIC Gain#Monitor#CW Paddle#CW Speed#Noise\nGate#Treble#Bass#Compress#Test "
+                   "Tone\nSetting#Test Tone\nFrequency#TX Config#",
+                   &menu_selection, ok)) {
+      if (ok) {
+        // OK button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
         menu_selection = 0;
         ui_state = select_menu_item;
         return true;
       }
     }
-    return false;
+  }
 
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+
+    case 0:
+      done = enumerate_entry("MIC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#",
+                             settings.global.mic_gain, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 1:
+      done = bit_entry("Monitor", "Off#On#", settings.global.tx_monitor, ok);
+      break;
+
+    case 2:
+      done = enumerate_entry("CW Paddle", "Straight#Iambic A#Iambic B#", settings.global.cw_paddle,
+                             ok, changed);
+      break;
+
+    case 3:
+      done = number_entry("CW Speed", "%iWPM", 1, 60, 1, settings.global.cw_speed, ok, changed);
+      break;
+
+    case 4:
+      done = bit_entry("Noise Gate", "Off#On#", settings.global.tx_noise_gate, ok);
+      break;
+
+    case 5:
+      done = number_entry("Treble", "%i", -5, 5, 1, settings.global.tx_treble, ok, changed);
+      break;
+
+    case 6:
+      done = number_entry("Bass", "%i", -5, 5, 1, settings.global.tx_bass, ok, changed);
+      break;
+
+    case 7:
+      done = number_entry("Compress", "%i", 0, 5, 1, settings.global.tx_compression, ok, changed);
+      break;
+
+    case 8:
+      done = enumerate_entry("Test Tone\nSetting", "Off#Tone#Two Tone",
+                             settings.global.test_tone_setting, ok, changed);
+      break;
+
+    case 9:
+      done = number_entry("Test Tone\nFrequency", "%iHz", 1, 30, 100,
+                          settings.global.test_tone_frequency, ok, changed);
+      break;
+
+    case 10:
+      done = tx_configuration_menu(ok);
+      break;
+    }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
+  return false;
 }
 
-bool ui::tx_configuration_menu(bool &ok)
+bool ui::tx_configuration_menu(bool& ok)
 {
-    enum e_ui_state{select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
 
-    static uint32_t menu_selection = 0;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("TX Config", "Modulation#PWM Min#PWM Max#PWM\nThreshold#Adapt\nClocks#Phase\nDither#I Offset#Q Offset#IQ\nBalance#TX Bands\nLower#TX Bands\nUpper#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#USB\nUpload#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //OK button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-      }
-    }
-
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-      bool done = false;
-      bool changed = false;
-      switch(menu_selection)
-      {
-
-        case 0 :
-          done = bit_entry("Modulation", "IQ#Polar#", settings.global.tx_modulation, ok);
-          break;
-
-        case 1 :
-          done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
-          break;
-
-        case 2 :
-          done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
-          break;
-
-        case 3 :
-          done = number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
-          break;
-
-        case 4 :
-          done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
-          break;
-
-        case 5 :
-          done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
-          break;
-
-        case 6 :
-          done = number_entry("I Offset", "%i", -128, 127, 1, settings.global.tx_i_offset, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 7 :
-          done = number_entry("Q Offset", "%i", -128, 127, 1, settings.global.tx_q_offset, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 8 :
-          done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 9:
-          done = tx_bands_menu(ok, false);
-          break;
-
-        case 10:
-          done = tx_bands_menu(ok, true);
-          break;
-
-      }
-      if(done)
-      {
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("TX Config",
+                   "Modulation#PWM Min#PWM Max#PWM\nThreshold#Adapt\nClocks#Phase\nDither#I "
+                   "Offset#Q Offset#IQ\nBalance#TX Bands\nLower#TX Bands\nUpper#Filter\nBands#IF "
+                   "Mode#IF\nFrequency#External\nNCO#USB\nUpload#",
+                   &menu_selection, ok)) {
+      if (ok) {
+        // OK button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
         menu_selection = 0;
         ui_state = select_menu_item;
         return true;
       }
     }
-    return false;
+  }
 
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+
+    case 0:
+      done = bit_entry("Modulation", "IQ#Polar#", settings.global.tx_modulation, ok);
+      break;
+
+    case 1:
+      done = number_entry("PWM Min", "%i", 0, 255, 1, settings.global.pwm_min, ok, changed);
+      break;
+
+    case 2:
+      done = number_entry("PWM Max", "%i", 0, 255, 1, settings.global.pwm_max, ok, changed);
+      break;
+
+    case 3:
+      done =
+          number_entry("PWM Thresh", "%i", 0, 255, 1, settings.global.pwm_threshold, ok, changed);
+      break;
+
+    case 4:
+      done = bit_entry("Best Clock", "Off#On#", settings.global.tx_use_best_clock, ok);
+      break;
+
+    case 5:
+      done = number_entry("Bits", "%i", 0, 63, 1, settings.global.tx_phase_dither, ok, changed);
+      break;
+
+    case 6:
+      done = number_entry("I Offset", "%i", -128, 127, 1, settings.global.tx_i_offset, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 7:
+      done = number_entry("Q Offset", "%i", -128, 127, 1, settings.global.tx_q_offset, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 8:
+      done = number_entry("IQ Balance", "%i", -128, 127, 1, settings.global.tx_iq_balance, ok,
+                          changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 9:
+      done = tx_bands_menu(ok, false);
+      break;
+
+    case 10:
+      done = tx_bands_menu(ok, true);
+      break;
+    }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
+  return false;
 }
 #endif
 
-
-bool ui::configuration_menu(bool &ok)
+bool ui::configuration_menu(bool& ok)
 {
-    enum e_ui_state{select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
 
-    static uint32_t menu_selection = 0;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("HW Config", "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain Cal#Freq Cal#Flip OLED#OLED Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Set\nTime#Location#USB\nUpload#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //OK button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry(
+            "HW Config",
+            "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain "
+            "Cal#Freq Cal#Flip OLED#OLED "
+            "Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#"
+            "Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Set\nTime#Location#USB\nUpload#",
+            &menu_selection, ok)) {
+      if (ok) {
+        // OK button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
       }
     }
+  }
 
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-      bool done = false;
-      bool changed = false;
-      switch(menu_selection)
-      {
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
 
-        case 0:
-          done =  enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#", settings.global.display_timeout, ok, changed);
-          display_time = time_us_32();
-          display_timeout_max = timeout_lookup[settings.global.display_timeout];
-          break;
+    case 0:
+      done = enumerate_entry("Display\nTimeout", "Never#5s#10s#15s#30s#1 min#2m#4m#",
+                             settings.global.display_timeout, ok, changed);
+      display_time = time_us_32();
+      display_timeout_max = timeout_lookup[settings.global.display_timeout];
+      break;
 
-        case 1 :
-          done = enumerate_entry("PSU Mode", "FM#PWM#", settings.global.regmode, ok, changed);
-          gpio_set_dir(23, GPIO_OUT);
-          gpio_put(23, settings.global.regmode);
-          break;
+    case 1:
+      done = enumerate_entry("PSU Mode", "FM#PWM#", settings.global.regmode, ok, changed);
+      gpio_set_dir(23, GPIO_OUT);
+      gpio_put(23, settings.global.regmode);
+      break;
 
-        case 2 :
-          done = bit_entry("Reverse\nEncoder", "Off#On#", settings.global.reverse_encoder, ok);
-          break;
+    case 2:
+      done = bit_entry("Reverse\nEncoder", "Off#On#", settings.global.reverse_encoder, ok);
+      break;
 
-        case 3:
-        {
-          static bool value = settings.global.encoder_resolution;
-          done = bit_entry("Encoder\nResolution", "Low#High#", value, ok);
-          if (done) {
-            if (ok) {
-              settings.global.encoder_resolution = value;
-            } else {
-              value = settings.global.encoder_resolution;
-            }
-          }
-          break;
+    case 3: {
+      static bool value = settings.global.encoder_resolution;
+      done = bit_entry("Encoder\nResolution", "Low#High#", value, ok);
+      if (done) {
+        if (ok) {
+          settings.global.encoder_resolution = value;
+        } else {
+          value = settings.global.encoder_resolution;
         }
+      }
+      break;
+    }
 
-        case 4 :
-          done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
-          break;
+    case 4:
+      done = bit_entry("Swap IQ", "Off#On#", settings.global.swap_iq, ok);
+      break;
 
-        case 5 :
-          done = number_entry("Gain Cal", "%idB", 1, 100, 1, settings.global.gain_cal, ok, changed);
-          break;
+    case 5:
+      done = number_entry("Gain Cal", "%idB", 1, 100, 1, settings.global.gain_cal, ok, changed);
+      break;
 
-        case 6 :
-        {
-          done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
-          transceiver.access(false);
-          const float tuning_offset_Hz = status.tuning_offset_Hz;
-          transceiver.release();
-          ssd1306_fill_rectangle(&disp, 0, 64-16, 12, 16, 0);
-          ssd1306_fill_rectangle(&disp, 128-12, 64-16, 12, 16, 0);
-          if(tuning_offset_Hz > 0.5) ssd1306_draw_char_with_font(&disp, 0, 64-16, 1, font_16x12, '<', true);
-          else if(tuning_offset_Hz < 0.5) ssd1306_draw_char_with_font(&disp, 128-12, 64-16, 1, font_16x12, '>', true);
-          else
-          {
-            ssd1306_draw_char_with_font(&disp, 128-12, 64-16, 1, font_16x12, '=', true);
-            ssd1306_draw_char_with_font(&disp, 0, 64-16, 1, font_16x12, '=', true);
-          }
+    case 6: {
+      done = number_entry("Freq Cal", "%ippm", -100, 100, 1, settings.global.ppm, ok, changed);
+      transceiver.access(false);
+      const float tuning_offset_Hz = status.tuning_offset_Hz;
+      transceiver.release();
+      ssd1306_fill_rectangle(&disp, 0, 64 - 16, 12, 16, 0);
+      ssd1306_fill_rectangle(&disp, 128 - 12, 64 - 16, 12, 16, 0);
+      if (tuning_offset_Hz > 0.5)
+        ssd1306_draw_char_with_font(&disp, 0, 64 - 16, 1, font_16x12, '<', true);
+      else if (tuning_offset_Hz < 0.5)
+        ssd1306_draw_char_with_font(&disp, 128 - 12, 64 - 16, 1, font_16x12, '>', true);
+      else {
+        ssd1306_draw_char_with_font(&disp, 128 - 12, 64 - 16, 1, font_16x12, '=', true);
+        ssd1306_draw_char_with_font(&disp, 0, 64 - 16, 1, font_16x12, '=', true);
+      }
+      display_show();
+      if (changed)
+        apply_settings(false);
+      break;
+    }
+
+    case 7:
+      done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
+      u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
+      update_display_type();
+      break;
+
+    case 8:
+      done = bit_entry("OLED Type", "SSD1306#SH1106#", settings.global.oled_type, ok);
+      update_display_type();
+      break;
+
+    case 9:
+      done = number_entry("Display\nContrast", "%i", 0, 15, 1, settings.global.display_contrast, ok,
+                          changed);
+      u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
+      break;
+
+    case 10:
+      done = enumerate_entry("SPI\nSpeed", "Normal#Slow#Slower#", settings.global.baud_rate, ok,
+                             changed);
+      if (changed)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      if (done && ok)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      break;
+
+    case 11:
+      done = enumerate_entry("TFT\nSettings",
+                             "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation "
+                             "6#Rotation 7#Rotation 8#",
+                             settings.global.tft_rotation, ok, changed);
+      if (changed)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      if (done && ok)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      break;
+
+    case 12:
+      done = enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
+      if (changed)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      if (done && ok)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      break;
+
+    case 13:
+      done = enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
+      if (changed)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      if (done && ok)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      break;
+
+    case 14:
+      done = enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok,
+                             changed);
+      if (changed)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      if (done && ok)
+        aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                      settings.global.tft_invert, settings.global.tft_driver,
+                                      settings.global.baud_rate);
+      break;
+
+    case 15:
+      done = bands_menu(ok);
+      break;
+
+    case 16:
+      done =
+          enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 17:
+      done = number_entry("IF\nFrequency", "%i", 0, 120, 100,
+                          settings.global.if_frequency_hz_over_100, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+
+    case 18:
+      done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
+      break;
+
+    case 19:
+      done = time_menu(ok);
+      break;
+
+    case 20:
+      done = location_menu(ok);
+      break;
+
+    case 21: {
+      static uint8_t usb_upload = 0;
+      done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
+      if (done && ok) {
+        if (usb_upload == 1) {
+          display_clear();
+          display_print_str("Ready for\nfirmware", 2, style_centered);
           display_show();
-          if(changed) apply_settings(false);
-          break;
-        }
-
-        case 7 :
-          done = bit_entry("Flip OLED", "Off#On#", settings.global.flip_oled, ok);
-          u8g2_SetFlipMode(&u8g2, settings.global.flip_oled);
-          update_display_type();
-          break;
-
-        case 8:
-          done = bit_entry("OLED Type", "SSD1306#SH1106#", settings.global.oled_type, ok);
-          update_display_type();
-          break;
-
-        case 9:
-          done =  number_entry("Display\nContrast", "%i", 0, 15, 1, settings.global.display_contrast, ok, changed);
-          u8g2_SetContrast(&u8g2, 17 * settings.global.display_contrast);
-          break;
-
-        case 10:
-          done =  enumerate_entry("SPI\nSpeed", "Normal#Slow#Slower#", settings.global.baud_rate, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          break;
-
-        case 11:
-          done =  enumerate_entry("TFT\nSettings", "Off#Rotation 1#Rotation 2#Rotation 3#Rotation 4#Rotation 5#Rotation 6#Rotation 7#Rotation 8#", settings.global.tft_rotation, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          break;
-
-        case 12:
-          done =  enumerate_entry("TFT\nColour", "RGB#BGR#", settings.global.tft_colour, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          break;
-
-        case 13:
-          done =  enumerate_entry("TFT\nInvert", "OFF#ON#", settings.global.tft_invert, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          break;
-
-        case 14:
-          done =  enumerate_entry("TFT\nDriver", "Normal#Alternate#", settings.global.tft_driver, ok, changed);
-          if(changed) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          if(done && ok) waterfall_inst.configure_display(settings.global.tft_rotation, settings.global.tft_colour, settings.global.tft_invert, settings.global.tft_driver, settings.global.baud_rate);
-          break;
-
-        case 15:
-          done = bands_menu(ok);
-          break;
-
-        case 16:
-          done =  enumerate_entry("IF\nMode", "Lower#Upper#Nearest", settings.global.if_mode, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 17:
-          done =  number_entry("IF\nFrequency", "%i", 0, 120, 100, settings.global.if_frequency_hz_over_100, ok, changed);
-          if(changed) apply_settings(false);
-          break;
-
-        case 18:
-          done = bit_entry("External\nNCO", "Off#On#", settings.global.enable_external_nco, ok);
-          break;
-
-        case 19:
-          done = time_menu(ok);
-          break;
-
-        case 20:
-          done = location_menu(ok);
-          break;
-
-        case 21:
-        {
-          static uint8_t usb_upload = 0;
-          done = enumerate_entry("Ready?", "No#Yes#", usb_upload, ok, changed);
-          if(done && ok)
-          {
-            if(usb_upload==1) {
-              display_clear();
-              display_print_str("Ready for\nfirmware",2, style_centered);
-              display_show();
-              reset_usb_boot(0,0);
-            }
-          }
-          break;
+          reset_usb_boot(0, 0);
         }
       }
-      if(done)
-      {
+      break;
+    }
+    }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ui::noise_menu(bool& ok)
+{
+
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
+  static uint32_t menu_selection = 0;
+
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("Noise", "Enable#Noise\nEstimation#Noise\nThreshold#", &menu_selection, ok)) {
+      if (ok) {
+        // ok button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
         menu_selection = 0;
         ui_state = select_menu_item;
         return true;
       }
     }
-    return false;
+  }
 
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+    case 0:
+      done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
+      break;
+    case 1:
+      done = enumerate_entry("Noise\nEstimation", "Very Fast#Fast#Medium#Slow#Very Slow#",
+                             settings.global.noise_estimation, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 2:
+      done = enumerate_entry("Noise\nThreshold", "Adaptive#Low#Normal#High#Very High#",
+                             settings.global.noise_threshold, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
+
+  return false;
 }
 
-bool ui::noise_menu(bool & ok)
+bool ui::main_menu(bool& ok)
 {
 
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("Noise", "Enable#Noise\nEstimation#Noise\nThreshold#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-      }
-    }
-
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       bool changed = false;
-       switch(menu_selection)
-        {
-          case 0 :
-            done = bit_entry("Noise\nReduction", "Off#On#", settings.global.enable_noise_reduction, ok);
-            break;
-          case 1 :
-            done = enumerate_entry("Noise\nEstimation", "Very Fast#Fast#Medium#Slow#Very Slow#", settings.global.noise_estimation, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 2 :
-            done = enumerate_entry("Noise\nThreshold", "Adaptive#Low#Normal#High#Very High#", settings.global.noise_threshold, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-        }
-        if(done)
-        {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
-    }
-
-    return false;
-}
-
-bool ui::main_menu(bool & ok)
-{
-
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
-
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if (menu_entry("Menu",
-                     "Frequency#Recall#Store#Volume#Mode#AGC#AGC "
-                     "Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#"
-                     "Impulse\nBlanker#Auto "
-                     "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
-                     "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
-                     "Tone\nFrequency#USB Stream#"
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("Menu",
+                   "Frequency#Recall#Store#Volume#Mode#AGC#AGC "
+                   "Gain#Bandwidth#Squelch#Squelch\nTimeout#Noise\nReduction#"
+                   "Impulse\nBlanker#Auto "
+                   "Notch#De-\nEmphasis#Bass#Treble#IQ\nCorrection#Spectrum#"
+                   "Aux\nDisplay#Band Start#Band Stop#Frequency\nStep#CW "
+                   "Tone\nFrequency#USB Stream#"
 #ifdef WITH_TX
-                     "Transmit\nMenu#"
+                   "Transmit\nMenu#"
 #endif
-                     "HW Config#",
-                     &menu_selection, ok)) {
-        if(ok)
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+                   "HW Config#",
+                   &menu_selection, ok)) {
+      if (ok) {
+        // ok button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
       }
     }
+  }
 
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       bool changed = false;
-       switch(menu_selection)
-        {
-          case 0 :
-            done = frequency_entry("Frequency", settings.channel.frequency, ok);
-            break;
-          case 1 :
-            done = memory_recall(ok);
-            break;
-          case 2 :
-            done = memory_store(ok);
-            break;
-          case 3 :
-            done = number_entry("Volume", "%i", 0, 9, 1, settings.global.volume, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 4 :
-            done = enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", settings.channel.mode, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 5 :
-            done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual", settings.global.agc_setting, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 6 :
-            done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#", settings.global.agc_gain, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 7 :
-            done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#", settings.global.bandwidth, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 8 :
-            done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#", settings.global.squelch_threshold, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 9 :
-            done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#", settings.global.squelch_timeout, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 10 :
-            done = noise_menu(ok);
-            break;
-          case 11:
-            done = enumerate_entry("Impulse\nThreshold", "Off#3.0#2.8#2.6#2.4#2.2#2.0#", settings.global.impulse_threshold, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 12:
-            done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
-            break;
-          case 13 :
-            done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", settings.global.deemphasis, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 14 :
-            done = enumerate_entry("Bass", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.bass, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 15 :
-            done = enumerate_entry("Treble", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.treble, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 16 :
-            done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
-            break;
-          case 17 :
-            done = spectrum_menu(ok);
-            break;
-          case 18:
-            done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#Map#Listing", settings.global.aux_view, ok, changed);
-            break;
-          case 19 :
-            done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
-            break;
-          case 20 :
-            done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
-            break;
-          case 21 :
-            done = enumerate_entry("Frequency\nStep", "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#", settings.channel.step, ok, changed);
-            settings.channel.frequency -= settings.channel.frequency%step_sizes[settings.channel.step];
-            break;
-          case 22 :
-            done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 23 :
-            done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
-            break;
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+    case 0:
+      done = frequency_entry("Frequency", settings.channel.frequency, ok);
+      break;
+    case 1:
+      done = memory_recall(ok);
+      break;
+    case 2:
+      done = memory_store(ok);
+      break;
+    case 3:
+      done = number_entry("Volume", "%i", 0, 9, 1, settings.global.volume, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 4:
+      done =
+          enumerate_entry("Mode", "AM#AM-Sync#LSB#USB#FM#CW#", settings.channel.mode, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 5:
+      done = enumerate_entry("AGC", "Fast#Normal#Slow#Very slow#Manual",
+                             settings.global.agc_setting, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 6:
+      done = enumerate_entry("AGC Gain", "0dB#6dB#12dB#18dB#24dB#30dB#36dB#42dB#48dB#54dB#60dB#",
+                             settings.global.agc_gain, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 7:
+      done = enumerate_entry("Bandwidth", "V Narrow#Narrow#Normal#Wide#Very Wide#",
+                             settings.global.bandwidth, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 8:
+      done = enumerate_entry("Squelch", "S0#S1#S2#S3#S4#S5#S6#S7#S8#S9#S9+10dB#S9+20dB#S9+30dB#",
+                             settings.global.squelch_threshold, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 9:
+      done = enumerate_entry("Squelch\nTimeout", "50ms#100ms#200ms#500ms#1s#2s#3s#5s#",
+                             settings.global.squelch_timeout, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 10:
+      done = noise_menu(ok);
+      break;
+    case 11:
+      done = enumerate_entry("Impulse\nThreshold", "Off#3.0#2.8#2.6#2.4#2.2#2.0#",
+                             settings.global.impulse_threshold, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 12:
+      done = bit_entry("Auto Notch", "Off#On#", settings.global.enable_auto_notch, ok);
+      break;
+    case 13:
+      done = enumerate_entry("De-\nemphasis", "Off#50us#75us#", settings.global.deemphasis, ok,
+                             changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 14:
+      done =
+          enumerate_entry("Bass", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.bass, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 15:
+      done = enumerate_entry("Treble", "Off#+5dB#+10dB#+15dB#+20dB#", settings.global.treble, ok,
+                             changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 16:
+      done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
+      break;
+    case 17:
+      done = spectrum_menu(ok);
+      break;
+    case 18:
+      done = enumerate_entry("Aux\nDisplay", "Waterfall#SSTV#Map#Listing", settings.global.aux_view,
+                             ok, changed);
+      break;
+    case 19:
+      done = frequency_entry("Band Start", settings.channel.min_frequency, ok);
+      break;
+    case 20:
+      done = frequency_entry("Band Stop", settings.channel.max_frequency, ok);
+      break;
+    case 21:
+      done = enumerate_entry(
+          "Frequency\nStep",
+          "10Hz#50Hz#100Hz#500Hz#1kHz#5kHz#6.25kHz#9kHz#10kHz#12.5kHz#25kHz#50kHz#100kHz#",
+          settings.channel.step, ok, changed);
+      settings.channel.frequency -= settings.channel.frequency % step_sizes[settings.channel.step];
+      break;
+    case 22:
+      done = number_entry("CW Tone\nFrequency", "%iHz", 1, 30, 100, settings.global.cw_sidetone, ok,
+                          changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 23:
+      done = bit_entry("USB\nStream", "Audio#Raw IQ#", settings.global.usb_stream, ok);
+      break;
 #ifdef WITH_TX
-          case 24 :
-            done = transmit_menu(ok);
-            break;
-          case 25 :
-            done = configuration_menu(ok);
-            break;
+    case 24:
+      done = transmit_menu(ok);
+      break;
+    case 25:
+      done = configuration_menu(ok);
+      break;
 #else
-          case 24 :
-            done = configuration_menu(ok);
-            break;
+    case 24:
+      done = configuration_menu(ok);
+      break;
 #endif
-        }
-        if(done)
-        {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
     }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
 
-    return false;
+  return false;
 }
 
-bool ui::spectrum_menu(bool & ok)
+bool ui::spectrum_menu(bool& ok)
 {
 
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("Menu", "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#View\nMode#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("Menu",
+                   "Spectrum\nZoom#Spectrum\nSmoothing#Spectrum\nHold#Hold\nSmoothing#View\nMode#",
+                   &menu_selection, ok)) {
+      if (ok) {
+        // ok button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
       }
     }
+  }
 
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       bool changed = false;
-       switch(menu_selection)
-        {
-          case 0 :
-            done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok, changed);
-            zoom = settings.global.spectrum_zoom;
-            break;
-          case 1 :
-            done = number_entry("Spectrum\nSmoothing", "%i", 1, 6, 1, settings.global.spectrum_smoothing, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 2:
-            done = bit_entry("Spectrum\nHold", "Off#On#", settings.global.spectrum_hold, ok);
-            break;
-          case 3 :
-            done = number_entry("Hold\nSmoothing", "%i", 1, 8, 1, settings.global.hold_smoothing, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-          case 4 :
-            done = enumerate_entry("View\nMode", "Noise#Raw#Clean#", settings.global.view_mode, ok, changed);
-            if(changed) apply_settings(false);
-            break;
-        }
-        if(done)
-        {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+    case 0:
+      done = number_entry("Spectrum\nZoom Level", "%i", 1, 4, 1, settings.global.spectrum_zoom, ok,
+                          changed);
+      zoom = settings.global.spectrum_zoom;
+      break;
+    case 1:
+      done = number_entry("Spectrum\nSmoothing", "%i", 1, 6, 1, settings.global.spectrum_smoothing,
+                          ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 2:
+      done = bit_entry("Spectrum\nHold", "Off#On#", settings.global.spectrum_hold, ok);
+      break;
+    case 3:
+      done = number_entry("Hold\nSmoothing", "%i", 1, 8, 1, settings.global.hold_smoothing, ok,
+                          changed);
+      if (changed)
+        apply_settings(false);
+      break;
+    case 4:
+      done =
+          enumerate_entry("View\nMode", "Noise#Raw#Clean#", settings.global.view_mode, ok, changed);
+      if (changed)
+        apply_settings(false);
+      break;
     }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
 
-    return false;
+  return false;
 }
 
 #ifdef WITH_TX
-bool ui::tx_bands_menu(bool &ok, bool upper)
+bool ui::tx_bands_menu(bool& ok, bool upper)
 {
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
+  // chose menu item
+  if (ui_state == select_menu_item) {
 
-      bool result;
-      if(upper)
-        result = menu_entry("Bands Hi", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
-      else
-        result = menu_entry("Bands Lo", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok);
+    bool result;
+    if (upper)
+      result = menu_entry("Bands Hi", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#",
+                          &menu_selection, ok);
+    else
+      result = menu_entry("Bands Lo", "Band 0#Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#",
+                          &menu_selection, ok);
 
-      if(result)
-      {
-        if(ok)
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+    if (result) {
+      if (ok) {
+        // ok button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
       }
-
     }
 
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       bool changed = false;
+  }
 
-       for(uint32_t i=0; i<NUM_BANDS; ++i) {
-         if(menu_selection == i) {
-           char buffer[12];
-           if(upper) {
-             snprintf(buffer, 12, "Band %lu <=", i);
-             done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.upper[i], ok, changed);
-           }
-           else {
-             snprintf(buffer, 12, "Band %lu >=", i);
-             done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.lower[i], ok, changed);
-           }
-           break;
-         }
-       }
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
 
-       if(done)
-       {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-       }
+    for (uint32_t i = 0; i < NUM_BANDS; ++i) {
+      if (menu_selection == i) {
+        char buffer[12];
+        if (upper) {
+          snprintf(buffer, 12, "Band %lu <=", i);
+          done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.upper[i],
+                              ok, changed);
+        } else {
+          snprintf(buffer, 12, "Band %lu >=", i);
+          done = number_entry(buffer, "%ikHz", 0, 600, 50, settings.global.tx_band_limits.lower[i],
+                              ok, changed);
+        }
+        break;
+      }
     }
 
-    return false;
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
+
+  return false;
 }
 #endif
 
-bool ui::bands_menu(bool &ok)
+bool ui::bands_menu(bool& ok)
 {
-    enum e_ui_state {select_menu_item, menu_item_active};
-    static e_ui_state ui_state = select_menu_item;
-    static uint32_t menu_selection = 0;
+  enum e_ui_state
+  {
+    select_menu_item,
+    menu_item_active
+  };
+  static e_ui_state ui_state = select_menu_item;
+  static uint32_t menu_selection = 0;
 
-    //chose menu item
-    if(ui_state == select_menu_item)
-    {
-      if(menu_entry("Bands", "Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection, ok))
-      {
-        if(ok)
-        {
-          //ok button pressed, more work to do
-          ui_state = menu_item_active;
-          return false;
-        }
-        else
-        {
-          //cancel button pressed, done with menu
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+  // chose menu item
+  if (ui_state == select_menu_item) {
+    if (menu_entry("Bands", "Band 1#Band 2#Band 3#Band 4#Band 5#Band 6#Band 7#", &menu_selection,
+                   ok)) {
+      if (ok) {
+        // ok button pressed, more work to do
+        ui_state = menu_item_active;
+        return false;
+      } else {
+        // cancel button pressed, done with menu
+        menu_selection = 0;
+        ui_state = select_menu_item;
+        return true;
       }
     }
+  }
 
-    //menu item active
-    else if(ui_state == menu_item_active)
-    {
-       bool done = false;
-       bool changed = false;
-       switch(menu_selection)
-        {
-          case 0 :
-            done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, settings.global.band1, ok, changed);
-            break;
-          case 1 :
-            done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, settings.global.band2, ok, changed);
-            break;
-          case 2 :
-            done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, settings.global.band3, ok, changed);
-            break;
-          case 3 :
-            done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, settings.global.band4, ok, changed);
-            break;
-          case 4 :
-            done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, settings.global.band5, ok, changed);
-            break;
-          case 5 :
-            done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, settings.global.band6, ok, changed);
-            break;
-          case 6 :
-            done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, settings.global.band7, ok, changed);
-            break;
-        }
-        if(done)
-        {
-          menu_selection = 0;
-          ui_state = select_menu_item;
-          return true;
-        }
+  // menu item active
+  else if (ui_state == menu_item_active) {
+    bool done = false;
+    bool changed = false;
+    switch (menu_selection) {
+    case 0:
+      done = number_entry("Band 1 <=", "%ikHz", 0, 255, 125, settings.global.band1, ok, changed);
+      break;
+    case 1:
+      done = number_entry("Band 2 <=", "%ikHz", 0, 255, 125, settings.global.band2, ok, changed);
+      break;
+    case 2:
+      done = number_entry("Band 3 <=", "%ikHz", 0, 255, 125, settings.global.band3, ok, changed);
+      break;
+    case 3:
+      done = number_entry("Band 4 <=", "%ikHz", 0, 255, 125, settings.global.band4, ok, changed);
+      break;
+    case 4:
+      done = number_entry("Band 5 <=", "%ikHz", 0, 255, 125, settings.global.band5, ok, changed);
+      break;
+    case 5:
+      done = number_entry("Band 6 <=", "%ikHz", 0, 255, 125, settings.global.band6, ok, changed);
+      break;
+    case 6:
+      done = number_entry("Band 7 <=", "%ikHz", 0, 255, 125, settings.global.band7, ok, changed);
+      break;
     }
+    if (done) {
+      menu_selection = 0;
+      ui_state = select_menu_item;
+      return true;
+    }
+  }
 
-    return false;
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3027,8 +3076,8 @@ bool ui::bands_menu(bool &ok)
 ////////////////////////////////////////////////////////////////////////////////
 bool ui::do_splash()
 {
-  static int step=0;
-  if (step++ >= 20) {  // we're done
+  static int step = 0;
+  if (step++ >= 20) { // we're done
     step = 0;
     return true;
   }
@@ -3036,7 +3085,7 @@ bool ui::do_splash()
   display_clear();
   ssd1306_bmp_show_image(&disp, crystal, sizeof(crystal));
 
-  int i=-1;
+  int i = -1;
 #if 0
 // zoom in
        if (step <= 5) i=0;        // image for 3 tenths
@@ -3045,25 +3094,28 @@ bool ui::do_splash()
   else if (step <= 18) i=step-7;
 
 #else
-// zoom out
-       if (step <= 6) i=10-step;
-  else if (step <= 11) i=3;
-  else if (step <= 13) i=14-step;
-  else if (step <= 18) i=0;
+  // zoom out
+  if (step <= 6)
+    i = 10 - step;
+  else if (step <= 11)
+    i = 3;
+  else if (step <= 13)
+    i = 14 - step;
+  else if (step <= 18)
+    i = 0;
 
 #endif
 
-  if (i==0) {
+  if (i == 0) {
     // do nothing, leave the bitmap
-  } else if (i>0) {
-    display_set_xy(0,(64-i*8)/2); // disp height - text height /2
-    display_print_str("PicoRX",i,style_centered|style_nowrap|style_bordered);
-  } else if (i==-1) {
+  } else if (i > 0) {
+    display_set_xy(0, (64 - i * 8) / 2); // disp height - text height /2
+    display_print_str("PicoRX", i, style_centered | style_nowrap | style_bordered);
+  } else if (i == -1) {
     display_clear();
   }
   display_show();
   return false;
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3071,206 +3123,202 @@ bool ui::do_splash()
 ////////////////////////////////////////////////////////////////////////////////
 void ui::do_ui(void)
 {
-    bool update_settings = false;
-    enum e_ui_state {splash, idle, menu, recall, sleep, memory_scanner, frequency_scanner};
-    static e_ui_state ui_state = splash;
-    const uint8_t num_display_options = 9;
-    static bool view_changed = false;
+  bool update_settings = false;
+  enum e_ui_state
+  {
+    splash,
+    idle,
+    menu,
+    recall,
+    sleep,
+    memory_scanner,
+    frequency_scanner
+  };
+  static e_ui_state ui_state = splash;
+  const uint8_t num_display_options = 9;
+  static bool view_changed = false;
 
-    if(ui_state != idle) view_changed = true;
+  if (ui_state != idle)
+    view_changed = true;
 
 #ifdef WITH_TX
-    transceiver.access(false);
-    const bool transmitting = status.transmitting;
-    transceiver.release();
-    if(transmitting)
-    {
-      renderpage_transmit();
-      view_changed = true;
-      return;
-    }
+  transceiver.access(false);
+  const bool transmitting = status.transmitting;
+  transceiver.release();
+  if (transmitting) {
+    renderpage_transmit();
+    view_changed = true;
+    return;
+  }
 #endif
 
-    //gui is idle, just update the display
-    if(ui_state == splash)
-    {
-      if(do_splash())
-        ui_state = idle;
-      if(menu_button.is_pressed()||encoder_button.is_pressed()||back_button.is_pressed())
-        ui_state = idle;
-    }
+  // gui is idle, just update the display
+  if (ui_state == splash) {
+    if (do_splash())
+      ui_state = idle;
+    if (menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed())
+      ui_state = idle;
+  }
 
-    //gui is idle, just update the display
-    else if(ui_state == idle)
-    {
+  // gui is idle, just update the display
+  else if (ui_state == idle) {
 
-      //launch menu or recall
-      if(menu_button.is_pressed())
-      {
-        ui_state = menu;
-        display_time = time_us_32();
+    // launch menu or recall
+    if (menu_button.is_pressed()) {
+      ui_state = menu;
+      display_time = time_us_32();
+    } else if (encoder_button.is_pressed()) {
+      ui_state = recall;
+      display_time = time_us_32();
+    } else if (back_button.is_pressed()) {
+      view_changed = true;
+      settings.global.view++;
+      if (settings.global.view == num_display_options) {
+        settings.global.view = 0;
+        ui_state = memory_scanner;
       }
-      else if(encoder_button.is_pressed())
-      {
-        ui_state = recall;
-        display_time = time_us_32();
-      }
-      else if(back_button.is_pressed())
-      {
-        view_changed = true;
-        settings.global.view++;
-        if(settings.global.view==num_display_options){
-          settings.global.view = 0;
-          ui_state = memory_scanner;
-        }
-        autosave();
-      }
-
-      //adjust frequency when encoder is turned
-      uint32_t encoder_change = main_encoder.get_change();
-      if(encoder_change != 0)
-      {
-        display_time = time_us_32();
-
-        if(encoder_button.is_held())
-        {
-          if(menu_button.is_held())
-          {
-            settings.channel.mode += encoder_change;
-            settings.channel.mode %= 6u;
-          }
-          else if(back_button.is_held())
-          {
-            settings.global.squelch_threshold += encoder_change;
-            settings.global.squelch_threshold %= 13;
-          }
-          else
-          {
-            settings.global.volume += encoder_change;
-            settings.global.volume %= 10u;
-          }
-          update_settings = true;
-        }
-        else
-        {
-          //very fast tuning
-          if(menu_button.is_held() && back_button.is_held())
-            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 100;
-          //fast tuning
-          else if(menu_button.is_held())
-            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 10;
-          //slow tuning
-          else if(back_button.is_held())
-            settings.channel.frequency += encoder_change * (step_sizes[settings.channel.step] / 10);
-          //normal tuning
-          else
-            settings.channel.frequency += encoder_change * step_sizes[settings.channel.step];
-
-          //wrap frequency at band limits
-          if (settings.channel.frequency > settings.channel.max_frequency)
-              settings.channel.frequency = settings.channel.min_frequency;
-          if ((int)settings.channel.frequency < (int)settings.channel.min_frequency)
-              settings.channel.frequency = settings.channel.max_frequency;
-
-          //update settings now, but don't autosave until later
-          update_settings = true;
-        }
-
-      }
-
-      switch(settings.global.view)
-      {
-        case 0: renderpage_original(); break;
-        case 1: renderpage_station_info(view_changed); break;
-        case 2: renderpage_bigspectrum(view_changed);break;
-        case 3: renderpage_combinedspectrum(view_changed);break;
-        case 4: renderpage_waterfall(view_changed);break;
-        case 5: renderpage_oscilloscope();break;
-        case 6: renderpage_status();break;
-        case 7: renderpage_smeter(view_changed); break;
-        case 8: renderpage_fun(view_changed);break;
-      }
-      view_changed = false;
-    }
-
-    //menu is active, if menu completes update settings
-    else if(ui_state == menu)
-    {
-      bool ok = false;
-      if(main_menu(ok))
-      {
-        ui_state = idle;
-        update_settings = ok;
-        display_time = time_us_32();
-      }
-    }
-
-    //push button enters recall menu directly
-    else if(ui_state == recall)
-    {
-      bool ok = false;
-      if(ui::memory_recall(ok))
-      {
-        ui_state = idle;
-        update_settings = ok;
-        display_time = time_us_32();
-      }
-    }
-
-    //enter scanner mode
-    else if(ui_state == memory_scanner)
-    {
-      bool ok = false;
-      if(memory_scan(ok))
-      {
-        ui_state = frequency_scanner;
-        display_time = time_us_32();
-      }
-    }
-
-    //enter scanner mode
-    else if(ui_state == frequency_scanner)
-    {
-      bool ok = false;
-      if(frequency_scan(ok))
-      {
-        ui_state = idle;
-        display_time = time_us_32();
-      }
-    }
-
-    //if display times out enter sleep mode
-    else if(ui_state == sleep)
-    {
-      if(menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() || main_encoder.get_change())
-      {
-        display_time = time_us_32();
-        u8g2_SetPowerSave(&u8g2, 0);
-        waterfall_inst.configure_display(
-            settings.global.tft_rotation,
-            settings.global.tft_colour,
-            settings.global.tft_invert,
-            settings.global.tft_driver,
-            settings.global.baud_rate);
-        waterfall_inst.powerOn(1);
-        ui_state = idle;
-      }
-    }
-
-    //automatically switch off display after a period of inactivity
-    if(ui_state == idle && display_timeout_max && (time_us_32() - display_time) > display_timeout_max)
-    {
-      ui_state = sleep;
-      u8g2_SetPowerSave(&u8g2, 1);
-      waterfall_inst.powerOn(0);
-    }
-
-    //apply settings to transceiver (without saving)
-    if (update_settings)
-    {
-      apply_settings(false);
       autosave();
     }
+
+    // adjust frequency when encoder is turned
+    uint32_t encoder_change = main_encoder.get_change();
+    if (encoder_change != 0) {
+      display_time = time_us_32();
+
+      if (encoder_button.is_held()) {
+        if (menu_button.is_held()) {
+          settings.channel.mode += encoder_change;
+          settings.channel.mode %= 6u;
+        } else if (back_button.is_held()) {
+          settings.global.squelch_threshold += encoder_change;
+          settings.global.squelch_threshold %= 13;
+        } else {
+          settings.global.volume += encoder_change;
+          settings.global.volume %= 10u;
+        }
+        update_settings = true;
+      } else {
+        // very fast tuning
+        if (menu_button.is_held() && back_button.is_held())
+          settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 100;
+        // fast tuning
+        else if (menu_button.is_held())
+          settings.channel.frequency += encoder_change * step_sizes[settings.channel.step] * 10;
+        // slow tuning
+        else if (back_button.is_held())
+          settings.channel.frequency += encoder_change * (step_sizes[settings.channel.step] / 10);
+        // normal tuning
+        else
+          settings.channel.frequency += encoder_change * step_sizes[settings.channel.step];
+
+        // wrap frequency at band limits
+        if (settings.channel.frequency > settings.channel.max_frequency)
+          settings.channel.frequency = settings.channel.min_frequency;
+        if ((int)settings.channel.frequency < (int)settings.channel.min_frequency)
+          settings.channel.frequency = settings.channel.max_frequency;
+
+        // update settings now, but don't autosave until later
+        update_settings = true;
+      }
+    }
+
+    switch (settings.global.view) {
+    case 0:
+      renderpage_original();
+      break;
+    case 1:
+      renderpage_station_info(view_changed);
+      break;
+    case 2:
+      renderpage_bigspectrum(view_changed);
+      break;
+    case 3:
+      renderpage_combinedspectrum(view_changed);
+      break;
+    case 4:
+      renderpage_waterfall(view_changed);
+      break;
+    case 5:
+      renderpage_oscilloscope();
+      break;
+    case 6:
+      renderpage_status();
+      break;
+    case 7:
+      renderpage_smeter(view_changed);
+      break;
+    case 8:
+      renderpage_fun(view_changed);
+      break;
+    }
+    view_changed = false;
+  }
+
+  // menu is active, if menu completes update settings
+  else if (ui_state == menu) {
+    bool ok = false;
+    if (main_menu(ok)) {
+      ui_state = idle;
+      update_settings = ok;
+      display_time = time_us_32();
+    }
+  }
+
+  // push button enters recall menu directly
+  else if (ui_state == recall) {
+    bool ok = false;
+    if (ui::memory_recall(ok)) {
+      ui_state = idle;
+      update_settings = ok;
+      display_time = time_us_32();
+    }
+  }
+
+  // enter scanner mode
+  else if (ui_state == memory_scanner) {
+    bool ok = false;
+    if (memory_scan(ok)) {
+      ui_state = frequency_scanner;
+      display_time = time_us_32();
+    }
+  }
+
+  // enter scanner mode
+  else if (ui_state == frequency_scanner) {
+    bool ok = false;
+    if (frequency_scan(ok)) {
+      ui_state = idle;
+      display_time = time_us_32();
+    }
+  }
+
+  // if display times out enter sleep mode
+  else if (ui_state == sleep) {
+    if (menu_button.is_pressed() || encoder_button.is_pressed() || back_button.is_pressed() ||
+        main_encoder.get_change()) {
+      display_time = time_us_32();
+      u8g2_SetPowerSave(&u8g2, 0);
+      aux_display.configure_display(settings.global.tft_rotation, settings.global.tft_colour,
+                                    settings.global.tft_invert, settings.global.tft_driver,
+                                    settings.global.baud_rate);
+      aux_display.powerOn(1);
+      ui_state = idle;
+    }
+  }
+
+  // automatically switch off display after a period of inactivity
+  if (ui_state == idle && display_timeout_max &&
+      (time_us_32() - display_time) > display_timeout_max) {
+    ui_state = sleep;
+    u8g2_SetPowerSave(&u8g2, 1);
+    aux_display.powerOn(0);
+  }
+
+  // apply settings to transceiver (without saving)
+  if (update_settings) {
+    apply_settings(false);
+    autosave();
+  }
 }
 
 #define OLED_I2C_SDA_PIN (18)
@@ -3278,116 +3326,100 @@ void ui::do_ui(void)
 #define OLED_I2C_SPEED (400UL)
 #define OLED_I2C_INST (i2c1)
 
-static uint8_t u8x8_gpio_and_delay_pico(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+static uint8_t u8x8_gpio_and_delay_pico(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr)
 {
-    (void) arg_ptr;
+  (void)arg_ptr;
 
-    switch (msg)
-    {
-    case U8X8_MSG_GPIO_AND_DELAY_INIT:
-        break;
-    case U8X8_MSG_DELAY_NANO: // delay arg_int * 1 nano second
-        break;
-    case U8X8_MSG_DELAY_100NANO: // delay arg_int * 100 nano seconds
-        break;
-    case U8X8_MSG_DELAY_10MICRO: // delay arg_int * 10 micro seconds
-        break;
-    case U8X8_MSG_DELAY_MILLI: // delay arg_int * 1 milli second
-        sleep_ms(arg_int);
-        break;
-    case U8X8_MSG_DELAY_I2C:
-        /* arg_int is 1 or 4: 100KHz (5us) or 400KHz (1.25us) */
-        sleep_us(arg_int <= 2 ? 5 : 1);
-        break;
+  switch (msg) {
+  case U8X8_MSG_GPIO_AND_DELAY_INIT:
+    break;
+  case U8X8_MSG_DELAY_NANO: // delay arg_int * 1 nano second
+    break;
+  case U8X8_MSG_DELAY_100NANO: // delay arg_int * 100 nano seconds
+    break;
+  case U8X8_MSG_DELAY_10MICRO: // delay arg_int * 10 micro seconds
+    break;
+  case U8X8_MSG_DELAY_MILLI: // delay arg_int * 1 milli second
+    sleep_ms(arg_int);
+    break;
+  case U8X8_MSG_DELAY_I2C:
+    /* arg_int is 1 or 4: 100KHz (5us) or 400KHz (1.25us) */
+    sleep_us(arg_int <= 2 ? 5 : 1);
+    break;
 
-    default:
-        u8x8_SetGPIOResult(u8x8, 1); // default return value
-        break;
-    }
-    return 1;
+  default:
+    u8x8_SetGPIOResult(u8x8, 1); // default return value
+    break;
+  }
+  return 1;
 }
 
-static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+static uint8_t u8x8_byte_pico_hw_i2c(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr)
 {
-    uint8_t *data;
-    static uint8_t buffer[132];
-    static uint8_t buf_idx;
+  uint8_t* data;
+  static uint8_t buffer[132];
+  static uint8_t buf_idx;
 
-    switch (msg)
-    {
-    case U8X8_MSG_BYTE_SEND:
-        data = (uint8_t *)arg_ptr;
-        while (arg_int > 0)
-        {
-            assert(buf_idx < 132);
-            buffer[buf_idx++] = *data;
-            data++;
-            arg_int--;
-        }
-        break;
-
-    case U8X8_MSG_BYTE_INIT:
-        i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
-        gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
-        gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
-        gpio_pull_up(OLED_I2C_SDA_PIN);
-        gpio_pull_up(OLED_I2C_SCL_PIN);
-        break;
-
-    case U8X8_MSG_BYTE_SET_DC:
-        break;
-
-    case U8X8_MSG_BYTE_START_TRANSFER:
-        buf_idx = 0;
-        break;
-
-    case U8X8_MSG_BYTE_END_TRANSFER:
-    {
-        uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
-        int ret = i2c_write_timeout_us(OLED_I2C_INST, addr, buffer, buf_idx, false, 100000);
-        if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT))
-        {
-            return 0;
-        }
+  switch (msg) {
+  case U8X8_MSG_BYTE_SEND:
+    data = (uint8_t*)arg_ptr;
+    while (arg_int > 0) {
+      assert(buf_idx < 132);
+      buffer[buf_idx++] = *data;
+      data++;
+      arg_int--;
     }
     break;
 
-    default:
-        return 0;
+  case U8X8_MSG_BYTE_INIT:
+    i2c_init(OLED_I2C_INST, OLED_I2C_SPEED * 1000);
+    gpio_set_function(OLED_I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(OLED_I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(OLED_I2C_SDA_PIN);
+    gpio_pull_up(OLED_I2C_SCL_PIN);
+    break;
+
+  case U8X8_MSG_BYTE_SET_DC:
+    break;
+
+  case U8X8_MSG_BYTE_START_TRANSFER:
+    buf_idx = 0;
+    break;
+
+  case U8X8_MSG_BYTE_END_TRANSFER: {
+    uint8_t addr = u8x8_GetI2CAddress(u8x8) >> 1;
+    int ret = i2c_write_timeout_us(OLED_I2C_INST, addr, buffer, buf_idx, false, 100000);
+    if ((ret == PICO_ERROR_GENERIC) || (ret == PICO_ERROR_TIMEOUT)) {
+      return 0;
     }
-    return 1;
+  } break;
+
+  default:
+    return 0;
+  }
+  return 1;
 }
 
 void ui::update_display_type(void)
 {
-  if(settings.global.oled_type)
-  {
+  if (settings.global.oled_type) {
     u8g2_GetU8x8(&u8g2)->x_offset = 2;
   } else {
     u8g2_GetU8x8(&u8g2)->x_offset = 0;
   }
 }
 
-ui::ui(s_settings &_ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
-       uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
-       waterfall& _waterfall_inst)
-    : settings(_ui_settings),
-      main_encoder(settings.global),
-      menu_button(PIN_MENU),
-      back_button(PIN_BACK),
-      encoder_button(PIN_ENCODER_PUSH),
-      settings_to_apply(_settings_to_apply),
-      status(_status),
-      transceiver(_transceiver),
-      spectrum(_spectrum),
-      hold(_hold),
-      audio(_audio),
-      dB10(_dB10),
-      zoom(_zoom),
-      waterfall_inst(_waterfall_inst) {
+ui::ui(s_settings& _ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status,
+       xcvr& _transceiver, uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10,
+       uint8_t& _zoom, c_aux_display& _aux_display)
+    : settings(_ui_settings), main_encoder(settings.global), menu_button(PIN_MENU),
+      back_button(PIN_BACK), encoder_button(PIN_ENCODER_PUSH),
+      settings_to_apply(_settings_to_apply), status(_status), transceiver(_transceiver),
+      spectrum(_spectrum), hold(_hold), audio(_audio), dB10(_dB10), zoom(_zoom),
+      aux_display(_aux_display)
+{
 
-  u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0,
-                                         u8x8_byte_pico_hw_i2c,
+  u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0, u8x8_byte_pico_hw_i2c,
                                          u8x8_gpio_and_delay_pico);
   gpio_init(PIN_VBUS_SENSE);
   gpio_set_dir(PIN_VBUS_SENSE, GPIO_IN);

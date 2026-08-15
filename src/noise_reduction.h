@@ -2,9 +2,8 @@
 #define __NOISE_REDUCTION_H__
 
 #include <cstdint>
-void noise_reduction(int16_t i[], int16_t q[], uint16_t mag[],
-                     int32_t noise_estimate[], int16_t signal_estimate[],
-                     uint16_t start, uint16_t stop,
+void noise_reduction(int16_t i[], int16_t q[], uint16_t mag[], int32_t noise_estimate[],
+                     int16_t signal_estimate[], uint16_t start, uint16_t stop,
                      const int8_t noise_smoothing, const int8_t threshold);
 
 #endif

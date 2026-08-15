@@ -5,20 +5,25 @@
 
 class button
 {
-  public:
+public:
   button(uint8_t _gpio_num);
   bool is_pressed();
   bool is_held();
   bool is_keyed();
 
-  private:
+private:
   uint8_t gpio_num;
   void update_state();
 
-  enum e_button_state {up, down, pressed, held};
+  enum e_button_state
+  {
+    up,
+    down,
+    pressed,
+    held
+  };
   e_button_state button_state = up;
   uint32_t time_pressed = 0;
-
 };
 
 #endif

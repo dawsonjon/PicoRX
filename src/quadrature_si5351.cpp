@@ -25,272 +25,268 @@
 // License: MIT
 //
 
-#include <cmath>
-#include <cstdio>
 #include "quadrature_si5351.h"
 #include "pico/stdlib.h"
+#include <cmath>
+#include <cstdio>
 
-bool quad_si5351 :: initialise(i2c_inst_t *i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address, uint32_t crystal_frequency_Hz)
+bool quad_si5351 ::initialise(i2c_inst_t* i2c, uint8_t sda_pin, uint8_t scl_pin, uint8_t address,
+                              uint32_t crystal_frequency_Hz)
 {
-    i2c_init(i2c, 800 * 1000);
-    gpio_set_function(sda_pin, GPIO_FUNC_I2C);
-    gpio_set_function(scl_pin, GPIO_FUNC_I2C);
-    gpio_pull_up(sda_pin);
-    gpio_pull_up(scl_pin);
-    m_i2c = i2c;
-    m_address = address; //0x60 or 0x61
-    m_crystal_frequency_Hz = crystal_frequency_Hz;
+  i2c_init(i2c, 800 * 1000);
+  gpio_set_function(sda_pin, GPIO_FUNC_I2C);
+  gpio_set_function(scl_pin, GPIO_FUNC_I2C);
+  gpio_pull_up(sda_pin);
+  gpio_pull_up(scl_pin);
+  m_i2c = i2c;
+  m_address = address; // 0x60 or 0x61
+  m_crystal_frequency_Hz = crystal_frequency_Hz;
 
-    stop();
+  stop();
 
-    const uint8_t reset_sequence[] = {
-      16,
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80),
-      static_cast<uint8_t>(0x80)
-    };
-    int ret = i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);
-    write_reg(15, 0);
-    return ret != PICO_ERROR_GENERIC;
-
+  const uint8_t reset_sequence[] = {16,
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80),
+                                    static_cast<uint8_t>(0x80)};
+  int ret = i2c_write_blocking(m_i2c, m_address, reset_sequence, 9, false);
+  write_reg(15, 0);
+  return ret != PICO_ERROR_GENERIC;
 }
 
-void quad_si5351 :: start_rx()
+void quad_si5351 ::start_rx()
 {
-  //enable outputs 0 and 1 (disable 2)
-  //high impedance when disabled
+  // enable outputs 0 and 1 (disable 2)
+  // high impedance when disabled
   m_pll_needs_reset = true;
   write_reg(SI_CLK_DIS_STATE, 0xAA);
   write_reg(SI_OUPUT_ENABLE, 0xFC);
 }
 
-void quad_si5351 :: stop()
+void quad_si5351 ::stop()
 {
-  //high impedance when disabled
+  // high impedance when disabled
   m_pll_needs_reset = true;
   write_reg(SI_CLK_DIS_STATE, 0xAA);
   write_reg(SI_OUPUT_ENABLE, 0xFF);
 }
 
-void quad_si5351 :: start_tx()
+void quad_si5351 ::start_tx()
 {
-  //enable output 2 (disable 0 and 1)
-  //high impedance when disabled
+  // enable output 2 (disable 0 and 1)
+  // high impedance when disabled
   m_pll_needs_reset = true;
   write_reg(SI_CLK_DIS_STATE, 0xAA);
   write_reg(SI_OUPUT_ENABLE, 0xFB);
 }
 
-void quad_si5351 :: write_reg(uint8_t address, uint8_t data)
+void quad_si5351 ::write_reg(uint8_t address, uint8_t data)
 {
   const uint8_t command[] = {address, data};
-	i2c_write_blocking(m_i2c, m_address, command, 2, false);
+  i2c_write_blocking(m_i2c, m_address, command, 2, false);
 }
 
-void quad_si5351 :: crystal_load(uint8_t load)
+void quad_si5351 ::crystal_load(uint8_t load)
 {
-  write_reg(183, (load<<6) | 0x12);
+  write_reg(183, (load << 6) | 0x12);
 }
 
-void quad_si5351 :: configure_pll(uint8_t pll, uint8_t a, uint32_t b, uint32_t c)
+void quad_si5351 ::configure_pll(uint8_t pll, uint8_t a, uint32_t b, uint32_t c)
 {
 
-  //https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
-  //section 3.2
+  // https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
+  // section 3.2
 
-	const uint32_t P1 = (128 * a) + ((128*b)/c) - 512;
-	const uint32_t P2 = (128 * b) - (c*(128*b/c));
-	const uint32_t P3 = c;
+  const uint32_t P1 = (128 * a) + ((128 * b) / c) - 512;
+  const uint32_t P2 = (128 * b) - (c * (128 * b / c));
+  const uint32_t P3 = c;
 
-  write_reg(pll+0, (P3 & 0x0000FF00) >> 8);
-  write_reg(pll+1, P3 & 0x000000FF);
-  write_reg(pll+2, (P1 & 0x00030000) >> 16);
-  write_reg(pll+3, (P1 & 0x0000FF00) >> 8);
-  write_reg(pll+4, P1 & 0x000000FF);
-  write_reg(pll+5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  write_reg(pll+6, (P2 & 0x0000FF00) >> 8);
-  write_reg(pll+7, P2 & 0x000000FF);
-
+  write_reg(pll + 0, (P3 & 0x0000FF00) >> 8);
+  write_reg(pll + 1, P3 & 0x000000FF);
+  write_reg(pll + 2, (P1 & 0x00030000) >> 16);
+  write_reg(pll + 3, (P1 & 0x0000FF00) >> 8);
+  write_reg(pll + 4, P1 & 0x000000FF);
+  write_reg(pll + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  write_reg(pll + 6, (P2 & 0x0000FF00) >> 8);
+  write_reg(pll + 7, P2 & 0x000000FF);
 }
 
-void quad_si5351 :: configure_phase_offset(uint8_t clk, uint8_t phase_offset)
+void quad_si5351 ::configure_phase_offset(uint8_t clk, uint8_t phase_offset)
 {
-  write_reg(clk+165, phase_offset & 0x7f);
+  write_reg(clk + 165, phase_offset & 0x7f);
 }
 
-void quad_si5351 :: configure_multisynth(uint8_t synth, uint32_t divider, uint8_t rDiv)
+void quad_si5351 ::configure_multisynth(uint8_t synth, uint32_t divider, uint8_t rDiv)
 {
-	const uint32_t P1 = 128 * divider - 512;
-	const uint32_t P2 = 0;
-	const uint32_t P3 = 1;
+  const uint32_t P1 = 128 * divider - 512;
+  const uint32_t P2 = 0;
+  const uint32_t P3 = 1;
 
-	write_reg(synth+0,(P3 & 0x0000FF00) >> 8);
-	write_reg(synth+1,(P3 & 0x000000FF));
-	write_reg(synth+2,((P1 & 0x00030000) >> 16) | rDiv);
-	write_reg(synth+3,(P1 & 0x0000FF00) >> 8);
-	write_reg(synth+4,(P1 & 0x000000FF));
-	write_reg(synth+5,((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-	write_reg(synth+6,(P2 & 0x0000FF00) >> 8);
-	write_reg(synth+7,(P2 & 0x000000FF));
+  write_reg(synth + 0, (P3 & 0x0000FF00) >> 8);
+  write_reg(synth + 1, (P3 & 0x000000FF));
+  write_reg(synth + 2, ((P1 & 0x00030000) >> 16) | rDiv);
+  write_reg(synth + 3, (P1 & 0x0000FF00) >> 8);
+  write_reg(synth + 4, (P1 & 0x000000FF));
+  write_reg(synth + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  write_reg(synth + 6, (P2 & 0x0000FF00) >> 8);
+  write_reg(synth + 7, (P2 & 0x000000FF));
 }
 
-void quad_si5351 :: adjust_phase(uint8_t synth, uint32_t a, uint32_t b, uint32_t c, uint8_t rDiv, uint32_t delay_us)
+void quad_si5351 ::adjust_phase(uint8_t synth, uint32_t a, uint32_t b, uint32_t c, uint8_t rDiv,
+                                uint32_t delay_us)
 {
-	const uint32_t P1 = 128 * a - 512;
-	const uint32_t P2 = 0;
-	const uint32_t P3 = 1;
+  const uint32_t P1 = 128 * a - 512;
+  const uint32_t P2 = 0;
+  const uint32_t P3 = 1;
 
-  //https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
-  //section 4.1.2
-	const uint32_t P1_offset = (128 * a) + ((128*b)/c) - 512;
-	const uint32_t P2_offset = (128 * b) - (c*(128*b/c));
-	const uint32_t P3_offset = c;
+  // https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
+  // section 4.1.2
+  const uint32_t P1_offset = (128 * a) + ((128 * b) / c) - 512;
+  const uint32_t P2_offset = (128 * b) - (c * (128 * b / c));
+  const uint32_t P3_offset = c;
 
-  write_reg(synth+0,(P3_offset & 0x0000FF00) >> 8);
-	write_reg(synth+1,(P3_offset & 0x000000FF));
-	write_reg(synth+2,((P1_offset & 0x00030000) >> 16) | rDiv);
-	write_reg(synth+3,(P1_offset & 0x0000FF00) >> 8);
-	write_reg(synth+4,(P1_offset & 0x000000FF));
-	write_reg(synth+5,((P3_offset & 0x000F0000) >> 12) | ((P2_offset & 0x000F0000) >> 16));
-	write_reg(synth+6,(P2_offset & 0x0000FF00) >> 8);
-	write_reg(synth+7,(P2_offset & 0x000000FF));
+  write_reg(synth + 0, (P3_offset & 0x0000FF00) >> 8);
+  write_reg(synth + 1, (P3_offset & 0x000000FF));
+  write_reg(synth + 2, ((P1_offset & 0x00030000) >> 16) | rDiv);
+  write_reg(synth + 3, (P1_offset & 0x0000FF00) >> 8);
+  write_reg(synth + 4, (P1_offset & 0x000000FF));
+  write_reg(synth + 5, ((P3_offset & 0x000F0000) >> 12) | ((P2_offset & 0x000F0000) >> 16));
+  write_reg(synth + 6, (P2_offset & 0x0000FF00) >> 8);
+  write_reg(synth + 7, (P2_offset & 0x000000FF));
 
   sleep_us(delay_us);
 
-	write_reg(synth+0,(P3 & 0x0000FF00) >> 8);
-	write_reg(synth+1,(P3 & 0x000000FF));
-	write_reg(synth+2,((P1 & 0x00030000) >> 16) | rDiv);
-	write_reg(synth+3,(P1 & 0x0000FF00) >> 8);
-	write_reg(synth+4,(P1 & 0x000000FF));
-	write_reg(synth+5,((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-	write_reg(synth+6,(P2 & 0x0000FF00) >> 8);
-	write_reg(synth+7,(P2 & 0x000000FF));
+  write_reg(synth + 0, (P3 & 0x0000FF00) >> 8);
+  write_reg(synth + 1, (P3 & 0x000000FF));
+  write_reg(synth + 2, ((P1 & 0x00030000) >> 16) | rDiv);
+  write_reg(synth + 3, (P1 & 0x0000FF00) >> 8);
+  write_reg(synth + 4, (P1 & 0x000000FF));
+  write_reg(synth + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  write_reg(synth + 6, (P2 & 0x0000FF00) >> 8);
+  write_reg(synth + 7, (P2 & 0x000000FF));
 }
 
 // 0 = 2mA, 1 = 4mA, 2 = 6mA, 3 = 8mA
-void quad_si5351 :: set_drive(uint8_t drive_strength)
+void quad_si5351 ::set_drive(uint8_t drive_strength)
 {
   m_drive_strength = drive_strength & 3;
 }
 
-double quad_si5351 :: set_frequency_hz(uint32_t frequency)
+double quad_si5351 ::set_frequency_hz(uint32_t frequency)
 {
 
-  //uint8_t status = 0;
-	//i2c_write_blocking(m_i2c, m_address, &status, 1, true);
-  //i2c_read_blocking(m_i2c, m_address, &status, 1, false);
+  // uint8_t status = 0;
+  // i2c_write_blocking(m_i2c, m_address, &status, 1, true);
+  // i2c_read_blocking(m_i2c, m_address, &status, 1, false);
 
-  if(frequency > 5000000)
-  {
+  if (frequency > 5000000) {
     return set_frequency_hz_high(frequency);
-  }
-  else
-  {
+  } else {
     return set_frequency_hz_low(frequency);
   }
 }
 
-//sets the tx frequency and returns the resolution in Hz
-double quad_si5351 :: set_tx_frequency_hz(uint32_t frequency_Hz)
+// sets the tx frequency and returns the resolution in Hz
+double quad_si5351 ::set_tx_frequency_hz(uint32_t frequency_Hz)
 {
 
-  //set the PLL to an even multiple of required frequency
-  uint32_t divider = 2*((600000000+(2*frequency_Hz))/(2*frequency_Hz));
+  // set the PLL to an even multiple of required frequency
+  uint32_t divider = 2 * ((600000000 + (2 * frequency_Hz)) / (2 * frequency_Hz));
   const uint64_t pll_frequency = divider * frequency_Hz;
 
-  //do nothing if frequency is already correct
-  if(m_tx_frequency_Hz == frequency_Hz) return static_cast<double>(m_crystal_frequency_Hz)/static_cast<double>(divider << 19);
+  // do nothing if frequency is already correct
+  if (m_tx_frequency_Hz == frequency_Hz)
+    return static_cast<double>(m_crystal_frequency_Hz) / static_cast<double>(divider << 19);
   m_tx_frequency_Hz = frequency_Hz;
 
   const uint64_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
   const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
-  const uint64_t multiplier_denominator = 524288u; //largest power of 2 for faster calculations
-  const uint64_t multiplier_numerator = (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
+  const uint64_t multiplier_denominator = 524288u; // largest power of 2 for faster calculations
+  const uint64_t multiplier_numerator =
+      (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
 
   // Set up PLL B with the calculated multiplication ratio
-  configure_pll(SI_SYNTH_PLL_B, multiplier_integer_part, multiplier_numerator, multiplier_denominator);
+  configure_pll(SI_SYNTH_PLL_B, multiplier_integer_part, multiplier_numerator,
+                multiplier_denominator);
   configure_multisynth(SI_SYNTH_MS_2, divider, SI_R_DIV_1);
 
-  write_reg(SI_PLL_RESET, 0x80);  //reset pll B
+  write_reg(SI_PLL_RESET, 0x80); // reset pll B
   write_reg(SI_CLK2_CONTROL, 0x4C | SI_CLK_SRC_PLL_B | m_drive_strength);
 
-  return static_cast<double>(m_crystal_frequency_Hz)/static_cast<double>(divider << 19);
+  return static_cast<double>(m_crystal_frequency_Hz) / static_cast<double>(divider << 19);
 }
 
-//quickly adjusts the tx frequency by changing the multiplier only
-//the frequency_steps argument is the frequency in the resolution returned by set_tx_frequency_Hz
-void quad_si5351 :: set_tx_freq_adjustment(uint32_t frequency_steps)
+// quickly adjusts the tx frequency by changing the multiplier only
+// the frequency_steps argument is the frequency in the resolution returned by set_tx_frequency_Hz
+void quad_si5351 ::set_tx_freq_adjustment(uint32_t frequency_steps)
 {
   const uint32_t a = frequency_steps >> 19;
   const uint64_t b = frequency_steps & 0x7ffff;
   const uint32_t c = 524288u;
 
-  const uint32_t P1 = (128 * a) + ((128*b)/c) - 512;
-  const uint32_t P2 = (128 * b) - (c*(128*b/c));
+  const uint32_t P1 = (128 * a) + ((128 * b) / c) - 512;
+  const uint32_t P2 = (128 * b) - (c * (128 * b / c));
   const uint32_t P3 = c;
 
-  //write_reg(pll+0, (P3 & 0x0000FF00) >> 8);
-  //write_reg(pll+1, P3 & 0x000000FF);
-  //write_reg(pll+2, (P1 & 0x00030000) >> 16);
-  //write_reg(pll+3, (P1 & 0x0000FF00) >> 8);
-  //write_reg(pll+4, P1 & 0x000000FF);
-  //write_reg(pll+5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  //write_reg(pll+6, (P2 & 0x0000FF00) >> 8);
-  //write_reg(pll+7, P2 & 0x000000FF);
+  // write_reg(pll+0, (P3 & 0x0000FF00) >> 8);
+  // write_reg(pll+1, P3 & 0x000000FF);
+  // write_reg(pll+2, (P1 & 0x00030000) >> 16);
+  // write_reg(pll+3, (P1 & 0x0000FF00) >> 8);
+  // write_reg(pll+4, P1 & 0x000000FF);
+  // write_reg(pll+5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  // write_reg(pll+6, (P2 & 0x0000FF00) >> 8);
+  // write_reg(pll+7, P2 & 0x000000FF);
 
   const uint8_t command[] = {
-    SI_SYNTH_PLL_B + 3,
-    static_cast<uint8_t>((P1 & 0x0000FF00) >> 8),
-    static_cast<uint8_t>(P1 & 0x000000FF),
-    static_cast<uint8_t>(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16)),
-    static_cast<uint8_t>((P2 & 0x0000FF00) >> 8),
-    static_cast<uint8_t>(P2 & 0x000000FF)
-  };
-
+      SI_SYNTH_PLL_B + 3,
+      static_cast<uint8_t>((P1 & 0x0000FF00) >> 8),
+      static_cast<uint8_t>(P1 & 0x000000FF),
+      static_cast<uint8_t>(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16)),
+      static_cast<uint8_t>((P2 & 0x0000FF00) >> 8),
+      static_cast<uint8_t>(P2 & 0x000000FF)};
 
   i2c_write_blocking(m_i2c, m_address, command, 7, false);
-
 }
 
-
-//for frequencies above 5MHz, quadrature clocks can be generated using the phase register
-double quad_si5351 :: set_frequency_hz_high(uint32_t frequency_Hz)
+// for frequencies above 5MHz, quadrature clocks can be generated using the phase register
+double quad_si5351 ::set_frequency_hz_high(uint32_t frequency_Hz)
 {
 
-  if(m_mode == low_mode)
-  {
+  if (m_mode == low_mode) {
     m_pll_needs_reset = true;
     m_mode = high_mode;
   }
 
-  //set the PLL to an even multiple of required frequency
-	uint32_t divider = 2*((600000000+(2*frequency_Hz))/(2*frequency_Hz));
-	const uint32_t pll_frequency = divider * frequency_Hz;
-  if(divider != m_divider) m_pll_needs_reset = true;
+  // set the PLL to an even multiple of required frequency
+  uint32_t divider = 2 * ((600000000 + (2 * frequency_Hz)) / (2 * frequency_Hz));
+  const uint32_t pll_frequency = divider * frequency_Hz;
+  if (divider != m_divider)
+    m_pll_needs_reset = true;
 
-
-	const uint32_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
-	const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
+  const uint32_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
+  const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
   const uint32_t multiplier_denominator = 1048575u;
-  const uint64_t multiplier_numerator = (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
-  const double exact_pll_frequency = m_crystal_frequency_Hz * (multiplier_integer_part + ((double)multiplier_numerator/multiplier_denominator));
-  const double exact_frequency = exact_pll_frequency/divider;
+  const uint64_t multiplier_numerator =
+      (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
+  const double exact_pll_frequency =
+      m_crystal_frequency_Hz *
+      (multiplier_integer_part + ((double)multiplier_numerator / multiplier_denominator));
+  const double exact_frequency = exact_pll_frequency / divider;
 
-	// Set up PLL A with the calculated multiplication ratio
-	configure_pll(SI_SYNTH_PLL_A, multiplier_integer_part, multiplier_numerator, multiplier_denominator);
+  // Set up PLL A with the calculated multiplication ratio
+  configure_pll(SI_SYNTH_PLL_A, multiplier_integer_part, multiplier_numerator,
+                multiplier_denominator);
   configure_multisynth(SI_SYNTH_MS_0, divider, SI_R_DIV_1);
   configure_multisynth(SI_SYNTH_MS_1, divider, SI_R_DIV_1);
   configure_phase_offset(0, 0);
   configure_phase_offset(1, divider);
 
-  if(m_pll_needs_reset)
-  {
-    write_reg(SI_PLL_RESET, 0x20); //reset pll A
+  if (m_pll_needs_reset) {
+    write_reg(SI_PLL_RESET, 0x20); // reset pll A
     m_pll_needs_reset = false;
   }
 
@@ -303,60 +299,69 @@ double quad_si5351 :: set_frequency_hz_high(uint32_t frequency_Hz)
   return exact_frequency;
 }
 
-//for frequencies below 5MHz, quadrature clocks can be generated using "manual" phase adjustment
-double quad_si5351 :: set_frequency_hz_low(uint32_t frequency_Hz)
+// for frequencies below 5MHz, quadrature clocks can be generated using "manual" phase adjustment
+double quad_si5351 ::set_frequency_hz_low(uint32_t frequency_Hz)
 {
 
-  if(m_mode == high_mode)
-  {
+  if (m_mode == high_mode) {
     m_pll_needs_reset = true;
     m_mode = low_mode;
   }
 
-  //set the PLL to an even multiple of required frequency
-	uint32_t divider = 2*((600000000+(2*frequency_Hz))/(2*frequency_Hz));
+  // set the PLL to an even multiple of required frequency
+  uint32_t divider = 2 * ((600000000 + (2 * frequency_Hz)) / (2 * frequency_Hz));
   uint32_t rdiv = 1;
-	const uint32_t pll_frequency = divider * frequency_Hz;
+  const uint32_t pll_frequency = divider * frequency_Hz;
 
-  if(divider > 2048) {
+  if (divider > 2048) {
     rdiv = 32;
     divider /= 32;
   }
 
-  if(divider != m_divider) m_pll_needs_reset = true;
-  if(rdiv != m_rdiv) m_pll_needs_reset = true;
+  if (divider != m_divider)
+    m_pll_needs_reset = true;
+  if (rdiv != m_rdiv)
+    m_pll_needs_reset = true;
 
-	const uint32_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
-	const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
+  const uint32_t multiplier_integer_part = pll_frequency / m_crystal_frequency_Hz;
+  const uint64_t multiplier_fractional_part = pll_frequency % m_crystal_frequency_Hz;
   const uint32_t multiplier_denominator = 1048575u;
-  const uint64_t multiplier_numerator = (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
-  const double exact_pll_frequency = m_crystal_frequency_Hz * (multiplier_integer_part + ((double)multiplier_numerator/multiplier_denominator));
-  const double exact_frequency = exact_pll_frequency/(divider*rdiv);
+  const uint64_t multiplier_numerator =
+      (multiplier_fractional_part * multiplier_denominator) / m_crystal_frequency_Hz;
+  const double exact_pll_frequency =
+      m_crystal_frequency_Hz *
+      (multiplier_integer_part + ((double)multiplier_numerator / multiplier_denominator));
+  const double exact_frequency = exact_pll_frequency / (divider * rdiv);
 
-	// Set up PLL A with the calculated multiplication ratio
-	configure_pll(SI_SYNTH_PLL_A, multiplier_integer_part, multiplier_numerator, multiplier_denominator);
+  // Set up PLL A with the calculated multiplication ratio
+  configure_pll(SI_SYNTH_PLL_A, multiplier_integer_part, multiplier_numerator,
+                multiplier_denominator);
 
-
-  if(m_pll_needs_reset)
-  {
-    configure_multisynth(SI_SYNTH_MS_0, divider, rdiv==32?SI_R_DIV_32:SI_R_DIV_1);
-    configure_multisynth(SI_SYNTH_MS_1, divider, rdiv==32?SI_R_DIV_32:SI_R_DIV_1);
+  if (m_pll_needs_reset) {
+    configure_multisynth(SI_SYNTH_MS_0, divider, rdiv == 32 ? SI_R_DIV_32 : SI_R_DIV_1);
+    configure_multisynth(SI_SYNTH_MS_1, divider, rdiv == 32 ? SI_R_DIV_32 : SI_R_DIV_1);
     configure_phase_offset(0, 0);
     configure_phase_offset(1, 0);
-    write_reg(SI_PLL_RESET, 0x20); //reset PLL A
+    write_reg(SI_PLL_RESET, 0x20); // reset PLL A
     sleep_us(100000);
 
-    //reduce 1 clock by 4Hz, after 62.5ms it should be 1/4 cycle behind
-    const double adjusted_frequency = exact_frequency-4.0;
-    const double adjusted_divider = exact_pll_frequency/(rdiv*adjusted_frequency);
+    // reduce 1 clock by 4Hz, after 62.5ms it should be 1/4 cycle behind
+    const double adjusted_frequency = exact_frequency - 4.0;
+    const double adjusted_divider = exact_pll_frequency / (rdiv * adjusted_frequency);
     const uint32_t adjusted_divider_integer_part = divider;
     const uint32_t adjusted_divider_denominator = 1048575u;
-    const uint32_t adjusted_divider_numerator = round((adjusted_divider - adjusted_divider_integer_part)*adjusted_divider_denominator);
-    const double actual_adjusted_frequency = exact_pll_frequency/(rdiv*(adjusted_divider_integer_part+((double)adjusted_divider_numerator/adjusted_divider_denominator)));
-    const double frequency_difference = exact_frequency-actual_adjusted_frequency;
-    const uint32_t quarter_cycle_delay_us = 0.25e6/frequency_difference;
+    const uint32_t adjusted_divider_numerator =
+        round((adjusted_divider - adjusted_divider_integer_part) * adjusted_divider_denominator);
+    const double actual_adjusted_frequency =
+        exact_pll_frequency /
+        (rdiv * (adjusted_divider_integer_part +
+                 ((double)adjusted_divider_numerator / adjusted_divider_denominator)));
+    const double frequency_difference = exact_frequency - actual_adjusted_frequency;
+    const uint32_t quarter_cycle_delay_us = 0.25e6 / frequency_difference;
 
-    adjust_phase(SI_SYNTH_MS_1, adjusted_divider_integer_part, adjusted_divider_numerator, adjusted_divider_denominator, rdiv==32?SI_R_DIV_32:SI_R_DIV_1, quarter_cycle_delay_us);
+    adjust_phase(SI_SYNTH_MS_1, adjusted_divider_integer_part, adjusted_divider_numerator,
+                 adjusted_divider_denominator, rdiv == 32 ? SI_R_DIV_32 : SI_R_DIV_1,
+                 quarter_cycle_delay_us);
     m_pll_needs_reset = false;
   }
 

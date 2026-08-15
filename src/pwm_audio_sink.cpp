@@ -9,7 +9,6 @@
 
 #include <cstdio>
 
-
 #define NUM_OUT_SAMPLES (PWM_AUDIO_NUM_SAMPLES * interpolation_rate)
 
 static int audio_pwm_slice_num;
@@ -25,10 +24,11 @@ static uint32_t pwm_max;
 static uint32_t pwm_scale;
 
 const uint32_t ramp_samples = 2048;
-static uint32_t ramp=0;
+static uint32_t ramp = 0;
 static bool ground = false;
 
-static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
+static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain)
+{
 
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
@@ -37,13 +37,15 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
 
-  //apply soft mute
+  // apply soft mute
   if (ground) {
-    sample = ramp*sample/ramp_samples;
-    if(ramp) ramp--;
+    sample = ramp * sample / ramp_samples;
+    if (ramp)
+      ramp--;
   } else {
-    sample = ramp*sample/ramp_samples;
-    if(ramp<ramp_samples) ramp++;
+    sample = ramp * sample / ramp_samples;
+    if (ramp < ramp_samples)
+      ramp++;
   }
 
   // interpolate to PWM rate
@@ -57,7 +59,8 @@ static void interpolate(int16_t sample, int16_t pwm_samples[], int16_t gain) {
   }
 }
 
-void pwm_audio_sink_init(void) {
+void pwm_audio_sink_init(void)
+{
   gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
   gpio_set_drive_strength(PIN_AUDIO, GPIO_DRIVE_STRENGTH_12MA);
   audio_pwm_slice_num = pwm_gpio_to_slice_num(PIN_AUDIO);
@@ -75,32 +78,30 @@ void pwm_audio_sink_init(void) {
   channel_config_set_transfer_data_size(&audio_ping_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_ping_cfg, true);
   channel_config_set_write_increment(&audio_ping_cfg, false);
-  channel_config_set_dreq(&audio_ping_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_ping_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 
   channel_config_set_transfer_data_size(&audio_pong_cfg, DMA_SIZE_16);
   channel_config_set_read_increment(&audio_pong_cfg, true);
   channel_config_set_write_increment(&audio_pong_cfg, false);
-  channel_config_set_dreq(&audio_pong_cfg,
-                          DREQ_PWM_WRAP0 + audio_pwm_slice_num);
+  channel_config_set_dreq(&audio_pong_cfg, DREQ_PWM_WRAP0 + audio_pwm_slice_num);
 }
 
-void pwm_audio_sink_start(void) {
-  dma_channel_configure(pwm_dma_ping, &audio_ping_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, ping_audio,
-                        NUM_OUT_SAMPLES, false);
-  dma_channel_configure(pwm_dma_pong, &audio_pong_cfg,
-                        &pwm_hw->slice[audio_pwm_slice_num].cc, pong_audio,
-                        NUM_OUT_SAMPLES, false);
+void pwm_audio_sink_start(void)
+{
+  dma_channel_configure(pwm_dma_ping, &audio_ping_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc,
+                        ping_audio, NUM_OUT_SAMPLES, false);
+  dma_channel_configure(pwm_dma_pong, &audio_pong_cfg, &pwm_hw->slice[audio_pwm_slice_num].cc,
+                        pong_audio, NUM_OUT_SAMPLES, false);
 }
 
-void pwm_audio_sink_stop(void) {
+void pwm_audio_sink_stop(void)
+{
   dma_channel_cleanup(pwm_dma_ping);
   dma_channel_cleanup(pwm_dma_pong);
 }
 
-void pwm_audio_sink_set_value(int16_t sample, int16_t gain) {
-
+void pwm_audio_sink_set_value(int16_t sample, int16_t gain)
+{
 
   // digital volume control
   sample = ((int32_t)sample * gain) >> 8;
@@ -109,19 +110,22 @@ void pwm_audio_sink_set_value(int16_t sample, int16_t gain) {
   sample += INT16_MAX;
   sample = (uint16_t)sample / pwm_scale;
 
-  //apply soft mute
+  // apply soft mute
   if (ground) {
-    sample = ramp*sample/ramp_samples;
-    if(ramp) ramp--;
+    sample = ramp * sample / ramp_samples;
+    if (ramp)
+      ramp--;
   } else {
-    sample = ramp*sample/ramp_samples;
-    if(ramp<ramp_samples) ramp++;
+    sample = ramp * sample / ramp_samples;
+    if (ramp < ramp_samples)
+      ramp++;
   }
 
   pwm_set_chan_level(audio_pwm_slice_num, PWM_CHAN_A, sample);
 }
 
-uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain) {
+uint32_t pwm_audio_sink_push(int16_t samples[PWM_AUDIO_NUM_SAMPLES], int16_t gain)
+{
   static bool toggle = false;
   uint32_t time;
 
@@ -159,7 +163,8 @@ void enable_pwm()
   ground = false;
 }
 
-void pwm_audio_sink_update_pwm_max(uint32_t new_max) {
+void pwm_audio_sink_update_pwm_max(uint32_t new_max)
+{
   pwm_max = new_max;
   pwm_set_wrap(audio_pwm_slice_num, pwm_max);
   pwm_scale = 1 + ((INT16_MAX * 2) / pwm_max);

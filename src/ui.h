@@ -3,21 +3,21 @@
 
 #include <cstdint>
 
-#include "pico/bootrom.h"
-#include "hardware/i2c.h"
-#include "ssd1306.h"
-#include "font_8x5.h"
-#include "font_16x12.h"
-#include "xcvr.h"
-#include "memory.h"
 #include "autosave_memory.h"
-#include "waterfall.h"
+#include "aux_display.h"
 #include "button.h"
-#include "rotary_encoder.h"
+#include "font_16x12.h"
+#include "font_8x5.h"
+#include "hardware/i2c.h"
 #include "logo.h"
-#include "u8g2.h"
+#include "memory.h"
+#include "pico/bootrom.h"
 #include "pins.h"
+#include "rotary_encoder.h"
 #include "settings.h"
+#include "ssd1306.h"
+#include "u8g2.h"
+#include "xcvr.h"
 
 // vscode cant find it and flags a problem (but the compiler can)
 #ifndef M_PI
@@ -28,33 +28,46 @@
 #define WAIT_10MS sleep_us(10000);
 #define WAIT_100MS sleep_us(100000);
 
-enum e_button_state {idle, slow_mode, fast_mode, very_fast_mode, menu, volume, mode};
+enum e_button_state
+{
+  idle,
+  slow_mode,
+  fast_mode,
+  very_fast_mode,
+  menu,
+  volume,
+  mode
+};
 
 // scanner
-enum e_scanner_squelch {no_squelch, no_signal, signal_found, count_down};
+enum e_scanner_squelch
+{
+  no_squelch,
+  no_signal,
+  signal_found,
+  count_down
+};
 
 // font styles styles as bits to be ORed
-#define style_normal      0
-#define style_reverse     (1<<0)
-#define style_centered    (1<<1)
-#define style_right       (1<<2)
-#define style_nowrap      (1<<3)
-#define style_bordered    (1<<4)
-#define style_xor         (1<<5)
-
+#define style_normal 0
+#define style_reverse (1 << 0)
+#define style_centered (1 << 1)
+#define style_right (1 << 2)
+#define style_nowrap (1 << 3)
+#define style_bordered (1 << 4)
+#define style_xor (1 << 5)
 
 class ui
 {
 
-  private:
-
-  s_settings &settings;
-  const uint32_t timeout_lookup[8] = {0, 5000000, 10000000, 15000000, 30000000, 60000000, 120000000, 240000000};
-  const char smeter[13][12]  = {
-    "S0",          "S1|",         "S2-|",        "S3--|",
-    "S4---|",      "S5----|",     "S6-----|",    "S7------|",
-    "S8-------|",  "S9--------|", "S9+10dB---|", "S9+20dB---|",
-    "S9+30dB---|"};
+private:
+  s_settings& settings;
+  const uint32_t timeout_lookup[8] = {0,        5000000,  10000000,  15000000,
+                                      30000000, 60000000, 120000000, 240000000};
+  const char smeter[13][12] = {"S0",         "S1|",         "S2-|",        "S3--|",
+                               "S4---|",     "S5----|",     "S6-----|",    "S7------|",
+                               "S8-------|", "S9--------|", "S9+10dB---|", "S9+20dB---|",
+                               "S9+30dB---|"};
 
   // Encoder
   rotary_encoder main_encoder;
@@ -67,7 +80,7 @@ class ui
   // Display
   void update_display_type(void);
   void setup_display();
-  void display_clear(bool colour=0);
+  void display_clear(bool colour = 0);
 
   void display_linen(uint8_t line);
   void display_set_xy(int16_t x, int16_t y);
@@ -75,29 +88,30 @@ class ui
   uint16_t display_get_x();
   uint16_t display_get_y();
 
-  void display_print_char(char x, uint32_t scale=1, uint32_t style=0);
-  void display_clear_str(uint32_t scale, bool colour=0);
-  void display_print_str(const char str[], uint32_t scale=1, uint32_t style=0);
-  void display_print_num(const char format[], int16_t num, uint32_t scale=1, uint32_t style=0);
-  void display_print_freq(char separator, uint32_t frequency, uint32_t scale=1, uint32_t style=0);
+  void display_print_char(char x, uint32_t scale = 1, uint32_t style = 0);
+  void display_clear_str(uint32_t scale, bool colour = 0);
+  void display_print_str(const char str[], uint32_t scale = 1, uint32_t style = 0);
+  void display_print_num(const char format[], int16_t num, uint32_t scale = 1, uint32_t style = 0);
+  void display_print_freq(char separator, uint32_t frequency, uint32_t scale = 1,
+                          uint32_t style = 0);
   void display_print_speed(int16_t x, int16_t y, uint32_t scale, int speed);
   void display_draw_icon(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint16_t pixels[]);
   void display_draw_volume(uint8_t v, uint8_t x);
   void display_draw_battery(float v, uint8_t x);
 
-  void display_draw_separator(uint16_t y, uint32_t scale=1, bool colour=1);
+  void display_draw_separator(uint16_t y, uint32_t scale = 1, bool colour = 1);
   void display_show();
   int strchr_idx(const char str[], uint8_t c);
   bool do_splash();
 
   ssd1306_t disp;
-  uint16_t cursor_x = 0;   // pixels 0-127
-  uint16_t cursor_y = 0;   // pixels 0-63
+  uint16_t cursor_x = 0; // pixels 0-127
+  uint16_t cursor_y = 0; // pixels 0-63
   uint32_t display_time = 0;
   uint32_t display_timeout_max = 0;
 
   // Status
-  float calculate_signal_strength(xcvr_status &status);
+  float calculate_signal_strength(xcvr_status& status);
 
   uint16_t audio_vu_meter_update(void);
 
@@ -118,83 +132,84 @@ class ui
   int dBm_to_S(float power_dBm);
   float S_to_dBm(int S);
   int32_t dBm_to_63px(float power_dBm);
-  void log_spectrum(float *min, float *max, int zoom = 1);
+  void log_spectrum(float* min, float* max, int zoom = 1);
   void draw_h_tick_marks(uint16_t startY);
   void draw_spectrum(uint16_t startY, uint16_t endY);
   void draw_waterfall(uint16_t startY);
   void draw_slim_status(uint16_t y);
   void draw_vertical_dBm(uint16_t x, float power_dBm, float squelch);
-  void draw_analogmeter(    uint16_t startx, uint16_t starty,
-                              uint16_t width, int16_t height,
-                              float  needle_pct, int numticks = 0,
-                              const char* legend = 0, const char labels[][5] = NULL
-                              );
-  bool frequency_scan(bool &ok);
-
+  void draw_analogmeter(uint16_t startx, uint16_t starty, uint16_t width, int16_t height,
+                        float needle_pct, int numticks = 0, const char* legend = 0,
+                        const char labels[][5] = NULL);
+  bool frequency_scan(bool& ok);
 
   bool frequency_autosave_pending = false;
   uint8_t frequency_autosave_timer = 10u;
 
   // Menu
-  bool main_menu(bool &ok);
-  bool noise_menu(bool &ok);
-  bool configuration_menu(bool &ok);
-  bool bands_menu(bool &ok);
-  bool spectrum_menu(bool &ok);
-  bool time_menu(bool &ok);
-  bool location_menu(bool &ok);
+  bool main_menu(bool& ok);
+  bool noise_menu(bool& ok);
+  bool configuration_menu(bool& ok);
+  bool bands_menu(bool& ok);
+  bool spectrum_menu(bool& ok);
+  bool time_menu(bool& ok);
+  bool location_menu(bool& ok);
 #ifdef WITH_TX
-  bool tx_configuration_menu(bool &ok);
-  bool transmit_menu(bool &ok);
-  bool tx_bands_menu(bool &ok, bool upper);
+  bool tx_configuration_menu(bool& ok);
+  bool transmit_menu(bool& ok);
+  bool tx_bands_menu(bool& ok, bool upper);
 #endif
 
-  //menu items
+  // menu items
   void print_enum_option(const char options[], uint8_t option);
   void print_menu_option(const char options[], uint8_t option);
 
-  bool menu_entry(const char title[], const char options[], uint32_t *value, bool &ok);
-  bool enumerate_entry(const char title[], const char options[], uint8_t &value, bool &ok, bool &changed);
-  bool bit_entry(const char title[], const char options[], bool &value, bool &ok);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int32_t &value, bool &ok, bool &changed);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint8_t &value, bool &ok, bool &changed);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, uint16_t &value, bool &ok, bool &changed);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int16_t &value, bool &ok, bool &changed);
-  bool number_entry(const char title[], const char format[], int16_t min, int16_t max, int16_t multiple, int8_t &value, bool &ok, bool &changed);
-  bool frequency_entry(const char title[], uint32_t &which_setting, bool &ok);
-  int string_entry(char string[], bool &ok, bool &del);
-  bool memory_recall(bool &ok);
-  bool memory_store(bool &ok);
-  bool memory_scan(bool &ok);
+  bool menu_entry(const char title[], const char options[], uint32_t* value, bool& ok);
+  bool enumerate_entry(const char title[], const char options[], uint8_t& value, bool& ok,
+                       bool& changed);
+  bool bit_entry(const char title[], const char options[], bool& value, bool& ok);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                    int16_t multiple, int32_t& value, bool& ok, bool& changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                    int16_t multiple, uint8_t& value, bool& ok, bool& changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                    int16_t multiple, uint16_t& value, bool& ok, bool& changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                    int16_t multiple, int16_t& value, bool& ok, bool& changed);
+  bool number_entry(const char title[], const char format[], int16_t min, int16_t max,
+                    int16_t multiple, int8_t& value, bool& ok, bool& changed);
+  bool frequency_entry(const char title[], uint32_t& which_setting, bool& ok);
+  int string_entry(char string[], bool& ok, bool& del);
+  bool memory_recall(bool& ok);
+  bool memory_store(bool& ok);
+  bool memory_scan(bool& ok);
 
   bool upload_memory();
   void autosave();
   bool display_timeout(bool encoder_change);
 
   uint32_t regmode = 1;
-  xcvr_settings &settings_to_apply;
-  xcvr_status &status;
-  xcvr &transceiver;
-  uint8_t const * const spectrum;
-  uint8_t const * const hold;
-  uint8_t const * const audio;
-  uint8_t &dB10;
-  uint8_t &zoom;
-  waterfall &waterfall_inst;
-  void apply_settings(bool suspend, bool settings_changed=true);
+  xcvr_settings& settings_to_apply;
+  xcvr_status& status;
+  xcvr& transceiver;
+  uint8_t const* const spectrum;
+  uint8_t const* const hold;
+  uint8_t const* const audio;
+  uint8_t& dB10;
+  uint8_t& zoom;
+  c_aux_display& aux_display;
+  void apply_settings(bool suspend, bool settings_changed = true);
 
   u8g2_t u8g2;
 
-  public:
-
-  s_settings & get_settings(){return settings;};
+public:
+  s_settings& get_settings() { return settings; };
   void autorestore();
   void do_ui(void);
   void update_sdcard_counter(uint32_t c);
-  ui(s_settings &ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status, xcvr& _transceiver,
-     uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10, uint8_t& _zoom,
-     waterfall& _waterfall_inst);
-
+  ui(s_settings& ui_settings, xcvr_settings& _settings_to_apply, xcvr_status& _status,
+     xcvr& _transceiver, uint8_t* _spectrum, uint8_t* _hold, uint8_t* _audio, uint8_t& _dB10,
+     uint8_t& _zoom, c_aux_display& _aux_diaplay);
 };
 
 #endif

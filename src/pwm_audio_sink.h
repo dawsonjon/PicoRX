@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include "rx_definitions.h"
+#include <cstdint>
 
 #define PWM_AUDIO_NUM_SAMPLES (adc_block_size / decimation_rate)
 

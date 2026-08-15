@@ -1140,7 +1140,7 @@
       2598 VOK Labrador Coastguard                Canada               English         Cartwright NL 53 -57
       2598 VOK Labrador Coastguard                Canada               English           Hopedale NL 55 -60
       2600         Romaradio IAR                 Italy               Italian  Mazara del Vallo IQQ 37 12
-      2618 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      2616 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
       2624         Olimpia Radio                Greece               English                Rhodos 36 28
       2624         Olimpia Radio                Greece               English                Rhodos 36 28
       2624         Olimpia Radio                Greece               English                Rhodos 36 28
@@ -1151,9 +1151,9 @@
       2624         Olimpia Radio                Greece               English                Rhodos 36 28
       2624         Olimpia Radio                Greece               English                Rhodos 36 28
       2624         Romaradio IAR                 Italy               Italian               Trieste 45 13
-      2628 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      2628 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      2628 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      2626 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      2626 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      2626 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
       2628         Romaradio IAR                 Italy               Italian           Augusta IQA 37 15
       2632         Romaradio IAR                 Italy               Italian  Napoli-Posillipo IQH 40 14
       2640   St.Peterburg Wx Fax    Russian Federation               Russian Sankt Peterburg Volmet 59 30
@@ -1363,7 +1363,7 @@
       3560        Voice of Korea                 Korea                French                Kujang 40 126
       3560        Voice of Korea                 Korea               English                Kujang 40 126
       3560        Voice of Korea                 Korea               Spanish                Kujang 40 126
-      3585   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+      3583   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
       3594      Channel Marker D    Russian Federation                                  Sevastopol 44 34
       3594      Channel Marker P    Russian Federation                       Kaliningrad Military Base Yantarny 54 19
       3594      Channel Marker S    Russian Federation                                 Severomorsk 69 33
@@ -1372,7 +1372,7 @@
       3594      Channel Marker F    Russian Federation                       Vladivostok Military Base 43 131
       3594      Channel Marker K    Russian Federation                       Petropavlovsk-Kamchatskij Military Base 53 158
       3594      Channel Marker M    Russian Federation                       Magadan Military Base 59 150
-      3622   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
+      3620   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
       3673 Netherlands Coastgd Wx       The Netherlands               English Coast Guard Den Helder -Scheveningen 52 4
       3673 Netherlands Coastgd Wx       The Netherlands               English Coast Guard Den Helder -Scheveningen 52 4
       3673 Netherlands Coastgd Wx       The Netherlands               English Coast Guard Den Helder -Scheveningen 52 4
@@ -1392,12 +1392,12 @@
       3850  Baron Channel Marker    Russian Federation                                   Volgograd 48 44
       3850  Baron Channel Marker    Russian Federation                                   Volgograd 48 44
       3850  Baron Channel Marker    Russian Federation                                   Volgograd 48 44
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      3855 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      3853 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
       3900        PBS Hulun Buir                 China              Mandarin                Hailar 49 119
       3900        PBS Hulun Buir                 China              Mandarin                Hailar 49 119
       3900  Reykjavik HFDL (ID3)               Iceland                              Reykjavik Aero 64 -21
@@ -1463,10 +1463,10 @@
       4146 ZLM Taupo Maritime R.           New Zealand               English                 Taupo -38 176
       4146 ZLM Taupo Maritime R.           New Zealand               English                 Taupo -38 176
       4149         VMW Wiluna WA             Australia               English             Wiluna WA -26 120
-      4160 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      4160 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      4160 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      4160 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      4158 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      4158 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      4158 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      4158 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
       4170 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
       4170 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
       4170 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
@@ -1482,10 +1482,10 @@
       4216    XSG Shanghai Radio                 China                       Shanghai XSG Chongming Island 31 121
       4216 TAH Turk Radio Istanbul                Turkey                                Istanbul TAH 40 28
       4219   XSQ Guangzhou Radio                 China                               Guangzhou XSQ 23 113
-      4228 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      4228 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      4228 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      4228 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      4226 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      4226 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      4226 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      4226 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
       4235     NMF Fax Boston MA         United States                                      Boston 41 -70
       4235     NMF Fax Boston MA         United States                                      Boston 41 -70
       4259    XSG Shanghai Radio                 China              Mandarin Shanghai XSG Chongming Island 31 121
@@ -1553,8 +1553,8 @@
       4405 TAH Turk Radio Istanbul                Turkey               Turkish          Istanbul TAH 40 28
       4405 TAH Turk Radio Istanbul                Turkey               English          Istanbul TAH 40 28
       4414 TAH Turk Radio Istanbul                Turkey               English          Istanbul TAH 40 28
-      4416  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
-      4416  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
+      4414  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
+      4414  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
       4417         Romaradio IAR                 Italy               Italian                  Roma 41 12
       4426    VMC Charleville QL             Australia               English        Charleville QL -26 146
       4426  NMC USCG Point Reyes         United States               English           Point Reyes 37 -122
@@ -1562,7 +1562,7 @@
       4426   NMN USCG Chesapeake         United States               English Chesapeake -Pungo Airfield 36 -76
       4426   NMN USCG Chesapeake         United States               English Chesapeake -Pungo Airfield 36 -76
       4426   NMN USCG Chesapeake         United States               English Chesapeake -Pungo Airfield 36 -76
-      4481 SWA18 Athens Meteo Fax                Greece                                     Olimpia 37 21
+      4479 SWA18 Athens Meteo Fax                Greece                                     Olimpia 37 21
       4500          PBS Xinjiang                 China             Mongolian        Urumqi-Changji 43 87
       4500          PBS Xinjiang                 China             Mongolian        Urumqi-Changji 43 87
       4505 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
@@ -1581,10 +1581,10 @@
       4560 TAH Turk Radio Istanbul                Turkey                                Istanbul TAH 40 28
       4583  DWD 1 Pinneberg RTTY               Germany               English             Pinneberg 53 9
       4603      Channel Marker D    Russian Federation                                     Armavir 45 40
-      4610 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      4610 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      4610 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      4610 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      4608 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      4608 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      4608 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      4608 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
       4625            The Buzzer    Russian Federation                                Buzzer sites 60 30
       4651     Shannon Aeradio J               Ireland               English               Shannon 52 -8
       4654     Barrow HFDL (ID9)                Alaska                                      Barrow 71 -156
@@ -1736,15 +1736,15 @@
       5082 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       5085      WTWW Lebanon, TN         United States               English               Lebanon 36 -86
       5085      WTWW Lebanon, TN         United States               English               Lebanon 36 -86
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-      5100 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+      5098 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
       5130      R.Sedaye Zindagi            Kyrgyzstan                                     Bishkek 42 74
       5130 R.Sedaye Zindagi (1-15)            Kyrgyzstan                                     Bishkek 42 74
       5130       WBCQ The Planet         United States               English            Monticello 46 -67
@@ -1798,7 +1798,7 @@
       5514   Moloka'i HFDL (ID2)                Hawaii                                    Moloka'i 21 -157
       5517       Mogadishu Radio               Somalia               English     Mogadishu Airport 2 45
       5520        New York Radio         United States               English              Barnegat 39 -74
-      5525 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+      5523 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
       5529 Johannesburg HFDL (ID8)          South Africa                                Johannesburg -26 28
       5529     Barrow HFDL (ID9)                Alaska                                      Barrow 71 -156
       5538     Barrow HFDL (ID9)                Alaska                                      Barrow 71 -156
@@ -1847,9 +1847,9 @@
       5737 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       5737 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       5737 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
-      5755    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      5755    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      5755    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      5753    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      5753    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      5753    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
       5765   Rdio Voz Missionria                Brasil            Portuguese              Cambori� -27 -48
       5779 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       5800   Radio Slovakia Int.              Slovakia               English            Okeechobee 27 -80
@@ -2484,11 +2484,11 @@
       6316     XSV Tianjin Radio                 China                                     Tianjin 39 117
       6322     SVO Olimpia Radio                Greece                                     Olimpia 37 21
       6326    XSG Shanghai Radio                 China                       Shanghai XSG Chongming Island 31 121
-      6328 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      6328 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      6328 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      6328 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      6328 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      6326 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      6326 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      6326 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      6326 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      6326 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
       6340         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       6340         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       6340         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -2694,8 +2694,8 @@
       6905       Various pirates         United States               English          Unknown site 999 999
       6910       Various pirates         United States               English          Unknown site 999 999
       6911      Stalingrad clock    Russian Federation                                Unknown site 999 999
-      6915  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
-      6915  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
+      6913  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
+      6913  VCO Sydney Meteo Fax                Canada                                   Sambro NS 44 -63
       6915       Various pirates         United States               English          Unknown site 999 999
       6920       Various pirates         United States               English          Unknown site 999 999
       6923 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
@@ -3137,31 +3137,31 @@
       7390      China Radio Int.                 China               Serbian     Xian-Xianyang 594 34 108
       7390      China Radio Int.                 China             Hungarian                Jinhua 29 119
       7390      Voice of America         United States               English            Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-      7397 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+      7395 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
       7400 Free Radio Sce Holland       The Netherlands               English    Secret pirate site 999 999
       7400 Free Radio Sce Holland       The Netherlands               English    Secret pirate site 999 999
       7400 Free Radio Sce Holland       The Netherlands               English    Secret pirate site 999 999
@@ -3205,8 +3205,8 @@
       7430      China Radio Int.                 China                 Khmer               Nanning 22 108
       7430 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
       7430     Radio Taiwan Int.                Taiwan              Mandarin                 Kouhu 23 120
-      7434   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
-      7434   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+      7432   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+      7432   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
       7435      China Radio Int.                 China              Mandarin  Beijing-Matoucun 572 39 116
       7435      China Radio Int.                 China              Mandarin  Beijing-Matoucun 572 39 116
       7435      China Radio Int.                 China              Mandarin  Beijing-Matoucun 572 39 116
@@ -3297,14 +3297,14 @@
       7530      Voice of Martyrs  Clandestine stations                Korean              Tashkent 41 69
       7530      Voice of Martyrs  Clandestine stations                Korean              Tashkent 41 69
       7530      Voice of Martyrs  Clandestine stations                Korean              Tashkent 41 69
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-      7535    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+      7533    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
       7535  RCW Compaa Worldwide                 Chile               Spanish       General Carrera 999 999
       7540     Trans World Radio         United States                Korean              Tashkent 41 69
       7540     Trans World Radio         United States                Korean              Tashkent 41 69
@@ -3405,7 +3405,7 @@
       7780    Voice of Indonesia             Indonesia               English            Okeechobee 27 -80
       7780   Radio Slovakia Int.              Slovakia               Spanish            Okeechobee 27 -80
       7780 WRMI Radio Miami Int.         United States               English            Okeechobee 27 -80
-      7795   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
+      7793   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
       7810         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       7810         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       7810         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -3430,12 +3430,12 @@
       7863 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       7864 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       7864 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-      7880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+      7878 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
       7906        Ben Thuy Radio               Vietnam            Vietnamese              Ben Thuy 18 105
       7906        Ben Thuy Radio               Vietnam            Vietnamese              Ben Thuy 18 105
       7906        Ben Thuy Radio               Vietnam            Vietnamese              Ben Thuy 18 105
@@ -3543,21 +3543,21 @@
       8006  JG2XA Propag.Studies                 Japan                                Chofu Campus 35 139
       8029      Channel Marker G    Russian Federation                                Unknown site 999 999
       8029      Channel Marker W    Russian Federation                                Unknown site 999 999
-      8040 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      8040 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      8040 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
-      8040 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      8038 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      8038 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      8038 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+      8038 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
       8070     La Paz Volmet x15               Bolivia               Spanish                La Paz -16 -68
       8088 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       8091 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       8095 E06 Russian Spy Numbers    Russian Federation               English              Orenburg 51 55
       8101 Duyen Hai Information               Vietnam                  Thai         Buon Me Thuot 12 108
-      8105 SWA18 Athens Meteo Fax                Greece                                     Olimpia 37 21
+      8103 SWA18 Athens Meteo Fax                Greece                                     Olimpia 37 21
       8113         VMW Wiluna WA             Australia               English             Wiluna WA -26 120
       8113         VMW Wiluna WA             Australia               English             Wiluna WA -26 120
       8116 E06 Russian Spy Numbers    Russian Federation               English              Orenburg 51 55
       8117 Central Weather Bureau                Taiwan              Mandarin           Tainan-Qigu 999 999
-      8120 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+      8118 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
       8126 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
       8131 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
       8153 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
@@ -3602,16 +3602,16 @@
       8302 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
       8302 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
       8302 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
-      8310 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      8310 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      8310 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-      8310 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      8308 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      8308 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      8308 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+      8308 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
       8376     VFF Iqaluit Radio                Canada                                  Iqaluit NU 63 -68
       8416     VFF Iqaluit Meteo                Canada                                  Iqaluit NU 63 -68
       8416     VFF Iqaluit Meteo                Canada                                  Iqaluit NU 63 -68
       8418     XSV Tianjin Radio                 China                                     Tianjin 39 117
       8418     XSV Tianjin Radio                 China                                     Tianjin 39 117
-      8421 XSQ Guangzhou Meteo Fax                 China                               Guangzhou XSQ 23 113
+      8419 XSQ Guangzhou Meteo Fax                 China                               Guangzhou XSQ 23 113
       8421     XSV Tianjin Radio                 China                                     Tianjin 39 117
       8424     SVO Olimpia Radio                Greece                                     Olimpia 37 21
       8426    XSG Shanghai Radio                 China                       Shanghai XSG Chongming Island 31 121
@@ -3620,11 +3620,11 @@
       8433    XSG Shanghai Radio                 China                       Shanghai XSG Chongming Island 31 121
       8434 TAH Turk Radio Istanbul                Turkey                                Istanbul TAH 40 28
       8435   XSQ Guangzhou Radio                 China                               Guangzhou XSQ 23 113
-      8444 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      8444 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      8444 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      8444 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
-      8444 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      8442 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      8442 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      8442 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      8442 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
+      8442 RBW Murmansk Meteo Fax    Russian Federation                              Murmansk Meteo 68 33
       8456 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       8459        NOJ Fax Kodiak                Alaska                                      Kodiak 57 -152
       8459        NOJ Fax Kodiak                Alaska                                      Kodiak 57 -152
@@ -3671,10 +3671,10 @@
       8658 JFX Kagoshima Fish.Fax                 Japan                                       Miura 35 139
       8658 JFX Kagoshima Fish.Fax                 Japan                                       Miura 35 139
       8658 JFX Kagoshima Fish.Fax                 Japan                                       Miura 35 139
-      8677 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      8677 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      8677 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-      8677 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      8675 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      8675 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      8675 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+      8675 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
       8680 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       8680 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
       8680 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
@@ -3851,8 +3851,8 @@
       9155         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       9155         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       9155         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
-      9165   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
-      9165   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+      9163   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+      9163   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
       9180 CNR1 Jammer/Firedrake                 China              Mandarin                Urumqi 44 86
       9180         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
       9180         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -5119,7 +5119,7 @@
      10084   Auckland HFDL (ID5)           New Zealand                                    Auckland -37 174
      10093     Barrow HFDL (ID9)                Alaska                                      Barrow 71 -156
      10101  DWD 1 Pinneberg RTTY               Germany               English             Pinneberg 53 9
-     10115 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+     10113 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
      10153           NAU US Navy           Puerto Rico                                     Isabela 18 -67
      10156 4XZ Israeli Navy Haifa                Israel                                       Haifa 32 35
      10160 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
@@ -5160,14 +5160,14 @@
      10487 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
      10536     CFH Halifax Radio                Canada                              Halifax CFH NS 44 -63
      10536     CFH Halifax Radio                Canada                              Halifax CFH NS 44 -63
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     10555    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     10553    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
      10628 E06 Russian Spy Numbers    Russian Federation               English                 Chita 51 113
      10653 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
      10673 E06 Russian Spy Numbers    Russian Federation               English                 Chita 51 113
@@ -5243,21 +5243,21 @@
      10960         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      10960         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      10960 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     11030 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     11028 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
      11039  DWD 2 Pinneberg RTTY               Germany               English             Pinneberg 53 9
      11073 E06 Russian Spy Numbers    Russian Federation               English              Orenburg 51 55
-     11086 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
+     11084 GYA Northwood Meteo Fax        United Kingdom                                   Northwood 51 0
      11090    KVM70 Fax Honolulu                Hawaii                                NMO Honolulu 21 -158
      11090    KVM70 Fax Honolulu                Hawaii                                NMO Honolulu 21 -158
      11092 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
@@ -6552,10 +6552,10 @@
      12365         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      12365         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      12365         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
-     12376 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     12376 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     12376 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     12376 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     12374 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     12374 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     12374 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     12374 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
      12382 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
      12382 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
      12382 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
@@ -6957,7 +6957,7 @@
      13560          RFID devices          Unidentified                                Unknown site 999 999
      13562 E06 Russian Spy Numbers    Russian Federation               English                 Chita 51 113
      13562 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
-     13570   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
+     13568   HLL Seoul Meteo Fax                 Korea                            Seoul-Gangseo-gu 37 126
      13570           Radio Marti         United States               Spanish            Greenville 35 -77
      13575      China Radio Int.                 China               Russian                Urumqi 44 86
      13580      China Radio Int.                 China              Mandarin  Beijing-Matoucun 572 39 116
@@ -7310,12 +7310,12 @@
      13870         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13870         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13870         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
-     13882 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
+     13880 DWD Pinneberg Met Fax               Germany                                   Pinneberg 53 9
      13887 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
      13890 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
      13890         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -7329,15 +7329,15 @@
      13890         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13890         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13908 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     13920 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     13918 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
      13920 CNR1 Jammer/Firedrake                 China              Mandarin            Xinzhaicun 25 117
      13920         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13920         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -7377,11 +7377,11 @@
      13980         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      13985 E06 Russian Spy Numbers    Russian Federation               English          Unknown site 999 999
      13986 F06 Russian Spy Numbers    Russian Federation                                      Moscow 55 37
-     13988   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
+     13986   JMH Japan Meteo Fax                 Japan                               Kagoshima JMH 31 130
      14359 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
      14361 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
      14364 E06 Russian Spy Numbers    Russian Federation               English                 Chita 51 113
-     14365 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+     14363 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
      14370 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
      14370 E06 Russian Spy Numbers    Russian Federation               English          Unknown site 999 999
      14370         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -8188,14 +8188,14 @@
      15610      Voice of America         United States               English           Mopeng Hill -21 27
      15610      Voice of America         United States              Mandarin                 Jahra 29 47
      15610 WEWN EWTN Catholic R.         United States               English            Birmingham 33 -86
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     15615    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     15613    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
      15615           Radio Payam  Clandestine stations                 Farsi            Woofferton 52 -2
      15615           Radio Payam  Clandestine stations                 Farsi            Woofferton 52 -2
      15615 E06 Russian Spy Numbers    Russian Federation               English          Unknown site 999 999
@@ -8402,7 +8402,7 @@
      15970         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      15970         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      15988 DWD Polarstern Fax/RTTY               Germany                                   Pinneberg 53 9
-     16024 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+     16022 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
      16100 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
      16100         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      16100         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -8495,10 +8495,10 @@
      16559 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
      16559 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
      16559 XSG Shanghai Radio Fax                 China              Mandarin Shanghai XSG Chongming Island 31 121
-     16562 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     16562 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     16562 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
-     16562 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     16560 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     16560 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     16560 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
+     16560 XSQ Guangzhou Meteo Fax                 China               English         Guangzhou XSQ 23 113
      16600         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      16600         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      16600         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
@@ -8569,10 +8569,10 @@
      17000         Sound of Hope                Taiwan              Mandarin          Fangliao FAN 22 120
      17130       HLW Seoul Radio                 Korea                                   Chuncheon 37 127
      17132     XSV Tianjin Radio                 China                                     Tianjin 39 117
-     17146 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-     17146 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-     17146 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
-     17146 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+     17144 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+     17144 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+     17144 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
+     17144 CBV Valparaiso Met Fax                 Chile                       Valparaiso 32S48-71W29 or -33 -71
      17146   NMG Fax New Orleans         United States                             NMG New Orleans 29 -89
      17146   NMG Fax New Orleans         United States                             NMG New Orleans 29 -89
      17146   NMG Fax New Orleans         United States                             NMG New Orleans 29 -89
@@ -8690,16 +8690,16 @@
      17520    Radio Romania Int.               Romania               Spanish       Tiganesti 300kW 44 26
      17520    Radio Romania Int.               Romania               Spanish       Tiganesti 300kW 44 26
      17520    Radio Romania Int.               Romania               Spanish       Tiganesti 300kW 44 26
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
-     17520 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
+     17518 HSW64 Bangkok Meteo Fax              Thailand                                  Udon Thani 17 102
      17525        Radio Vaticana         Vatican State                French Santa Maria di Galeria 42 12
      17525        Radio Vaticana         Vatican State                French Santa Maria di Galeria 42 12
      17525        Radio Vaticana         Vatican State                French Santa Maria di Galeria 42 12
@@ -9122,11 +9122,11 @@
      18030 AF Transport Proselok    Russian Federation               Russian         Pskov airport 57 28
      18040  Star-Star Bc.Station                Taiwan              Mandarin               Kuanyin 25 121
      18040  Star-Star Bc.Station                Taiwan              Mandarin               Kuanyin 25 121
-     18060    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     18060    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     18060    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     18060    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
-     18060    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     18058    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     18058    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     18058    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     18058    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
+     18058    VMW Wiluna Met Fax             Australia                                   Wiluna WA -26 120
      18168 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
      18168 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
      18180 CNR1 Jammer/Firedrake                 China              Mandarin          Baoji-Xinjie 34 107
@@ -9143,7 +9143,7 @@
      18217 V07 Russian Spy Numbers    Russian Federation               Spanish            Khabarovsk 48 135
      18217 V07 Russian Spy Numbers    Russian Federation               Spanish            Khabarovsk 48 135
      18232 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
-     18235 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
+     18233 BAF Beijing Meteo Fax                 China                                 Beijing BAF 39 116
      18245 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
      18249 V07 Russian Spy Numbers    Russian Federation               Spanish            Khabarovsk 48 135
      18257 E07 Russian Spy Numbers    Russian Federation               English                Moscow 55 37
@@ -9214,12 +9214,12 @@
      20170 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
      20170 E11 Polish Spy Numbers                Poland               English               Puchaly 52 20
      20230 E06 Russian Spy Numbers    Russian Federation               English          Unknown site 999 999
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
-     20469 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
+     20467 VMC Charleville Met Fax             Australia                              Charleville QL -26 146
      20905 S11a Polish Spy Numbers                Poland               Russian               Puchaly 52 20
      21470                   BBC        United Kingdom                Haussa              Dhabbaya 24 54
      21470                   BBC        United Kingdom               English              Dhabbaya 24 54

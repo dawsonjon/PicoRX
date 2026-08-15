@@ -14,9 +14,11 @@ static const uint32_t CORDIC_GAIN = 39803;
 static int16_t CORDIC_ATAN_LUT[CORDIC_ITERS] = {8192, 4836, 2555, 1297, 651, 326};
 
 #ifndef SIMULATION
-void __time_critical_func(rectangular_2_polar)(int16_t i, int16_t q, uint16_t *mag, int16_t *phase) {
+void __time_critical_func(rectangular_2_polar)(int16_t i, int16_t q, uint16_t* mag, int16_t* phase)
+{
 #else
-void rectangular_2_polar(int16_t i, int16_t q, uint16_t *mag, int16_t *phase) {
+void rectangular_2_polar(int16_t i, int16_t q, uint16_t* mag, int16_t* phase)
+{
 #endif
   int16_t temp_i;
   int16_t angle = 0;
@@ -54,26 +56,26 @@ void rectangular_2_polar(int16_t i, int16_t q, uint16_t *mag, int16_t *phase) {
   *phase = angle;
 }
 
-//from: http://dspguru.com/dsp/tricks/magnitude-estimator/
+// from: http://dspguru.com/dsp/tricks/magnitude-estimator/
 uint16_t rectangular_2_magnitude(int16_t i, int16_t q)
 {
-  //Measure magnitude
-  const int16_t absi = i>0?i:-i;
-  const int16_t absq = q>0?q:-q;
+  // Measure magnitude
+  const int16_t absi = i > 0 ? i : -i;
+  const int16_t absq = q > 0 ? q : -q;
   return absi > absq ? absi + absq / 4 : absq + absi / 4;
 }
 
 void initialise_luts()
 {
-  //pre-generate sin/cos lookup tables
+  // pre-generate sin/cos lookup tables
   float scaling_factor = (1 << 15) - 1;
-  for(uint16_t idx=0; idx<2048; idx++)
-  {
-    sin_table[idx] = roundf(sinf(2.0*M_PI*idx/2048.0) * scaling_factor);
+  for (uint16_t idx = 0; idx < 2048; idx++) {
+    sin_table[idx] = roundf(sinf(2.0 * M_PI * idx / 2048.0) * scaling_factor);
   }
 }
 
-char const* mode_to_str(uint8_t m) {
+char const* mode_to_str(uint8_t m)
+{
   static const char modes[6][4] = {" AM", "AMS", "LSB", "USB", " FM", " CW"};
   if (m < 6) {
     return modes[m];

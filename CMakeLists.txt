@@ -69,7 +69,7 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/autosave_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ili934x.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/waterfall.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/aux_display.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/button.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/quadrature_si5351.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cat.cpp
