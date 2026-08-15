@@ -246,6 +246,8 @@ void c_spotter::draw_map(ILI934X* display, std::time_t t, bool force_redraw)
     if (lon2 < -M_PI)
       lon2 += 2 * M_PI;
 
+    printf("%u %f %f %f\n", map_y, v, lon1, lon2);
+
     uint16_t line[display_width];
     for (uint16_t xx = 0; xx < display_width; ++xx) {
       int16_t map_x = view_x + (xx * view_width / display_width);
@@ -261,7 +263,7 @@ void c_spotter::draw_map(ILI934X* display, std::time_t t, bool force_redraw)
           line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y * map_width) + map_x], 180);
         } else if (lon2 > lon1 && lon >= lon1 && lon <= lon2) {
           line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y * map_width) + map_x], 255);
-        } else if ((lon > lon1 || lon < lon2)) {
+        } else if (lon1 > lon2 && (lon > lon1 || lon < lon2)) {
           line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y * map_width) + map_x], 255);
         } else {
           line[xx] = shade_rgb565_night(Blue_Marble_2002_320x160[(map_y * map_width) + map_x], 180);

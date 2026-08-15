@@ -62,7 +62,7 @@ bool get_nearest_active(uint16_t frequency_kHz, int16_t lon, int16_t lat,
 
       // if there is an active transmitter with an unknown location, display that
       if ((nearest_distance > 50000) && active) {
-        nearest_distance = 0;
+        nearest_distance = 49000;
         nearest_frequency = frequencies[idx];
       }
 

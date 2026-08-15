@@ -748,7 +748,7 @@ void rx_dsp ::set_mode(uint8_t val, uint8_t bw)
 {
   mode = val;
   //                           AM AMS LSB USB NFM CW
-  uint8_t start_bins[6] = {0, 0, 3, 3, 0, 0};
+  uint8_t start_bins[6] = {0, 0, 4, 4, 0, 0};
 
   uint8_t stop_bins[5][6] = {{19, 19, 16, 16, 31, 0},  // very narrow
                              {22, 22, 19, 19, 34, 1},  // narrow
