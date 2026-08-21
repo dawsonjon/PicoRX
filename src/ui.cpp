@@ -2414,7 +2414,7 @@ bool ui::configuration_menu(bool& ok)
             "HW Config",
             "Display\nTimeout#Regulator\nMode#Reverse\nEncoder#Encoder\nResolution#Swap IQ#Gain "
             "Cal#Freq Cal#Flip OLED#OLED "
-            "Type#Display\nContrast#SPI\nSpeed#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#"
+            "Type#Display\nContrast#TFT\nSettings#TFT\nColour#TFT\nInvert#TFT\nDriver#"
             "Filter\nBands#IF Mode#IF\nFrequency#External\nNCO#Set\nTime#Location#USB\nUpload#",
             &menu_selection, ok)) {
       if (ok) {
