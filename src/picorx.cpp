@@ -89,13 +89,13 @@ int main()
       process_cat_control(settings_to_apply, status, transceiver, user_interface.get_settings());
     }
 
-    // if(sem_try_acquire(&transceiver.i2c_semaphore))  {
+    if(sem_try_acquire(&transceiver.i2c_semaphore))  {
     if (time_us_32() - last_waterfall_update > WATERFALL_REFRESH_US) {
       last_waterfall_update = time_us_32();
       aux_display.update(spectrum, hold, dB10, zoom);
     }
     sem_release(&transceiver.i2c_semaphore);
-    //}
+    }
 
     if (time_us_32() - last_stack_update > STACK_UPDATE_US) {
       last_stack_update = time_us_32();

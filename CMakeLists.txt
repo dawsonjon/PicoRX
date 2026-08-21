@@ -74,12 +74,21 @@ set(PICORX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/quadrature_si5351.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/pwm_audio_sink.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cw_decoder_view.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/eibi_view.cpp
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
     ${CMAKE_CURRENT_LIST_DIR}/usb_audio_device.c
     ${CMAKE_CURRENT_LIST_DIR}/src/ring_buffer_lib.c
     ${CMAKE_CURRENT_LIST_DIR}/src/rotary_encoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/codecs/sstv_decoder_picorx.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/dictionary.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_dsp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_decode.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_classifier.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_fft.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/codecs/cw_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eibi/eibi.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eibi/eibi_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eibi/spotter.cpp

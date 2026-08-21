@@ -44,7 +44,6 @@ struct s_global_settings
   int16_t lat;
   int16_t lon;
   uint8_t view_mode;
-  uint8_t baud_rate;
   uint8_t agc_setting;
   uint8_t bandwidth;
   uint8_t volume;
@@ -155,7 +154,6 @@ const s_settings default_settings = {
         51,   // lat
         0,    // lon
         2,    // view_mode
-        0,    // baud rate = normal
         3,    // agc_setting = very_slow
         2,    // bandwidth = normal
         5,    // volume

@@ -16,161 +16,12 @@
 #include "ui.h"
 #include "pins.h"
 #include "utils.h"
-#include "eibi/eibi.h"
-#include "eibi/eibi_utils.h"
+#include "cw_decoder_view.h"
+#include "eibi_view.h"
+#include "codecs/cw_fft.h" //needed to initialise FFT
+
 
 #define SPI_PORT spi1
-
-static void refresh_map(ILI934X *display) {
-  (void) display;
-}
-
-static void draw_map(s_settings &ui_settings, c_spotter &spotter, ILI934X *display, bool force_redraw)
-{
-
-  display->fillRect(0, 0, 20, 320, COLOUR_BLACK);
-  display->fillRect(0, 220, 20, 320, COLOUR_BLACK);
-
-  time_t now;
-  time(&now);
-  float lon_field = 340.0f;
-  float lat_field = 160.0f;
-  float start_lon = ui_settings.global.lon - lon_field/2;
-  float start_lat = std::clamp(ui_settings.global.lat + lat_field/2, -90.0f+lat_field, 90.0f);
-  spotter.set_view(start_lon, start_lat, lon_field, lat_field);
-  spotter.draw_map(display, now, force_redraw);
-  spotter.qth(display, ui_settings.global.lon, ui_settings.global.lat);
-
-  //lookup frequency in database
-  int16_t from = -1;
-  int16_t to = -1;
-  int16_t id = -1;
-  id = lookup_frequency(ui_settings.channel.frequency/1000, from, to);
-
-  if(is_valid_id(id)) {
-    for(int16_t idx = from; idx<=to; idx++){
-      s_locations location = locations[frequencies[idx].transmitter_id];
-      if(is_valid_location(location) && !is_active(frequencies[idx]))
-        spotter.spot(display, location.lon, location.lat, false);
-    }
-    for(int16_t idx = from; idx<=to; idx++){
-      s_locations location = locations[frequencies[idx].transmitter_id];
-      if(is_valid_location(location) && is_active(frequencies[idx]))
-        spotter.spot(display, location.lon, location.lat, true);
-    }
-  }
-
-  float nearest_distance = 1000000;
-  s_frequency nearest_frequency = {0};
-  if(get_nearest_active(ui_settings.channel.frequency/1000, ui_settings.global.lon, ui_settings.global.lat, nearest_frequency, nearest_distance)) {
-
-    spotter.great_circle(display, ui_settings.global.lon, ui_settings.global.lat, locations[nearest_frequency.station_id].lon, locations[nearest_frequency.station_id].lat);
-
-    uint16_t text_width = strlen(stations[nearest_frequency.station_id]) * 12;
-    display->drawString((320-text_width)/2, 4, font_16x12, stations[nearest_frequency.station_id], COLOUR_WHITE, COLOUR_BLACK);
-
-    char buff[50];
-    snprintf(buff, 50, "%s - %s %.0fkm",
-      countries[nearest_frequency.country_id],
-      transmitters[nearest_frequency.transmitter_id],
-      nearest_distance
-    );
-    text_width = strlen(buff) * 6;
-    display->drawString((320-text_width)/2, 240-20, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
-
-    char weekdays[]="SMTWTFS";
-    for(uint8_t d=0; d<7; d++) {
-      if(!(nearest_frequency.dayflags & (1<<d))){
-        weekdays[d] = '-';
-      }
-    }
-    snprintf(buff, 50, "%s %7s %02u:%02u-%02u:%02u",
-      languages[nearest_frequency.language_id],
-      weekdays,
-      nearest_frequency.from/60,
-      nearest_frequency.from%60,
-      nearest_frequency.to/60,
-      nearest_frequency.to%60
-    );
-    text_width = strlen(buff) * 6;
-    display->drawString((320-text_width)/2, 240-10, font_8x5, buff, COLOUR_WHITE, COLOUR_BLACK);
-
-  }
-
-  refresh_map(display);
-}
-
-static const char* scroll(const char *string, uint8_t display_len, uint8_t phase){
-  static char wrapped_scroll_buff[51];
-  uint8_t length = strlen(string);
-  for(uint8_t i=0; i<display_len; i++){
-    wrapped_scroll_buff[i] = string[(i+phase)%length];
-  }
-  wrapped_scroll_buff[50]=0;
-  return wrapped_scroll_buff;
-}
-
-static void draw_listing(s_settings &ui_settings, ILI934X *display, bool full_redraw, bool text_redraw)
-{
-
-  static uint8_t phase = 0;
-
-  if(full_redraw) {
-    display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
-    display->fillRect(0, 0, 240, 320, display->colour565(200, 200, 200));
-    display->drawRect(7, 15, 220, 306, display->colour565(128, 128, 128));
-    display->fillRect(7, 2, 11, 306, display->colour565(128, 128, 128));
-    display->drawString(10, 3, font_8x5, "Time UTC, Station, Country, Lang, Site, km, Days", COLOUR_BLACK, display->colour565(128, 128, 128));
-  }
-  if(text_redraw) {
-    display->fillRect(7, 15, 220, 306, display->colour565(255, 255, 255));
-  }
-
-  //lookup frequency in database
-  int16_t from = -1;
-  int16_t to = -1;
-  int16_t id = -1;
-  id = lookup_frequency(ui_settings.channel.frequency/1000, from, to);
-
-  if(is_valid_id(id)) {
-    uint8_t count = 0;
-    for(int16_t idx = from; idx<=to; idx++){
-      s_locations location = locations[frequencies[idx].transmitter_id];
-
-      char weekdays[]="SMTWTFS";
-      for(uint8_t d=0; d<7; d++) {
-        if(!(frequencies[idx].dayflags & (1<<d))){
-          weekdays[d] = '-';
-        }
-      }
-
-      char scroll_buff[100];
-      snprintf(scroll_buff, 100, "%s %s %s %s %.0f km %s -- ",
-          stations[frequencies[idx].station_id],
-          countries[frequencies[idx].country_id],
-          languages[frequencies[idx].language_id],
-          transmitters[frequencies[idx].transmitter_id],
-          distance_km(location.lon, location.lat, ui_settings.global.lon, ui_settings.global.lat),
-          weekdays
-      );
-
-      char buff[52];
-      snprintf(buff, 52, "%02u:%02u-%02u:%02u %-38.38s",
-          frequencies[idx].from/60%24,
-          frequencies[idx].from%60,
-          frequencies[idx].to/60%24,
-          frequencies[idx].to%60,
-          scroll(scroll_buff, 40, phase));
-
-      uint16_t colour = is_active(frequencies[idx])?COLOUR_RED:COLOUR_BLUE;
-      display->drawString(10, 20+count++*10, font_8x5, buff, colour, COLOUR_WHITE);
-      if(count > 20) break;
-    }
-  }
-
-  phase++;
-
-}
 
 c_aux_display::c_aux_display(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status) :
   transceiver(_transceiver),
@@ -185,12 +36,20 @@ c_aux_display::c_aux_display(xcvr &_transceiver, s_settings &_ui_settings, xcvr_
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+    gpio_set_function(PIN_CS, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_DC, GPIO_FUNC_SIO);
     gpio_init(PIN_CS);
     gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_set_slew_rate(PIN_CS, GPIO_SLEW_RATE_FAST);
+    gpio_set_drive_strength(PIN_CS, GPIO_DRIVE_STRENGTH_12MA);
     gpio_init(PIN_DC);
     gpio_set_dir(PIN_DC, GPIO_OUT);
+    gpio_set_slew_rate(PIN_DC, GPIO_SLEW_RATE_FAST);
+    gpio_set_drive_strength(PIN_CS, GPIO_DRIVE_STRENGTH_12MA);
     display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240);
     sstv_decoder.set_display(display);
+    cw_dsp.set_display(display);
+    cw_fft_initialise();
 }
 
 c_aux_display::~c_aux_display()
@@ -198,18 +57,19 @@ c_aux_display::~c_aux_display()
     delete display;
 }
 
-void c_aux_display::configure_display(uint8_t display_settings, bool invert_colours, bool invert_display, uint8_t display_driver, uint8_t baud_rate)
+void c_aux_display::configure_display(uint8_t display_settings, bool invert_colours, bool invert_display, uint8_t display_driver)
 {
 
-    if(baud_rate == 0){
-      spi_set_baudrate(SPI_PORT, 75000000);
-    } else if(baud_rate == 1){
-      spi_set_baudrate(SPI_PORT, 50000000);
-    } else if(baud_rate == 2){
-      spi_set_baudrate(SPI_PORT, 25000000);
-    } else {
-      spi_set_baudrate(SPI_PORT, 10000000);
-    }
+    gpio_set_function(PIN_CS, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_DC, GPIO_FUNC_SIO);
+    gpio_init(PIN_CS);
+    gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_set_slew_rate(PIN_CS, GPIO_SLEW_RATE_FAST);
+    gpio_set_drive_strength(PIN_CS, GPIO_DRIVE_STRENGTH_12MA);
+    gpio_init(PIN_DC);
+    gpio_set_dir(PIN_DC, GPIO_OUT);
+    gpio_set_slew_rate(PIN_DC, GPIO_SLEW_RATE_FAST);
+    gpio_set_drive_strength(PIN_CS, GPIO_DRIVE_STRENGTH_12MA);
 
     e_display_type display_type = display_driver?ILI9341:ILI9341_2;
     if(display_settings == 0)
@@ -314,12 +174,17 @@ void c_aux_display::draw()
     }
     else if(m_aux_display_state == map_active)
     {
-      draw_map(ui_settings, spotter, display, true);
+      draw_map(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, spotter, display, true);
       return;
     }
     else if(m_aux_display_state == listing_active)
     {
-      draw_listing(ui_settings, display, true, true);
+      draw_listing(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, display, true, true);
+      return;
+    }
+    else if(m_aux_display_state == cw_decoder_active)
+    {
+      draw_cw_decoder(display);
       return;
     }
 
@@ -461,7 +326,7 @@ void c_aux_display::update_map()
   if(ui_settings.channel.frequency != last_frequency)
   {
     last_frequency = ui_settings.channel.frequency;
-    draw_map(ui_settings, spotter, display, false);
+    draw_map(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, spotter, display, false);
   }
 
 }
@@ -474,13 +339,13 @@ void c_aux_display::update_listing()
   if(!timeout--)
   {
     timeout = 2;
-    draw_listing(ui_settings, display, false, false);
+    draw_listing(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, display, false, false);
   }
 
   if(ui_settings.channel.frequency != last_frequency)
   {
     last_frequency = ui_settings.channel.frequency;
-    draw_listing(ui_settings, display, false, true);
+    draw_listing(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, display, false, true);
   }
 
 }
@@ -507,12 +372,17 @@ void c_aux_display::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uin
         else if(ui_settings.global.aux_view == 2)
         {
           m_aux_display_state = map_active;
-          draw_map(ui_settings, spotter, display, true);
+          draw_map(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, spotter, display, true);
         }
         else if(ui_settings.global.aux_view == 3)
         {
           m_aux_display_state = listing_active;
-          draw_listing(ui_settings, display, true, true);
+          draw_listing(ui_settings.channel.frequency, ui_settings.global.lon, ui_settings.global.lat, display, true, true);
+        }
+        else if(ui_settings.global.aux_view == 4)
+        {
+          m_aux_display_state = cw_decoder_active;
+          draw();
         }
     }
 
@@ -520,6 +390,11 @@ void c_aux_display::update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uin
     if(m_aux_display_state == sstv_active)
     {
       decode_sstv();
+      return;
+    }
+    else if(m_aux_display_state == cw_decoder_active)
+    {
+      decode_cw();
       return;
     }
     else if(m_aux_display_state == map_active)
@@ -584,6 +459,7 @@ void c_aux_display::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t 
       display->drawString(233, 31, font_16x12, buffer, COLOUR_GREEN, COLOUR_BLACK);
 
     }
+
 
     //draw status
     static int16_t last_mode = -1;
@@ -736,6 +612,7 @@ void c_aux_display::update_spectrum(uint8_t spectrum[], uint8_t hold[], uint8_t 
            colour = row_is_tick?COLOUR_GREY:colour;
            hline[scope_col] = colour;
          }
+         //hline[scope_col] = 0;
        }
        display->dmaFlush();
        display->writeHLine(scope_x, scope_y+scope_height-1-scope_row, num_cols, hline);
@@ -813,4 +690,41 @@ void c_aux_display::decode_sstv()
   if(!image_in_progress) sstv_decoder.reset();
 
 }
+
+void c_aux_display::decode_cw()
+{
+  #define MONITOR_BUFFER_LEVEL
+  #ifdef MONITOR_BUFFER_LEVEL
+
+  //Usually gets serviced about once every 50ms.  This can take longer if the
+  //UI is busy.  The length of the queue needs to be adjusted to the the queue
+  //never fills up while the CPU is busy doing other things.
+
+  //It probably isn't the end of the world if we run out of space while tuning
+  //around the bands or doing stuff, its unlikely we could decode anything
+  //anyway if this was the case, but we don't want it to fill up when we aren't
+  //doing anything.
+
+  static uint32_t start_time = 0;
+  uint32_t duration = time_us_32() - start_time;
+  printf("buffer level: %lu time: %lu\n", transceiver.get_iq_buffer_level(), duration);
+  start_time = time_us_32();
+  #endif
+
+  static uint32_t sample_count = 0;
+  uint16_t samples_to_process = transceiver.get_iq_buffer_level();
+  for(uint16_t idx=0; idx<samples_to_process; ++idx)
+  {
+    int16_t i, q;
+    transceiver.get_raw_data(i, q);
+    cw_dsp.process_sample(i);
+    if(sample_count++ >= 255) {
+      draw_waterfall(cw_dsp, display);
+      sample_count = 0;
+    }
+  }
+  draw_channel_status(cw_dsp, display, ui_settings.channel.frequency);
+
+}
+
 

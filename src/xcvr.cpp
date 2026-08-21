@@ -179,8 +179,10 @@ void xcvr::tune_rx()
     disable_pwm();
     if (pwm_is_disabled()) {
       double adjusted_tuned_frequency_Hz = tuned_frequency_Hz * 1e6 / (1e6 + ppm);
+      sem_acquire_blocking(&i2c_semaphore);
       nco_frequency_Hz = nco_set_frequency(pio, sm, adjusted_tuned_frequency_Hz, system_clock_rate,
                                            if_frequency_hz_over_100, if_mode);
+      sem_release(&i2c_semaphore);
       offset_frequency_Hz = adjusted_tuned_frequency_Hz - nco_frequency_Hz;
       pwm_audio_sink_update_pwm_max((system_clock_rate / pwm_audio_sample_rate) - 1);
       rx_dsp_inst.set_frequency_offset_Hz(offset_frequency_Hz);

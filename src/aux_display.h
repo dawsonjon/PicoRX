@@ -6,8 +6,12 @@
 #include "settings.h"
 #include "codecs/sstv_decoder_picorx.h"
 #include "eibi/spotter.h"
+#include "codecs/cw_dsp.h"
+#include "cw_decoder_view.h"
 
-enum e_aux_display_state{waterfall_active, sstv_active, map_active, listing_active};
+
+
+enum e_aux_display_state{waterfall_active, sstv_active, map_active, listing_active, cw_decoder_active};
 
 class c_aux_display
 {
@@ -16,7 +20,7 @@ class c_aux_display
   c_aux_display(xcvr &_transceiver, s_settings &_ui_settings, xcvr_settings &_settings, xcvr_status &_status);
   ~c_aux_display();
   void update(uint8_t spectrum[], uint8_t hold[], uint8_t dB10, uint8_t zoom);
-  void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver, uint8_t baud_rate);
+  void configure_display(uint8_t settings, bool invert_colours, bool invert_tft, uint8_t display_driver);
   void powerOn(bool state);
   void draw();
 
@@ -35,10 +39,12 @@ class c_aux_display
   xcvr_status &status;
   c_sstv_decoder_picorx sstv_decoder;
   c_spotter spotter;
+  my_cw_dsp cw_dsp;
   bool enabled = false;
   bool power_state = true;
   bool refresh = true;
   void decode_sstv();
+  void decode_cw();
   void update_map();
   void update_listing();
 
