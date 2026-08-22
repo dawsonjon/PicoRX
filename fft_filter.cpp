@@ -25,6 +25,8 @@
 #include "fft.h"
 #include "utils.h"
 
+#include "fft_iq_correct.h"
+
 #ifndef SIMULATION
 #include "pico/stdlib.h"
 #endif
@@ -74,6 +76,15 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   {
     sample_real[i] = cic_correct(i, filter_control.fft_bin, sample_real[i]);
     sample_imag[i] = cic_correct(i, filter_control.fft_bin, sample_imag[i]);
+  }
+
+  if (filter_control.iq_correction)
+  {
+    fft_iq_correct(sample_real, sample_imag, _start_bin, _stop_bin);
+  }
+
+  for (uint16_t i = _start_bin; i < _stop_bin + 1; i++)
+  {
     magnitudes_buf[i] = rectangular_2_magnitude(sample_real[i], sample_imag[i]);
   }
 

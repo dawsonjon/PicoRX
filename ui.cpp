@@ -2399,7 +2399,8 @@ bool ui::main_menu(bool & ok)
             if(changed) apply_settings(false);
             break;
           case 17 :
-            done = bit_entry("IQ\nCorrection", "Off#On#", settings.global.iq_correction, ok);
+            done = enumerate_entry("IQ\nCorrection", "Off#Time#Frequency#", settings.global.iq_correction, ok, changed);
+            if(changed) apply_settings(false);
             break;
           case 18 :
             done = spectrum_menu(ok);
