@@ -25,6 +25,8 @@
 #include "fft.h"
 #include "utils.h"
 
+#include "fft_iq_correct.h"
+
 #ifndef SIMULATION
 #include "pico/stdlib.h"
 #endif
@@ -67,6 +69,12 @@ void fft_filter::filter_block(int16_t sample_real[], int16_t sample_imag[], s_fi
   {
     _start_bin = 2;
     _stop_bin = 32;
+  }
+
+  if (filter_control.iq_correction)
+  {
+    //TODO this preferably should be done after CIC correction
+    fft_iq_correct(sample_real, sample_imag, _start_bin, _stop_bin);
   }
 
   // gather, possibly wider, range of magnitudes for nn denoiser

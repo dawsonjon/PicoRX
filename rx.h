@@ -44,7 +44,7 @@ struct rx_settings
   int8_t ppm;
   bool suspend;
   bool swap_iq;
-  bool iq_correction;
+  uint8_t iq_correction;
   bool enable_auto_notch;
   bool enable_noise_reduction;
   uint8_t noise_estimation;
