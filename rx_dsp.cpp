@@ -197,7 +197,7 @@ static uint32_t __not_in_flash_func(agcc)(int16_t i, int16_t q)
 
 void inline rx_dsp :: iq_imbalance_correction(int16_t &i, int16_t &q)
 {
-    if (iq_correction)
+    if (iq_correction == 1)
     {
       static uint16_t index = 0;
       static int32_t theta1 = 0;
@@ -653,6 +653,7 @@ rx_dsp :: rx_dsp()
   filter_control.noise_smoothing = 10;
   filter_control.noise_threshold = 1;
   filter_control.spectrum_smoothing = 1;
+  filter_control.iq_correction = false;
 
   sem_init(&audio_semaphore, 1, 1);
 
@@ -808,6 +809,12 @@ void rx_dsp :: set_swap_iq(uint8_t val)
 void rx_dsp :: set_iq_correction(uint8_t val)
 {
   iq_correction = val;
+  if (iq_correction == 2)
+  {
+    filter_control.iq_correction = true;
+  } else {
+    filter_control.iq_correction = false;
+  }
 }
 
 void rx_dsp :: set_cw_sidetone_Hz(uint16_t val)

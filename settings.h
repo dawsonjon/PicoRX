@@ -79,12 +79,12 @@ struct s_global_settings
   uint8_t aux_view;
   uint8_t tuning_option;
   uint8_t impulse_threshold;
+  uint8_t iq_correction;
   uint32_t sd_card_counter;
   uint8_t  nn_denoiser;
   bool    usb_stream;
   bool    sd_card_save;
   bool    enable_auto_notch;
-  bool    iq_correction;
   bool    enable_noise_reduction;
   bool    reverse_encoder;
   bool    encoder_resolution;
@@ -155,12 +155,12 @@ const s_settings default_settings = {
   0,  //aux_view
   2,  //tuning_option
   0,  //impulse blanker threshold
+  0,  //iq_correction
   0,  //sd_card_counter
   0,  //nn_denoiser
   0,  //usb_stream
   0,  //sd_card_save
   0,  //enable_auto_notch
-  0,  //iq_correction
   0,  //enable_noise_reduction
   0,  //reverse_encoder
   0,  //encoder_resolution
