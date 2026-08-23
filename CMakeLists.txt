@@ -24,6 +24,8 @@ execute_process(COMMAND git pull origin master
                 WORKING_DIRECTORY ${FETCHCONTENT_BASE_DIR}/pico_sdk-src/lib/tinyusb)
 execute_process(COMMAND git checkout 0.21.0
                 WORKING_DIRECTORY ${FETCHCONTENT_BASE_DIR}/pico_sdk-src/lib/tinyusb)
+execute_process(COMMAND git apply ${CMAKE_CURRENT_LIST_DIR}/patches/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico.patch
+                WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/external/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico)
 
 project(picorx
 LANGUAGES
