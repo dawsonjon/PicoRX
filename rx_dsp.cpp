@@ -455,23 +455,15 @@ bool __not_in_flash_func(rx_dsp :: decimate)(int16_t &i, int16_t &q)
 }
 
 // For the formulas see 'PicoRX/simulations/am_sync_des.py:pll_3rd_order_des'
-// PLL loop bandwidth: 30Hz
-#define AMSYNC_NUM_TAPS (3)
-#define AMSYNC_B0 (1160)
-#define AMSYNC_B1 (-2306)
-#define AMSYNC_B2 (1146)
-#define AMSYNC_A0 (32767)
-#define AMSYNC_A1 (-65534)
-#define AMSYNC_A2 (32767)
+// PLL loop bandwidth: 20Hz
+#define AMSYNC_C0 (13)
+#define AMSYNC_C1 (-13)
+#define AMSYNC_D0 (1544)
 #define AMSYNC_PI (102941)
-#define AMSYNC_ONE (32767)
-#define AMSYNC_MAX (262143)
 #define AMSYNC_ERR_SCALE (3)
+#define AMSYNC_ERR_FRAC (4640)
 #define AMSYNC_PHI_SCALE (101)
-#define AMSYNC_FRACTION_BITS (15)
 #define AMSYNC_BASE_FRACTION_BITS (15)
-#define AMSYNC_FILT_BITS (15)
-#define AMSYNC_FILT_ONE (32767)
 
 inline int32_t wrap(int32_t x) {
   if (x > AMSYNC_PI) {
@@ -482,7 +474,7 @@ inline int32_t wrap(int32_t x) {
   return x;
 }
 
-void rx_dsp::amsync_reset(void) { amsync = {0, 0, 0, 0, 0, 0}; }
+void rx_dsp::amsync_reset(void) { amsync = {0, 0, 0}; }
 
 int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t magnitude, int16_t _phase)
 {
@@ -521,18 +513,13 @@ int16_t __not_in_flash_func(rx_dsp :: demodulate)(int16_t i, int16_t q, uint16_t
 
       rectangular_2_polar(synced_i, synced_q, &mag, &phi);
 
-      const int32_t phi_err = ((int32_t)phi * AMSYNC_ERR_SCALE);
-
-      int32_t y0 = phi_err * AMSYNC_B0 + amsync.x1 * AMSYNC_B1 + amsync.x2 * AMSYNC_B2;
-      y0 += amsync.y0_err;
-      amsync.y0_err = y0 & AMSYNC_FILT_ONE;
-      y0 >>= AMSYNC_FILT_BITS;
-      y0 += 2 * amsync.y1 - amsync.y2;
-      amsync.y2 = amsync.y1;
-      amsync.y1 = y0;
-      amsync.x2 = amsync.x1;
-      amsync.x1 = phi_err;
-      amsync.phase_locked += y0;
+      const int32_t phi_err = ((int32_t)phi * AMSYNC_ERR_SCALE) +
+                              (((int32_t)phi * AMSYNC_ERR_FRAC) >> AMSYNC_BASE_FRACTION_BITS);
+      const int32_t y0 = (AMSYNC_C0 * amsync.x0 + AMSYNC_C1 * amsync.x1 + AMSYNC_D0 * phi_err) >> AMSYNC_BASE_FRACTION_BITS;
+      const int32_t x0 = amsync.x0;
+      amsync.x0 = 2 * amsync.x0 - amsync.x1 + phi_err;
+      amsync.x1 = x0;
+      amsync.phase_locked += y0 >> 1;
 
       amsync.phase_locked = wrap(amsync.phase_locked);
 
