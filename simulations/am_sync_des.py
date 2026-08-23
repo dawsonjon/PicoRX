@@ -2,6 +2,7 @@ import math
 import cmath
 
 import numpy as np
+import scipy.signal as sig
 import matplotlib.pyplot as plt
 from cffi import FFI
 
@@ -15,6 +16,7 @@ FIX_MAX = (1 << (FIX_ONE_BITS + 3)) - 1  # times 8 to accommodate 2*pi
 FIX_ONE = (1 << FIX_ONE_BITS) - 1
 FIX_PI = round(FIX_ONE * np.pi)
 FIX_ERR_SCALE = round(FIX_PI / BASE_MAX)
+FIX_ERR_FRAC = round(BASE_MAX * ((FIX_PI / BASE_MAX) - FIX_ERR_SCALE))
 FIX_PHI_SCALE = round(16 / (((BASE_MAX) / (2 * FIX_PI))))
 
 FILT_BITS = 15
@@ -22,23 +24,15 @@ FILT_ONE = (1 << FILT_BITS) - 1
 
 
 SRC = """
-// PLL loop bandwidth: 30Hz
-#define AMSYNC_NUM_TAPS (3)
-#define AMSYNC_B0 (1160)
-#define AMSYNC_B1 (-2306)
-#define AMSYNC_B2 (1146)
-#define AMSYNC_A0 (32767)
-#define AMSYNC_A1 (-65534)
-#define AMSYNC_A2 (32767)
+// PLL loop bandwidth: 20Hz
+#define AMSYNC_C0 (13)
+#define AMSYNC_C1 (-13)
+#define AMSYNC_D0 (1544)
 #define AMSYNC_PI (102941)
-#define AMSYNC_ONE (32767)
-#define AMSYNC_MAX (262143)
 #define AMSYNC_ERR_SCALE (3)
+#define AMSYNC_ERR_FRAC (4640)
 #define AMSYNC_PHI_SCALE (101)
-#define AMSYNC_FRACTION_BITS (15)
 #define AMSYNC_BASE_FRACTION_BITS (15)
-#define AMSYNC_FILT_BITS (15)
-#define AMSYNC_FILT_ONE (32767)
 
 static int16_t sin_table[2048];
 
@@ -105,11 +99,8 @@ inline int32_t wrap(int32_t x) {
 
 void amsync_demod(int16_t *i, int16_t *q, int32_t *err) {
   static int32_t phi_locked = 0;
-  static int32_t x1 = 0;
-  static int32_t y1 = 0;
-  static int32_t x2 = 0;
-  static int32_t y2 = 0;
-  static int32_t y0_err = 0;
+  static int32_t _x0 = 0;
+  static int32_t _x1 = 0;
 
   size_t idx = (phi_locked / AMSYNC_PHI_SCALE);
 
@@ -131,16 +122,13 @@ void amsync_demod(int16_t *i, int16_t *q, int32_t *err) {
   rectangular_2_polar(synced_i, synced_q, &mag, &phi);
   *err = (int32_t)phi * AMSYNC_ERR_SCALE;
 
-  int32_t y0 = *err * AMSYNC_B0 + x1 * AMSYNC_B1 + x2 * AMSYNC_B2;
-  y0 += y0_err;
-  y0_err = y0 & AMSYNC_FILT_ONE;
-  y0 >>= AMSYNC_FILT_BITS;  
-  y0 += 2 * y1 - y2;
-  y2 = y1;
-  y1 = y0;
-  x2 = x1;
-  x1 = *err;
-  phi_locked += y0;
+  *err = ((int32_t)phi * AMSYNC_ERR_SCALE) +
+         (((int32_t)phi * AMSYNC_ERR_FRAC) >> AMSYNC_BASE_FRACTION_BITS);
+  const int32_t y0 = (AMSYNC_C0 * _x0 + AMSYNC_C1 * _x1 + AMSYNC_D0 * *err) >> AMSYNC_BASE_FRACTION_BITS;
+  const int32_t x0 = _x0;
+  _x0 = 2 * _x0 - _x1 + *err;
+  _x1 = x0;
+  phi_locked += y0 >> 1;
 
   phi_locked = wrap(phi_locked);
 
@@ -259,23 +247,23 @@ class PLLFixed:
     def __init__(self, loop_bw):
 
         self.bf, self.af = pll_3rd_order_des(loop_bw)
-        self.num_taps = len(self.bf)
+        tfz = sig.TransferFunction(self.bf, self.af, dt=1 / SR)
+        ss = tfz.to_ss()
 
-        if len(self.bf) < 3:
-            self.bf += [0] * (3 - len(self.bf))
+        self.A = ss.A
+        self.B = ss.B
+        self.C = ss.C
+        self.D = ss.D
 
-        if len(self.af) < 3:
-            self.af += [0] * (3 - len(self.af))
+        self.Cf = np.round(self.C * BASE_MAX * 2).astype(np.int32)
+        self.Df = np.round(self.D * BASE_MAX * 2).astype(np.int32)
 
-        self.bf = list(map(lambda x: round(x * FILT_ONE), self.bf))
-        self.af = list(map(lambda x: round(x * FILT_ONE), self.af))
+        self.C0 = self.Cf[0][0]
+        self.C1 = self.Cf[0][1]
+        self.D0 = self.Df[0][0]
 
-        self.phi_locked = np.int32(0)
-        self.y1 = np.int32(0)
-        self.x1 = np.int32(0)
-        self.y2 = np.int32(0)
-        self.x2 = np.int32(0)
-        self.y0_err = np.int32(0)
+        self.x = np.zeros((self.A.shape[0], 1), dtype=np.int32)
+        self.phi_locked = 0.0
 
         self.sin_table = []
         for idx in range(2048):
@@ -295,22 +283,16 @@ class PLLFixed:
         tmp_i = (i * out_i + q * out_q) >> BASE_BITS
         tmp_q = (-i * out_q + q * out_i) >> BASE_BITS
 
-        err = np.int32((rectangular_2_phase(tmp_q, tmp_i) * FIX_ERR_SCALE))
+        err = np.int32(rectangular_2_phase(tmp_q, tmp_i))
+        err = err * FIX_ERR_SCALE + ((err * FIX_ERR_FRAC) >> BASE_BITS)
         # err = np.int64(round(FIX_ONE * np.angle(tmp_i + 1j * tmp_q)))
 
-        y0 = np.int32(err * self.bf[0] + self.x1 * self.bf[1] + self.x2 * self.bf[2])
-        y0 += self.y0_err
-        self.y0_err = y0 & FILT_ONE
-        y0 >>= FILT_BITS
-        if self.num_taps == 3:
-            y0 += 2 * self.y1 - self.y2
-        else:
-            y0 += self.y1
-        self.y2 = self.y1
-        self.y1 = y0
-        self.x2 = self.x1
-        self.x1 = err
-        self.phi_locked += y0
+        y0 = (self.C0 * self.x[0] + self.C1 * self.x[1] + self.D0 * err) >> 15
+        y0 = y0[0]
+        x = np.array(self.x)
+        self.x[0] = 2 * x[0] - x[1] + err
+        self.x[1] = x[0]
+        self.phi_locked += y0 // 2
 
         self.phi_locked = (
             self.phi_locked - (2 * FIX_PI)
@@ -353,20 +335,14 @@ def fixed_sim(loop_bw, time, input):
     pll = PLLFixed(loop_bw)
 
     print(f"// PLL loop bandwidth: {loop_bw}Hz")
-    print(f"#define AMSYNC_NUM_TAPS ({pll.num_taps})")
-    for i in range(pll.num_taps):
-        print(f"#define AMSYNC_B{i} ({pll.bf[i]})")
-    for i in range(pll.num_taps):
-        print(f"#define AMSYNC_A{i} ({pll.af[i]})")
+    print(f"#define AMSYNC_C0 ({pll.C0})")
+    print(f"#define AMSYNC_C1 ({pll.C1})")
+    print(f"#define AMSYNC_D0 ({pll.D0})")
     print(f"#define AMSYNC_PI ({FIX_PI})")
-    print(f"#define AMSYNC_ONE ({FIX_ONE})")
-    print(f"#define AMSYNC_MAX ({FIX_MAX})")
     print(f"#define AMSYNC_ERR_SCALE ({FIX_ERR_SCALE})")
+    print(f"#define AMSYNC_ERR_FRAC ({FIX_ERR_FRAC})")
     print(f"#define AMSYNC_PHI_SCALE ({FIX_PHI_SCALE})")
-    print(f"#define AMSYNC_FRACTION_BITS ({FIX_ONE_BITS})")
     print(f"#define AMSYNC_BASE_FRACTION_BITS ({BASE_BITS})")
-    print(f"#define AMSYNC_FILT_BITS ({FILT_BITS})")
-    print(f"#define AMSYNC_FILT_ONE ({FILT_ONE})")
 
     output = []
     error = []
@@ -445,6 +421,6 @@ if __name__ == "__main__":
     input_a = 0.1 * np.exp(1j * phase)
     input_a += get_noise(0.01, len(time)) + 1j * get_noise(0.01, len(time))
 
-    floating_sim(30, time, input_a)
-    fixed_sim(30, time, input_a)
+    floating_sim(20, time, input_a)
+    fixed_sim(20, time, input_a)
     c_fixed_sim(time, input_a)
