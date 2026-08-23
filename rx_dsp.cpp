@@ -5,6 +5,7 @@
 #include "pico/stdlib.h"
 #include "cic_corrections.h"
 #include "sdcard.h"
+#include "rnn_denoiser.h"
 
 #include <math.h>
 #include <cstdio>
@@ -689,6 +690,7 @@ void rx_dsp :: set_auto_notch(bool enable_auto_notch)
 void rx_dsp :: set_nn_denoiser(uint8_t val)
 {
   filter_control.nn_denoiser = val;
+  rnn_denoiser_set_mode(filter_control.nn_denoiser);
 }
 
 void rx_dsp :: set_spectrum_smoothing(uint8_t spectrum_smoothing)
