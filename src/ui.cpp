@@ -3168,11 +3168,11 @@ void ui::do_ui(void)
           settings.channel.mode += encoder_change;
           settings.channel.mode %= 6u;
         } else if (back_button.is_held()) {
-          settings.global.squelch_threshold += encoder_change;
-          settings.global.squelch_threshold %= 13;
+          int8_t new_squelch_threshold = settings.global.squelch_threshold + encoder_change;
+          settings.global.squelch_threshold = (uint8_t)std::clamp(new_squelch_threshold, (int8_t)0, (int8_t)12);
         } else {
-          settings.global.volume += encoder_change;
-          settings.global.volume %= 10u;
+          int8_t new_volume = settings.global.volume + encoder_change;
+          settings.global.volume = (uint8_t)std::clamp(new_volume, (int8_t)0, (int8_t)9);
         }
         update_settings = true;
       } else {
