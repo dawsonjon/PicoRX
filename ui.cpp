@@ -840,6 +840,35 @@ void ui::renderpage_smeter(bool view_changed)
   display_show();
 }
 
+static inline int _cmp(const void* a, const void* b) {
+  if (*(uint8_t*)a > *(uint8_t*)b) {
+    return -1;
+  }
+  if (*(uint8_t*)a < *(uint8_t*)b) {
+    return 1;
+  }
+  return 0;
+}
+
+static void get_spectrum_est(const uint8_t *const spectrum, uint8_t *noise, uint8_t *max)
+{
+  uint8_t tmp_spectrum[2 * WATERFALL_WIDTH];
+  *max = 0;
+  // Rough noise floor approximation via median
+  for (uint16_t x = 0; x < 2 * WATERFALL_WIDTH; x++)
+  {
+    tmp_spectrum[x] = spectrum[x];
+    if (*max < spectrum[x])
+    {
+      *max = spectrum[x];
+    }
+  }
+  qsort(tmp_spectrum, 256, sizeof(tmp_spectrum[0]), _cmp);
+  *noise = ((uint16_t)tmp_spectrum[WATERFALL_WIDTH - 1] +
+            tmp_spectrum[WATERFALL_WIDTH]) /
+           2;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Paints the spectrum from startY to bottom of screen
 ////////////////////////////////////////////////////////////////////////////////
@@ -876,13 +905,17 @@ void ui::draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY)
     }
   }
 
+  uint8_t noise;
+  uint8_t spec_max;
+  get_spectrum_est(spectrum, &noise, &spec_max);
+
   for(uint16_t x=0; x<128; x++)
   {
-    const int16_t y = spectrum[x*2]/scale;
+    const int16_t y = (spectrum[x * 2] - noise) / scale;
     ssd1306_draw_line(&disp, x, endY-y, x, endY, 1);
     if (settings.global.spectrum_hold) {
-      if (spectrum[x * 2] > hold_buf[x]) {
-        hold_buf[x] = spectrum[x * 2];
+      if ((spectrum[x * 2] - noise) > hold_buf[x]) {
+        hold_buf[x] = spectrum[x * 2] - noise;
       }
       if (x > 0) {
         u8g2_DrawLine(&u8g2, x - 1, (endY - hold_buf[x - 1] / scale), x,
@@ -903,16 +936,6 @@ void ui::draw_spectrum(bool view_changed, uint16_t startY, uint16_t endY)
   }
 }
 
-static inline int _cmp(const void* a, const void* b) {
-  if (*(uint8_t*)a > *(uint8_t*)b) {
-    return -1;
-  }
-  if (*(uint8_t*)a < *(uint8_t*)b) {
-    return 1;
-  }
-  return 0;
-}
-
 void ui::draw_waterfall(uint16_t starty)
 {
   static int8_t tmp_line[WATERFALL_WIDTH];
@@ -921,20 +944,9 @@ void ui::draw_waterfall(uint16_t starty)
   // Move waterfall down to  make room for the new line
   ssd1306_scroll_screen(&disp, 0, 1);
   int16_t err = 0;
-
-  uint8_t tmp_spectrum[2 * WATERFALL_WIDTH];
-  uint8_t spec_max = 0;
-  // Rough noise floor approximation via median
-  for (uint16_t x = 0; x < 2 * WATERFALL_WIDTH; x++) {
-    tmp_spectrum[x] = spectrum[x];
-    if (spec_max < spectrum[x]) {
-      spec_max = spectrum[x];
-    }
-  }
-  qsort(tmp_spectrum, 256, sizeof(tmp_spectrum[0]), _cmp);
-  const uint8_t noise = ((uint16_t)tmp_spectrum[WATERFALL_WIDTH - 1] +
-                         tmp_spectrum[WATERFALL_WIDTH]) /
-                        4;
+  uint8_t noise;
+  uint8_t spec_max;
+  get_spectrum_est(spectrum, &noise, &spec_max);
 
   for (uint16_t x = 0; x < WATERFALL_WIDTH; x++) {
     int16_t y = 64 * (spectrum[2 * x] - noise) / (spec_max - noise);
