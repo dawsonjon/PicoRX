@@ -336,6 +336,10 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
     //Demodulate to give audio sample
     int32_t audio = demodulate(i, q, magnitude, _phase);
 
+    //Automatic gain control scales signal to use full 16 bit range
+    //e.g. -32767 to 32767
+    audio = automatic_gain_control(audio);
+
     //De-emphasis
     audio = apply_deemphasis(audio);
 
@@ -344,10 +348,6 @@ uint16_t __not_in_flash_func(rx_dsp :: process_block)(uint16_t samples[], int16_
 
     // Treble
     audio = apply_treble(audio);
-
-    //Automatic gain control scales signal to use full 16 bit range
-    //e.g. -32767 to 32767
-    audio = automatic_gain_control(audio);
 
     //squelch
     audio = squelch(audio);
