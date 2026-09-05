@@ -62,6 +62,13 @@ unsigned bit_reverse(unsigned x, unsigned m) {
   return x >> (16-m);
 }
 
+static inline int32_t product32(int32_t a, int32_t b) {
+        return ((b * a)+K) >> fraction_bits;
+}
+
+static int32_t g_real[1UL << max_m];
+static int32_t g_imag[1UL << max_m];
+
 #ifndef SIMULATION
 void __not_in_flash_func(fixed_fft)(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #else
@@ -69,22 +76,28 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
 #endif
   (void)scale;
   uint16_t stage, subdft_size, span, j, i, ip;
-  int16_t temp_real, temp_imaginary;
-  int16_t top_real, top_imaginary;
-  int16_t bottom_real, bottom_imaginary;
-  int16_t imaginary_twiddle, real_twiddle;
-  const unsigned n = 1 << m;
+  int32_t temp_real, temp_imaginary;
+  int32_t top_real, top_imaginary;
+  int32_t bottom_real, bottom_imaginary;
+  int32_t imaginary_twiddle, real_twiddle;
+  const uint16_t n = 1 << m;
+
+  for (i = 0u; i < n; i++)
+  {
+    g_real[i] = reals[i];
+    g_imag[i] = imaginaries[i];
+  }
 
   // bit reverse data
   for (i = 0u; i < n; i++) {
     ip = bit_reverse(i, m);
     if (i < ip) {
-      temp_real = reals[i];
-      temp_imaginary = imaginaries[i];
-      reals[i] = reals[ip];
-      imaginaries[i] = imaginaries[ip];
-      reals[ip] = temp_real;
-      imaginaries[ip] = temp_imaginary;
+      temp_real = g_real[i];
+      temp_imaginary = g_imag[i];
+      g_real[i] = g_real[ip];
+      g_imag[i] = g_imag[ip];
+      g_real[ip] = temp_real;
+      g_imag[ip] = temp_imaginary;
     }
   }
 
@@ -93,7 +106,6 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
      subdft_size = 2 << stage;
      span = subdft_size >> 1;
      uint16_t shift = (max_m - stage - 1);
-     uint16_t apply_scaling_this_stage = stage & 1;
      uint16_t quarter_turn = 1 << (stage-1);
 
      for (j = 0; j < span; ++j) {
@@ -106,11 +118,11 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
          for (i = j; i < n; i += subdft_size) {
            ip = i + span;
 
-           top_real = reals[i];
-           top_imaginary = imaginaries[i];
+           top_real = g_real[i];
+           top_imaginary = g_imag[i];
 
-           temp_real = reals[ip];
-           temp_imaginary = imaginaries[ip];
+           temp_real = g_real[ip];
+           temp_imaginary = g_imag[ip];
 
            bottom_real = top_real - temp_real;
            bottom_imaginary = top_imaginary - temp_imaginary;
@@ -118,10 +130,10 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
            top_real = top_real + temp_real;
            top_imaginary = top_imaginary + temp_imaginary;
 
-           reals[ip] = bottom_real>>apply_scaling_this_stage;
-           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-           reals[i] = top_real>>apply_scaling_this_stage;
-           imaginaries[i] = top_imaginary>>apply_scaling_this_stage;
+           g_real[ip] = bottom_real;
+           g_imag[ip] = bottom_imaginary;
+           g_real[i] = top_real;
+           g_imag[i] = top_imaginary;
          }
 
        }
@@ -133,10 +145,10 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
          for (i = j; i < n; i += subdft_size) {
            ip = i + span;
 
-           top_real         = reals[i];
-           top_imaginary    = imaginaries[i];
-           bottom_real      = reals[ip];
-           bottom_imaginary = imaginaries[ip];
+           top_real = g_real[i];
+           top_imaginary = g_imag[i];
+           bottom_real = g_real[ip];
+           bottom_imaginary = g_imag[ip];
 
            temp_real        = bottom_imaginary;
            temp_imaginary   = -bottom_real;
@@ -147,11 +159,10 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
            top_real         = top_real + temp_real;
            top_imaginary    = top_imaginary + temp_imaginary;
 
-           // after every second stage lose 1 bit
-           reals[ip]       = bottom_real>>apply_scaling_this_stage;
-           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-           reals[i]        = top_real>>apply_scaling_this_stage;
-           imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
+           g_real[ip] = bottom_real;
+           g_imag[ip] = bottom_imaginary;
+           g_real[i] = top_real;
+           g_imag[i] = top_imaginary;
          }
 
        }
@@ -165,15 +176,15 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
          for (i = j; i < n; i += subdft_size) {
            ip = i + span;
 
-           top_real         = reals[i];
-           top_imaginary    = imaginaries[i];
-           bottom_real      = reals[ip];
-           bottom_imaginary = imaginaries[ip];
+           top_real = g_real[i];
+           top_imaginary = g_imag[i];
+           bottom_real = g_real[ip];
+           bottom_imaginary = g_imag[ip];
 
-           temp_real      = product(bottom_real, real_twiddle) -
-                            product(bottom_imaginary, imaginary_twiddle);
-           temp_imaginary = product(bottom_real, imaginary_twiddle) +
-                            product(bottom_imaginary, real_twiddle);
+           temp_real      = product32(bottom_real, real_twiddle) -
+                            product32(bottom_imaginary, imaginary_twiddle);
+           temp_imaginary = product32(bottom_real, imaginary_twiddle) +
+                            product32(bottom_imaginary, real_twiddle);
 
            bottom_real      = top_real - temp_real;
            bottom_imaginary = top_imaginary - temp_imaginary;
@@ -181,15 +192,20 @@ void fixed_fft(int16_t reals[], int16_t imaginaries[], unsigned m, bool scale) {
            top_real         = top_real + temp_real;
            top_imaginary    = top_imaginary + temp_imaginary;
 
-           // after every second stage lose 1 bit
-           reals[ip]       = bottom_real>>apply_scaling_this_stage;
-           imaginaries[ip] = bottom_imaginary>>apply_scaling_this_stage;
-           reals[i]        = top_real>>apply_scaling_this_stage;
-           imaginaries[i]  = top_imaginary>>apply_scaling_this_stage;
+           g_real[ip] = bottom_real;
+           g_imag[ip] = bottom_imaginary;
+           g_real[i] = top_real;
+           g_imag[i] = top_imaginary;
          }
        }
 
     }
+  }
+
+  for(i = 0; i < n; i++)
+  {
+    reals[i] = g_real[i] / 16;
+    imaginaries[i] = g_imag[i] / 16;
   }
 }
 
