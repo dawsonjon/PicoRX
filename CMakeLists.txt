@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # FetchContent to pull down the SDK sources from GitHub.
 if(NOT DEFINED ENV{PICO_SDK_PATH})
     set(ENV{PICO_SDK_FETCH_FROM_GIT} "1")
-    set(ENV{PICO_SDK_FETCH_FROM_GIT_TAG} "2.3.0")
+    set(ENV{PICO_SDK_FETCH_FROM_GIT_TAG} "2.3.1")
     set(ENV{PICOTOOL_FORCE_FETCH_FROM_GIT} "1")
     set(ENV{PICOTOOL_FETCH_FROM_GIT_PATH} "${CMAKE_BINARY_DIR}/picotool-build")
 endif()
